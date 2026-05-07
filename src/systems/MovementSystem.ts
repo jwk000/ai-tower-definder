@@ -19,6 +19,9 @@ export class MovementSystem implements System {
 
   update(entities: number[], dt: number): void {
     for (const id of entities) {
+      const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
+      if (enemy?.movementPaused) continue;
+
       const pos = this.world.getComponent<Position>(id, CType.Position)!;
       const mov = this.world.getComponent<Movement>(id, CType.Movement)!;
 

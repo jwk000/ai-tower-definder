@@ -5,8 +5,10 @@ import { Health } from '../components/Health.js';
 import { Movement } from '../components/Movement.js';
 import { Enemy } from '../components/Enemy.js';
 import { Render } from '../components/Render.js';
+import { Boss } from '../components/Boss.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import type { MapConfig } from '../types/index.js';
+import { generateEndlessWave } from './EndlessWaveGenerator.js';
 
 /** Manages wave progression and enemy spawning */
 export class WaveSystem implements System {
@@ -21,6 +23,12 @@ export class WaveSystem implements System {
   private spawnedInWave: number = 0;
   private totalInWave: number = 0;
   private waveActive: boolean = false;
+  private isBossWave: boolean = false;
+  private isEndless: boolean = false;
+
+  /** Auto-countdown timer — ticks down to 0 then starts next wave */
+  countdown: number = 0;
+  private countdownDuration: number = 5;
 
   constructor(
     private world: World,
@@ -37,18 +45,65 @@ export class WaveSystem implements System {
   }
 
   get totalWaves(): number {
-    return this.waves.length;
+    return this.isEndless ? -1 : this.waves.length;
   }
 
   get isActive(): boolean {
     return this.waveActive;
   }
 
+  get currentIsBossWave(): boolean {
+    return this.isBossWave;
+  }
+
+  get isEndlessMode(): boolean {
+    return this.isEndless;
+  }
+
+  startEndlessMode(): void {
+    this.isEndless = true;
+    this.waves = [];
+    this.currentWaveIndex = 0;
+    this.spawnQueue = [];
+    this.waveActive = false;
+    this.isBossWave = false;
+  }
+
+  /** Start auto-countdown before next wave. Call on phase transitions. */
+  startAutoCountdown(seconds?: number): void {
+    this.countdown = seconds ?? this.countdownDuration;
+    this.countdownDuration = seconds ?? 5;
+  }
+
+  /** Skip countdown and start the wave immediately */
+  skipCountdown(): void {
+    this.countdown = 0;
+    this.startWave();
+  }
+
   /** Player clicks "start wave" — begin spawning */
   startWave(): void {
+    if (this.isEndless) {
+      const wave = generateEndlessWave(this.currentWaveIndex + 1);
+      this.isBossWave = wave.isBossWave ?? false;
+      this.spawnQueue = wave.enemies.map((g) => ({
+        enemyType: g.enemyType,
+        count: g.count,
+        interval: g.spawnInterval,
+      }));
+      this.spawnTimer = wave.spawnDelay;
+      this.spawnIntervalTimer = 0;
+      this.spawnedInWave = 0;
+      this.totalInWave = wave.enemies.reduce((sum, g) => sum + g.count, 0);
+      this.waveActive = true;
+      this.setPhase(GamePhase.Battle);
+      return;
+    }
+
     if (this.currentWaveIndex >= this.waves.length) return;
 
     const wave = this.waves[this.currentWaveIndex]!;
+    this.isBossWave = wave.isBossWave ?? false;
     this.spawnQueue = wave.enemies.map((g) => ({
       enemyType: g.enemyType,
       count: g.count,
@@ -63,6 +118,16 @@ export class WaveSystem implements System {
   }
 
   update(_entities: number[], dt: number): void {
+    // Auto-countdown (ticks regardless of wave state)
+    if (this.countdown > 0) {
+      this.countdown -= dt;
+      if (this.countdown <= 0) {
+        this.countdown = 0;
+        this.startWave();
+        return;
+      }
+    }
+
     if (!this.waveActive) return;
 
     // Wait for initial spawn delay
@@ -95,12 +160,17 @@ export class WaveSystem implements System {
       const aliveEnemies = this.world.query(CType.Enemy, CType.Health);
       if (aliveEnemies.length === 0) {
         this.waveActive = false;
+        this.isBossWave = false;
         this.currentWaveIndex++;
 
-        if (this.currentWaveIndex >= this.waves.length) {
+        if (this.isEndless) {
+          this.setPhase(GamePhase.WaveBreak);
+          this.startAutoCountdown(3); // 3s between endless waves
+        } else if (this.currentWaveIndex >= this.waves.length) {
           this.setPhase(GamePhase.Victory);
         } else {
           this.setPhase(GamePhase.WaveBreak);
+          this.startAutoCountdown(3); // 3s between waves
         }
       }
     }
@@ -119,7 +189,16 @@ export class WaveSystem implements System {
     this.world.addComponent(id, new Position(x, y));
     this.world.addComponent(id, new Health(config.hp));
     this.world.addComponent(id, new Movement(config.speed));
-    this.world.addComponent(id, new Enemy(config.type, config.defense, config.atk));
-    this.world.addComponent(id, new Render('circle', config.color, config.radius * 2));
+    this.world.addComponent(id, new Enemy(config.type, config.defense, config.atk, config.speed));
+
+    const render = new Render('circle', config.color, config.radius * 2);
+    render.label = config.name;
+    render.labelColor = '#ffffff';
+    render.labelSize = 12;
+    this.world.addComponent(id, render);
+
+    if (config.isBoss) {
+      this.world.addComponent(id, new Boss([], config.bossPhase2HpRatio ?? 0.5));
+    }
   }
 }

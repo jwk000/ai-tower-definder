@@ -6,8 +6,15 @@ export class Game {
   world: World;
   input: InputManager;
   renderer: Renderer;
-  /** Called after the command buffer is flushed — for UI overlay drawing */
   onPostRender: (() => void) | null = null;
+  onUpdate: ((dt: number) => void) | null = null;
+  onAfterUpdate: (() => void) | null = null;
+
+  /** Game speed multiplier (1.0 = normal, 2.0 = double) */
+  gameSpeed: number = 1.0;
+  /** Pause state — skips logic updates but still renders */
+  paused: boolean = false;
+
   private running: boolean = false;
   private lastTime: number = 0;
   private rafId: number = 0;
@@ -33,22 +40,32 @@ export class Game {
   private loop = (now: number): void => {
     if (!this.running) return;
 
-    const deltaTime = Math.min((now - this.lastTime) / 1000, 0.05);
+    const rawDt = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
 
-    // 1. Begin frame — clear buffer + background
+    // 1. Begin frame
     this.renderer.beginFrame();
 
-    // 2. Process input (consume queued events)
+    // 2. Input (always processed for pause menu etc.)
     this.input.flush();
 
-    // 3. Update game logic — systems push render commands
-    this.world.update(deltaTime);
+    // 3. Logic update — skip if paused, but still tick world for UI rendering
+    if (!this.paused) {
+      const dt = rawDt * this.gameSpeed;
+      if (this.onUpdate) {
+        this.onUpdate(dt);
+      } else {
+        this.world.update(dt);
+      }
+      this.onAfterUpdate?.();
+    } else {
+      this.world.update(0);
+    }
 
-    // 4. Render scene — flush command buffer to canvas
+    // 4. Render
     this.renderer.endFrame();
 
-    // 5. UI overlay — text drawn on top
+    // 5. UI overlay
     this.onPostRender?.();
 
     this.rafId = requestAnimationFrame(this.loop);

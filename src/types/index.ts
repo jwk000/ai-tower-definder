@@ -43,7 +43,14 @@ export interface MapConfig {
   rows: number;
   tileSize: number;
   tiles: TileType[][];
-  enemyPath: GridPos[]; // ordered waypoints enemies follow
+  enemyPath: GridPos[];
+  tileColors?: Partial<Record<TileType, string>>;
+  altSpawnPoints?: GridPos[];
+  neutralUnits?: Array<{
+    type: 'trap' | 'spring' | 'chest';
+    row: number; col: number;
+    config?: Record<string, number>;
+  }>;
 }
 
 export interface GridPos {
@@ -55,7 +62,9 @@ export interface GridPos {
 
 export enum TowerType {
   Arrow = 'arrow',
-  // Future: Cannon, Ice, Lightning, Poison, Light
+  Cannon = 'cannon',
+  Ice = 'ice',
+  Lightning = 'lightning',
 }
 
 export interface TowerConfig {
@@ -64,31 +73,151 @@ export interface TowerConfig {
   cost: number;
   hp: number;
   atk: number;
-  attackSpeed: number; // attacks per second
-  range: number; // pixels
-  upgradeCosts: number[]; // cost to each level [L2, L3, L4, L5]
-  upgradeAtkBonus: number[]; // atk increase per level
-  upgradeRangeBonus: number[]; // range increase per level
-  color: string; // geometric shape fill color
+  attackSpeed: number;
+  range: number;
+  damageType: 'physical' | 'magic';
+  upgradeCosts: number[];
+  upgradeAtkBonus: number[];
+  upgradeRangeBonus: number[];
+  color: string;
+  splashRadius?: number;
+  knockback?: number;
+  slowPercent?: number;
+  slowMaxStacks?: number;
+  freezeDuration?: number;
+  chainCount?: number;
+  chainDecay?: number;
+  chainRange?: number;
 }
 
 // ---- Enemy ----
 
 export enum EnemyType {
   Grunt = 'grunt',
-  // Future: Runner, Heavy, Mage, Exploder
+  Runner = 'runner',
+  Heavy = 'heavy',
+  Mage = 'mage',
+  Exploder = 'exploder',
+  BossCommander = 'boss_commander',
+  BossBeast = 'boss_beast',
 }
 
 export interface EnemyConfig {
   type: EnemyType;
   name: string;
   hp: number;
-  speed: number; // pixels per second
-  atk: number; // damage to base if reaches end
+  speed: number;
+  atk: number;
   defense: number;
+  magicResist: number;
+  attackRange: number;
+  attackSpeed: number;
+  canAttackBuildings: boolean;
   rewardGold: number;
   color: string;
   radius: number;
+  specialOnDeath?: 'explode';
+  deathDamage?: number;
+  deathRadius?: number;
+  isBoss?: boolean;
+  bossPhase2HpRatio?: number;
+}
+
+// ---- Unit ----
+
+export enum UnitType {
+  ShieldGuard = 'shield_guard',
+  Swordsman = 'swordsman',
+}
+
+export interface UnitConfig {
+  type: UnitType;
+  name: string;
+  hp: number;
+  atk: number;
+  attackSpeed: number;
+  attackRange: number;
+  speed: number;
+  defense: number;
+  popCost: number;
+  color: string;
+  size: number;
+  skillId: string;
+  cost: number;
+}
+
+// ---- Production ----
+
+export enum ProductionType {
+  GoldMine = 'gold_mine',
+  EnergyTower = 'energy_tower',
+}
+
+export interface ProductionConfig {
+  type: ProductionType;
+  name: string;
+  cost: number;
+  hp: number;
+  resourceType: 'gold' | 'energy';
+  baseRate: number;
+  upgradeRateBonus: number;
+  upgradeCosts: number[];
+  maxLevel: number;
+  color: string;
+}
+
+// ---- Buff ----
+
+export enum BuffAttribute {
+  HP = 'hp',
+  ATK = 'atk',
+  Speed = 'speed',
+  Defense = 'defense',
+  Range = 'range',
+  AttackSpeed = 'attack_speed',
+}
+
+export interface BuffInstance {
+  id: string;
+  name: string;
+  attribute: BuffAttribute;
+  value: number;
+  isPercent: boolean;
+  duration: number;
+  maxStacks: number;
+  currentStacks: number;
+  sourceEntityId: EntityId;
+}
+
+// ---- Skill ----
+
+export enum SkillTrigger {
+  Active = 'active',
+  Passive = 'passive',
+  Aura = 'aura',
+  Conditional = 'conditional',
+}
+
+export interface SkillConfig {
+  id: string;
+  name: string;
+  trigger: SkillTrigger;
+  cooldown: number;
+  energyCost: number;
+  range: number;
+  value: number;
+  buffId: string | null;
+  description: string;
+}
+
+// ---- Economy ----
+
+export interface PlayerResources {
+  gold: number;
+  energy: number;
+  lives: number;
+  population: number;
+  maxPopulation: number;
 }
 
 // ---- Wave ----
@@ -96,20 +225,15 @@ export interface EnemyConfig {
 export interface WaveEnemyGroup {
   enemyType: EnemyType;
   count: number;
-  spawnInterval: number; // seconds between spawns
+  spawnInterval: number;
 }
 
 export interface WaveConfig {
   waveNumber: number;
   enemies: WaveEnemyGroup[];
-  spawnDelay: number; // seconds before wave starts
-}
-
-// ---- Economy ----
-
-export interface PlayerResources {
-  gold: number;
-  lives: number;
+  spawnDelay: number;
+  isBossWave?: boolean;
+  spawnPointIndex?: number;
 }
 
 // ---- Game State ----
@@ -139,7 +263,7 @@ export interface InputEvent {
 
 // ---- Geometry Rendering ----
 
-export type ShapeType = 'rect' | 'circle' | 'triangle' | 'diamond' | 'hexagon';
+export type ShapeType = 'rect' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'arrow';
 
 export interface RenderCommand {
   shape: ShapeType;
@@ -151,6 +275,22 @@ export interface RenderCommand {
   rotation?: number;
   stroke?: string;
   strokeWidth?: number;
+  label?: string;
+  labelColor?: string;
+  labelSize?: number;
+  targetX?: number;
+  targetY?: number;
+  h?: number;           // height for rect (defaults to size = square)
+}
+
+// ---- Projectile ----
+
+export interface ProjectileConfig {
+  speed: number;       // pixels per second
+  damage: number;
+  shape: ShapeType;
+  color: string;
+  size: number;
 }
 
 // ---- Component Types (ECS data) ----
@@ -165,6 +305,48 @@ export const CType = {
   Enemy: 'Enemy',
   PlayerOwned: 'PlayerOwned',
   GridOccupant: 'GridOccupant',
+  Projectile: 'Projectile',
+  Unit: 'Unit',
+  PlayerControllable: 'PlayerControllable',
+  Buff: 'Buff',
+  Skill: 'Skill',
+  Production: 'Production',
+  Boss: 'Boss',
+  EnemyAttacker: 'EnemyAttacker',
+  Trap: 'Trap',
+  HealingSpring: 'HealingSpring',
+  GoldChest: 'GoldChest',
 } as const;
 
 export type ComponentType = (typeof CType)[keyof typeof CType];
+
+// ---- Game Screen ----
+
+export enum GameScreen {
+  LevelSelect = 'level_select',
+  Battle = 'battle',
+}
+
+// ---- Level System ----
+
+export enum LevelTheme {
+  Plains = 'plains',
+  Desert = 'desert',
+  Tundra = 'tundra',
+  Volcano = 'volcano',
+  Castle = 'castle',
+}
+
+export interface LevelConfig {
+  id: string;
+  name: string;
+  theme: LevelTheme;
+  description: string;
+  map: MapConfig;
+  waves: WaveConfig[];
+  startingGold: number;
+  availableTowers: TowerType[];
+  availableUnits: UnitType[];
+  unlockStarsRequired: number;
+  unlockPrevLevelId: string | null;
+}

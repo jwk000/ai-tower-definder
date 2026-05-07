@@ -16,6 +16,14 @@ export class World {
     return id;
   }
 
+  clear(): void {
+    this.entities.clear();
+    this.components.clear();
+    this.deadEntities.clear();
+    this.systems = [];
+    this.nextId = 0;
+  }
+
   destroyEntity(id: EntityId): void {
     this.deadEntities.add(id);
   }
