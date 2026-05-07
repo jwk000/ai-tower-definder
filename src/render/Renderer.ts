@@ -39,7 +39,6 @@ export class Renderer {
 
   beginFrame(): void {
     this.commands = [];
-    // Fill with solid background instead of transparent
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }

@@ -8,8 +8,9 @@ import { Render } from '../components/Render.js';
 import { PlayerOwned } from '../components/PlayerOwned.js';
 import { Production } from '../components/Production.js';
 import { Trap } from '../components/Trap.js';
-import { TOWER_CONFIGS, PRODUCTION_CONFIGS } from '../data/gameData.js';
+import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS } from '../data/gameData.js';
 import { RenderSystem } from './RenderSystem.js';
+import { isAdjacentToPath } from '../utils/grid.js';
 import type { MapConfig } from '../types/index.js';
 
 export interface DragState {
@@ -83,14 +84,21 @@ export class BuildSystem implements System {
     }
 
     const tile = this.map.tiles[row]![col]!;
-    if (tile !== TileType.Empty) {
-      this.cancelDrag();
-      return false;
-    }
 
-    if (!isAdjacentToPath(row, col, this.map)) {
-      this.cancelDrag();
-      return false;
+    if (this.dragState.entityType === 'trap') {
+      if (tile !== TileType.Path) {
+        this.cancelDrag();
+        return false;
+      }
+    } else {
+      if (tile !== TileType.Empty) {
+        this.cancelDrag();
+        return false;
+      }
+      if (!isAdjacentToPath(row, col, this.map)) {
+        this.cancelDrag();
+        return false;
+      }
     }
 
     const occupants = this.world.query(CType.GridOccupant);
@@ -164,9 +172,7 @@ export class BuildSystem implements System {
     if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
 
     const tile = this.map.tiles[row]![col]!;
-    if (tile !== TileType.Empty) return false;
-
-    if (!isAdjacentToPath(row, col, this.map)) return false;
+    if (tile !== TileType.Path) return false;
 
     const occupants = this.world.query(CType.GridOccupant);
     for (const id of occupants) {
@@ -215,18 +221,6 @@ export class BuildSystem implements System {
     const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
 
     return this.createProductionEntity(x, y, row, col, config.type);
-  }
-
-    const pt = this.dragState?.productionType;
-    if (!pt) return false;
-    const config = PRODUCTION_CONFIGS[pt];
-    if (!config) return false;
-    if (!this.spendGold(config.cost)) return false;
-
-    const x = col * ts + ts / 2 + RenderSystem.sceneOffsetX;
-    const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
-
-    return this.createTowerEntity(x, y, row, col, config.type);
   }
 
   // ---- Placement helpers (used by both tryBuild and tryDrop) ----
@@ -293,10 +287,10 @@ export class BuildSystem implements System {
     const id = this.world.createEntity();
     this.world.addComponent(id, new Position(x, y));
     this.world.addComponent(id, new GridOccupant(row, col));
-    this.world.addComponent(id, new Trap(30, 2.0, 32));
+    this.world.addComponent(id, new Trap(20, 32));
     const render = new Render('triangle', '#e53935', ts * 0.5);
     render.outline = true;
-    render.label = '陷阱';
+    render.label = '地刺';
     render.labelColor = '#ffffff';
     render.labelSize = 14;
     this.world.addComponent(id, render);
@@ -321,19 +315,4 @@ export class BuildSystem implements System {
     this.world.addComponent(id, new PlayerOwned());
     return id;
   }
-}
-
-/** Returns true if any of the 8 neighboring tiles of (row, col) is a Path tile. */
-export function isAdjacentToPath(row: number, col: number, map: MapConfig): boolean {
-  const { rows, cols, tiles } = map;
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const nr = row + dr;
-      const nc = col + dc;
-      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-      if (tiles[nr]![nc] === TileType.Path) return true;
-    }
-  }
-  return false;
 }

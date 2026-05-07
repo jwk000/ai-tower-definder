@@ -9,7 +9,7 @@ import { Projectile } from '../components/Projectile.js';
 import { BuffContainer } from '../components/Buff.js';
 import { Boss } from '../components/Boss.js';
 import { Enemy } from '../components/Enemy.js';
-import { isAdjacentToPath } from './BuildSystem.js';
+import { isAdjacentToPath } from '../utils/grid.js';
 import type { MapConfig, SceneLayout } from '../types/index.js';
 
 export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: number): SceneLayout {
@@ -87,17 +87,16 @@ export class RenderSystem implements System {
       }
     }
 
-    this.renderer.push({
-      shape: 'rect',
-      x: ox + mapW / 2,
-      y: oy + mapH / 2,
-      size: mapW + 4,
-      h: mapH + 4,
-      color: '#000000',
-      alpha: 1,
-      stroke: '#000000',
-      strokeWidth: 2,
-    });
+    // Scene border (4 thin rects — top, bottom, left, right)
+    const borderW = 3;
+    // Top
+    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy - borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1 });
+    // Bottom
+    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy + mapH + borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1 });
+    // Left
+    this.renderer.push({ shape: 'rect', x: ox - borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1 });
+    // Right
+    this.renderer.push({ shape: 'rect', x: ox + mapW + borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1 });
   }
 
   private drawEntities(entities: number[]): void {
@@ -116,6 +115,37 @@ export class RenderSystem implements System {
       const isProjectile = this.world.hasComponent(id, CType.Projectile);
       const isEnemy = this.world.hasComponent(id, CType.Enemy);
       const isTower = this.world.hasComponent(id, CType.Tower);
+      const isTrap = this.world.hasComponent(id, CType.Trap);
+
+      if (isTrap) {
+        const trapFlash = r.hitFlashTimer > 0;
+        r.hitFlashTimer = 0;
+        const tColor = trapFlash ? '#ff1744' : '#f44336';
+        const tAlpha = trapFlash ? 1 : 1;
+        for (let o = -1; o <= 1; o++) {
+          this.renderer.push({
+            shape: 'triangle',
+            x: pos.x + o * 8,
+            y: pos.y,
+            size: 14,
+            color: tColor,
+            alpha: tAlpha,
+          });
+        }
+        this.renderer.push({
+          shape: 'rect',
+          x: pos.x,
+          y: pos.y + 16,
+          size: 0.1,
+          h: 0.1,
+          color: '#f44336',
+          alpha: 1,
+          label: '地刺',
+          labelColor: '#ffffff',
+          labelSize: 12,
+        });
+        continue;
+      }
 
       const flashActive = r.hitFlashTimer > 0;
       let displayColor = r.color;

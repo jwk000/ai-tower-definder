@@ -327,6 +327,7 @@ export const CType = {
   Trap: 'Trap',
   HealingSpring: 'HealingSpring',
   GoldChest: 'GoldChest',
+  DeathEffect: 'DeathEffect',
 } as const;
 
 export type ComponentType = (typeof CType)[keyof typeof CType];
