@@ -10,26 +10,25 @@ import {
 } from '../../types/index.js';
 
 const WAYPOINTS: GridPos[] = [
-  { row: 2, col: 0 },
+  { row: 0, col: 2 },
+  { row: 3, col: 2 },
+  { row: 3, col: 5 },
+  { row: 6, col: 5 },
+  { row: 6, col: 1 },
+  { row: 8, col: 1 },
+  { row: 8, col: 6 },
+  { row: 5, col: 6 },
+  { row: 5, col: 3 },
+  { row: 2, col: 3 },
   { row: 2, col: 8 },
-  { row: 6, col: 8 },
-  { row: 6, col: 3 },
-  { row: 10, col: 3 },
-  { row: 10, col: 8 },
-  { row: 12, col: 8 },
-  { row: 12, col: 17 },
-  { row: 8, col: 17 },
-  { row: 8, col: 12 },
-  { row: 4, col: 12 },
-  { row: 4, col: 17 },
-  { row: 7, col: 17 },
-  { row: 7, col: 29 },
+  { row: 4, col: 8 },
+  { row: 4, col: 20 },
 ];
 
 const BLOCKED_TILES = new Set([
-  '3,10', '3,15', '5,5', '5,19',
-  '9,5', '9,21', '11,14', '11,22',
-  '13,3', '13,13', '14,9', '15,19',
+  '1,4', '1,7', '2,1', '2,6',
+  '4,1', '4,6', '5,4', '6,3',
+  '7,1', '7,5', '7,7', '8,4',
 ]);
 
 function isOnPath(row: number, col: number): boolean {
@@ -51,11 +50,11 @@ function isOnPath(row: number, col: number): boolean {
 
 function buildTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
-      if (col === 0 && row === 2) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+    for (let col = 0; col < 21; col++) {
+      if (col === 2 && row === 0) line.push(TileType.Spawn);
+      else if (col === 20 && row === 4) line.push(TileType.Base);
       else if (isOnPath(row, col)) line.push(TileType.Path);
       else if (BLOCKED_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
       else line.push(TileType.Empty);
@@ -67,8 +66,8 @@ function buildTiles(): TileType[][] {
 
 const MAP: MapConfig = {
   name: '沙漠',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
   tiles: buildTiles(),
   enemyPath: WAYPOINTS,

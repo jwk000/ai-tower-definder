@@ -37,6 +37,16 @@ export interface Tile {
   col: number;
 }
 
+export interface SceneLayout {
+  offsetX: number;
+  offsetY: number;
+  cols: number;
+  rows: number;
+  tileSize: number;
+  mapPixelW: number;
+  mapPixelH: number;
+}
+
 export interface MapConfig {
   name: string;
   cols: number;
@@ -81,7 +91,7 @@ export interface TowerConfig {
   upgradeRangeBonus: number[];
   color: string;
   splashRadius?: number;
-  knockback?: number;
+  stunDuration?: number;
   slowPercent?: number;
   slowMaxStacks?: number;
   freezeDuration?: number;
@@ -116,6 +126,7 @@ export interface EnemyConfig {
   rewardGold: number;
   color: string;
   radius: number;
+  description?: string;
   specialOnDeath?: 'explode';
   deathDamage?: number;
   deathRadius?: number;

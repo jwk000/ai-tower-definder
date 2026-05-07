@@ -10,48 +10,31 @@ import {
 } from '../../types/index.js';
 
 const WAYPOINTS: GridPos[] = [
-  { row: 1, col: 1 },
-  { row: 1, col: 6 },
-  { row: 4, col: 6 },
-  { row: 4, col: 9 },
-  { row: 7, col: 9 },
-  { row: 7, col: 3 },
-  { row: 11, col: 3 },
-  { row: 11, col: 8 },
-  { row: 13, col: 8 },
-  { row: 13, col: 11 },
-  { row: 9, col: 11 },
-  { row: 9, col: 15 },
-  { row: 4, col: 15 },
-  { row: 4, col: 19 },
-  { row: 8, col: 19 },
-  { row: 8, col: 23 },
-  { row: 12, col: 23 },
-  { row: 12, col: 27 },
-  { row: 7, col: 27 },
-  { row: 7, col: 24 },
-  { row: 2, col: 24 },
-  { row: 2, col: 19 },
-  { row: 7, col: 19 },
-  { row: 7, col: 29 },
+  { row: 1, col: 0 },
+  { row: 1, col: 2 },
+  { row: 3, col: 2 },
+  { row: 3, col: 4 },
+  { row: 5, col: 4 },
+  { row: 5, col: 1 },
+  { row: 7, col: 1 },
+  { row: 7, col: 5 },
+  { row: 5, col: 5 },
+  { row: 5, col: 7 },
+  { row: 3, col: 7 },
+  { row: 3, col: 8 },
+  { row: 5, col: 8 },
+  { row: 5, col: 20 },
 ];
 
 const WALL_TILES = new Set([
-  '2,0', '2,7', '2,8', '2,9', '2,10', '2,11',
-  '3,0', '3,7', '3,10', '3,11', '3,12', '3,14',
-  '5,0', '5,5', '5,7', '5,10', '5,11', '5,12', '5,14',
-  '6,0', '6,5', '6,10', '6,12', '6,13',
-  '8,0', '8,7', '8,9', '8,13', '8,14', '8,16',
-  '10,0', '10,7', '10,9', '10,13', '10,14', '10,16',
-  '12,7', '12,9', '12,13', '12,14', '12,15',
-  '14,0', '14,4', '14,5', '14,9', '14,10', '14,13', '14,14',
-  '15,4', '15,5', '15,9', '15,10',
-  '3,20', '3,21', '3,25', '3,26',
-  '5,20', '5,21', '5,25', '5,26',
-  '9,20', '9,21', '9,25', '9,26',
-  '10,20', '10,21', '10,25', '10,26',
-  '13,20', '13,21', '13,25', '13,26',
-  '14,20', '14,21', '14,22', '14,25', '14,26',
+  '0,1', '0,3', '1,1', '1,3',
+  '2,1', '2,5', '3,1', '3,5',
+  '4,2', '4,5', '5,2', '5,3',
+  '6,2', '6,4', '7,2', '7,4',
+  '8,1', '8,4', '8,6',
+  '0,5', '0,7', '1,5', '1,7',
+  '2,8', '3,6', '4,7', '6,7',
+  '7,7', '8,7',
 ]);
 
 function isOnPath(row: number, col: number): boolean {
@@ -73,11 +56,11 @@ function isOnPath(row: number, col: number): boolean {
 
 function buildTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
-      if (col === 1 && row === 1) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+    for (let col = 0; col < 21; col++) {
+      if (col === 0 && row === 1) line.push(TileType.Spawn);
+      else if (col === 20 && row === 5) line.push(TileType.Base);
       else if (isOnPath(row, col)) line.push(TileType.Path);
       else if (WALL_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
       else line.push(TileType.Empty);
@@ -89,8 +72,8 @@ function buildTiles(): TileType[][] {
 
 const MAP: MapConfig = {
   name: '城堡',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
   tiles: buildTiles(),
   enemyPath: WAYPOINTS,

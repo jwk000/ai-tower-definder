@@ -72,7 +72,7 @@ export class AttackSystem implements System {
     proj.sourceTowerType = type;
     if (towerCfg) {
       proj.splashRadius = towerCfg.splashRadius;
-      proj.knockback = towerCfg.knockback;
+      proj.stunDuration = towerCfg.stunDuration;
       proj.slowPercent = towerCfg.slowPercent;
       proj.slowMaxStacks = towerCfg.slowMaxStacks;
       proj.freezeDuration = towerCfg.freezeDuration;

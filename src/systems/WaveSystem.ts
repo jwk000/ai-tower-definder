@@ -9,6 +9,7 @@ import { Boss } from '../components/Boss.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import type { MapConfig } from '../types/index.js';
 import { generateEndlessWave } from './EndlessWaveGenerator.js';
+import { RenderSystem } from './RenderSystem.js';
 
 /** Manages wave progression and enemy spawning */
 export class WaveSystem implements System {
@@ -50,6 +51,10 @@ export class WaveSystem implements System {
 
   get isActive(): boolean {
     return this.waveActive;
+  }
+
+  get totalSpawned(): number {
+    return this.totalInWave;
   }
 
   get currentIsBossWave(): boolean {
@@ -182,8 +187,10 @@ export class WaveSystem implements System {
 
     const spawn = this.map.enemyPath[0]!;
     const ts = this.map.tileSize;
-    const x = spawn.col * ts + ts / 2;
-    const y = spawn.row * ts + ts / 2;
+    const ox = RenderSystem.sceneOffsetX;
+    const oy = RenderSystem.sceneOffsetY;
+    const x = spawn.col * ts + ts / 2 + ox;
+    const y = spawn.row * ts + ts / 2 + oy;
 
     const id = this.world.createEntity();
     this.world.addComponent(id, new Position(x, y));

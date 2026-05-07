@@ -1,26 +1,46 @@
 import { System } from '../types/index.js';
 import { World } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
-import { CType } from '../types/index.js';
+import { CType, TileType } from '../types/index.js';
 import { Position } from '../components/Position.js';
 import { Render } from '../components/Render.js';
 import { Health } from '../components/Health.js';
 import { Projectile } from '../components/Projectile.js';
 import { BuffContainer } from '../components/Buff.js';
 import { Boss } from '../components/Boss.js';
-import type { MapConfig } from '../types/index.js';
-import { TileType } from '../types/index.js';
+import { Enemy } from '../components/Enemy.js';
+import { isAdjacentToPath } from './BuildSystem.js';
+import type { MapConfig, SceneLayout } from '../types/index.js';
+
+export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: number): SceneLayout {
+  const mapPixelW = map.cols * map.tileSize;
+  const mapPixelH = map.rows * map.tileSize;
+  const offsetX = (canvasW - mapPixelW) / 2;
+  const offsetY = 50;
+  return { offsetX, offsetY, cols: map.cols, rows: map.rows, tileSize: map.tileSize, mapPixelW, mapPixelH };
+}
 
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
   readonly requiredComponents = [CType.Render] as const;
+
+  static sceneOffsetX = 0;
+  static sceneOffsetY = 0;
+  static sceneW = 0;
+  static sceneH = 0;
 
   constructor(
     private world: World,
     private renderer: Renderer,
     private map: MapConfig,
     private getSelectedTowerEntityId: () => number | null = () => null,
-  ) {}
+  ) {
+    const layout = computeSceneLayout(map, 1920, 1080);
+    RenderSystem.sceneOffsetX = layout.offsetX;
+    RenderSystem.sceneOffsetY = layout.offsetY;
+    RenderSystem.sceneW = layout.mapPixelW;
+    RenderSystem.sceneH = layout.mapPixelH;
+  }
 
   update(entities: number[], _dt: number): void {
     this.drawMap(this.map);
@@ -29,16 +49,24 @@ export class RenderSystem implements System {
 
   private drawMap(map: MapConfig): void {
     const ts = map.tileSize;
+    const ox = RenderSystem.sceneOffsetX;
+    const oy = RenderSystem.sceneOffsetY;
+    const mapW = map.cols * ts;
+    const mapH = map.rows * ts;
 
     for (let r = 0; r < map.rows; r++) {
       for (let c = 0; c < map.cols; c++) {
         const tile = map.tiles[r]![c]!;
-        const x = c * ts + ts / 2;
-        const y = r * ts + ts / 2;
+        const x = c * ts + ts / 2 + ox;
+        const y = r * ts + ts / 2 + oy;
         let color: string;
 
         switch (tile) {
-          case TileType.Empty:  color = '#3a7d44'; break;
+          case TileType.Empty: {
+            const adjacent = isAdjacentToPath(r, c, map);
+            color = adjacent ? '#5a9e5f' : '#3a7d44';
+            break;
+          }
           case TileType.Path:   color = '#a1887f'; break;
           case TileType.Blocked: color = '#546e7a'; break;
           case TileType.Spawn:  color = '#ff8f00'; break;
@@ -46,8 +74,30 @@ export class RenderSystem implements System {
         }
 
         this.renderer.push({ shape: 'rect', x, y, size: ts - 2, color, alpha: 1 });
+
+        if (tile === TileType.Empty && isAdjacentToPath(r, c, map)) {
+          this.renderer.push({
+            shape: 'rect', x, y, size: ts - 2,
+            color: '#4caf50',
+            alpha: 0.3,
+            stroke: '#81c784',
+            strokeWidth: 1,
+          });
+        }
       }
     }
+
+    this.renderer.push({
+      shape: 'rect',
+      x: ox + mapW / 2,
+      y: oy + mapH / 2,
+      size: mapW + 4,
+      h: mapH + 4,
+      color: '#000000',
+      alpha: 1,
+      stroke: '#000000',
+      strokeWidth: 2,
+    });
   }
 
   private drawEntities(entities: number[]): void {
@@ -67,7 +117,6 @@ export class RenderSystem implements System {
       const isEnemy = this.world.hasComponent(id, CType.Enemy);
       const isTower = this.world.hasComponent(id, CType.Tower);
 
-      // Hit flash — override color to white for one frame
       const flashActive = r.hitFlashTimer > 0;
       let displayColor = r.color;
       let displayAlpha = r.alpha;
@@ -77,7 +126,6 @@ export class RenderSystem implements System {
         r.hitFlashTimer = 0;
       }
 
-      // Buff visual tints (ice_slow, frozen)
       const buffContainer = this.world.getComponent<BuffContainer>(id, CType.Buff);
       if (buffContainer && !flashActive) {
         if (buffContainer.buffs.has('ice_frozen')) {
@@ -90,7 +138,14 @@ export class RenderSystem implements System {
         }
       }
 
-      // Boss phase 2 — redder tint & transition flash
+      if (isEnemy && !flashActive) {
+        const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
+        if (enemy && enemy.stunTimer > 0) {
+          displayColor = '#ffd700';
+          displayAlpha = 0.9;
+        }
+      }
+
       const boss = this.world.getComponent<Boss>(id, CType.Boss);
       const isBossEntity = boss !== undefined;
       let drawSize = r.size;
@@ -107,7 +162,6 @@ export class RenderSystem implements System {
         }
       }
 
-      // Selected tower stroke
       const isSelected = selectedId !== null && id === selectedId;
       const strokeColor = isSelected ? '#ffffff' : r.outline ? '#ffffff' : undefined;
       const strokeW = isSelected ? 3 : r.outline ? 2 : undefined;
@@ -172,13 +226,11 @@ export class RenderSystem implements System {
     const barW = width;
     const halfW = barW / 2;
 
-    // Background bar
     this.renderer.push({
       shape: 'rect', x, y: y, size: barW, h: barH,
       color: '#222222', alpha: 0.8,
     });
 
-    // Fill bar (green → yellow → red)
     let fillColor: string;
     if (ratio > 0.6) {
       fillColor = '#4caf50';

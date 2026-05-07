@@ -6,6 +6,7 @@ import { Movement } from '../components/Movement.js';
 import { Health } from '../components/Health.js';
 import { Enemy } from '../components/Enemy.js';
 import type { MapConfig } from '../types/index.js';
+import { RenderSystem } from './RenderSystem.js';
 
 /** Moves enemy entities along the predefined path */
 export class MovementSystem implements System {
@@ -20,7 +21,15 @@ export class MovementSystem implements System {
   update(entities: number[], dt: number): void {
     for (const id of entities) {
       const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-      if (enemy?.movementPaused) continue;
+      if (!enemy) continue;
+
+      // Stun timer — enemy cannot move while stunned
+      if (enemy.stunTimer > 0) {
+        enemy.stunTimer -= dt;
+        continue;
+      }
+
+      if (enemy.movementPaused) continue;
 
       const pos = this.world.getComponent<Position>(id, CType.Position)!;
       const mov = this.world.getComponent<Movement>(id, CType.Movement)!;
@@ -39,10 +48,12 @@ export class MovementSystem implements System {
 
       // Calculate world position of waypoints
       const ts = this.map.tileSize;
-      const cx = current.col * ts + ts / 2;
-      const cy = current.row * ts + ts / 2;
-      const nx = next.col * ts + ts / 2;
-      const ny = next.row * ts + ts / 2;
+      const ox = RenderSystem.sceneOffsetX;
+      const oy = RenderSystem.sceneOffsetY;
+      const cx = current.col * ts + ts / 2 + ox;
+      const cy = current.row * ts + ts / 2 + oy;
+      const nx = next.col * ts + ts / 2 + ox;
+      const ny = next.row * ts + ts / 2 + oy;
 
       const dx = nx - cx;
       const dy = ny - cy;

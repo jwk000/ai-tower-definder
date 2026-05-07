@@ -18,8 +18,8 @@ import { TrapSystem } from './systems/TrapSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { LEVELS } from './data/levels/index.js';
-import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
-import { GamePhase, GameScreen, UnitType, ProductionType, CType, TileType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
+import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS } from './data/gameData.js';
+import { GamePhase, GameScreen, CType, TileType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
 import { Position, GridOccupant } from './components/Position.js';
 import { Health } from './components/Health.js';
 import { Attack } from './components/Attack.js';
@@ -29,10 +29,7 @@ import { PlayerControllable } from './components/PlayerControllable.js';
 import { Skill } from './components/Skill.js';
 import { Tower } from './components/Tower.js';
 import { PlayerOwned } from './components/PlayerOwned.js';
-import { Trap } from './components/Trap.js';
-import { HealingSpring } from './components/HealingSpring.js';
-import { GoldChest } from './components/GoldChest.js';
-import { SKILL_CONFIGS } from './data/gameData.js';
+import { Enemy } from './components/Enemy.js';
 
 class TowerDefenderGame extends Game {
   private currentScreen: GameScreen = GameScreen.LevelSelect;
@@ -74,6 +71,8 @@ class TowerDefenderGame extends Game {
     this.input.onPointerDown = (e: InputEvent) => {
       this.levelSelectUI.handleClick(e.x, e.y);
     };
+    this.input.onPointerMove = null;
+    this.input.onPointerUp = null;
   }
 
   startLevel(levelId: number): void {
@@ -89,7 +88,6 @@ class TowerDefenderGame extends Game {
   }
 
   startEndless(): void {
-    // Stub: start level 1 with endless flag for now
     const config = LEVELS[0];
     if (!config) return;
 
@@ -172,20 +170,6 @@ class TowerDefenderGame extends Game {
       }
     };
 
-    const deployUnit = (unitType: UnitType) => {
-      const unitCfg = UNIT_CONFIGS[unitType];
-      if (!unitCfg) return;
-      this.buildSystem.placementMode = 'unit';
-      this.buildSystem.pendingUnitType = unitType;
-    };
-
-    const selectProduction = (type: ProductionType) => {
-      const prodCfg = PRODUCTION_CONFIGS[type];
-      if (!prodCfg) return;
-      this.buildSystem.placementMode = 'production';
-      this.buildSystem.pendingProductionType = type;
-    };
-
     this.uiSystem = new UISystem(
       this.world, this.renderer,
       () => this.phase,
@@ -203,24 +187,27 @@ class TowerDefenderGame extends Game {
       () => this.economy.population,
       () => this.economy.maxPopulation,
       upgradeTower,
-      deployUnit,
-      selectProduction,
-      () => { this.buildSystem.placementMode = 'trap'; },
+      (entityType, towerType, unitType, productionType) => {
+        this.buildSystem.startDrag(entityType as 'tower' | 'unit' | 'production' | 'trap', {
+          towerType: towerType ?? undefined,
+          unitType: unitType ?? undefined,
+          productionType: productionType ?? undefined,
+        });
+      },
+      () => this.buildSystem.dragState,
+      () => this.input.pointerPosition,
       () => this.economy.endlessScore,
       () => this.economy.isEndless,
-      // Countdown
       () => this.waveSystem.skipCountdown(),
-      // Speed
       () => { this.gameSpeed = this.gameSpeed === 1.0 ? 2.0 : 1.0; },
-      // Pause
       () => { this.paused = true; },
       () => { this.paused = false; },
       () => { location.reload(); },
       () => { this.paused = false; this.enterLevelSelect(); },
-      // Getters
       () => this.waveSystem.countdown,
       () => this.gameSpeed,
       () => this.paused,
+      () => this.waveSystem.totalSpawned,
     );
 
     this.healthSystem = new HealthSystem(
@@ -262,9 +249,37 @@ class TowerDefenderGame extends Game {
 
     // Input dispatch for battle
     this.input.onPointerDown = (e: InputEvent) => {
+      if (this.buildSystem.dragState?.active) return;
       const handledByUI = this.uiSystem.handleClick(e.x, e.y);
       if (!handledByUI && !this.paused) {
+        // Guard: don't pass bottom panel or left panel clicks to map
+        if (e.y >= 900) return;
+        if (e.x <= 160) return;
         this.handleMapClick(e);
+      }
+    };
+
+    this.input.onPointerMove = (_e: InputEvent) => {
+      // Drag ghost is rendered by UISystem via getPointerPosition
+    };
+
+    this.input.onPointerUp = (e: InputEvent) => {
+      const ds = this.buildSystem.dragState;
+      if (ds?.active) {
+        if (e.y >= 900 || e.x <= 160) {
+          this.buildSystem.cancelDrag();
+          return;
+        }
+        if (ds.entityType === 'unit') {
+          this.spawnUnitAt(e.x, e.y);
+          this.buildSystem.cancelDrag();
+        } else {
+          const result = this.buildSystem.tryDrop(e.x, e.y);
+          if (result !== false && result !== null) {
+            this.uiSystem.selectedEntityId = result;
+            this.uiSystem.selectedEntityType = ds.entityType === 'tower' ? 'tower' : null;
+          }
+        }
       }
     };
 
@@ -334,25 +349,20 @@ class TowerDefenderGame extends Game {
   // ---- Map Click ----
 
   private handleMapClick(e: InputEvent): void {
-    if (e.x < 160 || e.y < 60) return;
-    if (e.x >= 1780 && e.y >= 70) return;
-    if (e.x >= 160 && e.x <= 1780 && e.y >= 940) return;
-
-    const placementMode = this.buildSystem.placementMode;
-
-    if (placementMode === 'unit') {
-      this.spawnUnitAt(e.x, e.y);
-      return;
-    }
-
-    if (placementMode === 'production') {
-      const prodResult = this.buildSystem.tryBuildProduction(e.x, e.y);
-      if (prodResult !== false) {
-        this.uiSystem.selectedTowerEntityId = prodResult;
+    // Try clicking on an enemy first
+    const enemies = this.world.query(CType.Position, CType.Enemy, CType.Render);
+    for (const id of enemies) {
+      const pos = this.world.getComponent<Position>(id, CType.Position);
+      const render = this.world.getComponent<Render>(id, CType.Render);
+      if (!pos || !render) continue;
+      const r = render.size * 0.65;
+      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
+        this.uiSystem.selectEnemy(id);
+        return;
       }
-      return;
     }
 
+    // Try clicking on a tower
     const towers = this.world.query(CType.Position, CType.Tower, CType.Render);
     for (const id of towers) {
       const pos = this.world.getComponent<Position>(id, CType.Position);
@@ -360,86 +370,71 @@ class TowerDefenderGame extends Game {
       if (!pos || !render) continue;
       const r = render.size * 0.65;
       if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
-        this.uiSystem.selectedTowerEntityId = null;
-        this.uiSystem.selectedTowerEntityId = id;
+        this.uiSystem.enemyEntityId = null;
+        this.uiSystem.selectedEntityId = id;
+        this.uiSystem.selectedEntityType = 'tower';
         return;
       }
     }
 
-    this.uiSystem.selectedTowerEntityId = null;
-    const buildResult = this.buildSystem.tryBuild(e.x, e.y);
-    if (buildResult !== false) {
-      this.uiSystem.selectedTowerEntityId = buildResult;
+    // Try clicking on a placed unit
+    const units = this.world.query(CType.Position, CType.Unit, CType.Render);
+    for (const id of units) {
+      const pos = this.world.getComponent<Position>(id, CType.Position);
+      const render = this.world.getComponent<Render>(id, CType.Render);
+      if (!pos || !render) continue;
+      const r = render.size * 0.65;
+      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
+        this.uiSystem.enemyEntityId = null;
+        this.uiSystem.selectedEntityId = id;
+        this.uiSystem.selectedEntityType = 'unit';
+        return;
+      }
     }
+
+    // Deselect everything
+    this.uiSystem.selectedEntityId = null;
+    this.uiSystem.selectedEntityType = null;
+    this.uiSystem.enemyEntityId = null;
   }
 
   private spawnUnitAt(px: number, py: number): void {
-    const pendingType = this.buildSystem.pendingUnitType;
-    if (!pendingType) {
-      this.buildSystem.placementMode = null;
-      return;
-    }
+    const unitType = this.buildSystem.dragState?.unitType;
+    if (!unitType) return;
 
-    const config = UNIT_CONFIGS[pendingType];
-    if (!config) {
-      this.buildSystem.placementMode = null;
-      return;
-    }
+    const config = UNIT_CONFIGS[unitType];
+    if (!config) return;
 
     const map = this.currentMap;
-    if (!map) {
-      this.buildSystem.placementMode = null;
-      this.buildSystem.pendingUnitType = null;
-      return;
-    }
+    if (!map) return;
 
     const ts = map.tileSize;
     const col = Math.floor(px / ts);
     const row = Math.floor(py / ts);
 
-    if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) {
-      this.buildSystem.placementMode = null;
-      this.buildSystem.pendingUnitType = null;
-      return;
-    }
+    if (col < 0 || col >= map.cols || row < 0 || row >= map.rows) return;
 
     const tile = map.tiles[row]![col]!;
-    if (tile !== TileType.Empty && tile !== TileType.Path) {
-      this.buildSystem.placementMode = null;
-      this.buildSystem.pendingUnitType = null;
-      return;
-    }
+    if (tile !== TileType.Empty && tile !== TileType.Path) return;
 
     const occupants = this.world.query(CType.GridOccupant);
     for (const id of occupants) {
       const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) {
-        this.buildSystem.placementMode = null;
-        this.buildSystem.pendingUnitType = null;
-        return;
-      }
+      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) return;
     }
 
-    if (!this.economy.canDeployUnit(config.popCost)) {
-      this.buildSystem.placementMode = null;
-      this.buildSystem.pendingUnitType = null;
-      return;
-    }
+    if (!this.economy.canDeployUnit(config.popCost)) return;
 
-    if (!this.economy.spendGold(config.cost)) {
-      this.buildSystem.placementMode = null;
-      this.buildSystem.pendingUnitType = null;
-      return;
-    }
+    if (!this.economy.spendGold(config.cost)) return;
 
     this.economy.deployUnit(config.popCost);
-
-    const x = col * ts + ts / 2;
-    const y = row * ts + ts / 2;
 
     const skillCfg = SKILL_CONFIGS[config.skillId];
     const energyCost = skillCfg ? skillCfg.energyCost : 0;
     const cooldown = skillCfg ? skillCfg.cooldown : 0;
+
+    const x = col * ts + ts / 2;
+    const y = row * ts + ts / 2;
 
     const id = this.world.createEntity();
     this.world.addComponent(id, new Position(x, y));
@@ -456,9 +451,6 @@ class TowerDefenderGame extends Game {
     render.labelColor = '#ffffff';
     render.labelSize = 16;
     this.world.addComponent(id, render);
-
-    this.buildSystem.placementMode = null;
-    this.buildSystem.pendingUnitType = null;
   }
 }
 

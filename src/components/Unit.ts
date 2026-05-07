@@ -6,11 +6,13 @@ export class Unit {
   popCost: number;
   skillId: string;
   baseSpeed: number;
+  cost: number;
 
-  constructor(unitType: UnitType, popCost: number, skillId: string, baseSpeed: number) {
+  constructor(unitType: UnitType, popCost: number, skillId: string, baseSpeed: number, cost: number) {
     this.unitType = unitType;
     this.popCost = popCost;
     this.skillId = skillId;
     this.baseSpeed = baseSpeed;
+    this.cost = cost;
   }
 }

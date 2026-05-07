@@ -12,7 +12,7 @@ export class Projectile {
   isChain: boolean;
   chainIndex: number;
   splashRadius?: number;
-  knockback?: number;
+  stunDuration?: number;
   slowPercent?: number;
   slowMaxStacks?: number;
   freezeDuration?: number;

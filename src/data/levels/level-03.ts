@@ -10,22 +10,20 @@ import {
 } from '../../types/index.js';
 
 const PRIMARY_WAYPOINTS: GridPos[] = [
-  { row: 0, col: 2 },
-  { row: 6, col: 2 },
-  { row: 6, col: 8 },
-  { row: 10, col: 8 },
-  { row: 10, col: 14 },
-  { row: 7, col: 14 },
-  { row: 7, col: 22 },
-  { row: 7, col: 29 },
+  { row: 0, col: 1 },
+  { row: 3, col: 1 },
+  { row: 3, col: 4 },
+  { row: 6, col: 4 },
+  { row: 6, col: 7 },
+  { row: 8, col: 7 },
+  { row: 8, col: 20 },
 ];
 
 const SECONDARY_WAYPOINTS: GridPos[] = [
-  { row: 0, col: 12 },
-  { row: 4, col: 12 },
-  { row: 4, col: 11 },
-  { row: 4, col: 8 },
-  { row: 6, col: 8 },
+  { row: 0, col: 6 },
+  { row: 2, col: 6 },
+  { row: 2, col: 4 },
+  { row: 3, col: 4 },
 ];
 
 function isOnPath(row: number, col: number, waypoints: GridPos[]): boolean {
@@ -51,11 +49,11 @@ function isOnAnyPath(row: number, col: number): boolean {
 
 function buildTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
-      if ((col === 2 || col === 12) && row === 0) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+    for (let col = 0; col < 21; col++) {
+      if ((col === 1 || col === 6) && row === 0) line.push(TileType.Spawn);
+      else if (col === 20 && row === 8) line.push(TileType.Base);
       else if (isOnAnyPath(row, col)) line.push(TileType.Path);
       else line.push(TileType.Empty);
     }
@@ -66,12 +64,12 @@ function buildTiles(): TileType[][] {
 
 const MAP: MapConfig = {
   name: '冰原',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
   tiles: buildTiles(),
   enemyPath: PRIMARY_WAYPOINTS,
-  altSpawnPoints: [{ row: 0, col: 12 }],
+  altSpawnPoints: [{ row: 0, col: 6 }],
   tileColors: {
     [TileType.Empty]: '#cfd8dc',
     [TileType.Path]: '#90a4ae',

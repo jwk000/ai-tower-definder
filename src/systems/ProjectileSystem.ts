@@ -125,7 +125,7 @@ export class ProjectileSystem implements System {
 
   private applyCannonSplash(proj: Projectile, hitX: number, hitY: number): void {
     const splashRadius = proj.splashRadius ?? 80;
-    const knockback = proj.knockback ?? 100;
+    const stunDuration = proj.stunDuration ?? 1.5;
     const splashDamage = proj.damage * 0.6;
 
     const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
@@ -143,30 +143,18 @@ export class ProjectileSystem implements System {
           const eHealth = this.world.getComponent<Health>(enemyId, CType.Health);
           if (eHealth) eHealth.takeDamage(splashDamage);
 
-          // Hit flash on splash targets
           const eRender = this.world.getComponent<Render>(enemyId, CType.Render);
           if (eRender) {
             eRender.hitFlashTimer = 0.12;
           }
         }
 
+        // Stun effect: enemies stop moving for stunDuration (skip bosses)
         const isBoss = this.world.hasComponent(enemyId, CType.Boss);
-        if (!isBoss && knockback > 0) {
-          const ndx = dist > 0 ? dx / dist : 1;
-          const ndy = dist > 0 ? dy / dist : 0;
-          ePos.x += ndx * knockback;
-          ePos.y += ndy * knockback;
-
-          // Stun for 0.2 seconds
+        if (!isBoss) {
           const enemy = this.world.getComponent<Enemy>(enemyId, CType.Enemy);
           if (enemy) {
-            enemy.movementPaused = true;
-            setTimeout(() => {
-              if (this.world.isAlive(enemyId)) {
-                const e = this.world.getComponent<Enemy>(enemyId, CType.Enemy);
-                if (e) e.movementPaused = false;
-              }
-            }, 200);
+            enemy.stunTimer = Math.max(enemy.stunTimer, stunDuration);
           }
         }
       }

@@ -7,6 +7,8 @@ export class Enemy {
   atk: number;
   movementPaused: boolean;
   originalSpeed: number;
+  /** Stun timer in seconds — enemy stops moving/attacking while > 0 */
+  stunTimer: number = 0;
 
   constructor(enemyType: EnemyType, defense: number, atk: number, speed: number) {
     this.enemyType = enemyType;

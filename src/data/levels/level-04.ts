@@ -10,35 +10,28 @@ import {
 } from '../../types/index.js';
 
 const WAYPOINTS: GridPos[] = [
-  { row: 0, col: 4 },
-  { row: 8, col: 4 },
-  { row: 8, col: 1 },
-  { row: 14, col: 1 },
-  { row: 14, col: 7 },
-  { row: 10, col: 7 },
-  { row: 10, col: 12 },
-  { row: 14, col: 12 },
-  { row: 14, col: 17 },
-  { row: 8, col: 17 },
+  { row: 0, col: 1 },
+  { row: 2, col: 1 },
+  { row: 2, col: 3 },
+  { row: 5, col: 3 },
+  { row: 5, col: 1 },
+  { row: 7, col: 1 },
+  { row: 7, col: 4 },
+  { row: 5, col: 4 },
+  { row: 5, col: 6 },
+  { row: 3, col: 6 },
+  { row: 3, col: 8 },
+  { row: 6, col: 8 },
+  { row: 6, col: 5 },
+  { row: 8, col: 5 },
   { row: 8, col: 20 },
-  { row: 12, col: 20 },
-  { row: 12, col: 26 },
-  { row: 7, col: 26 },
-  { row: 7, col: 22 },
-  { row: 2, col: 22 },
-  { row: 2, col: 14 },
-  { row: 7, col: 14 },
-  { row: 7, col: 29 },
 ];
 
 const LAVA_TILES = new Set([
-  '3,2', '3,3', '3,6', '3,7',
-  '5,9', '5,10', '6,9', '6,10',
-  '8,13', '8,14', '9,13', '9,14',
-  '11,5', '11,6', '12,5', '12,6',
-  '13,9', '13,10', '13,19', '13,20',
-  '5,24', '5,25', '6,24', '6,25',
-  '10,23', '10,24', '11,23', '11,24',
+  '1,2', '1,5', '2,2', '2,5',
+  '3,1', '3,4', '4,1', '4,4',
+  '5,5', '5,7', '6,2', '6,7',
+  '7,3', '7,6', '8,1', '8,3',
 ]);
 
 function isOnPath(row: number, col: number): boolean {
@@ -60,11 +53,11 @@ function isOnPath(row: number, col: number): boolean {
 
 function buildTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
-      if (col === 4 && row === 0) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+    for (let col = 0; col < 21; col++) {
+      if (col === 1 && row === 0) line.push(TileType.Spawn);
+      else if (col === 20 && row === 8) line.push(TileType.Base);
       else if (isOnPath(row, col)) line.push(TileType.Path);
       else if (LAVA_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
       else line.push(TileType.Empty);
@@ -76,8 +69,8 @@ function buildTiles(): TileType[][] {
 
 const MAP: MapConfig = {
   name: '火山',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
   tiles: buildTiles(),
   enemyPath: WAYPOINTS,

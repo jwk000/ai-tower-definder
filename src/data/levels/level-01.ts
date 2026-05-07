@@ -11,11 +11,15 @@ import {
 
 const WAYPOINTS: GridPos[] = [
   { row: 1, col: 0 },
-  { row: 1, col: 6 },
-  { row: 12, col: 6 },
-  { row: 12, col: 23 },
-  { row: 7, col: 23 },
-  { row: 7, col: 29 },
+  { row: 1, col: 4 },
+  { row: 4, col: 4 },
+  { row: 4, col: 1 },
+  { row: 6, col: 1 },
+  { row: 6, col: 5 },
+  { row: 4, col: 5 },
+  { row: 4, col: 8 },
+  { row: 6, col: 8 },
+  { row: 6, col: 20 },
 ];
 
 function isOnPath(row: number, col: number): boolean {
@@ -37,11 +41,11 @@ function isOnPath(row: number, col: number): boolean {
 
 function buildTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
+    for (let col = 0; col < 21; col++) {
       if (col === 0 && row === 1) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+      else if (col === 20 && row === 6) line.push(TileType.Base);
       else if (isOnPath(row, col)) line.push(TileType.Path);
       else line.push(TileType.Empty);
     }
@@ -52,8 +56,8 @@ function buildTiles(): TileType[][] {
 
 const MAP: MapConfig = {
   name: '平原',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
   tiles: buildTiles(),
   enemyPath: WAYPOINTS,

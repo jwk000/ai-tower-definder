@@ -12,6 +12,7 @@ import {
   type SkillConfig,
   type MapConfig,
   type WaveConfig,
+  type GridPos,
 } from '../types/index.js';
 
 // ---- Tower Configs ----
@@ -41,7 +42,7 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     range: 180,
     damageType: 'physical',
     splashRadius: 80,
-    knockback: 100,
+    stunDuration: 1.5,
     upgradeCosts: [50, 90, 140, 200],
     upgradeAtkBonus: [8, 12, 16, 22],
     upgradeRangeBonus: [20, 20, 30, 30],
@@ -88,6 +89,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Grunt]: {
     type: EnemyType.Grunt,
     name: '小兵',
+    description: '基础敌人',
     hp: 60,
     speed: 70,
     atk: 10,
@@ -103,6 +105,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Runner]: {
     type: EnemyType.Runner,
     name: '快兵',
+    description: '高速移动',
     hp: 30,
     speed: 150,
     atk: 5,
@@ -118,6 +121,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Heavy]: {
     type: EnemyType.Heavy,
     name: '重装兵',
+    description: '高护甲',
     hp: 200,
     speed: 35,
     atk: 15,
@@ -133,6 +137,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Mage]: {
     type: EnemyType.Mage,
     name: '法师',
+    description: '远程攻击建筑',
     hp: 80,
     speed: 55,
     atk: 12,
@@ -148,6 +153,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.Exploder]: {
     type: EnemyType.Exploder,
     name: '自爆虫',
+    description: '死亡爆炸',
     hp: 40,
     speed: 90,
     atk: 8,
@@ -163,6 +169,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.BossCommander]: {
     type: EnemyType.BossCommander,
     name: '指挥官',
+    description: 'Boss — 高攻高防',
     hp: 500,
     speed: 40,
     atk: 40,
@@ -180,6 +187,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   [EnemyType.BossBeast]: {
     type: EnemyType.BossBeast,
     name: '攻城兽',
+    description: 'Boss — 超高血量',
     hp: 700,
     speed: 30,
     atk: 50,
@@ -198,30 +206,37 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
 
 // ---- MVP Map ----
 
+const MAP_01_WAYPOINTS: GridPos[] = [
+  { row: 1, col: 0 },
+  { row: 1, col: 4 },
+  { row: 4, col: 4 },
+  { row: 4, col: 1 },
+  { row: 6, col: 1 },
+  { row: 6, col: 5 },
+  { row: 4, col: 5 },
+  { row: 4, col: 8 },
+  { row: 6, col: 8 },
+  { row: 6, col: 20 },
+];
+
 export const MAP_01: MapConfig = {
   name: '第一关 — 平原',
-  cols: 30,
-  rows: 16,
+  cols: 21,
+  rows: 9,
   tileSize: 64,
-  // 0=empty, 1=path, 2=blocked, 3=base, 4=spawn
   tiles: buildMapTiles(),
-  enemyPath: buildEnemyPath(),
-  neutralUnits: [
-    { type: 'spring', row: 4, col: 15, config: { healAmount: 5, radius: 120 } },
-    { type: 'spring', row: 10, col: 3, config: { healAmount: 5, radius: 120 } },
-    { type: 'spring', row: 2, col: 20, config: { healAmount: 5, radius: 120 } },
-    { type: 'chest', row: 5, col: 14, config: { goldAmount: 75, hp: 30 } },
-  ],
+  enemyPath: MAP_01_WAYPOINTS,
+  neutralUnits: [],
 };
 
 function buildMapTiles(): TileType[][] {
   const tiles: TileType[][] = [];
-  for (let row = 0; row < 16; row++) {
+  for (let row = 0; row < 9; row++) {
     const line: TileType[] = [];
-    for (let col = 0; col < 30; col++) {
+    for (let col = 0; col < 21; col++) {
       const onPath = isOnPath(row, col);
       if (col === 0 && row === 1) line.push(TileType.Spawn);
-      else if (col === 29 && row === 7) line.push(TileType.Base);
+      else if (col === 20 && row === 6) line.push(TileType.Base);
       else if (onPath) line.push(TileType.Path);
       else line.push(TileType.Empty);
     }
@@ -231,28 +246,24 @@ function buildMapTiles(): TileType[][] {
 }
 
 function isOnPath(row: number, col: number): boolean {
-  // Segment 1: (1,0) → (1,6) — horizontal
-  if (row === 1 && col >= 0 && col <= 6) return true;
-  // Segment 2: (1,6) → (12,6) — vertical
-  if (col === 6 && row >= 1 && row <= 12) return true;
-  // Segment 3: (12,6) → (12,23) — horizontal
-  if (row === 12 && col >= 6 && col <= 23) return true;
-  // Segment 4: (12,23) → (7,23) — vertical (up)
-  if (col === 23 && row >= 7 && row <= 12) return true;
-  // Segment 5: (7,23) → (7,29) — horizontal to base
-  if (row === 7 && col >= 23 && col <= 29) return true;
+  for (let i = 0; i < MAP_01_WAYPOINTS.length - 1; i++) {
+    const a = MAP_01_WAYPOINTS[i]!;
+    const b = MAP_01_WAYPOINTS[i + 1]!;
+    if (a.row === b.row) {
+      const minCol = Math.min(a.col, b.col);
+      const maxCol = Math.max(a.col, b.col);
+      if (row === a.row && col >= minCol && col <= maxCol) return true;
+    } else if (a.col === b.col) {
+      const minRow = Math.min(a.row, b.row);
+      const maxRow = Math.max(a.row, b.row);
+      if (col === a.col && row >= minRow && row <= maxRow) return true;
+    }
+  }
   return false;
 }
 
 function buildEnemyPath() {
-  return [
-    { row: 1, col: 0 },
-    { row: 1, col: 6 },
-    { row: 12, col: 6 },
-    { row: 12, col: 23 },
-    { row: 7, col: 23 },
-    { row: 7, col: 29 },
-  ];
+  return MAP_01_WAYPOINTS;
 }
 
 // ---- MVP Waves ----
