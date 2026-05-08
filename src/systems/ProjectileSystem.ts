@@ -9,6 +9,7 @@ import { Movement } from '../components/Movement.js';
 import { Enemy } from '../components/Enemy.js';
 import { BuffContainer } from '../components/Buff.js';
 import { Render } from '../components/Render.js';
+import { ExplosionEffect } from '../components/ExplosionEffect.js';
 
 const LIGHTNING_RENDER = { shape: 'triangle' as const, color: '#fff176', size: 10 };
 
@@ -110,6 +111,7 @@ export class ProjectileSystem implements System {
 
     switch (towerType) {
       case TowerType.Cannon:
+        this.spawnExplosion(hitX, hitY, proj.splashRadius ?? 80);
         this.applyCannonSplash(proj, hitX, hitY);
         break;
       case TowerType.Ice:
@@ -281,5 +283,12 @@ export class ProjectileSystem implements System {
       fromX = ePos.x;
       fromY = ePos.y;
     }
+  }
+
+  private spawnExplosion(x: number, y: number, radius: number): void {
+    const id = this.world.createEntity();
+    this.world.addComponent(id, new Position(x, y));
+    this.world.addComponent(id, new ExplosionEffect(radius, '#ff6d00', 0.35));
+    this.world.addComponent(id, new Render('circle', '#ff6d00', 4));
   }
 }

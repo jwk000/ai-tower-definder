@@ -155,6 +155,7 @@ export interface UnitConfig {
   size: number;
   skillId: string;
   cost: number;
+  moveRange: number;
 }
 
 // ---- Production ----
@@ -328,6 +329,11 @@ export const CType = {
   HealingSpring: 'HealingSpring',
   GoldChest: 'GoldChest',
   DeathEffect: 'DeathEffect',
+  ExplosionEffect: 'ExplosionEffect',
+  // New unified unit system components
+  UnitTag: 'UnitTag',
+  AI: 'AI',
+  Lifecycle: 'Lifecycle',
 } as const;
 
 export type ComponentType = (typeof CType)[keyof typeof CType];
@@ -361,4 +367,217 @@ export interface LevelConfig {
   availableUnits: UnitType[];
   unlockStarsRequired: number;
   unlockPrevLevelId: string | null;
+}
+
+// ============================================================
+// Unit System — Unified Unit Concept
+// ============================================================
+
+/** Unit category classification */
+export enum UnitCategory {
+  Tower = 'tower',           // 防御塔
+  Enemy = 'enemy',           // 敌人
+  Soldier = 'soldier',       // 士兵（玩家单位）
+  Building = 'building',     // 建筑（生产建筑等）
+  Trap = 'trap',             // 陷阱
+  Decoration = 'decoration', // 场景装饰
+  Objective = 'objective',   // 目标点（出生点、大本营等）
+  Effect = 'effect',         // 特效单位
+}
+
+/**
+ * Unit layer - 垂直空间层级
+ * 
+ * 定义单位在垂直空间中的位置，影响可攻击性、碰撞检测和渲染顺序。
+ * 从下到上：深渊层 → 地格下层 → 地格上层 → 地面层 → 低空层 → 太空层
+ */
+export enum UnitLayer {
+  Abyss = 'abyss',           // 深渊层 - 无法抵达的最下层（边界层）
+  BelowGrid = 'below_grid',  // 地格下层 - 被封印/隐藏的单位
+  AboveGrid = 'above_grid',  // 地格上层 - 地面陷阱（如地刺）
+  Ground = 'ground',         // 地面层 - 默认层级（大多数单位）
+  LowAir = 'low_air',        // 低空层 - 飞行单位
+  Space = 'space',           // 太空层 - 无法抵达的最上层（边界层）
+}
+
+/** Layer interaction rules */
+export interface LayerInteractionConfig {
+  /** 可被哪些层级攻击 */
+  canBeAttackedBy: UnitLayer[];
+  /** 可以攻击哪些层级 */
+  canAttack: UnitLayer[];
+  /** 与哪些层级有碰撞 */
+  collidesWith: UnitLayer[];
+}
+
+/** Unit lifecycle events */
+export enum LifecycleEvent {
+  Spawn = 'spawn',         // 出生
+  Death = 'death',         // 死亡（触发死亡效果）
+  Destroy = 'destroy',     // 销毁（不触发死亡效果）
+  Upgrade = 'upgrade',     // 升级
+  Downgrade = 'downgrade', // 降级
+  Attack = 'attack',       // 攻击
+  Hit = 'hit',             // 受击
+}
+
+/** Unit configuration - defines all properties for a unit type */
+export interface UnitTypeConfig {
+  id: string;
+  name: string;
+  category: UnitCategory;
+  description?: string;
+
+  // Layer (vertical position)
+  layer?: UnitLayer; // Default: UnitLayer.Ground
+
+  // Base attributes
+  hp: number;
+  atk: number;
+  defense: number;
+  attackSpeed: number;
+  moveSpeed: number;
+  moveRange: number;
+  attackRange: number;
+  magicResist: number;
+
+  // Visual
+  color: string;
+  size: number;
+  shape: ShapeType;
+
+  // AI behavior
+  aiConfig: string; // AI preset ID
+
+  // Lifecycle effects
+  lifecycle: LifecycleConfig;
+
+  // Layer interaction rules (optional, uses defaults based on layer if not specified)
+  layerInteraction?: LayerInteractionConfig;
+
+  // Special properties (category-specific)
+  special?: Record<string, unknown>;
+
+  // Economy
+  cost?: number;
+  sellValue?: number;
+  upgradeCosts?: number[];
+}
+
+/** Lifecycle effect configuration */
+export interface LifecycleConfig {
+  onSpawn?: EffectConfig[];
+  onDeath?: EffectConfig[];
+  onDestroy?: EffectConfig[];
+  onUpgrade?: EffectConfig[];
+  onDowngrade?: EffectConfig[];
+  onAttack?: EffectConfig[];
+  onHit?: EffectConfig[];
+}
+
+/** Effect configuration */
+export interface EffectConfig {
+  type: string;
+  params?: Record<string, unknown>;
+}
+
+// ============================================================
+// AI System — Behavior Tree
+// ============================================================
+
+/** Behavior tree node status */
+export enum NodeStatus {
+  Success = 'success',
+  Failure = 'failure',
+  Running = 'running',
+}
+
+/** Behavior tree node types */
+export enum BTNodeType {
+  // Composite
+  Sequence = 'sequence',
+  Selector = 'selector',
+  Parallel = 'parallel',
+
+  // Decorator
+  Inverter = 'inverter',
+  Repeater = 'repeater',
+  UntilFail = 'until_fail',
+  AlwaysSucceed = 'always_succeed',
+  Cooldown = 'cooldown',
+
+  // Condition
+  CheckHP = 'check_hp',
+  CheckEnemyInRange = 'check_enemy_in_range',
+  CheckAllyInRange = 'check_ally_in_range',
+  CheckBuff = 'check_buff',
+  CheckCooldown = 'check_cooldown',
+  CheckPhase = 'check_phase',
+  CheckTargetAlive = 'check_target_alive',
+  CheckDistanceToTarget = 'check_distance_to_target',
+  CheckMoving = 'check_moving',
+  CheckStunned = 'check_stunned',
+  CheckPlayerControl = 'check_player_control',
+
+  // Action
+  Attack = 'attack',
+  MoveTo = 'move_to',
+  MoveTowards = 'move_towards',
+  Flee = 'flee',
+  UseSkill = 'use_skill',
+  Wait = 'wait',
+  Spawn = 'spawn',
+  Patrol = 'patrol',
+  SetTarget = 'set_target',
+  ClearTarget = 'clear_target',
+  PlayAnimation = 'play_animation',
+}
+
+/** Target selection types */
+export enum TargetType {
+  Self = 'self',
+  NearestEnemy = 'nearest_enemy',
+  NearestAlly = 'nearest_ally',
+  WeakestEnemy = 'weakest_enemy',
+  StrongestEnemy = 'strongest_enemy',
+  LowestHPAlly = 'lowest_hp_ally',
+  PathWaypoint = 'path_waypoint',
+  Home = 'home',
+  PlayerTarget = 'player_target',
+  AllInRange = 'all_in_range',
+}
+
+/** Behavior tree node configuration */
+export interface BTNodeConfig {
+  type: string;
+  name?: string;
+  params?: Record<string, unknown>;
+  children?: BTNodeConfig[];
+}
+
+/** Behavior tree configuration */
+export interface BehaviorTreeConfig {
+  id: string;
+  name: string;
+  description?: string;
+  version?: string;
+  blackboard?: Record<string, unknown>;
+  root: BTNodeConfig;
+}
+
+/** AI preset configuration */
+export interface AIPresetConfig {
+  id: string;
+  name: string;
+  description?: string;
+  tree: BehaviorTreeConfig;
+}
+
+/** Comparison operators for conditions */
+export type ComparisonOperator = '==' | '!=' | '<' | '>' | '<=' | '>=';
+
+/** Comparison expression */
+export interface ComparisonExpr {
+  op: ComparisonOperator;
+  value: number;
 }

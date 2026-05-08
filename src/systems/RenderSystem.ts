@@ -9,7 +9,10 @@ import { Projectile } from '../components/Projectile.js';
 import { BuffContainer } from '../components/Buff.js';
 import { Boss } from '../components/Boss.js';
 import { Enemy } from '../components/Enemy.js';
+import { Unit } from '../components/Unit.js';
+import { Attack } from '../components/Attack.js';
 import { isAdjacentToPath } from '../utils/grid.js';
+import { UNIT_CONFIGS } from '../data/gameData.js';
 import type { MapConfig, SceneLayout } from '../types/index.js';
 
 export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: number): SceneLayout {
@@ -34,6 +37,7 @@ export class RenderSystem implements System {
     private renderer: Renderer,
     private map: MapConfig,
     private getSelectedTowerEntityId: () => number | null = () => null,
+    private getSelectedUnitEntityId: () => number | null = () => null,
   ) {
     const layout = computeSceneLayout(map, 1920, 1080);
     RenderSystem.sceneOffsetX = layout.offsetX;
@@ -109,13 +113,15 @@ export class RenderSystem implements System {
       .filter((e) => e.pos && e.render)
       .sort((a, b) => a.pos.y - b.pos.y);
 
-    const selectedId = this.getSelectedTowerEntityId();
+    const selectedTowerId = this.getSelectedTowerEntityId();
+    const selectedUnitId = this.getSelectedUnitEntityId();
 
     for (const { id, pos, render: r } of sorted) {
       const isProjectile = this.world.hasComponent(id, CType.Projectile);
       const isEnemy = this.world.hasComponent(id, CType.Enemy);
       const isTower = this.world.hasComponent(id, CType.Tower);
       const isTrap = this.world.hasComponent(id, CType.Trap);
+      const isUnit = this.world.hasComponent(id, CType.Unit);
 
       if (isTrap) {
         const trapFlash = r.hitFlashTimer > 0;
@@ -192,9 +198,26 @@ export class RenderSystem implements System {
         }
       }
 
-      const isSelected = selectedId !== null && id === selectedId;
+      const isSelected = (selectedTowerId !== null && id === selectedTowerId) || 
+                         (selectedUnitId !== null && id === selectedUnitId);
       const strokeColor = isSelected ? '#ffffff' : r.outline ? '#ffffff' : undefined;
       const strokeW = isSelected ? 3 : r.outline ? 2 : undefined;
+
+      if (isUnit && selectedUnitId === id) {
+        const unitComp = this.world.getComponent<Unit>(id, CType.Unit);
+        if (unitComp) {
+          this.renderer.push({
+            shape: 'circle',
+            x: pos.x,
+            y: pos.y,
+            size: unitComp.moveRange * 2,
+            color: '#4fc3f7',
+            alpha: 0.15,
+            stroke: '#4fc3f7',
+            strokeWidth: 1,
+          });
+        }
+      }
 
       const pushCmd = (extras: Partial<Parameters<typeof this.renderer.push>[0]> = {}) => {
         let shape = r.shape;
@@ -245,6 +268,88 @@ export class RenderSystem implements System {
       }
 
       pushCmd();
+
+      if (isUnit && selectedUnitId === id) {
+        const unitComp = this.world.getComponent<Unit>(id, CType.Unit);
+        const attack = this.world.getComponent<Attack>(id, CType.Attack);
+        if (unitComp && health && attack) {
+          const cfg = UNIT_CONFIGS[unitComp.unitType];
+          if (cfg) {
+            const infoY = pos.y - r.size / 2 - 30;
+            this.renderer.push({
+              shape: 'rect',
+              x: pos.x,
+              y: infoY - 12,
+              size: 120,
+              h: 45,
+              color: '#1a1a2e',
+              alpha: 0.85,
+              stroke: '#555555',
+              strokeWidth: 1,
+            });
+            this.renderer.push({
+              shape: 'rect',
+              x: pos.x,
+              y: infoY - 25,
+              size: 0.1,
+              h: 0.1,
+              color: '#ffffff',
+              alpha: 1,
+              label: cfg.name,
+              labelColor: '#ffffff',
+              labelSize: 14,
+            });
+            this.renderer.push({
+              shape: 'rect',
+              x: pos.x,
+              y: infoY - 5,
+              size: 0.1,
+              h: 0.1,
+              color: '#ffffff',
+              alpha: 1,
+              label: `HP:${Math.ceil(health.current)}/${health.max}`,
+              labelColor: '#4caf50',
+              labelSize: 12,
+            });
+            this.renderer.push({
+              shape: 'rect',
+              x: pos.x,
+              y: infoY + 12,
+              size: 0.1,
+              h: 0.1,
+              color: '#ffffff',
+              alpha: 1,
+              label: `ATK:${attack.atk} SPD:${attack.attackSpeed.toFixed(1)}`,
+              labelColor: '#ff9800',
+              labelSize: 12,
+            });
+          }
+        }
+      }
+
+      // Ice particles at feet for slowed/frozen enemies
+      if (isEnemy && !flashActive) {
+        const bc = this.world.getComponent<BuffContainer>(id, CType.Buff);
+        if (bc && (bc.buffs.has('ice_slow') || bc.buffs.has('ice_frozen'))) {
+          const slowBuff = bc.buffs.get('ice_slow');
+          const stacks = slowBuff?.currentStacks ?? (bc.buffs.has('ice_frozen') ? 5 : 1);
+          const particleCount = Math.min(stacks * 2, 10);
+          const footY = pos.y + r.size / 2 + 2;
+          for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2 + (Date.now() % 3000) / 3000 * Math.PI * 2;
+            const radius = r.size * 0.4 + (i % 3) * 3;
+            const px = pos.x + Math.cos(angle) * radius;
+            const py = footY + Math.sin(angle * 2) * 4;
+            this.renderer.push({
+              shape: 'circle',
+              x: px, y: py,
+              size: 4 + (i % 2) * 2,
+              color: bc.buffs.has('ice_frozen') ? '#e0f7fa' : '#b3e5fc',
+              alpha: 0.7 + (i % 3) * 0.1,
+            });
+          }
+        }
+      }
     }
   }
 

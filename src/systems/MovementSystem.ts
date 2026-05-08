@@ -1,14 +1,13 @@
-import { System, type GridPos } from '../types/index.js';
+import { System, CType, type GridPos } from '../types/index.js';
 import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
 import { Position } from '../components/Position.js';
 import { Movement } from '../components/Movement.js';
 import { Health } from '../components/Health.js';
 import { Enemy } from '../components/Enemy.js';
 import type { MapConfig } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
+import { getEntityRadius, checkEntityCollision, findAvoidanceTarget } from '../utils/collision.js';
 
-/** Moves enemy entities along the predefined path */
 export class MovementSystem implements System {
   readonly name = 'MovementSystem';
   readonly requiredComponents = [CType.Position, CType.Movement, CType.Enemy] as const;
@@ -23,7 +22,6 @@ export class MovementSystem implements System {
       const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
       if (!enemy) continue;
 
-      // Stun timer — enemy cannot move while stunned
       if (enemy.stunTimer > 0) {
         enemy.stunTimer -= dt;
         continue;
@@ -34,10 +32,11 @@ export class MovementSystem implements System {
       const pos = this.world.getComponent<Position>(id, CType.Position)!;
       const mov = this.world.getComponent<Movement>(id, CType.Movement)!;
 
+      const radius = getEntityRadius(this.world, id);
+
       const path = this.map.enemyPath;
       const currentIdx = mov.pathIndex;
 
-      // Check if reached end of path
       if (currentIdx >= path.length - 1) {
         this.onReachEnd(id);
         continue;
@@ -46,7 +45,6 @@ export class MovementSystem implements System {
       const current = path[currentIdx]!;
       const next = path[currentIdx + 1]!;
 
-      // Calculate world position of waypoints
       const ts = this.map.tileSize;
       const ox = RenderSystem.sceneOffsetX;
       const oy = RenderSystem.sceneOffsetY;
@@ -63,29 +61,83 @@ export class MovementSystem implements System {
         const dist = mov.speed * dt;
         const reachedNext = mov.advance(dist, segmentLen);
 
-        // Interpolate position along segment
         const t = mov.progressValue;
-        pos.x = cx + dx * t;
-        pos.y = cy + dy * t;
+        let newX = cx + dx * t;
+        let newY = cy + dy * t;
 
         if (reachedNext) {
-          // Snap to next waypoint
-          pos.x = nx;
-          pos.y = ny;
+          newX = nx;
+          newY = ny;
+        }
+
+        const entityCollision = checkEntityCollision(
+          this.world,
+          id,
+          newX,
+          newY,
+          radius,
+          [CType.Projectile, CType.DeathEffect, CType.Trap]
+        );
+
+        if (entityCollision.blocked) {
+          const avoidance = findAvoidanceTarget(
+            this.world,
+            id,
+            pos.x,
+            pos.y,
+            radius,
+            nx,
+            ny,
+            [CType.Projectile, CType.DeathEffect, CType.Trap]
+          );
+
+          if (avoidance) {
+            const avoidDx = avoidance.x - pos.x;
+            const avoidDy = avoidance.y - pos.y;
+            const avoidDist = Math.sqrt(avoidDx * avoidDx + avoidDy * avoidDy);
+
+            if (avoidDist > 0.1) {
+              const avoidStep = Math.min(dist * 0.8, avoidDist);
+              const avoidX = pos.x + (avoidDx / avoidDist) * avoidStep;
+              const avoidY = pos.y + (avoidDy / avoidDist) * avoidStep;
+
+              const recheck = checkEntityCollision(
+                this.world,
+                id,
+                avoidX,
+                avoidY,
+                radius,
+                [CType.Projectile, CType.DeathEffect, CType.Trap]
+              );
+
+              if (!recheck.blocked) {
+                pos.x = avoidX;
+                pos.y = avoidY;
+              } else {
+                pos.x = newX;
+                pos.y = newY;
+              }
+            } else {
+              pos.x = newX;
+              pos.y = newY;
+            }
+          } else {
+            pos.x = newX;
+            pos.y = newY;
+          }
+        } else {
+          pos.x = newX;
+          pos.y = newY;
         }
       }
     }
   }
 
   private onReachEnd(enemyId: number): void {
-    // Enemy reached base — deal damage to base
     const enemy = this.world.getComponent<Enemy>(enemyId, CType.Enemy);
     const damage = enemy?.atk ?? 10;
 
-    // Find the "base" entity (player lives tracker)
     const bases = this.world.query(CType.Health, CType.Position);
-    // For MVP, base is the only non-enemy Health entity (or a dedicated Base component)
-    // We use a simple approach: find Health entity that's NOT an Enemy
     for (const baseId of bases) {
       if (!this.world.hasComponent(baseId, CType.Enemy)) {
         const health = this.world.getComponent<Health>(baseId, CType.Health);

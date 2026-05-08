@@ -8,6 +8,7 @@ import { Render } from '../components/Render.js';
 import { PlayerOwned } from '../components/PlayerOwned.js';
 import { Production } from '../components/Production.js';
 import { Trap } from '../components/Trap.js';
+import { AI } from '../components/AI.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS } from '../data/gameData.js';
 import { RenderSystem } from './RenderSystem.js';
 import { isAdjacentToPath } from '../utils/grid.js';
@@ -279,7 +280,27 @@ export class BuildSystem implements System {
     render.labelSize = 16;
     this.world.addComponent(id, render);
     this.world.addComponent(id, new PlayerOwned());
+    
+    // 添加AI组件 - 根据塔类型选择AI配置
+    const aiConfigId = this.getTowerAIConfig(tt);
+    this.world.addComponent(id, new AI(aiConfigId));
+    
     return id;
+  }
+  
+  private getTowerAIConfig(towerType: TowerType): string {
+    switch (towerType) {
+      case TowerType.Arrow:
+        return 'tower_basic';
+      case TowerType.Cannon:
+        return 'tower_cannon';
+      case TowerType.Ice:
+        return 'tower_ice';
+      case TowerType.Lightning:
+        return 'tower_lightning';
+      default:
+        return 'tower_basic';
+    }
   }
 
   private createTrapEntity(x: number, y: number, row: number, col: number): number {

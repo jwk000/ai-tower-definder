@@ -109,6 +109,14 @@ export class UISystem implements System {
     this.selectedEntityType = id !== null ? 'tower' : null;
   }
 
+  get selectedUnitEntityId(): number | null {
+    return this.selectedEntityType === 'unit' ? this.selectedEntityId : null;
+  }
+  set selectedUnitEntityId(id: number | null) {
+    this.selectedEntityId = id;
+    this.selectedEntityType = id !== null ? 'unit' : null;
+  }
+
   update(_entities: number[], dt: number): void {
     const phase = this.getPhase();
     this.buttons = [];
@@ -213,13 +221,18 @@ export class UISystem implements System {
   private drawButton(btn: UIButton): void {
     const ctx = this.renderer.context;
     const enabled = typeof btn.enabled === 'function' ? btn.enabled() : btn.enabled;
+    const lines = btn.label.split('\n');
+    const lineH = 16;
+    const startY = btn.y + btn.h / 2 - ((lines.length - 1) * lineH) / 2;
 
     ctx.save();
     ctx.fillStyle = enabled ? btn.textColor : '#888888';
-    ctx.font = '18px monospace';
+    ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i]!, btn.x + btn.w / 2, startY + i * lineH);
+    }
     ctx.restore();
   }
 

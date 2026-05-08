@@ -4,8 +4,10 @@ import { Position } from '../components/Position.js';
 import { Health } from '../components/Health.js';
 import { Movement } from '../components/Movement.js';
 import { Enemy } from '../components/Enemy.js';
+import { EnemyAttacker } from '../components/EnemyAttacker.js';
 import { Render } from '../components/Render.js';
 import { Boss } from '../components/Boss.js';
+import { AI } from '../components/AI.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import type { MapConfig } from '../types/index.js';
 import { generateEndlessWave } from './EndlessWaveGenerator.js';
@@ -198,6 +200,11 @@ export class WaveSystem implements System {
     this.world.addComponent(id, new Movement(config.speed));
     this.world.addComponent(id, new Enemy(config.type, config.defense, config.atk, config.speed));
 
+    // 给有攻击范围的敌人添加 EnemyAttacker 组件
+    if (config.attackRange > 0) {
+      this.world.addComponent(id, new EnemyAttacker(config.attackRange, config.attackSpeed, config.atk));
+    }
+
     const render = new Render('circle', config.color, config.radius * 2);
     render.label = config.name;
     render.labelColor = '#ffffff';
@@ -206,6 +213,27 @@ export class WaveSystem implements System {
 
     if (config.isBoss) {
       this.world.addComponent(id, new Boss([], config.bossPhase2HpRatio ?? 0.5));
+    }
+    
+    // 添加AI组件 - 根据敌人类型选择AI配置
+    const aiConfigId = this.getEnemyAIConfig(type);
+    this.world.addComponent(id, new AI(aiConfigId));
+  }
+  
+  private getEnemyAIConfig(enemyType: EnemyType): string {
+    switch (enemyType) {
+      case EnemyType.Grunt:
+      case EnemyType.Runner:
+      case EnemyType.Heavy:
+      case EnemyType.Exploder:
+        return 'enemy_basic';
+      case EnemyType.Mage:
+        return 'enemy_ranged';
+      case EnemyType.BossCommander:
+      case EnemyType.BossBeast:
+        return 'enemy_boss';
+      default:
+        return 'enemy_basic';
     }
   }
 }

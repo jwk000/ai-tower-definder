@@ -17,10 +17,12 @@ import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
+import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
+import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
-import { GamePhase, GameScreen, CType, TileType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
+import { GamePhase, GameScreen, CType, TileType, UnitType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
 import { Position, GridOccupant } from './components/Position.js';
 import { Health } from './components/Health.js';
 import { Attack } from './components/Attack.js';
@@ -33,6 +35,16 @@ import { PlayerOwned } from './components/PlayerOwned.js';
 import { Enemy } from './components/Enemy.js';
 import { Production } from './components/Production.js';
 import { DeathEffect } from './components/DeathEffect.js';
+import { AI } from './components/AI.js';
+
+// New unit system imports
+import { AISystem } from './systems/AISystem.js';
+import { LifecycleSystem } from './systems/LifecycleSystem.js';
+import { UnitFactory } from './systems/UnitFactory.js';
+import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
+
+// Debug system imports
+import { DebugManager } from './debug/DebugManager.js';
 
 class TowerDefenderGame extends Game {
   private currentScreen: GameScreen = GameScreen.LevelSelect;
@@ -50,6 +62,14 @@ class TowerDefenderGame extends Game {
   private buffSystem!: BuffSystem;
   private healthSystem!: HealthSystem;
   private baseHealth: Health | null = null;
+
+  // New unit system
+  private aiSystem!: AISystem;
+  private lifecycleSystem!: LifecycleSystem;
+  private unitFactory!: UnitFactory;
+
+  // Debug system
+  private debugManager!: DebugManager;
 
   private unitDragId: number | null = null;
 
@@ -242,6 +262,7 @@ class TowerDefenderGame extends Game {
     const renderSystem = new RenderSystem(
       this.world, this.renderer, map,
       () => this.uiSystem.selectedTowerEntityId,
+      () => this.uiSystem.selectedUnitEntityId,
     );
     const movementSystem = new MovementSystem(this.world, map);
     const enemyAttackSystem = new EnemyAttackSystem(this.world);
@@ -260,9 +281,26 @@ class TowerDefenderGame extends Game {
     const trapSystem = new TrapSystem(this.world, map.tileSize);
     const healingSystem = new HealingSystem(this.world);
     const deathEffectSystem = new DeathEffectSystem(this.world);
+    const explosionEffectSystem = new ExplosionEffectSystem(this.world);
+    const lightningBoltSystem = new LightningBoltSystem(this.world, this.renderer);
+
+    // Initialize new unit system
+    this.aiSystem = new AISystem(this.world);
+    this.lifecycleSystem = new LifecycleSystem(this.world);
+    this.unitFactory = new UnitFactory(this.world);
+
+    // Register AI configurations
+    this.aiSystem.registerAIConfigs(ALL_AI_CONFIGS);
+
+    // Initialize debug manager
+    this.debugManager = new DebugManager(this.world);
+    this.debugManager.registerAIConfigs(ALL_AI_CONFIGS);
 
     // UI overlay
-    this.onPostRender = () => this.uiSystem.renderUI();
+    this.onPostRender = () => {
+      lightningBoltSystem.renderBolts();
+      this.uiSystem.renderUI();
+    };
 
     // Input dispatch for battle
     this.input.onPointerDown = (e: InputEvent) => {
@@ -332,6 +370,10 @@ class TowerDefenderGame extends Game {
     this.onUpdate = null;
     this.onAfterUpdate = () => {
       if (this.currentScreen !== GameScreen.Battle) return;
+      
+      // Update debug manager
+      this.debugManager.update();
+      
       if (this.phase === GamePhase.Victory) {
         this.handleVictory();
       } else if (this.phase === GamePhase.Defeat) {
@@ -340,6 +382,8 @@ class TowerDefenderGame extends Game {
     };
 
     // Register systems
+    this.world.registerSystem(this.lifecycleSystem);  // Lifecycle first
+    this.world.registerSystem(this.aiSystem);         // AI system
     this.world.registerSystem(movementSystem);
     this.world.registerSystem(enemyAttackSystem);
     this.world.registerSystem(attackSystem);
@@ -352,10 +396,12 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(trapSystem);
     this.world.registerSystem(healingSystem);
     this.world.registerSystem(deathEffectSystem);
+    this.world.registerSystem(explosionEffectSystem);
     this.world.registerSystem(this.healthSystem);
     this.world.registerSystem(this.economy);
     this.world.registerSystem(this.buildSystem);
     this.world.registerSystem(renderSystem);
+    this.world.registerSystem(lightningBoltSystem); // direct canvas draw — after buffered render
     this.world.registerSystem(this.uiSystem);
 
     // Start auto-countdown for first wave
@@ -416,6 +462,7 @@ class TowerDefenderGame extends Game {
       const r = render.size * 0.65;
       if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
         this.uiSystem.selectEnemy(id);
+        this.debugManager.selectEntity(id);
         return;
       }
     }
@@ -431,6 +478,7 @@ class TowerDefenderGame extends Game {
         this.uiSystem.enemyEntityId = null;
         this.uiSystem.selectedEntityId = id;
         this.uiSystem.selectedEntityType = 'tower';
+        this.debugManager.selectEntity(id);
         return;
       }
     }
@@ -446,6 +494,7 @@ class TowerDefenderGame extends Game {
         this.uiSystem.enemyEntityId = null;
         this.uiSystem.selectedEntityId = id;
         this.uiSystem.selectedEntityType = 'unit';
+        this.debugManager.selectEntity(id);
         return;
       }
     }
@@ -454,6 +503,7 @@ class TowerDefenderGame extends Game {
     this.uiSystem.selectedEntityId = null;
     this.uiSystem.selectedEntityType = null;
     this.uiSystem.enemyEntityId = null;
+    this.debugManager.selectEntity(null);
   }
 
   private spawnUnitAt(px: number, py: number): void {
@@ -500,7 +550,7 @@ class TowerDefenderGame extends Game {
     this.world.addComponent(id, new Position(x, y));
     this.world.addComponent(id, new Health(config.hp));
     this.world.addComponent(id, new Attack(config.atk, config.attackRange, config.attackSpeed));
-    this.world.addComponent(id, new Unit(config.type, config.popCost, config.skillId, config.speed, config.cost));
+    this.world.addComponent(id, new Unit(config.type, config.popCost, config.skillId, config.speed, config.cost, x, y, config.moveRange));
     this.world.addComponent(id, new PlayerControllable());
     this.world.addComponent(id, new Skill(config.skillId, cooldown, energyCost));
     this.world.addComponent(id, new PlayerOwned());
@@ -511,6 +561,24 @@ class TowerDefenderGame extends Game {
     render.labelColor = '#ffffff';
     render.labelSize = 16;
     this.world.addComponent(id, render);
+    
+    // 添加AI组件 - 根据单位类型选择AI配置
+    const aiConfigId = this.getUnitAIConfig(unitType);
+    const ai = new AI(aiConfigId);
+    ai.setBlackboard('home_x', x);
+    ai.setBlackboard('home_y', y);
+    this.world.addComponent(id, ai);
+  }
+  
+  private getUnitAIConfig(unitType: UnitType): string {
+    switch (unitType) {
+      case UnitType.ShieldGuard:
+        return 'soldier_tank';
+      case UnitType.Swordsman:
+        return 'soldier_dps';
+      default:
+        return 'soldier_basic';
+    }
   }
 
   private recycleEntity(entityId: number): void {

@@ -1,6 +1,5 @@
-import { System, TileType } from '../types/index.js';
+import { System, TileType, CType } from '../types/index.js';
 import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
 import { Position } from '../components/Position.js';
 import { Attack } from '../components/Attack.js';
 import { Health } from '../components/Health.js';
@@ -9,6 +8,7 @@ import { PlayerControllable } from '../components/PlayerControllable.js';
 import { Render } from '../components/Render.js';
 import { RenderSystem } from './RenderSystem.js';
 import type { MapConfig } from '../types/index.js';
+import { checkTileCollision, checkEntityCollision, getEntityRadius, findAvoidanceTarget } from '../utils/collision.js';
 
 export class UnitSystem implements System {
   readonly name = 'UnitSystem';
@@ -32,6 +32,8 @@ export class UnitSystem implements System {
       const atk = this.world.getComponent<Attack>(unitId, CType.Attack)!;
       const unit = this.world.getComponent<Unit>(unitId, CType.Unit)!;
       const ctrl = this.world.getComponent<PlayerControllable>(unitId, CType.PlayerControllable);
+
+      const radius = getEntityRadius(this.world, unitId);
 
       atk.tickCooldown(dt);
 
@@ -100,20 +102,85 @@ export class UnitSystem implements System {
           let newX = pos.x + stepX;
           let newY = pos.y + stepY;
 
+          const homeDx = newX - unit.homeX;
+          const homeDy = newY - unit.homeY;
+          const homeDist = Math.sqrt(homeDx * homeDx + homeDy * homeDy);
+
+          if (homeDist > unit.moveRange) {
+            const ratio = unit.moveRange / homeDist;
+            newX = unit.homeX + homeDx * ratio;
+            newY = unit.homeY + homeDy * ratio;
+          }
+
           newX = Math.max(ox, Math.min(maxX, newX));
           newY = Math.max(oy, Math.min(maxY, newY));
 
-          const col = Math.floor((newX - ox) / ts);
-          const row = Math.floor((newY - oy) / ts);
-          let blocked = false;
-          if (row >= 0 && row < this.map.rows && col >= 0 && col < this.map.cols) {
-            const tile = this.map.tiles[row]![col]!;
-            if (tile === TileType.Path) {
-              blocked = true;
-            }
+          const tileCollision = checkTileCollision(newX, newY, radius, this.map);
+          if (tileCollision) {
+            newX = pos.x;
+            newY = pos.y;
           }
 
-          if (!blocked) {
+          const entityCollision = checkEntityCollision(
+            this.world,
+            unitId,
+            newX,
+            newY,
+            radius,
+            [CType.Projectile, CType.DeathEffect]
+          );
+
+          if (entityCollision.blocked) {
+            const avoidance = findAvoidanceTarget(
+              this.world,
+              unitId,
+              pos.x,
+              pos.y,
+              radius,
+              moveTargetX,
+              moveTargetY,
+              [CType.Projectile, CType.DeathEffect]
+            );
+
+            if (avoidance) {
+              const avoidDx = avoidance.x - pos.x;
+              const avoidDy = avoidance.y - pos.y;
+              const avoidDist = Math.sqrt(avoidDx * avoidDx + avoidDy * avoidDy);
+
+              if (avoidDist > 0.1) {
+                const avoidStep = Math.min(moveDist, avoidDist);
+                newX = pos.x + (avoidDx / avoidDist) * avoidStep;
+                newY = pos.y + (avoidDy / avoidDist) * avoidStep;
+
+                const homeDx2 = newX - unit.homeX;
+                const homeDy2 = newY - unit.homeY;
+                const homeDist2 = Math.sqrt(homeDx2 * homeDx2 + homeDy2 * homeDy2);
+                if (homeDist2 > unit.moveRange) {
+                  const ratio2 = unit.moveRange / homeDist2;
+                  newX = unit.homeX + homeDx2 * ratio2;
+                  newY = unit.homeY + homeDy2 * ratio2;
+                }
+
+                newX = Math.max(ox, Math.min(maxX, newX));
+                newY = Math.max(oy, Math.min(maxY, newY));
+
+                if (!checkTileCollision(newX, newY, radius, this.map)) {
+                  const recheck = checkEntityCollision(
+                    this.world,
+                    unitId,
+                    newX,
+                    newY,
+                    radius,
+                    [CType.Projectile, CType.DeathEffect]
+                  );
+                  if (!recheck.blocked) {
+                    pos.x = newX;
+                    pos.y = newY;
+                  }
+                }
+              }
+            }
+          } else {
             pos.x = newX;
             pos.y = newY;
           }

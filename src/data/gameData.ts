@@ -37,8 +37,8 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     name: '炮塔',
     cost: 80,
     hp: 120,
-    atk: 25,
-    attackSpeed: 0.4,
+    atk: 30,
+    attackSpeed: 0.25,
     range: 180,
     damageType: 'physical',
     splashRadius: 80,
@@ -143,9 +143,9 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     atk: 12,
     defense: 0,
     magicResist: 0,
-    attackRange: 0,
+    attackRange: 150,
     attackSpeed: 1,
-    canAttackBuildings: false,
+    canAttackBuildings: true,
     rewardGold: 18,
     color: '#ce93d8',
     radius: 14,
@@ -303,6 +303,7 @@ export const UNIT_CONFIGS: Record<UnitType, UnitConfig> = {
     size: 28,
     skillId: 'taunt',
     cost: 60,
+    moveRange: 150,
   },
   [UnitType.Swordsman]: {
     type: UnitType.Swordsman,
@@ -318,6 +319,7 @@ export const UNIT_CONFIGS: Record<UnitType, UnitConfig> = {
     size: 24,
     skillId: 'whirlwind',
     cost: 50,
+    moveRange: 200,
   },
 };
 
