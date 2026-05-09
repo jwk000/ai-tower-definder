@@ -20,6 +20,7 @@ import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
+import { Sound } from './utils/Sound.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
 import { GamePhase, GameScreen, CType, TileType, UnitType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
@@ -72,9 +73,12 @@ class TowerDefenderGame extends Game {
   private debugManager!: DebugManager;
 
   private unitDragId: number | null = null;
+  private defeatSfxPlayed = false;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
+
+    Sound.preload();
 
     this.levelSelectUI = new LevelSelectUI(
       this.renderer,
@@ -129,6 +133,7 @@ class TowerDefenderGame extends Game {
   private initBattle(config: LevelConfig): void {
     const map = config.map;
     this.currentMap = map;
+    this.defeatSfxPlayed = false;
 
     // Create base entity
     const basePath = map.enemyPath[map.enemyPath.length - 1]!;
@@ -243,7 +248,10 @@ class TowerDefenderGame extends Game {
       this.world,
       () => this.phase,
       (p) => { this.phase = p; },
-      (enemyId) => this.economy.rewardForEnemy(enemyId),
+      (enemyId) => {
+        Sound.play('enemy_death');
+        this.economy.rewardForEnemy(enemyId);
+      },
       (unitId) => {
         const unit = this.world.getComponent<Unit>(unitId, CType.Unit);
         if (unit) {
@@ -359,6 +367,7 @@ class TowerDefenderGame extends Game {
         } else {
           const result = this.buildSystem.tryDrop(e.x, e.y);
           if (result !== false && result !== null) {
+            Sound.play('build_place');
             this.uiSystem.selectedEntityId = result;
             this.uiSystem.selectedEntityType = ds.entityType === 'tower' ? 'tower' : null;
           }
@@ -377,6 +386,10 @@ class TowerDefenderGame extends Game {
       if (this.phase === GamePhase.Victory) {
         this.handleVictory();
       } else if (this.phase === GamePhase.Defeat) {
+        if (!this.defeatSfxPlayed) {
+          Sound.play('defeat');
+          this.defeatSfxPlayed = true;
+        }
         this.handleDefeat();
       }
     };
@@ -538,6 +551,7 @@ class TowerDefenderGame extends Game {
     if (!this.economy.spendGold(config.cost)) return;
 
     this.economy.deployUnit(config.popCost);
+    Sound.play('build_place');
 
     const skillCfg = SKILL_CONFIGS[config.skillId];
     const energyCost = skillCfg ? skillCfg.energyCost : 0;
