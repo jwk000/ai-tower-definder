@@ -11,6 +11,7 @@ import { LightningBolt } from '../components/LightningBolt.js';
 import { LightningAura } from '../components/LightningAura.js';
 import { Renderer } from '../render/Renderer.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
+import { Sound } from '../utils/Sound.js';
 
 const PROJECTILE_CFG: Record<TowerType, { speed: number; shape: ShapeType; color: string; size: number }> = {
   [TowerType.Arrow]:     { speed: 420, shape: 'arrow',    color: '#81d4fa', size: 24 },
@@ -54,6 +55,7 @@ export class AttackSystem implements System {
 
       if (nearestId !== null) {
         atk.resetCooldown();
+        Sound.play('tower_shoot');
         if (tower.towerType === TowerType.Lightning) {
           this.doLightningAttack(towerId, nearestId, pos.x, pos.y, tower.level);
         } else {

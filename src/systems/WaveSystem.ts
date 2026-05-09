@@ -12,6 +12,7 @@ import { ENEMY_CONFIGS } from '../data/gameData.js';
 import type { MapConfig } from '../types/index.js';
 import { generateEndlessWave } from './EndlessWaveGenerator.js';
 import { RenderSystem } from './RenderSystem.js';
+import { Sound } from '../utils/Sound.js';
 
 /** Manages wave progression and enemy spawning */
 export class WaveSystem implements System {
@@ -91,6 +92,7 @@ export class WaveSystem implements System {
   /** Player clicks "start wave" — begin spawning */
   startWave(): void {
     if (this.isEndless) {
+      Sound.play('wave_start');
       const wave = generateEndlessWave(this.currentWaveIndex + 1);
       this.isBossWave = wave.isBossWave ?? false;
       this.spawnQueue = wave.enemies.map((g) => ({
@@ -109,6 +111,7 @@ export class WaveSystem implements System {
 
     if (this.currentWaveIndex >= this.waves.length) return;
 
+    Sound.play('wave_start');
     const wave = this.waves[this.currentWaveIndex]!;
     this.isBossWave = wave.isBossWave ?? false;
     this.spawnQueue = wave.enemies.map((g) => ({
