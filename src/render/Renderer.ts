@@ -17,9 +17,8 @@ export class Renderer {
   }
 
   resize(): void {
-    const parent = this.canvas.parentElement ?? document.body;
-    const w = parent.clientWidth;
-    const h = parent.clientHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     const aspect = Renderer.DESIGN_W / Renderer.DESIGN_H;
 
     let cw: number, ch: number;
