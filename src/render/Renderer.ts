@@ -1,4 +1,5 @@
 import type { RenderCommand, ShapeType } from '../types/index.js';
+import { getFont } from '../config/fonts.js';
 
 /** Canvas 2D renderer — draws geometric shapes with a command buffer */
 export class Renderer {
@@ -161,7 +162,7 @@ export class Renderer {
     // Text label on top of shape
     if (cmd.label) {
       ctx.fillStyle = cmd.labelColor ?? '#ffffff';
-      ctx.font = `${cmd.labelSize ?? 16}px monospace`;
+      ctx.font = getFont(cmd.labelSize ?? 16);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(cmd.label, cx, cy);

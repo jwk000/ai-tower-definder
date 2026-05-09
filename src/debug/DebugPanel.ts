@@ -1,5 +1,6 @@
 import { BehaviorTreeRenderer } from './BehaviorTreeRenderer.js';
 import type { BTNodeDebugInfo, BehaviorTreeDebugState, LogEntry, LogLevel } from './types.js';
+import { FONTS, FONT_FAMILY } from '../config/fonts.js';
 
 /**
  * 调试面板 - 半屏覆盖式界面
@@ -19,6 +20,8 @@ export class DebugPanel {
   private isExpanded: boolean = false;
   private activeTab: 'behavior_tree' | 'console' = 'behavior_tree';
   private currentState: BehaviorTreeDebugState | null = null;
+  private lastEntityId: number | null = null; // 跟踪上次选择的实体
+  private needFitToContent: boolean = false; // 是否需要适应视图
   
   // 日志
   private logs: LogEntry[] = [];
@@ -36,7 +39,7 @@ export class DebugPanel {
       position: fixed;
       top: 0;
       right: 0;
-      width: 450px;
+      width: 600px;
       height: 100vh;
       z-index: 9998;
       display: flex;
@@ -306,7 +309,7 @@ export class DebugPanel {
       flex: 1;
       overflow-y: auto;
       padding: 10px;
-      font-family: 'Consolas', 'Monaco', monospace;
+      font-family: ${FONT_FAMILY};
       font-size: 11px;
       background: #1e1e2e;
     `;
@@ -481,14 +484,21 @@ export class DebugPanel {
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     
+    // 如果需要适应视图（选择了新单位）
+    if (this.needFitToContent && this.currentState?.root) {
+      this.needFitToContent = false;
+      this.resizeCanvas();
+      this.renderer.fitToContent();
+    }
+    
     // 清空画布
-    ctx.fillStyle = '#1e1e2e';
+    ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
     if (!this.currentState?.root) {
       // 显示提示信息
       ctx.fillStyle = '#a0a0b0';
-      ctx.font = '14px Arial';
+      ctx.font = FONTS.body;
       ctx.textAlign = 'center';
       ctx.fillText('选择一个单位查看其AI行为树', this.canvas.width / 2, this.canvas.height / 2);
       return;
@@ -578,7 +588,15 @@ export class DebugPanel {
    * 更新行为树状态
    */
   updateBehaviorTreeState(state: BehaviorTreeDebugState | null): void {
+    // 检查是否选择了新单位
+    const isNewEntity = state && (!this.currentState || state.entityId !== this.lastEntityId);
+    
     this.currentState = state;
+    
+    if (isNewEntity) {
+      this.lastEntityId = state!.entityId;
+      this.needFitToContent = true; // 标记需要适应视图
+    }
     
     // 更新单位信息
     const unitInfo = document.getElementById('debug-unit-info');
@@ -587,15 +605,8 @@ export class DebugPanel {
         unitInfo.textContent = `${state.unitName} (${state.aiConfigId})`;
       } else {
         unitInfo.textContent = '未选择单位';
+        this.lastEntityId = null;
       }
-    }
-    
-    // 如果有新状态，适应视图
-    if (state?.root) {
-      setTimeout(() => {
-        this.resizeCanvas();
-        this.renderer.fitToContent();
-      }, 100);
     }
   }
 

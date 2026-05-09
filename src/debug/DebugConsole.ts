@@ -1,4 +1,5 @@
 import type { LogEntry, LogLevel } from './types.js';
+import { FONT_FAMILY } from '../config/fonts.js';
 
 /**
  * 调试控制台
@@ -63,7 +64,7 @@ export class DebugConsole {
       flex: 1;
       overflow-y: auto;
       padding: 10px;
-      font-family: 'Consolas', 'Monaco', monospace;
+      font-family: ${FONT_FAMILY};
       font-size: 12px;
       background: #1e1e2e;
     `;

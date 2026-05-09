@@ -1,4 +1,5 @@
 import type { BTNodeDebugInfo, NodeExecutionStatus } from './types.js';
+import { FONTS, FONT_FAMILY } from '../config/fonts.js';
 
 /**
  * 行为树可视化渲染器
@@ -14,11 +15,12 @@ export class BehaviorTreeRenderer {
   private offsetY: number = 0;
   private scale: number = 1.0;
   
-  // 节点布局 - 增大尺寸
-  private nodeWidth: number = 220;
-  private nodeHeight: number = 80;
-  private horizontalSpacing: number = 60;
-  private verticalSpacing: number = 120;
+  // 节点布局配置
+  private nodeWidth: number = 200;
+  private nodeHeight: number = 70;
+  private horizontalGap: number = 30;  // 节点间水平间距
+  private verticalGap: number = 80;    // 节点间垂直间距
+  private levelHeight: number = 120;   // 层级高度
   
   // 交互状态
   private isDragging: boolean = false;
@@ -29,24 +31,25 @@ export class BehaviorTreeRenderer {
   // 节点位置缓存
   private nodePositions: Map<string, { x: number; y: number; width: number; height: number }> = new Map();
   
-  // 颜色配置 - 更鲜明的状态颜色
+  // 子树宽度缓存
+  private subtreeWidths: Map<string, number> = new Map();
+  
+  // 颜色配置
   private colors = {
     background: '#1a1a2e',
     nodeIdle: '#2d2d44',
-    nodeRunning: '#1a5a1a',      // 更亮的绿色
-    nodeSuccess: '#1a3a5a',      // 更亮的蓝色
-    nodeFailure: '#5a1a1a',      // 更亮的红色
+    nodeRunning: '#1a5a1a',
+    nodeSuccess: '#1a3a5a',
+    nodeFailure: '#5a1a1a',
     border: '#4a4a6a',
-    borderRunning: '#4CAF50',    // 绿色边框
-    borderSuccess: '#2196F3',    // 蓝色边框
-    borderFailure: '#f44336',    // 红色边框
+    borderRunning: '#4CAF50',
+    borderSuccess: '#2196F3',
+    borderFailure: '#f44336',
     borderHover: '#9a9acc',
     text: '#ffffff',
     textSecondary: '#b0b0c0',
     connection: '#5a5a7a',
     connectionRunning: '#4CAF50',
-    title: '#9a9aba',
-    icon: '#ffffff',
   };
 
   constructor(canvas: HTMLCanvasElement) {
@@ -64,6 +67,7 @@ export class BehaviorTreeRenderer {
     this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
     this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
     this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+    this.canvas.addEventListener('mouseleave', this.onMouseUp.bind(this));
     this.canvas.addEventListener('wheel', this.onWheel.bind(this));
   }
 
@@ -74,6 +78,7 @@ export class BehaviorTreeRenderer {
     this.isDragging = true;
     this.lastMouseX = e.clientX;
     this.lastMouseY = e.clientY;
+    this.canvas.style.cursor = 'grabbing';
   }
 
   /**
@@ -90,7 +95,10 @@ export class BehaviorTreeRenderer {
     }
     
     // 检测悬停节点
-    this.hoveredNodeId = this.getNodeAtPosition(e.clientX, e.clientY);
+    const rect = this.canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left - this.offsetX) / this.scale;
+    const y = (e.clientY - rect.top - this.offsetY) / this.scale;
+    this.hoveredNodeId = this.getNodeAtPosition(x, y);
   }
 
   /**
@@ -98,6 +106,7 @@ export class BehaviorTreeRenderer {
    */
   private onMouseUp(): void {
     this.isDragging = false;
+    this.canvas.style.cursor = 'grab';
   }
 
   /**
@@ -105,18 +114,28 @@ export class BehaviorTreeRenderer {
    */
   private onWheel(e: WheelEvent): void {
     e.preventDefault();
+    
+    // 获取鼠标位置
+    const rect = this.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // 计算缩放
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    this.scale = Math.max(0.3, Math.min(2.0, this.scale * delta));
+    const newScale = Math.max(0.3, Math.min(2.0, this.scale * delta));
+    
+    // 调整偏移以保持鼠标位置不变
+    const scaleRatio = newScale / this.scale;
+    this.offsetX = mouseX - (mouseX - this.offsetX) * scaleRatio;
+    this.offsetY = mouseY - (mouseY - this.offsetY) * scaleRatio;
+    
+    this.scale = newScale;
   }
 
   /**
    * 获取指定位置的节点
    */
-  private getNodeAtPosition(clientX: number, clientY: number): string | null {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = (clientX - rect.left - this.offsetX) / this.scale;
-    const y = (clientY - rect.top - this.offsetY) / this.scale;
-    
+  private getNodeAtPosition(x: number, y: number): string | null {
     for (const [nodeId, pos] of this.nodePositions) {
       if (x >= pos.x && x <= pos.x + pos.width &&
           y >= pos.y && y <= pos.y + pos.height) {
@@ -138,23 +157,21 @@ export class BehaviorTreeRenderer {
     ctx.fillRect(0, 0, width, height);
     
     if (!root) {
-      // 显示空状态
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('未选择单位或单位无AI配置', width / 2, height / 2);
       return;
     }
+    
+    // 计算布局
+    this.nodePositions.clear();
+    this.subtreeWidths.clear();
+    this.calculateSubtreeWidths(root);
+    this.calculateLayout(root, 0, 0);
     
     // 应用变换
     ctx.save();
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
     
-    // 计算布局
-    this.calculateLayout(root, 0, 0);
-    
-    // 绘制连接线
+    // 绘制连接线（先绘制，确保在节点下方）
     this.drawConnections(root);
     
     // 绘制节点
@@ -164,42 +181,66 @@ export class BehaviorTreeRenderer {
   }
 
   /**
-   * 计算节点布局
+   * 计算子树宽度（自底向上）
    */
-  private calculateLayout(node: BTNodeDebugInfo, x: number, y: number): { x: number; y: number; width: number; height: number } {
+  private calculateSubtreeWidths(node: BTNodeDebugInfo): number {
     if (!node.children || node.children.length === 0) {
-      // 叶子节点
-      const pos = { x, y, width: this.nodeWidth, height: this.nodeHeight };
-      this.nodePositions.set(node.id, pos);
-      return pos;
+      // 叶子节点宽度就是节点本身宽度
+      this.subtreeWidths.set(node.id, this.nodeWidth);
+      return this.nodeWidth;
     }
     
-    // 计算子节点布局
-    let totalWidth = 0;
-    const childPositions: Array<{ x: number; y: number; width: number; height: number }> = [];
-    
+    // 计算所有子树的总宽度
+    let totalChildrenWidth = 0;
     for (const child of node.children) {
-      const childPos = this.calculateLayout(child, x + totalWidth, y + this.verticalSpacing);
-      childPositions.push(childPos);
-      totalWidth += childPos.width + this.horizontalSpacing;
-    }
-    totalWidth -= this.horizontalSpacing; // 移除最后一个间距
-    
-    // 居中父节点
-    const parentX = x + (totalWidth - this.nodeWidth) / 2;
-    const parentPos = { x: parentX, y, width: this.nodeWidth, height: this.nodeHeight };
-    this.nodePositions.set(node.id, parentPos);
-    
-    // 重新计算子节点位置（居中对齐）
-    let currentX = x + (totalWidth - (childPositions.length * (this.nodeWidth + this.horizontalSpacing) - this.horizontalSpacing)) / 2;
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i]!;
-      const childWidth = childPositions[i]!.width;
-      this.calculateLayout(child, currentX, y + this.verticalSpacing);
-      currentX += childWidth + this.horizontalSpacing;
+      totalChildrenWidth += this.calculateSubtreeWidths(child);
     }
     
-    return parentPos;
+    // 加上子节点间的间距
+    totalChildrenWidth += (node.children.length - 1) * this.horizontalGap;
+    
+    // 子树宽度取子节点总宽度和节点本身宽度的较大值
+    const subtreeWidth = Math.max(this.nodeWidth, totalChildrenWidth);
+    this.subtreeWidths.set(node.id, subtreeWidth);
+    
+    return subtreeWidth;
+  }
+
+  /**
+   * 计算节点布局（自顶向下）
+   */
+  private calculateLayout(node: BTNodeDebugInfo, centerX: number, y: number): void {
+    const subtreeWidth = this.subtreeWidths.get(node.id) || this.nodeWidth;
+    
+    // 当前节点居中放置
+    const nodeX = centerX - this.nodeWidth / 2;
+    const pos = { x: nodeX, y, width: this.nodeWidth, height: this.nodeHeight };
+    this.nodePositions.set(node.id, pos);
+    
+    if (!node.children || node.children.length === 0) {
+      return;
+    }
+    
+    // 计算子节点的总宽度
+    let totalChildrenWidth = 0;
+    for (const child of node.children) {
+      totalChildrenWidth += this.subtreeWidths.get(child.id) || this.nodeWidth;
+    }
+    totalChildrenWidth += (node.children.length - 1) * this.horizontalGap;
+    
+    // 子节点起始X位置（居中对齐）
+    let childX = centerX - totalChildrenWidth / 2;
+    const childY = y + this.levelHeight;
+    
+    // 递归布局子节点
+    for (const child of node.children) {
+      const childSubtreeWidth = this.subtreeWidths.get(child.id) || this.nodeWidth;
+      const childCenterX = childX + childSubtreeWidth / 2;
+      
+      this.calculateLayout(child, childCenterX, childY);
+      
+      childX += childSubtreeWidth + this.horizontalGap;
+    }
   }
 
   /**
@@ -223,9 +264,10 @@ export class BehaviorTreeRenderer {
       const childTopY = childPos.y;
       
       // 绘制曲线连接
+      const isRunningPath = node.status === 'running' && child.status === 'running';
       ctx.beginPath();
-      ctx.strokeStyle = this.getConnectionColor(node, child);
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = isRunningPath ? this.colors.connectionRunning : this.colors.connection;
+      ctx.lineWidth = isRunningPath ? 3 : 2;
       
       const midY = (parentBottomY + childTopY) / 2;
       ctx.moveTo(parentCenterX, parentBottomY);
@@ -242,16 +284,6 @@ export class BehaviorTreeRenderer {
   }
 
   /**
-   * 获取连接线颜色
-   */
-  private getConnectionColor(parent: BTNodeDebugInfo, child: BTNodeDebugInfo): string {
-    if (parent.status === 'running' && child.status === 'running') {
-      return this.colors.connectionRunning;
-    }
-    return this.colors.connection;
-  }
-
-  /**
    * 绘制节点
    */
   private drawNodes(node: BTNodeDebugInfo): void {
@@ -261,7 +293,7 @@ export class BehaviorTreeRenderer {
     const ctx = this.ctx;
     const isHovered = this.hoveredNodeId === node.id;
     
-    // 绘制节点背景 - 根据状态设置不同的背景色和边框色
+    // 绘制节点背景
     ctx.fillStyle = this.getNodeColor(node.status);
     
     // 根据状态设置边框颜色
@@ -285,7 +317,7 @@ export class BehaviorTreeRenderer {
     ctx.lineWidth = borderWidth;
     
     // 绘制圆角矩形
-    this.drawRoundedRect(pos.x, pos.y, pos.width, pos.height, 10);
+    this.drawRoundedRect(pos.x, pos.y, pos.width, pos.height, 8);
     ctx.fill();
     ctx.stroke();
     
@@ -293,38 +325,30 @@ export class BehaviorTreeRenderer {
     if (node.status === 'running') {
       ctx.save();
       ctx.shadowColor = '#4CAF50';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 12;
       ctx.strokeStyle = '#4CAF50';
-      ctx.lineWidth = 2;
-      this.drawRoundedRect(pos.x + 2, pos.y + 2, pos.width - 4, pos.height - 4, 8);
+      ctx.lineWidth = 1;
+      this.drawRoundedRect(pos.x + 2, pos.y + 2, pos.width - 4, pos.height - 4, 6);
       ctx.stroke();
       ctx.restore();
     }
     
-    // 绘制节点类型图标 - 增大尺寸
-    this.drawNodeIcon(node, pos.x + 12, pos.y + 15, 28, 28);
+    // 绘制节点类型图标
+    this.drawNodeIcon(node, pos.x + 10, pos.y + 12, 24, 24);
     
-    // 绘制节点名称 - 增大字号
+    // 绘制节点名称
     ctx.fillStyle = this.colors.text;
-    ctx.font = 'bold 14px Arial';
+    ctx.font = FONTS.debug;
     ctx.textAlign = 'left';
-    ctx.fillText(this.truncateText(node.name, 14), pos.x + 48, pos.y + 32);
+    ctx.fillText(this.truncateText(node.name, 16), pos.x + 42, pos.y + 28);
     
-    // 绘制节点类型 - 增大字号
+    // 绘制节点类型
     ctx.fillStyle = this.colors.textSecondary;
-    ctx.font = '11px Arial';
-    ctx.fillText(node.type, pos.x + 48, pos.y + 52);
+    ctx.font = FONTS.debugTiny;
+    ctx.fillText(node.type, pos.x + 42, pos.y + 48);
     
-    // 绘制状态指示器 - 增大尺寸
-    this.drawStatusIndicator(node.status, pos.x + pos.width - 20, pos.y + 20);
-    
-    // 如果有执行时间，显示它
-    if (node.executionTime !== undefined) {
-      ctx.fillStyle = this.colors.textSecondary;
-      ctx.font = '10px Arial';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${node.executionTime.toFixed(1)}ms`, pos.x + pos.width - 25, pos.y + pos.height - 10);
-    }
+    // 绘制状态指示器
+    this.drawStatusIndicator(node.status, pos.x + pos.width - 18, pos.y + 18);
     
     // 递归绘制子节点
     if (node.children) {
@@ -335,7 +359,7 @@ export class BehaviorTreeRenderer {
   }
 
   /**
-   * 获取节点颜色 - 更鲜明的颜色
+   * 获取节点颜色
    */
   private getNodeColor(status: NodeExecutionStatus): string {
     switch (status) {
@@ -376,13 +400,23 @@ export class BehaviorTreeRenderer {
         
       case 'selector':
         // 选择节点：问号
-        ctx.font = `bold ${size * 2}px Arial`;
+        ctx.font = `bold ${size * 1.8}px ${FONT_FAMILY}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('?', centerX, centerY);
         break;
         
-      case 'check':
+      case 'check_hp':
+      case 'check_enemy_in_range':
+      case 'check_ally_in_range':
+      case 'check_buff':
+      case 'check_cooldown':
+      case 'check_phase':
+      case 'check_target_alive':
+      case 'check_distance_to_target':
+      case 'check_moving':
+      case 'check_stunned':
+      case 'check_player_control':
         // 条件节点：菱形
         ctx.beginPath();
         ctx.moveTo(centerX, centerY - size);
@@ -393,14 +427,28 @@ export class BehaviorTreeRenderer {
         ctx.stroke();
         break;
         
-      case 'action':
+      case 'attack':
+      case 'move_to':
+      case 'move_towards':
+      case 'flee':
+      case 'use_skill':
+      case 'wait':
+      case 'spawn':
+      case 'patrol':
+      case 'set_target':
+      case 'clear_target':
+      case 'play_animation':
         // 动作节点：圆形
         ctx.beginPath();
         ctx.arc(centerX, centerY, size, 0, Math.PI * 2);
         ctx.stroke();
         break;
         
-      case 'decorator':
+      case 'inverter':
+      case 'repeater':
+      case 'until_fail':
+      case 'always_succeed':
+      case 'cooldown':
         // 装饰节点：六边形
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -426,36 +474,57 @@ export class BehaviorTreeRenderer {
    */
   private drawStatusIndicator(status: NodeExecutionStatus, x: number, y: number): void {
     const ctx = this.ctx;
-    const radius = 6;
+    const radius = 8;
     
     let color: string;
+    let glowColor: string;
     switch (status) {
       case 'running':
         color = '#4CAF50';
+        glowColor = '#81C784';
         break;
       case 'success':
         color = '#2196F3';
+        glowColor = '#64B5F6';
         break;
       case 'failure':
         color = '#f44336';
+        glowColor = '#EF5350';
         break;
       default:
-        color = '#757575';
+        color = '#616161';
+        glowColor = '#9E9E9E';
         break;
     }
     
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 如果是运行状态，添加动画效果
-    if (status === 'running') {
-      ctx.strokeStyle = '#66BB6A';
-      ctx.lineWidth = 2;
+    // 绘制发光效果
+    if (status === 'running' || status === 'success' || status === 'failure') {
+      ctx.save();
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // 运行状态添加脉冲动画
+    if (status === 'running') {
+      const time = Date.now() / 1000;
+      const pulseRadius = radius + 4 + Math.sin(time * 4) * 2;
+      ctx.strokeStyle = '#4CAF50';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5 + Math.sin(time * 4) * 0.3;
+      ctx.beginPath();
+      ctx.arc(x, y, pulseRadius, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -512,18 +581,18 @@ export class BehaviorTreeRenderer {
     
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
-    const canvasWidth = this.canvas.width;
-    const canvasHeight = this.canvas.height;
+    const canvasWidth = this.canvas.width / window.devicePixelRatio;
+    const canvasHeight = this.canvas.height / window.devicePixelRatio;
     
     // 计算缩放比例，留出边距
-    const padding = 50;
+    const padding = 60;
     const scaleX = (canvasWidth - padding * 2) / contentWidth;
     const scaleY = (canvasHeight - padding * 2) / contentHeight;
-    this.scale = Math.min(scaleX, scaleY, 1.5);
+    this.scale = Math.min(scaleX, scaleY, 1.2);
     
     // 居中内容
     this.offsetX = (canvasWidth - contentWidth * this.scale) / 2 - minX * this.scale;
-    this.offsetY = (canvasHeight - contentHeight * this.scale) / 2 - minY * this.scale;
+    this.offsetY = padding - minY * this.scale;
   }
 
   /**
@@ -538,6 +607,7 @@ export class BehaviorTreeRenderer {
    */
   clear(): void {
     this.nodePositions.clear();
+    this.subtreeWidths.clear();
     this.hoveredNodeId = null;
   }
 }

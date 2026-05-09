@@ -10,6 +10,7 @@ import { Health } from '../components/Health.js';
 import { Enemy } from '../components/Enemy.js';
 import { Unit } from '../components/Unit.js';
 import { Production } from '../components/Production.js';
+import { FONTS, getFont } from '../config/fonts.js';
 
 interface UIButton {
   x: number; y: number; w: number; h: number;
@@ -196,7 +197,7 @@ export class UISystem implements System {
     for (const info of this.infos) {
       ctx.save();
       ctx.fillStyle = info.color;
-      ctx.font = `bold ${info.size}px monospace`;
+      ctx.font = getFont(info.size, true);
       ctx.textAlign = info.align ?? 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(info.text, info.x, info.y);
@@ -208,11 +209,11 @@ export class UISystem implements System {
       const cy = 1080 / 2;
       ctx.save();
       ctx.fillStyle = this.overlay.color;
-      ctx.font = 'bold 64px monospace';
+      ctx.font = FONTS.title;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(this.overlay.title, cx, cy);
-      ctx.font = '32px monospace';
+      ctx.font = FONTS.subtitle;
       ctx.fillText(this.overlay.subtext, cx, cy + 50);
       ctx.restore();
     }
@@ -227,7 +228,7 @@ export class UISystem implements System {
 
     ctx.save();
     ctx.fillStyle = enabled ? btn.textColor : '#888888';
-    ctx.font = '16px monospace';
+    ctx.font = FONTS.body;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (let i = 0; i < lines.length; i++) {
