@@ -1,6 +1,7 @@
 import { TowerWorld } from './World.js';
 import { InputManager } from '../input/InputManager.js';
 import { Renderer } from '../render/Renderer.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 import { tickFrame, systemCrashed, systemStart, systemEnd } from '../utils/debugLog.js';
 
 export class Game {
@@ -86,13 +87,17 @@ export class Game {
     } catch (e) {
       console.error('[Game] Fatal:', String(e));
       const ctx = this.renderer.context;
+      // Reset to viewport space for error overlay (covers full window)
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#c62828';
-      ctx.fillRect(0, 0, 1920, 60);
+      ctx.fillRect(0, 0, LayoutManager.viewportW, 60);
       ctx.fillStyle = '#ffffff';
       ctx.font = '14px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(`${String(e)}`, 16, 16);
+      ctx.restore();
       this.running = false;
       return;
     }

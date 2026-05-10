@@ -1,4 +1,5 @@
 import { InputAction, type InputEvent } from '../types/index.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 
 /** Cross-platform input manager. Abstracts mouse and touch into unified InputActions. */
 export class InputManager {
@@ -18,13 +19,25 @@ export class InputManager {
     this.setupListeners();
   }
 
+  /**
+   * Convert client (window) coordinates to design-space coordinates.
+   *
+   * Step 1: client → viewport (canvas-relative)
+   * Step 2: viewport → design (inverse of LayoutManager's design→viewport transform)
+   *
+   * Design space is always 1920×1080 — all game logic operates in this space.
+   */
   private getCanvasPos(clientX: number, clientY: number): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
+    // Viewport-space position (canvas CSS pixel → internal pixel mapping)
     const scaleX = this.canvas.width / rect.width;
     const scaleY = this.canvas.height / rect.height;
+    const vx = (clientX - rect.left) * scaleX;
+    const vy = (clientY - rect.top) * scaleY;
+    // Convert viewport-space → design-space
     return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
+      x: LayoutManager.toDesignX(vx),
+      y: LayoutManager.toDesignY(vy),
     };
   }
 

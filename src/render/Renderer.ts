@@ -1,6 +1,7 @@
 import type { RenderCommand, ShapeType } from '../types/index.js';
 import { getFont } from '../config/fonts.js';
 import { Container } from 'pixi.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 
 /** Canvas 2D renderer — draws geometric shapes with a command buffer */
 export class Renderer {
@@ -11,7 +12,7 @@ export class Renderer {
   /** PixiJS container bridge — for systems migrated to Graphics API */
   readonly container: Container = new Container();
 
-  /** Design resolution (virtual canvas size) */
+  /** Design resolution (logical coordinate space, always 1920×1080) */
   static readonly DESIGN_W = 1920;
   static readonly DESIGN_H = 1080;
 
@@ -21,30 +22,53 @@ export class Renderer {
     this.resize();
   }
 
+  /**
+   * Recalculate canvas dimensions and design-space mapping.
+   *
+   * Canvas internal resolution = viewport dimensions (no letterboxing).
+   * A 2D transform maps the 1920×1080 design space into the viewport,
+   * height-based uniform scaling, horizontally centered.
+   */
   resize(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const aspect = Renderer.DESIGN_W / Renderer.DESIGN_H;
 
-    let cw: number, ch: number;
-    if (w / h > aspect) {
-      ch = h;
-      cw = h * aspect;
-    } else {
-      cw = w;
-      ch = cw / aspect;
-    }
+    // Canvas CSS fills the window
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
 
-    this.canvas.style.width = `${cw}px`;
-    this.canvas.style.height = `${ch}px`;
-    this.canvas.width = Renderer.DESIGN_W;
-    this.canvas.height = Renderer.DESIGN_H;
+    // Canvas internal resolution = viewport dimensions
+    this.canvas.width = w;
+    this.canvas.height = h;
+
+    // Update layout manager (scale factor, offsets)
+    LayoutManager.update(w, h);
+  }
+
+  /** Apply the design-space → viewport transform to the canvas context */
+  applyDesignTransform(): void {
+    this.ctx.setTransform(
+      LayoutManager.scale, 0,
+      0, LayoutManager.scale,
+      LayoutManager.designOffsetX, LayoutManager.designOffsetY,
+    );
+  }
+
+  /** Reset canvas transform to identity (viewport-space drawing) */
+  resetTransform(): void {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   beginFrame(): void {
     this.commands = [];
+
+    // Fill full viewport background (viewport-space, no design transform)
+    this.resetTransform();
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Set design-space transform for subsequent render command drawing
+    this.applyDesignTransform();
   }
 
   /** Add a render command to the buffer */

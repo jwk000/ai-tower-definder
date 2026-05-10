@@ -1,4 +1,5 @@
 import { Game } from './core/Game.js';
+import { LayoutManager } from './ui/LayoutManager.js';
 import { RenderSystem, computeSceneLayout } from './systems/RenderSystem.js';
 import { MovementSystem } from './systems/MovementSystem.js';
 import { EnemyAttackSystem } from './systems/EnemyAttackSystem.js';
@@ -415,17 +416,18 @@ class TowerDefenderGame extends Game {
     this.onPostRender = () => {
       lightningBoltSystem.renderBolts(this.world);
       this.laserBeamSystem.renderBeams(this.world);
-      // Weather screen tint
+      // Weather screen tint (viewport-space — covers entire window)
       if (this.currentScreen === GameScreen.Battle) {
         const tint = this.weatherSystem.screenTint;
         const ctx = this.renderer.context;
         if (ctx && tint !== 'rgba(0,0,0,0)') {
           ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0); // reset to viewport space
           ctx.fillStyle = tint;
-          ctx.fillRect(0, 0, 1920, 1080);
+          ctx.fillRect(0, 0, LayoutManager.viewportW, LayoutManager.viewportH);
           ctx.restore();
         }
-        // Screen FX overlay (sun rays, wind lines, vignette)
+        // Screen FX overlay (design-space — transform maps to design area)
         this.screenFXSystem.render(ctx, 1 / 60, this.weatherSystem.currentWeather);
       }
       this.uiSystem.renderUI();
