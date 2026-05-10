@@ -1,29 +1,35 @@
-import { System, CType } from '../types/index.js';
-import { World } from '../core/World.js';
-import { Position } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { HealingSpring } from '../components/HealingSpring.js';
+import { TowerWorld, type System } from '../core/World.js';
+import { Position, Health, HealingSpring, PlayerOwned, defineQuery } from '../core/components.js';
 
+const springQuery = defineQuery([Position, HealingSpring]);
+const healTargetQuery = defineQuery([Position, Health, PlayerOwned]);
+
+/** Area-healing system — HealingSpring entities heal nearby PlayerOwned entities each frame */
 export class HealingSystem implements System {
   readonly name = 'HealingSystem';
-  readonly requiredComponents = [CType.HealingSpring, CType.Position] as const;
 
-  constructor(private world: World) {}
+  update(world: TowerWorld, dt: number): void {
+    const w = world.world;
+    const springs = springQuery(w);
+    const targets = healTargetQuery(w);
 
-  update(springEntities: number[], dt: number): void {
-    const healTargets = this.world.query(CType.PlayerOwned, CType.Health, CType.Position);
+    for (const springId of springs) {
+      const healRange = HealingSpring.healRange[springId];
+      const healAmount = HealingSpring.healAmount[springId];
+      const sx = Position.x[springId];
+      const sy = Position.y[springId];
 
-    for (const springId of springEntities) {
-      const spring = this.world.getComponent<HealingSpring>(springId, CType.HealingSpring)!;
-      const springPos = this.world.getComponent<Position>(springId, CType.Position)!;
+      for (const targetId of targets) {
+        const tx = Position.x[targetId];
+        const ty = Position.y[targetId];
+        const dx = tx - sx;
+        const dy = ty - sy;
 
-      for (const targetId of healTargets) {
-        const targetPos = this.world.getComponent<Position>(targetId, CType.Position)!;
-        const dx = targetPos.x - springPos.x;
-        const dy = targetPos.y - springPos.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= spring.radius) {
-          const health = this.world.getComponent<Health>(targetId, CType.Health)!;
-          health.heal(spring.healAmount * dt);
+        if (dx * dx + dy * dy <= healRange * healRange) {
+          Health.current[targetId] = Math.min(
+            Health.max[targetId],
+            Health.current[targetId] + healAmount * dt,
+          );
         }
       }
     }
