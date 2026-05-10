@@ -8,6 +8,7 @@
 
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
+import { LayoutManager, AnchorX, AnchorY, type AnchorConfig } from '../ui/LayoutManager.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS, ENEMY_CONFIGS } from '../data/gameData.js';
 import { GamePhase, TowerType, UnitType, ProductionType, type ShapeType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -99,7 +100,7 @@ export class UISystem implements System {
   /** Bottom panel layout constants */
   static readonly PANEL_W = 1344;   // matches map width (21×64=1344)
   static readonly PANEL_H = 100;    // compact, holds single row of 80×80 buttons
-  static readonly PANEL_LEFT = (1920 - 1344) / 2; // 288 — centered horizontally
+  static readonly PANEL_LEFT = (LayoutManager.DESIGN_W - 1344) / 2; // 288 — centered horizontally
   static readonly PANEL_BTN_START_X = UISystem.PANEL_LEFT + 20; // 308 — inner margin
 
   private buttons: UIButton[] = [];
@@ -298,8 +299,8 @@ export class UISystem implements System {
     }
 
     if (this.overlay) {
-      const cx = 1920 / 2;
-      const cy = 1080 / 2;
+      const cx = LayoutManager.DESIGN_W / 2;
+      const cy = LayoutManager.DESIGN_H / 2;
       ctx.save();
       ctx.fillStyle = this.overlay.color;
       ctx.font = FONTS.title;
@@ -347,8 +348,8 @@ export class UISystem implements System {
 
     this.renderer.push({
       shape: 'rect',
-      x: 960, y: UISystem.TOP_H / 2,
-      size: 1920, h: UISystem.TOP_H,
+      x: LayoutManager.DESIGN_W / 2, y: UISystem.TOP_H / 2,
+      size: LayoutManager.DESIGN_W, h: UISystem.TOP_H,
       color: '#0d1b2a',
       alpha: 0.9,
     });
@@ -511,11 +512,11 @@ export class UISystem implements System {
     const sceneBottom = this.getSceneBottom();
     const panelY = sceneBottom + 8;
     const panelH = UISystem.PANEL_H;   // 100
-    const panelCenterX = 1920 / 2;     // 960
+    const panelCenterX = LayoutManager.DESIGN_W / 2;     // design center
     const panelW = UISystem.PANEL_W;   // 1344
     const available = phase !== GamePhase.Victory && phase !== GamePhase.Defeat;
 
-    if (panelY + panelH > 1080) return;
+    if (panelY + panelH > LayoutManager.DESIGN_H) return;
 
     // Panel background — centered, narrower than full width
     this.renderer.push({
@@ -1067,7 +1068,7 @@ export class UISystem implements System {
       this.selectedEntityId = null;
       this.selectedEntityType = null;
       this.renderer.push({
-        shape: 'rect', x: 1920 / 2, y: 1080 / 2,
+        shape: 'rect', x: LayoutManager.DESIGN_W / 2, y: LayoutManager.DESIGN_H / 2,
         size: 1600, h: 400, color: '#000000', alpha: 0.6,
       });
       this.overlay = { phase, color: '#4caf50', title: '胜利!', subtext: '刷新页面重新开始' };
@@ -1075,7 +1076,7 @@ export class UISystem implements System {
       this.selectedEntityId = null;
       this.selectedEntityType = null;
       this.renderer.push({
-        shape: 'rect', x: 1920 / 2, y: 1080 / 2,
+        shape: 'rect', x: LayoutManager.DESIGN_W / 2, y: LayoutManager.DESIGN_H / 2,
         size: 1600, h: 400, color: '#000000', alpha: 0.6,
       });
       this.overlay = { phase, color: '#f44336', title: '失败!', subtext: '刷新页面重新开始' };
