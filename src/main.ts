@@ -328,7 +328,7 @@ class TowerDefenderGame extends Game {
 
     this.buffSystem = new BuffSystem(this.world);
 
-    const productionSystem = new ProductionSystem(this.world, this.economy);
+    const productionSystem = new ProductionSystem(this.economy);
     const trapSystem = new TrapSystem(this.world, map.tileSize);
     const healingSystem = new HealingSystem(this.world);
     const deathEffectSystem = new DeathEffectSystem(this.world);

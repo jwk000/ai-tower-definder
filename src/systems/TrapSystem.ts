@@ -1,50 +1,43 @@
-import { System, CType } from '../types/index.js';
-import { World } from '../core/World.js';
-import { Position, GridOccupant } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { Trap } from '../components/Trap.js';
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import { Position, Health, Trap, GridOccupant, UnitTag } from '../core/components.js';
 import { RenderSystem } from './RenderSystem.js';
 
+const trapQuery = defineQuery([Trap, Position, GridOccupant]);
+const damageableQuery = defineQuery([Position, Health]);
+
+/** Grid-based trap damage system — damages enemies on the same tile */
 export class TrapSystem implements System {
   readonly name = 'TrapSystem';
-  readonly requiredComponents = [CType.Trap, CType.Position] as const;
 
-  constructor(
-    private world: World,
-    private tileSize: number,
-  ) {}
+  constructor(private tileSize: number) {}
 
-  update(trapEntities: number[], dt: number): void {
-    const enemies = this.world.query(CType.Enemy, CType.Position, CType.Health);
+  update(world: TowerWorld, dt: number): void {
+    const traps = trapQuery(world.world);
+    const enemies = damageableQuery(world.world);
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
 
-    for (const trapId of trapEntities) {
-      const trap = this.world.getComponent<Trap>(trapId, CType.Trap)!;
-      const grid = this.world.getComponent<GridOccupant>(trapId, CType.GridOccupant);
-      if (!grid) continue;
+    for (const trapId of traps) {
+      // Animation decay
+      Trap.animTimer[trapId] = Math.max(0, Trap.animTimer[trapId] - dt);
 
-      if (trap.spikeAnimTimer > 0) {
-        trap.spikeAnimTimer = Math.max(0, trap.spikeAnimTimer - dt);
-      }
-
+      const trapRow = GridOccupant.row[trapId];
+      const trapCol = GridOccupant.col[trapId];
       let damaging = false;
 
       for (const enemyId of enemies) {
-        const enemyPos = this.world.getComponent<Position>(enemyId, CType.Position)!;
-        const col = Math.floor((enemyPos.x - ox) / this.tileSize);
-        const row = Math.floor((enemyPos.y - oy) / this.tileSize);
+        const enemyCol = Math.floor((Position.x[enemyId] - ox) / this.tileSize);
+        const enemyRow = Math.floor((Position.y[enemyId] - oy) / this.tileSize);
 
-        if (row === grid.gridPos.row && col === grid.gridPos.col) {
-          const health = this.world.getComponent<Health>(enemyId, CType.Health)!;
-          health.current -= trap.damagePerSecond * dt;
+        if (enemyRow === trapRow && enemyCol === trapCol) {
+          Health.current[enemyId] -= Trap.damagePerSecond[trapId] * dt;
           damaging = true;
           break;
         }
       }
 
       if (damaging) {
-        trap.spikeAnimTimer = trap.spikeAnimDuration;
+        Trap.animTimer[trapId] = Trap.animDuration[trapId];
       }
     }
   }

@@ -1,30 +1,23 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
-import { Production } from '../components/Production.js';
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import { Production, ResourceTypeVal } from '../core/components.js';
 import type { EconomySystem } from './EconomySystem.js';
 
 export class ProductionSystem implements System {
   readonly name = 'ProductionSystem';
-  readonly requiredComponents = [CType.Production] as const;
+  private query = defineQuery([Production]);
 
-  constructor(
-    private world: World,
-    private economy: EconomySystem,
-  ) {}
+  constructor(private economy: EconomySystem) {}
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const prod = this.world.getComponent<Production>(id, CType.Production);
-      if (!prod) continue;
+  update(world: TowerWorld, dt: number): void {
+    const entities = this.query(world.world);
+    for (const eid of entities) {
+      Production.accumulator[eid] += Production.rate[eid] * dt;
 
-      prod.accumulator += prod.rate * dt;
-
-      while (prod.accumulator >= 1) {
-        prod.accumulator -= 1;
-        if (prod.resourceType === 'gold') {
+      while (Production.accumulator[eid] >= 1) {
+        Production.accumulator[eid] -= 1;
+        if (Production.resourceType[eid] === ResourceTypeVal.Gold) {
           this.economy.addGold(1);
-        } else if (prod.resourceType === 'energy') {
+        } else {
           this.economy.addEnergy(1);
         }
       }
