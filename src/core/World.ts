@@ -129,6 +129,47 @@ export class TowerWorld {
     this.systems.length = 0;
     this.world = createWorld();
   }
+
+  /** Alias for reset — compatibility with old World API */
+  clear(): void {
+    this.reset();
+  }
+
+  // ---- Compatibility bridge (old World API → bitecs) ----
+
+  /** Compatibility: check if entity has a component */
+  hasComponent(eid: number, component: object | string): boolean {
+    if (typeof component === 'string') return false; // no string-based components
+    return hasComponent(this.world, eid, component);
+  }
+
+  /** Compatibility: get component value */
+  getComponent<T>(eid: number, _component: object | string): T | undefined {
+    return undefined; // bridge only — actual access via bitecs stores
+  }
+
+  /** Compatibility: query entities with given component strings/objects */
+  query(...components: (object | string)[]): number[] {
+    const result: number[] = [];
+    if (components.length === 0) return result;
+    const stores = components.filter(c => typeof c !== 'string') as object[];
+    if (stores.length === 0) return result;
+    const first = stores[0]!;
+    const store = first as Record<string, ArrayLike<unknown>>;
+    const _size = store._size as Uint32Array | undefined;
+    const len = _size ? _size.length : 1000;
+    for (let eid = 0; eid < len; eid++) {
+      let match = true;
+      for (const comp of stores) {
+        if (!hasComponent(this.world, eid, comp)) {
+          match = false;
+          break;
+        }
+      }
+      if (match) result.push(eid);
+    }
+    return result;
+  }
 }
 
 // ============================================================
