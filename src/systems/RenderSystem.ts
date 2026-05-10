@@ -8,7 +8,7 @@
 
 import { TowerWorld, System, defineQuery, hasComponent } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
-import { TileType, ObstacleType } from '../types/index.js';
+import { TileType } from '../types/index.js';
 import type { MapConfig, SceneLayout, ShapeType } from '../types/index.js';
 import {
   Position,
@@ -84,24 +84,6 @@ export class RenderSystem implements System {
     this.drawEntities(world);
   }
 
-  private static readonly OBSTACLE_VISUALS: Record<ObstacleType, { shape: 'circle' | 'triangle' | 'diamond'; color: string; size: number; alpha?: number }> = {
-    [ObstacleType.Tree]:          { shape: 'triangle', color: '#2e7d32', size: 14 },
-    [ObstacleType.Bush]:          { shape: 'circle',   color: '#388e3c', size: 8 },
-    [ObstacleType.Flower]:        { shape: 'circle',   color: '#e91e63', size: 5 },
-    [ObstacleType.Rock]:          { shape: 'diamond',  color: '#6d4c41', size: 12 },
-    [ObstacleType.Cactus]:        { shape: 'triangle', color: '#558b2f', size: 10 },
-    [ObstacleType.Bones]:         { shape: 'circle',   color: '#d7ccc8', size: 7, alpha: 0.7 },
-    [ObstacleType.IceCrystal]:    { shape: 'diamond',  color: '#80deea', size: 11 },
-    [ObstacleType.SnowTree]:      { shape: 'triangle', color: '#b0bec5', size: 13 },
-    [ObstacleType.FrozenRock]:    { shape: 'circle',   color: '#90a4ae', size: 10 },
-    [ObstacleType.LavaVent]:      { shape: 'circle',   color: '#ff3d00', size: 9 },
-    [ObstacleType.ScorchedTree]:  { shape: 'triangle', color: '#3e2723', size: 12 },
-    [ObstacleType.VolcanicRock]:  { shape: 'circle',   color: '#424242', size: 10 },
-    [ObstacleType.Pillar]:        { shape: 'circle',   color: '#757575', size: 13 },
-    [ObstacleType.Brazier]:       { shape: 'circle',   color: '#ff8f00', size: 8 },
-    [ObstacleType.Rubble]:        { shape: 'circle',   color: '#616161', size: 7, alpha: 0.6 },
-  };
-
   private drawMap(map: MapConfig): void {
     const ts = map.tileSize;
     const ox = RenderSystem.sceneOffsetX;
@@ -155,16 +137,7 @@ export class RenderSystem implements System {
       }
     }
 
-    if (map.obstaclePlacements) {
-      for (const obs of map.obstaclePlacements) {
-        const x = obs.col * ts + ts / 2 + ox;
-        const y = obs.row * ts + ts / 2 + oy;
-        const vis = RenderSystem.OBSTACLE_VISUALS[obs.type];
-        if (vis) {
-          this.renderer.push({ shape: vis.shape, x, y, size: vis.size, color: vis.color, alpha: vis.alpha ?? 1 });
-        }
-      }
-    }
+    // Obstacle rendering migrated to DecorationSystem
 
     for (let r = 0; r < map.rows; r++) {
       for (let c = 0; c < map.cols; c++) {
