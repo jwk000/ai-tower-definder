@@ -7,6 +7,7 @@
 // ============================================================
 
 import { WeatherType } from '../types/index.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 
 export class ScreenFXSystem {
   /** 当前时间（秒），用于动画驱动 */
@@ -127,9 +128,9 @@ export class ScreenFXSystem {
 
     const corners = [
       { x: 0, y: 0 },
-      { x: 1920, y: 0 },
-      { x: 0, y: 1080 },
-      { x: 1920, y: 1080 },
+      { x: LayoutManager.DESIGN_W, y: 0 },
+      { x: 0, y: LayoutManager.DESIGN_H },
+      { x: LayoutManager.DESIGN_W, y: LayoutManager.DESIGN_H },
     ];
 
     ctx.save();

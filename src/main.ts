@@ -190,7 +190,7 @@ class TowerDefenderGame extends Game {
     // ---- Create base entity ----
     const basePath = map.enemyPath[map.enemyPath.length - 1]!;
     const ts = map.tileSize;
-    const layout = computeSceneLayout(map, 1920, 1080);
+    const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     const ox = layout.offsetX;
     const oy = layout.offsetY;
     const baseX = basePath.col * ts + ts / 2 + ox;

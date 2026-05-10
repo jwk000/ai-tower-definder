@@ -1,4 +1,5 @@
 import { Renderer } from '../render/Renderer.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 import { LEVELS } from '../data/levels/index.js';
 import { SaveManager } from '../utils/SaveManager.js';
 import { LevelTheme } from '../types/index.js';
@@ -36,8 +37,9 @@ export class LevelSelectUI {
   private layoutCards(): void {
     this.cards = [];
 
+    const dw = LayoutManager.DESIGN_W;
     const totalTopW = 3 * this.CARD_W + 2 * this.CARD_GAP;
-    const startTopX = (1920 - totalTopW) / 2;
+    const startTopX = (dw - totalTopW) / 2;
     const topY = 160;
 
     for (let i = 0; i < 3; i++) {
@@ -51,7 +53,7 @@ export class LevelSelectUI {
     }
 
     const totalBotW = 2 * this.CARD_W + this.CARD_GAP;
-    const startBotX = (1920 - totalBotW) / 2;
+    const startBotX = (dw - totalBotW) / 2;
     const botY = 500;
 
     for (let i = 0; i < 2; i++) {
@@ -72,13 +74,16 @@ export class LevelSelectUI {
   }
 
   private draw(): void {
+    const dw = LayoutManager.DESIGN_W;
+    const dh = LayoutManager.DESIGN_H;
+
     this.renderer.push({
-      shape: 'rect', x: 960, y: 540,
-      size: 1920, color: '#0d1317', h: 1080, alpha: 1,
+      shape: 'rect', x: dw / 2, y: dh / 2,
+      size: dw, color: '#0d1317', h: dh, alpha: 1,
     });
 
     this.renderer.push({
-      shape: 'rect', x: 960, y: 50,
+      shape: 'rect', x: dw / 2, y: 50,
       size: 400, color: 'transparent',
       label: '选择关卡', labelSize: 40, labelColor: '#ffd54f', h: 50,
     });
@@ -206,7 +211,7 @@ export class LevelSelectUI {
   private drawEndlessButton(): void {
     const endlessW = 600;
     const endlessH = 80;
-    const endlessX = (1920 - endlessW) / 2;
+    const endlessX = (LayoutManager.DESIGN_W - endlessW) / 2;
     const endlessY = 840;
 
     const unlocked = this.isEndlessUnlocked;
@@ -248,7 +253,7 @@ export class LevelSelectUI {
 
     const endlessW = 600;
     const endlessH = 80;
-    const endlessX = (1920 - endlessW) / 2;
+    const endlessX = (LayoutManager.DESIGN_W - endlessW) / 2;
     const endlessY = 840;
     if (x >= endlessX && x <= endlessX + endlessW && y >= endlessY && y <= endlessY + endlessH) {
       if (this.isEndlessUnlocked) {

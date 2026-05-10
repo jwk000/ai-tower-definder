@@ -8,6 +8,7 @@
 
 import { TowerWorld, type System } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 import { ObstacleType, LevelTheme, type MapConfig, type WeatherType } from '../types/index.js';
 import { computeSceneLayout } from './RenderSystem.js';
 
@@ -90,7 +91,7 @@ export class DecorationSystem implements System {
     this.map = map;
     this.getWeather = getWeather;
 
-    const layout = computeSceneLayout(map, 1920, 1080);
+    const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     this.ox = layout.offsetX;
     this.oy = layout.offsetY;
     this.ts = map.tileSize;
@@ -319,9 +320,9 @@ export class DecorationSystem implements System {
     const mapH = this.map.rows * this.ts;
     const theme = this.detectTheme();
 
-    // Full-screen sky gradient (1920×1080) — covers entire canvas
+    // Full-screen sky gradient — covers entire design area
     const sky = DecorationSystem.SKY_COLORS[theme] ?? DecorationSystem.SKY_COLORS['plains']!;
-    const grad = ctx.createLinearGradient(0, 0, 0, 1080);
+    const grad = ctx.createLinearGradient(0, 0, 0, LayoutManager.DESIGN_H);
     grad.addColorStop(0, sky.top);          // pure sky at top
     grad.addColorStop(0.25, sky.top);        // sky persists through upper quarter
     grad.addColorStop(0.55, sky.bottom);     // transition to ground around map level
@@ -329,7 +330,7 @@ export class DecorationSystem implements System {
 
     ctx.save();
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1920, 1080);
+    ctx.fillRect(0, 0, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     ctx.restore();
 
     // Distant scenery — rendered via command buffer (drawn behind map tiles)
@@ -372,7 +373,7 @@ export class DecorationSystem implements System {
       cloud.x += cloud.speed * (1 / 60);
 
       // 循环：超出右边界后从左边界重新进入
-      if (cloud.x > 1920 + 150) {
+      if (cloud.x > LayoutManager.DESIGN_W + 150) {
         cloud.x = -150;
         cloud.y = Math.random() * skyArea * 0.7 + 10;
       }
@@ -413,7 +414,7 @@ export class DecorationSystem implements System {
       }
 
       this.clouds.push({
-        x: Math.random() * 1920,
+        x: Math.random() * LayoutManager.DESIGN_W,
         y: Math.random() * skyArea * 0.7 + 10,
         ellipses,
         speed: 15 + Math.random() * 30, // 15-45 px/s
@@ -542,7 +543,7 @@ export class DecorationSystem implements System {
       bird.phase += bird.flapSpeed * (1 / 60);
 
       // 循环飞出屏幕
-      if (bird.x > 1920 + 60) {
+      if (bird.x > LayoutManager.DESIGN_W + 60) {
         bird.x = -60;
         bird.y = 15 + Math.random() * skyMid;
       }
@@ -609,7 +610,7 @@ export class DecorationSystem implements System {
 
     for (let i = 0; i < count; i++) {
       this.birds.push({
-        x: Math.random() * 1920,
+        x: Math.random() * LayoutManager.DESIGN_W,
         y: 15 + Math.random() * skyMid,
         size: 7 + Math.random() * 7,              // 7-14px（放大）
         speed: 30 + Math.random() * 50,       // 30-80 px/s
