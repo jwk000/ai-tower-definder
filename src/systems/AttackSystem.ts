@@ -12,10 +12,12 @@ import {
   ShapeVal,
   Layer,
   LayerVal,
+  DamageTypeVal,
 } from '../core/components.js';
 import { TowerType } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { Sound } from '../utils/Sound.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { evaluateMissileTarget } from './MissileTargeting.js';
 import { RenderSystem } from './RenderSystem.js';
 import type { WeatherSystem } from './WeatherSystem.js';
@@ -378,7 +380,8 @@ export class AttackSystem implements System {
 
       // Deal damage
       if (Health.current[targetId]! > 0) {
-        Health.current[targetId]! -= dmg;
+        const dmgType = Attack.damageType[towerId] ?? DamageTypeVal.Physical;
+        applyDamageToTarget(world, targetId, dmg, dmgType);
       }
 
       // Hit flash

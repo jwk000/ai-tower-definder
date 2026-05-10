@@ -20,6 +20,7 @@ import {
   DamageTypeVal,
 } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 
 // ---- Constants ----
 
@@ -242,11 +243,8 @@ export class EnemyAttackSystem implements System {
       // Ranged — spawn projectile
       this.spawnProjectile(world, sourceId, targetId, damage, fromX, fromY);
     } else {
-      // Melee — direct damage
-      const hp = Health.current[targetId];
-      if (hp !== undefined) {
-        Health.current[targetId] = hp - damage;
-      }
+      // Melee — direct damage (enemies deal physical damage)
+      applyDamageToTarget(world, targetId, damage, DamageTypeVal.Physical);
     }
   }
 
