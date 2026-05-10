@@ -41,12 +41,12 @@ export class MovementSystem implements System {
       if (UnitTag.isEnemy[eid] !== 1) continue;
 
       // Skip stunned entities
-      if (Stunned.timer[eid] > 0) continue;
+      if (Stunned.timer[eid]! > 0) continue;
 
       // Skip if not in follow-path mode (e.g. hold-position)
       if (Movement.moveMode[eid] !== MoveModeVal.FollowPath) continue;
 
-      const pathIndex = Movement.pathIndex[eid];
+      const pathIndex = Movement.pathIndex[eid]!;
 
       // Reached end of path — damage base and destroy
       if (pathIndex >= path.length - 1) {
@@ -69,10 +69,10 @@ export class MovementSystem implements System {
 
       if (segmentLen <= 0) continue;
 
-      const speed = Movement.speed[eid];
+      const speed = Movement.speed[eid]!;
       const dist = speed * dt;
 
-      let progress = Movement.progress[eid];
+      let progress = Movement.progress[eid]!;
       progress += dist / segmentLen;
 
       let newX: number;
@@ -90,8 +90,8 @@ export class MovementSystem implements System {
         newY = cy + dy * progress;
       }
 
-      const posX = Position.x[eid];
-      const posY = Position.y[eid];
+      const posX = Position.x[eid]!;
+      const posY = Position.y[eid]!;
       const radius = this.getEntityRadius(eid);
 
       // Collision avoidance
@@ -136,8 +136,8 @@ export class MovementSystem implements System {
     for (let i = 0; i < bases.length; i++) {
       const baseId = bases[i]!;
       if (UnitTag.isEnemy[baseId] === 1) continue; // skip enemy health entities
-      Health.current[baseId] -= damage;
-      if (Health.current[baseId] < 0) Health.current[baseId] = 0;
+      Health.current[baseId]! -= damage;
+      if (Health.current[baseId]! < 0) Health.current[baseId]! = 0;
     }
 
     world.destroyEntity(eid);
@@ -166,8 +166,8 @@ export class MovementSystem implements System {
 
       if (this.isExcluded(world, otherId)) continue;
 
-      const otherX = Position.x[otherId];
-      const otherY = Position.y[otherId];
+      const otherX = Position.x[otherId]!;
+      const otherY = Position.y[otherId]!;
       const otherRadius = this.getEntityRadius(otherId);
 
       const dx = x - otherX;
@@ -207,8 +207,8 @@ export class MovementSystem implements System {
 
       if (this.isExcluded(world, otherId)) continue;
 
-      const otherX = Position.x[otherId];
-      const otherY = Position.y[otherId];
+      const otherX = Position.x[otherId]!;
+      const otherY = Position.y[otherId]!;
       const otherRadius = this.getEntityRadius(otherId);
 
       const dx = x - otherX;

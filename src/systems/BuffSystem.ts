@@ -87,16 +87,16 @@ export class BuffSystem implements System {
 
     // ---- 2. Tick Frozen component timers ----
     for (const eid of frozenQuery(w)) {
-      Frozen.timer[eid] -= dt;
-      if (Frozen.timer[eid] <= 0) {
+      Frozen.timer[eid]! -= dt;
+      if (Frozen.timer[eid]! <= 0) {
         world.removeComponent(eid, Frozen);
       }
     }
 
     // ---- 3. Tick Stunned component timers ----
     for (const eid of stunnedQuery(w)) {
-      Stunned.timer[eid] -= dt;
-      if (Stunned.timer[eid] <= 0) {
+      Stunned.timer[eid]! -= dt;
+      if (Stunned.timer[eid]! <= 0) {
         world.removeComponent(eid, Stunned);
       }
     }

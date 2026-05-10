@@ -42,7 +42,7 @@ export class HealthSystem implements System {
     const entities = healthQuery(world.world);
 
     for (const eid of entities) {
-      if (Health.current[eid] > 0) continue;
+      if (Health.current[eid]! > 0) continue;
 
       // Enemy (includes bosses — they also have UnitTag.isEnemy === 1)
       if (UnitTag.isEnemy[eid] === 1) {
@@ -87,13 +87,13 @@ export class HealthSystem implements System {
   private updateBossPhaseTransitions(world: TowerWorld): void {
     const bosses = bossQuery(world.world);
     for (const bossId of bosses) {
-      if (Boss.transitionTimer[bossId] > 0) {
-        Boss.transitionTimer[bossId] = Math.max(0, Boss.transitionTimer[bossId] - 1 / 60);
+      if (Boss.transitionTimer[bossId]! > 0) {
+        Boss.transitionTimer[bossId] = Math.max(0, Boss.transitionTimer[bossId]! - 1 / 60);
       }
 
       if (
         Boss.phase[bossId] === 1 &&
-        Health.current[bossId] / Health.max[bossId] < Boss.phase2HpRatio[bossId]
+        Health.current[bossId]! / Health.max[bossId]! < Boss.phase2HpRatio[bossId]!
       ) {
         Boss.phase[bossId] = 2;
         Boss.transitionTimer[bossId] = 0.5;
@@ -121,7 +121,7 @@ export class HealthSystem implements System {
         const enemies = enemyMovementQuery(world.world);
         for (const eid of enemies) {
           if (UnitTag.isEnemy[eid] === 1) {
-            Movement.currentSpeed[eid] = Movement.speed[eid];
+            Movement.currentSpeed[eid] = Movement.speed[eid]!;
           }
         }
       }

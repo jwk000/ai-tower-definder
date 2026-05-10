@@ -229,7 +229,7 @@ export class WaveSystem implements System {
   private hasAliveEnemies(): boolean {
     const enemies = aliveEnemyQuery(this.world.world);
     for (const eid of enemies) {
-      if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+      if (UnitTag.isEnemy[eid] === 1 && Health.current[eid]! > 0) {
         return true;
       }
     }

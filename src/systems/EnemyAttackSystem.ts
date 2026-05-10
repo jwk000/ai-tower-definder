@@ -69,20 +69,20 @@ export class EnemyAttackSystem implements System {
 
       // Determine attack capability — prefer UnitTag flag, fall back to range heuristic
       const canAttackBuildings =
-        UnitTag.canAttackBuildings[eid] === 1 || Attack.range[eid] > 0;
+        UnitTag.canAttackBuildings[eid] === 1 || Attack.range[eid]! > 0;
 
       // Tick cooldown
-      if (Attack.cooldownTimer[eid] > 0) {
-        Attack.cooldownTimer[eid] -= dt;
+      if (Attack.cooldownTimer[eid]! > 0) {
+        Attack.cooldownTimer[eid]! -= dt;
       }
 
-      const posX = Position.x[eid];
-      const posY = Position.y[eid];
+      const posX = Position.x[eid]!;
+      const posY = Position.y[eid]!;
 
       // ====================================================
       // Check if current target is still valid
       // ====================================================
-      const currentTarget = Attack.targetId[eid];
+      const currentTarget = Attack.targetId[eid]!;
       if (currentTarget !== 0) {
         const targetValid = this.isTargetValid(currentTarget);
 
@@ -91,20 +91,20 @@ export class EnemyAttackSystem implements System {
           Attack.targetId[eid] = 0;
           Movement.moveMode[eid] = MoveModeVal.FollowPath;
         } else {
-          const tX = Position.x[currentTarget];
-          const tY = Position.y[currentTarget];
+          const tX = Position.x[currentTarget]!;
+          const tY = Position.y[currentTarget]!;
           const dx = tX - posX;
           const dy = tY - posY;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist > Attack.range[eid]) {
+          if (dist > Attack.range[eid]!) {
             // Out of range — abandon
             Attack.targetId[eid] = 0;
             Movement.moveMode[eid] = MoveModeVal.FollowPath;
-          } else if (Attack.cooldownTimer[eid] <= 0) {
+          } else if (Attack.cooldownTimer[eid]! <= 0) {
             // Ready to attack!
             this.doAttack(world, eid, currentTarget, posX, posY, canAttackBuildings);
-            Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
+            Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
           }
         }
       }
@@ -120,9 +120,9 @@ export class EnemyAttackSystem implements System {
           // Pause path-following while attacking
           Movement.moveMode[eid] = MoveModeVal.HoldPosition;
 
-          if (Attack.cooldownTimer[eid] <= 0) {
+          if (Attack.cooldownTimer[eid]! <= 0) {
             this.doAttack(world, eid, newTarget, posX, posY, canAttackBuildings);
-            Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
+            Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
           }
         }
       }
@@ -152,7 +152,7 @@ export class EnemyAttackSystem implements System {
     fromY: number,
     canAttackBuildings: boolean,
   ): number {
-    const range = Attack.range[eid];
+    const range = Attack.range[eid]!;
     let bestId = 0;
     let bestDist = Infinity;
 
@@ -162,9 +162,9 @@ export class EnemyAttackSystem implements System {
       for (let i = 0; i < towers.length; i++) {
         const tid = towers[i]!;
         if (tid === eid) continue;
-        if (Health.current[tid] <= 0) continue;
-        const dx = Position.x[tid] - fromX;
-        const dy = Position.y[tid] - fromY;
+        if (Health.current[tid]! <= 0) continue;
+        const dx = Position.x[tid]! - fromX;
+        const dy = Position.y[tid]! - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= range && dist < bestDist) {
           bestDist = dist;
@@ -177,9 +177,9 @@ export class EnemyAttackSystem implements System {
       for (let i = 0; i < bats.length; i++) {
         const bid = bats[i]!;
         if (bid === eid) continue;
-        if (Health.current[bid] <= 0) continue;
-        const dx = Position.x[bid] - fromX;
-        const dy = Position.y[bid] - fromY;
+        if (Health.current[bid]! <= 0) continue;
+        const dx = Position.x[bid]! - fromX;
+        const dy = Position.y[bid]! - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= range && dist < bestDist) {
           bestDist = dist;
@@ -192,11 +192,11 @@ export class EnemyAttackSystem implements System {
       for (let i = 0; i < categoryTargets.length; i++) {
         const cid = categoryTargets[i]!;
         if (cid === eid) continue;
-        if (Health.current[cid] <= 0) continue;
+        if (Health.current[cid]! <= 0) continue;
         const cat = Category.value[cid];
         if (cat !== CategoryVal.Building && cat !== CategoryVal.Objective) continue;
-        const dx = Position.x[cid] - fromX;
-        const dy = Position.y[cid] - fromY;
+        const dx = Position.x[cid]! - fromX;
+        const dy = Position.y[cid]! - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= range && dist < bestDist) {
           bestDist = dist;
@@ -209,9 +209,9 @@ export class EnemyAttackSystem implements System {
       for (let i = 0; i < units.length; i++) {
         const uid = units[i]!;
         if (uid === eid) continue;
-        if (Health.current[uid] <= 0) continue;
-        const dx = Position.x[uid] - fromX;
-        const dy = Position.y[uid] - fromY;
+        if (Health.current[uid]! <= 0) continue;
+        const dx = Position.x[uid]! - fromX;
+        const dy = Position.y[uid]! - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist <= range && dist < bestDist) {
           bestDist = dist;
@@ -236,7 +236,7 @@ export class EnemyAttackSystem implements System {
     fromY: number,
     canAttackBuildings: boolean,
   ): void {
-    const damage = Attack.damage[sourceId];
+    const damage = Attack.damage[sourceId]!;
 
     if (canAttackBuildings) {
       // Ranged — spawn projectile

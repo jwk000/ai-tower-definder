@@ -11,10 +11,10 @@ export class ProductionSystem implements System {
   update(world: TowerWorld, dt: number): void {
     const entities = this.query(world.world);
     for (const eid of entities) {
-      Production.accumulator[eid] += Production.rate[eid] * dt;
+      Production.accumulator[eid]! += Production.rate[eid]! * dt;
 
-      while (Production.accumulator[eid] >= 1) {
-        Production.accumulator[eid] -= 1;
+      while (Production.accumulator[eid]! >= 1) {
+        Production.accumulator[eid]! -= 1;
         if (Production.resourceType[eid] === ResourceTypeVal.Gold) {
           this.economy.addGold(1);
         } else {

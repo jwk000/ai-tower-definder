@@ -226,7 +226,7 @@ export class UISystem implements System {
     if (id === null || !this._world) return;
 
     const px = Position.x[id];
-    const py = Position.y[id];
+    const py = Position.y[id]!;
     if (px === undefined) return;
 
     let diameter = 0;
@@ -253,14 +253,14 @@ export class UISystem implements System {
     this.renderer.push({
       shape: 'circle',
       x: px, y: py,
-      size: diameter,
+      size: diameter!,
       color,
       alpha: 0.15,
     });
     this.renderer.push({
       shape: 'circle',
       x: px, y: py,
-      size: diameter,
+      size: diameter!,
       color,
       alpha: 0.4,
       stroke: color,
@@ -356,7 +356,7 @@ export class UISystem implements System {
       let aliveCount = 0;
       const enemies = aliveEnemyQuery(world.world);
       for (const eid of enemies) {
-        if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+        if (UnitTag.isEnemy[eid] === 1 && Health.current[eid]! > 0) {
           aliveCount++;
         }
       }
@@ -786,7 +786,7 @@ export class UISystem implements System {
     const tw = 230;
     const th = 110;
     const tx = px;
-    const ty = py - 110;
+    const ty = py! - 110;
 
     this.renderer.push({
       shape: 'rect',
@@ -1005,7 +1005,7 @@ export class UISystem implements System {
     const tw = 200;
     const th = 100;
     const tx = px;
-    const ty = py - 100;
+    const ty = py! - 100;
 
     this.renderer.push({
       shape: 'rect',

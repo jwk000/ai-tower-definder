@@ -92,26 +92,26 @@ export class AttackSystem implements System {
     const enemyList: number[] = [];
     const allMatches = potentialTargetQuery(world.world);
     for (const eid of allMatches) {
-      if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+      if (UnitTag.isEnemy[eid]! === 1 && Health.current[eid]! > 0) {
         enemyList.push(eid);
       }
     }
 
     for (const eid of towers) {
       // Tick cooldown
-      Attack.cooldownTimer[eid] -= dt;
-      if (Attack.cooldownTimer[eid] > 0) continue;
+      Attack.cooldownTimer[eid]! -= dt;
+      if (Attack.cooldownTimer[eid]! > 0) continue;
 
       // Bat tower only attacks in Night/Fog weather
-      const towerTypeVal = Tower.towerType[eid];
+      const towerTypeVal = Tower.towerType[eid]!;
       if (towerTypeVal === 5 && this.weatherSystem && !this.weatherSystem.canAttackBat()) {
         continue;
       }
 
       // Find nearest enemy within range
-      const tx = Position.x[eid];
-      const ty = Position.y[eid];
-      const range = Attack.range[eid];
+      const tx = Position.x[eid]!;
+      const ty = Position.y[eid]!;
+      const range = Attack.range[eid]!;
       let nearestId = 0;
       let nearestDist = Infinity;
 
@@ -130,12 +130,12 @@ export class AttackSystem implements System {
       if (nearestId === 0) continue;
 
       // Reset cooldown
-      Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
+      Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
       Attack.targetId[eid] = nearestId;
 
       Sound.play('tower_shoot');
 
-      const level = Tower.level[eid];
+      const level = Tower.level[eid]!;
       const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal]!;
 
       if (towerTypeEnum === TowerType.Lightning) {
@@ -221,7 +221,7 @@ export class AttackSystem implements System {
   // ---- Damage ----
 
   private getDamage(eid: number): number {
-    return Attack.damage[eid];
+    return Attack.damage[eid]!;
   }
 
   // ---- Lightning Chain ----
@@ -250,8 +250,8 @@ export class AttackSystem implements System {
       hit.add(targetId);
 
       // Deal damage
-      if (Health.current[targetId] > 0) {
-        Health.current[targetId] -= dmg;
+      if (Health.current[targetId]! > 0) {
+        Health.current[targetId]! -= dmg;
       }
 
       // Hit flash
@@ -267,16 +267,16 @@ export class AttackSystem implements System {
       if (hop < chainCount - 1) {
         dmg *= (1 - chainDecay);
 
-        const originX = Position.x[targetId];
-        const originY = Position.y[targetId];
+        const originX = Position.x[targetId]!;
+        const originY = Position.y[targetId]!;
         let nearestId = 0;
         let nearestDist = chainRange;
 
         const allMatches = potentialTargetQuery(world.world);
         for (const eid of allMatches) {
           if (hit.has(eid)) continue;
-          if (UnitTag.isEnemy[eid] !== 1) continue;
-          if (Health.current[eid] <= 0) continue;
+          if (UnitTag.isEnemy[eid]! !== 1) continue;
+          if (Health.current[eid]! <= 0) continue;
 
           const ex = Position.x[eid]!;
           const ey = Position.y[eid]!;

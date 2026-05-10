@@ -33,10 +33,10 @@ export class SkillSystem implements System {
       const eid = entities[i]!;
 
       // Tick cooldown
-      Skill.currentCooldown[eid] = Math.max(0, Skill.currentCooldown[eid] - dt);
+      Skill.currentCooldown[eid] = Math.max(0, Skill.currentCooldown[eid]! - dt);
 
       // Apply passive skills
-      const sid = Skill.skillId[eid];
+      const sid = Skill.skillId[eid]!;
       const key = SKILL_ID_MAP[sid];
       if (key !== undefined) {
         const config = SKILL_CONFIGS[key];
@@ -54,15 +54,15 @@ export class SkillSystem implements System {
     const skillIdNum = SkillIdNum[skillId];
     if (skillIdNum === undefined) return false;
     if (Skill.skillId[entityId] !== skillIdNum) return false;
-    if (Skill.currentCooldown[entityId] > 0) return false;
+    if (Skill.currentCooldown[entityId]! > 0) return false;
 
     const config = SKILL_CONFIGS[skillId];
     if (!config) return false;
     if (config.trigger !== SkillTrigger.Active) return false;
 
-    if (!this.spendEnergy(Skill.energyCost[entityId])) return false;
+    if (!this.spendEnergy(Skill.energyCost[entityId]!)) return false;
 
-    Skill.currentCooldown[entityId] = Skill.cooldown[entityId];
+    Skill.currentCooldown[entityId] = Skill.cooldown[entityId]!;
     return true;
   }
 
@@ -97,7 +97,7 @@ export class SkillSystem implements System {
       const dy = ey - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= config.range) {
-        Health.current[eid] -= config.value;
+        Health.current[eid]! -= config.value;
       }
     }
   }
@@ -107,7 +107,7 @@ export class SkillSystem implements System {
     const skillIdNum = SkillIdNum[skillId];
     if (skillIdNum === undefined) return false;
     if (Skill.skillId[entityId] !== skillIdNum) return false;
-    return Skill.currentCooldown[entityId] <= 0;
+    return Skill.currentCooldown[entityId]! <= 0;
   }
 
   // ---- Private ----

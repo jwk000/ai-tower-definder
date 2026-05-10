@@ -19,25 +19,25 @@ export class TrapSystem implements System {
 
     for (const trapId of traps) {
       // Animation decay
-      Trap.animTimer[trapId] = Math.max(0, Trap.animTimer[trapId] - dt);
+      Trap.animTimer[trapId] = Math.max(0, Trap.animTimer[trapId]! - dt);
 
       const trapRow = GridOccupant.row[trapId];
       const trapCol = GridOccupant.col[trapId];
       let damaging = false;
 
       for (const enemyId of enemies) {
-        const enemyCol = Math.floor((Position.x[enemyId] - ox) / this.tileSize);
-        const enemyRow = Math.floor((Position.y[enemyId] - oy) / this.tileSize);
+        const enemyCol = Math.floor((Position.x[enemyId]! - ox) / this.tileSize);
+        const enemyRow = Math.floor((Position.y[enemyId]! - oy) / this.tileSize);
 
         if (enemyRow === trapRow && enemyCol === trapCol) {
-          Health.current[enemyId] -= Trap.damagePerSecond[trapId] * dt;
+          Health.current[enemyId]! -= Trap.damagePerSecond[trapId]! * dt;
           damaging = true;
           break;
         }
       }
 
       if (damaging) {
-        Trap.animTimer[trapId] = Trap.animDuration[trapId];
+        Trap.animTimer[trapId] = Trap.animDuration[trapId]!;
       }
     }
   }

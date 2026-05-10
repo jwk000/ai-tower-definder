@@ -16,9 +16,9 @@ export class LightningBoltSystem implements System {
   update(world: TowerWorld, dt: number): void {
     const entities = lightningQuery(world.world);
     for (const eid of entities) {
-      LightningBolt.elapsed[eid] += dt;
-      const elapsed = LightningBolt.elapsed[eid];
-      const duration = LightningBolt.duration[eid];
+      LightningBolt.elapsed[eid]! += dt;
+      const elapsed = LightningBolt.elapsed[eid]!;
+      const duration = LightningBolt.duration[eid]!;
       if (elapsed >= duration) {
         world.destroyEntity(eid);
       }
@@ -29,8 +29,8 @@ export class LightningBoltSystem implements System {
   renderBolts(world: TowerWorld): void {
     const entities = lightningQuery(world.world);
     for (const eid of entities) {
-      const elapsed = LightningBolt.elapsed[eid];
-      const duration = LightningBolt.duration[eid];
+      const elapsed = LightningBolt.elapsed[eid]!;
+      const duration = LightningBolt.duration[eid]!;
       if (elapsed < duration) {
         this.drawBolt(eid);
       }
@@ -39,12 +39,12 @@ export class LightningBoltSystem implements System {
 
   private drawBolt(eid: number): void {
     const ctx = this.renderer.context;
-    const elapsed = LightningBolt.elapsed[eid];
-    const duration = LightningBolt.duration[eid];
+    const elapsed = LightningBolt.elapsed[eid]!;
+    const duration = LightningBolt.duration[eid]!;
     const alpha = Math.max(0, 1 - elapsed / duration);
 
-    const srcId = LightningBolt.sourceId[eid];
-    const tgtId = LightningBolt.targetId[eid];
+    const srcId = LightningBolt.sourceId[eid]!;
+    const tgtId = LightningBolt.targetId[eid]!;
     const fromX = Position.x[srcId] ?? 0;
     const fromY = Position.y[srcId] ?? 0;
     const toX = Position.x[tgtId] ?? 0;

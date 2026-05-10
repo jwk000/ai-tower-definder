@@ -196,16 +196,16 @@ export class RenderSystem implements System {
 
     // Build sorted array: entity id + position for Y-sorting
     const sorted = (entities as number[])
-      .filter((eid: number) => typeof Position.x[eid] === 'number' && typeof Position.y[eid] === 'number')
-      .sort((a: number, b: number) => Position.y[a] - Position.y[b]);
+      .filter((eid: number) => typeof Position.x[eid]! === 'number' && typeof Position.y[eid]! === 'number')
+      .sort((a: number, b: number) => Position.y[a]! - Position.y[b]!);
 
     const selectedTowerId = this.getSelectedTowerId();
     const selectedUnitId = this.getSelectedUnitId();
     const selectedTrapId = this.getSelectedTrapId();
 
     for (const eid of sorted) {
-      const posX = Position.x[eid];
-      const posY = Position.y[eid];
+      const posX = Position.x[eid]!;
+      const posY = Position.y[eid]!;
 
       // ---- Type identification ----
       const isProjectile = hasComponent(world.world, eid, Projectile);
@@ -223,8 +223,8 @@ export class RenderSystem implements System {
       // TRAP rendering
       // ========================================
       if (isTrap) {
-        const animTimer = Trap.animTimer[eid];
-        const animDuration = Trap.animDuration[eid];
+        const animTimer = Trap.animTimer[eid]!;
+        const animDuration = Trap.animDuration[eid]!;
         let spikeOffset = 0;
         let spikeSizeBonus = 0;
         if (animTimer > 0) {
@@ -263,13 +263,13 @@ export class RenderSystem implements System {
       // ========================================
       // Hit flash
       // ========================================
-      const flashActive = Visual.hitFlashTimer[eid] > 0;
+      const flashActive = Visual.hitFlashTimer[eid]! > 0;
       let displayColor = rgbFromVisual(eid);
-      let displayAlpha = Visual.alpha[eid];
+      let displayAlpha = Visual.alpha[eid]!;
       if (flashActive) {
         displayColor = '#ffffff';
         displayAlpha = 1;
-        Visual.hitFlashTimer[eid] = 0;
+        Visual.hitFlashTimer[eid]! = 0;
       }
 
       // ========================================
@@ -280,10 +280,10 @@ export class RenderSystem implements System {
           displayColor = '#00bcd4';
           displayAlpha = 1;
         } else if (hasSlowed) {
-          const stacks = Slowed.stacks[eid];
+          const stacks = Slowed.stacks[eid]!;
           const t = Math.min(stacks / 5, 1);
           displayColor = this.lerpColorRGB(
-            Visual.colorR[eid], Visual.colorG[eid], Visual.colorB[eid],
+            Visual.colorR[eid]!, Visual.colorG[eid]!, Visual.colorB[eid]!,
             '#4488cc', t * 0.7,
           );
         }
@@ -293,7 +293,7 @@ export class RenderSystem implements System {
       // Enemy stun visual
       // ========================================
       if (isEnemy && !flashActive) {
-        if (hasStunnedComponent && Stunned.timer[eid] > 0) {
+        if (hasStunnedComponent && Stunned.timer[eid]! > 0) {
           displayColor = '#ffd700';
           displayAlpha = 0.9;
         }
@@ -303,17 +303,17 @@ export class RenderSystem implements System {
       // Boss rendering
       // ========================================
       const isBossEntity = hasComponent(world.world, eid, Boss);
-      let drawSize = Visual.size[eid];
+      let drawSize = Visual.size[eid]!;
       if (isBossEntity) {
-        drawSize = Visual.size[eid] * 1.3;
-        if (Boss.phase[eid] === 2 && !flashActive) {
-          if (Boss.transitionTimer[eid] > 0) {
-            const cycle = Math.floor(Boss.transitionTimer[eid] / 0.1) % 2;
+        drawSize = Visual.size[eid]! * 1.3;
+        if (Boss.phase[eid]! === 2 && !flashActive) {
+          if (Boss.transitionTimer[eid]! > 0) {
+            const cycle = Math.floor(Boss.transitionTimer[eid]! / 0.1) % 2;
             displayColor = cycle === 0 ? '#ffffff' : '#d32f2f';
             displayAlpha = 1;
           } else {
             displayColor = this.lerpColorRGB(
-              Visual.colorR[eid], Visual.colorG[eid], Visual.colorB[eid],
+              Visual.colorR[eid]!, Visual.colorG[eid]!, Visual.colorB[eid]!,
               '#d32f2f', 0.35,
             );
           }
@@ -334,7 +334,7 @@ export class RenderSystem implements System {
       // ========================================
       if (isUnit && selectedUnitId === eid) {
         if (hasComponent(world.world, eid, Movement)) {
-          const moveRange = Movement.moveRange[eid];
+          const moveRange = Movement.moveRange[eid]!;
           this.renderer.push({
             shape: 'circle',
             x: posX,
@@ -352,13 +352,13 @@ export class RenderSystem implements System {
       // Main render command builder
       // ========================================
       const pushCmd = (extras: Partial<Parameters<typeof this.renderer.push>[0]> = {}) => {
-        let shape: ShapeType = shapeValToString(Visual.shape[eid]);
+        let shape: ShapeType = shapeValToString(Visual.shape[eid]!);
         let targetX: number | undefined;
         let targetY: number | undefined;
 
         if (isProjectile) {
           shape = 'arrow';
-          const projTargetId = Projectile.targetId[eid];
+          const projTargetId = Projectile.targetId[eid]!;
           if (projTargetId > 0 && typeof Position.x[projTargetId] === 'number') {
             targetX = Position.x[projTargetId];
             targetY = Position.y[projTargetId];
@@ -380,7 +380,7 @@ export class RenderSystem implements System {
 
         // Boss crown
         if (isBossEntity) {
-          const crownSize = Visual.size[eid] * 0.4;
+          const crownSize = Visual.size[eid]! * 0.4;
           this.renderer.push({
             shape: 'triangle',
             x: posX,
@@ -397,12 +397,12 @@ export class RenderSystem implements System {
       // ========================================
       const hasHealth = hasComponent(world.world, eid, Health);
       if (hasHealth && !isProjectile) {
-        const hpCurrent = Health.current[eid];
-        const hpMax = Health.max[eid];
+        const hpCurrent = Health.current[eid]!;
+        const hpMax = Health.max[eid]!;
         const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
         if (ratio < 1) {
-          const barW = Math.max(Visual.size[eid] * 1.2, 28);
-          this.drawHealthBar(posX, posY - Visual.size[eid] / 2 - 16, barW, ratio);
+          const barW = Math.max(Visual.size[eid]! * 1.2, 28);
+          this.drawHealthBar(posX, posY - Visual.size[eid]! / 2 - 16, barW, ratio);
         }
       }
 
@@ -412,7 +412,7 @@ export class RenderSystem implements System {
       // Tower level diamonds
       // ========================================
       if (isTower) {
-        const towerLevel = Tower.level[eid];
+        const towerLevel = Tower.level[eid]!;
         if (towerLevel > 0) {
           const diamondSize = 6;
           const gap = 2;
@@ -438,11 +438,11 @@ export class RenderSystem implements System {
       if (isUnit && selectedUnitId === eid) {
         const hasAttack = hasComponent(world.world, eid, Attack);
         if (hasHealth && hasAttack) {
-          const hpCurrent = Math.ceil(Health.current[eid]);
-          const hpMax = Health.max[eid];
-          const atkDmg = Attack.damage[eid];
-          const atkSpd = Attack.attackSpeed[eid];
-          const entitySize = Visual.size[eid];
+          const hpCurrent = Math.ceil(Health.current[eid]!);
+          const hpMax = Health.max[eid]!;
+          const atkDmg = Attack.damage[eid]!;
+          const atkSpd = Attack.attackSpeed[eid]!;
+          const entitySize = Visual.size[eid]!;
 
           const infoY = posY - entitySize / 2 - 30;
           this.renderer.push({
@@ -500,12 +500,12 @@ export class RenderSystem implements System {
       // ========================================
       if (isEnemy && !flashActive) {
         if (hasFrozen || hasSlowed) {
-          const stacks = hasSlowed ? Slowed.stacks[eid] : (hasFrozen ? 5 : 1);
+          const stacks = hasSlowed ? Slowed.stacks[eid]! : (hasFrozen ? 5 : 1);
           const particleCount = Math.min(stacks * 2, 10);
-          const footY = posY + Visual.size[eid] / 2 + 2;
+          const footY = posY + Visual.size[eid]! / 2 + 2;
           for (let i = 0; i < particleCount; i++) {
             const angle = (i / particleCount) * Math.PI * 2 + (Date.now() % 3000) / 3000 * Math.PI * 2;
-            const radius = Visual.size[eid] * 0.4 + (i % 3) * 3;
+            const radius = Visual.size[eid]! * 0.4 + (i % 3) * 3;
             const px = posX + Math.cos(angle) * radius;
             const py = footY + Math.sin(angle * 2) * 4;
             this.renderer.push({
@@ -577,8 +577,8 @@ export class RenderSystem implements System {
 
 // ---- Helper: convert Visual RGB components to CSS rgb string ----
 function rgbFromVisual(eid: number): string {
-  const r = Visual.colorR[eid];
-  const g = Visual.colorG[eid];
-  const b = Visual.colorB[eid];
+  const r = Visual.colorR[eid]!;
+  const g = Visual.colorG[eid]!;
+  const b = Visual.colorB[eid]!;
   return `rgb(${r},${g},${b})`;
 }

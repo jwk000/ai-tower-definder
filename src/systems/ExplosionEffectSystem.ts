@@ -10,12 +10,12 @@ export class ExplosionEffectSystem implements System {
   update(world: TowerWorld, dt: number): void {
     const entities = explosionVisualQuery(world.world);
     for (const eid of entities) {
-      ExplosionEffect.elapsed[eid] += dt;
+      ExplosionEffect.elapsed[eid]! += dt;
 
-      const duration = ExplosionEffect.duration[eid];
-      const elapsed = ExplosionEffect.elapsed[eid];
+      const duration = ExplosionEffect.duration[eid]!;
+      const elapsed = ExplosionEffect.elapsed[eid]!;
       const progress = Math.min(elapsed / duration, 1);
-      const maxRadius = ExplosionEffect.maxRadius[eid];
+      const maxRadius = ExplosionEffect.maxRadius[eid]!;
 
       // diameter-style: Visual.size is the full circle diameter
       Visual.size[eid] = maxRadius * progress;

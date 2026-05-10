@@ -53,7 +53,7 @@ export class UnitSystem implements System {
       const allEnemies = this.enemyQuery(world.world);
       for (let i = 0; i < allEnemies.length; i++) {
         const eid = allEnemies[i]!;
-        if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+        if (UnitTag.isEnemy[eid]! === 1 && Health.current[eid]! > 0) {
           liveEnemies.push(eid);
         }
       }
@@ -66,8 +66,8 @@ export class UnitSystem implements System {
 
     for (let i = 0; i < units.length; i++) {
       const eid = units[i]!;
-      const px = Position.x[eid];
-      const py = Position.y[eid];
+      const px = Position.x[eid]!;
+      const py = Position.y[eid]!;
       const radius = this.getRadius(eid);
 
       // ---- Attack Phase ----
@@ -90,10 +90,10 @@ export class UnitSystem implements System {
     dt: number,
   ): void {
     // Tick cooldown
-    Attack.cooldownTimer[eid] -= dt;
-    if (Attack.cooldownTimer[eid] > 0) return;
+    Attack.cooldownTimer[eid]! -= dt;
+    if (Attack.cooldownTimer[eid]! > 0) return;
 
-    const range = Attack.range[eid];
+    const range = Attack.range[eid]!;
     let nearestId = 0;
     let nearestDist = Infinity;
 
@@ -113,8 +113,8 @@ export class UnitSystem implements System {
     if (nearestId === 0) return;
 
     // Execute attack
-    Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
-    Health.current[nearestId] -= Attack.damage[eid];
+    Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
+    Health.current[nearestId]! -= Attack.damage[eid]!;
     Visual.hitFlashTimer[nearestId] = 0.12;
   }
 
@@ -136,8 +136,8 @@ export class UnitSystem implements System {
     dt: number,
   ): void {
     // Determine move target: player-directed or auto-chase nearest enemy
-    const pcTargetX = PlayerControllable.targetX[eid];
-    const pcTargetY = PlayerControllable.targetY[eid];
+    const pcTargetX = PlayerControllable.targetX[eid]!;
+    const pcTargetY = PlayerControllable.targetY[eid]!;
     let moveTargetX: number;
     let moveTargetY: number;
 
@@ -177,7 +177,7 @@ export class UnitSystem implements System {
 
     if (dist <= 0.1) return;
 
-    const speed = Movement.speed[eid];
+    const speed = Movement.speed[eid]!;
     const moveDist = speed * dt;
     const stepX = (dx / dist) * Math.min(moveDist, dist);
     const stepY = (dy / dist) * Math.min(moveDist, dist);
@@ -186,9 +186,9 @@ export class UnitSystem implements System {
     let newY = py + stepY;
 
     // Clamp to home-range boundary
-    const homeX = Movement.homeX[eid];
-    const homeY = Movement.homeY[eid];
-    const moveRange = Movement.moveRange[eid];
+    const homeX = Movement.homeX[eid]!;
+    const homeY = Movement.homeY[eid]!;
+    const moveRange = Movement.moveRange[eid]!;
     const homeDx = newX - homeX;
     const homeDy = newY - homeY;
     const homeDist = Math.sqrt(homeDx * homeDx + homeDy * homeDy);
@@ -316,8 +316,8 @@ export class UnitSystem implements System {
 
       if (this.isExcluded(world, otherId)) continue;
 
-      const otherX = Position.x[otherId];
-      const otherY = Position.y[otherId];
+      const otherX = Position.x[otherId]!;
+      const otherY = Position.y[otherId]!;
       const otherRadius = this.getRadius(otherId);
 
       const dx = x - otherX;
@@ -357,8 +357,8 @@ export class UnitSystem implements System {
 
       if (this.isExcluded(world, otherId)) continue;
 
-      const otherX = Position.x[otherId];
-      const otherY = Position.y[otherId];
+      const otherX = Position.x[otherId]!;
+      const otherY = Position.y[otherId]!;
       const otherRadius = this.getRadius(otherId);
 
       const dx = x - otherX;

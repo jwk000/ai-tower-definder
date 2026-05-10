@@ -100,19 +100,19 @@ export class AISystem implements System {
       if (AI.active[eid] !== 1) continue;
 
       // 跳过已死亡的单位
-      if (Health.current[eid] <= 0) {
+      if (Health.current[eid]! <= 0) {
         this.cleanupBlackboard(eid);
         continue;
       }
 
       // 累积距离上次更新的时间
-      AI.lastUpdateTime[eid] += dt;
+      AI.lastUpdateTime[eid]! += dt;
 
       // 检查是否到达更新间隔
-      if (AI.lastUpdateTime[eid] < AI.updateInterval[eid]) continue;
+      if (AI.lastUpdateTime[eid]! < AI.updateInterval[eid]!) continue;
 
       // 从数值ID解析字符串配置ID
-      const configIdx = AI.configId[eid];
+      const configIdx = AI.configId[eid]!;
       const configIdStr = this.configIndex[configIdx];
       if (!configIdStr) continue;
 
@@ -125,7 +125,7 @@ export class AISystem implements System {
       const context: AIContext = {
         entityId: eid,
         world,
-        dt: AI.lastUpdateTime[eid], // 传递累积的时间供行为树节点使用
+        dt: AI.lastUpdateTime[eid]!, // 传递累积的时间供行为树节点使用
         blackboard,
       };
 

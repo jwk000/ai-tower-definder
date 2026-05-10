@@ -29,9 +29,9 @@ export class LaserBeamSystem implements System {
 
     for (const eid of entities) {
       // 更新持续时间
-      LaserBeam.elapsed[eid] += dt;
-      const elapsed = LaserBeam.elapsed[eid];
-      const duration = LaserBeam.duration[eid];
+      LaserBeam.elapsed[eid]! += dt;
+      const elapsed = LaserBeam.elapsed[eid]!;
+      const duration = LaserBeam.duration[eid]!;
 
       // 超时销毁
       if (elapsed >= duration) {
@@ -60,12 +60,12 @@ export class LaserBeamSystem implements System {
     if (!ctx) return;
 
     for (const eid of entities) {
-      const elapsed = LaserBeam.elapsed[eid];
-      const duration = LaserBeam.duration[eid];
+      const elapsed = LaserBeam.elapsed[eid]!;
+      const duration = LaserBeam.duration[eid]!;
       if (elapsed >= duration) continue;
 
-      const sourceId = LaserBeam.sourceId[eid];
-      const targetId = LaserBeam.targetId[eid];
+      const sourceId = LaserBeam.sourceId[eid]!;
+      const targetId = LaserBeam.targetId[eid]!;
 
       const fromX = Position.x[sourceId];
       const fromY = Position.y[sourceId];
@@ -86,14 +86,14 @@ export class LaserBeamSystem implements System {
 
   /** 对光束目标造成一次周期性伤害 */
   private applyDamage(eid: number): void {
-    const targetId = LaserBeam.targetId[eid];
+    const targetId = LaserBeam.targetId[eid]!;
     if (!targetId) return;
 
     // 目标已死亡则跳过
-    if (Health.current[targetId] <= 0) return;
+    if (Health.current[targetId]! <= 0) return;
 
-    const damage = LaserBeam.damage[eid];
-    Health.current[targetId] -= damage;
+    const damage = LaserBeam.damage[eid]!;
+    Health.current[targetId]! -= damage;
 
     // 受击闪白
     Visual.hitFlashTimer[targetId] = 0.08;

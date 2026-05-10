@@ -78,9 +78,9 @@ export class BatSwarmSystem implements System {
     const aliveCountByTower = new Map<number, number>();
     for (let i = 0; i < bats.length; i++) {
       const batId = bats[i]!;
-      if (Health.current[batId] <= 0) continue;
+      if (Health.current[batId]! <= 0) continue;
       const parentId = BatSwarmMember.parentId[batId];
-      aliveCountByTower.set(parentId, (aliveCountByTower.get(parentId) ?? 0) + 1);
+      aliveCountByTower.set(parentId!, (aliveCountByTower.get(parentId!) ?? 0) + 1);
     }
 
     // ── Pass 2: tower replenishment ─────────────────────────
@@ -90,8 +90,8 @@ export class BatSwarmSystem implements System {
       const maxBats = BatTower.maxBats[towerId];
 
       // Initial spawn: no bats yet, spawn full batch
-      if (aliveCount === 0 && BatTower.replenishTimer[towerId] <= 0) {
-        for (let j = 0; j < maxBats; j++) {
+      if (aliveCount === 0 && BatTower.replenishTimer[towerId]! <= 0) {
+        for (let j = 0; j < maxBats!; j++) {
           this.spawnBat(world, towerId);
         }
         this.cleanupStaleVelocities(bats);
@@ -99,13 +99,13 @@ export class BatSwarmSystem implements System {
       }
 
       // Tick replenish timer when bats are missing
-      if (aliveCount < maxBats) {
-        if (BatTower.replenishTimer[towerId] > 0) {
-          BatTower.replenishTimer[towerId] -= dt;
+      if (aliveCount < maxBats!) {
+        if (BatTower.replenishTimer[towerId]! > 0) {
+          BatTower.replenishTimer[towerId]! -= dt;
         }
-        if (BatTower.replenishTimer[towerId] <= 0) {
+        if (BatTower.replenishTimer[towerId]! <= 0) {
           this.spawnBat(world, towerId);
-          BatTower.replenishTimer[towerId] = BatTower.replenishCooldown[towerId];
+          BatTower.replenishTimer[towerId] = BatTower.replenishCooldown[towerId]!;
         }
       }
     }
@@ -113,16 +113,16 @@ export class BatSwarmSystem implements System {
     // ── Pass 3: bat behavior (boid + attack) ────────────────
     for (let i = 0; i < bats.length; i++) {
       const batId = bats[i]!;
-      if (Health.current[batId] <= 0) continue;
+      if (Health.current[batId]! <= 0) continue;
 
       // Boid movement
       this.applyBoidForces(world, batId, bats, dt);
 
       // Attack
-      if (Attack.cooldownTimer[batId] > 0) {
-        Attack.cooldownTimer[batId] -= dt;
+      if (Attack.cooldownTimer[batId]! > 0) {
+        Attack.cooldownTimer[batId]! -= dt;
       }
-      if (Attack.cooldownTimer[batId] <= 0 && this.canBatAttack()) {
+      if (Attack.cooldownTimer[batId]! <= 0 && this.canBatAttack()) {
         this.tryAttack(world, batId);
       }
     }
@@ -169,12 +169,12 @@ export class BatSwarmSystem implements System {
     for (let i = 0; i < allBats.length; i++) {
       const otherId = allBats[i]!;
       if (otherId === batId) continue;
-      if (Health.current[otherId] <= 0) continue;
+      if (Health.current[otherId]! <= 0) continue;
 
       const ox = Position.x[otherId];
       const oy = Position.y[otherId];
-      const dx = bx - ox;
-      const dy = by - oy;
+      const dx = bx! - ox!;
+      const dy = by! - oy!;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 0.01) continue;
 
@@ -194,19 +194,19 @@ export class BatSwarmSystem implements System {
         }
       }
       if (dist < COHESION_RADIUS) {
-        cohX += ox;
-        cohY += oy;
+        cohX += ox!;
+        cohY += oy!;
         cohCount++;
       }
     }
 
     // Home attraction (toward parent tower)
-    const tx = Position.x[parentId];
-    const ty = Position.y[parentId];
+    const tx = Position.x[parentId!];
+    const ty = Position.y[parentId!];
     let homeX = 0, homeY = 0;
     if (tx !== undefined && ty !== undefined) {
-      homeX = tx - bx;
-      homeY = ty - by;
+      homeX = tx - bx!;
+      homeY = ty - by!;
     }
 
     // Combine forces
@@ -225,8 +225,8 @@ export class BatSwarmSystem implements System {
       fy += (aliY / aliCount) * aliWeight;
     }
     if (cohCount > 0) {
-      cohX = cohX / cohCount - bx;
-      cohY = cohY / cohCount - by;
+      cohX = cohX / cohCount - bx!;
+      cohY = cohY / cohCount - by!;
       const cohLen = Math.sqrt(cohX * cohX + cohY * cohY);
       if (cohLen > 0.01) {
         fx += (cohX / cohLen) * BAT_SPEED * cohWeight;
@@ -255,7 +255,7 @@ export class BatSwarmSystem implements System {
     }
 
     // Apply acceleration to velocity
-    const speed = BatTower.batSpeed[parentId] ?? BAT_SPEED;
+    const speed = BatTower.batSpeed[parentId!] ?? BAT_SPEED;
     vel.vx += fx * dt;
     vel.vy += fy * dt;
 
@@ -267,11 +267,11 @@ export class BatSwarmSystem implements System {
     }
 
     // Apply velocity to position
-    Position.x[batId] = bx + vel.vx * dt;
-    Position.y[batId] = by + vel.vy * dt;
+    Position.x[batId] = bx! + vel.vx * dt;
+    Position.y[batId] = by! + vel.vy * dt;
 
     // Clamp to home area
-    this.clampToHome(batId, parentId);
+    this.clampToHome(batId, parentId!);
   }
 
   /** Keep bat within a maximum distance of its parent tower */
@@ -282,8 +282,8 @@ export class BatSwarmSystem implements System {
 
     const bx = Position.x[batId];
     const by = Position.y[batId];
-    const dx = bx - tx;
-    const dy = by - ty;
+    const dx = bx! - tx;
+    const dy = by! - ty;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const maxDist = WANDER_RADIUS + 40;
 
@@ -310,16 +310,16 @@ export class BatSwarmSystem implements System {
     for (let i = 0; i < enemies.length; i++) {
       const enemyId = enemies[i]!;
       // Filter: only living enemies
-      if (UnitTag.isEnemy[enemyId] !== 1) continue;
-      if (Health.current[enemyId] <= 0) continue;
+      if (UnitTag.isEnemy[enemyId]! !== 1) continue;
+      if (Health.current[enemyId]! <= 0) continue;
 
       const ex = Position.x[enemyId];
       const ey = Position.y[enemyId];
-      const dx = ex - bx;
-      const dy = ey - by;
+      const dx = ex! - bx!;
+      const dy = ey! - by!;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist <= range && dist < nearestDist) {
+      if (dist <= range! && dist < nearestDist) {
         nearestDist = dist;
         nearestId = enemyId;
       }
@@ -329,10 +329,10 @@ export class BatSwarmSystem implements System {
 
     // Reset attack cooldown
     const attackSpeed = Attack.attackSpeed[batId];
-    Attack.cooldownTimer[batId] = attackSpeed > 0 ? 1 / attackSpeed : 0;
+    Attack.cooldownTimer[batId] = attackSpeed! > 0 ? 1 / attackSpeed! : 0;
 
     // Deal damage
-    Health.current[nearestId] -= damage;
+    Health.current[nearestId]! -= damage!;
 
     // Hit flash
     if (Visual.hitFlashTimer[nearestId] !== undefined) {
@@ -410,7 +410,7 @@ export class BatSwarmSystem implements System {
     if (parentId === undefined || parentId === 0) return;
     if (!hasComponent(this.world.world, parentId, BatTower)) return;
 
-    BatTower.replenishTimer[parentId] = BatTower.replenishCooldown[parentId];
+    BatTower.replenishTimer[parentId] = BatTower.replenishCooldown[parentId]!;
   }
 
   /** Upgrade bat tower stats when tower is levelled up */
@@ -437,7 +437,7 @@ export class BatSwarmSystem implements System {
       Attack.damage[batId] = BatTower.batDamage[towerId];
 
       const maxHp = BatTower.batHp[towerId];
-      const ratio = Health.max[batId] > 0 ? Health.current[batId] / Health.max[batId] : 1;
+      const ratio = Health.max[batId]! > 0 ? Health.current[batId]! / Health.max[batId]! : 1;
       Health.max[batId] = maxHp;
       Health.current[batId] = Math.ceil(maxHp * ratio);
     }

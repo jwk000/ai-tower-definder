@@ -14,21 +14,21 @@ export class HealingSystem implements System {
     const targets = healTargetQuery(w);
 
     for (const springId of springs) {
-      const healRange = HealingSpring.healRange[springId];
-      const healAmount = HealingSpring.healAmount[springId];
-      const sx = Position.x[springId];
-      const sy = Position.y[springId];
+      const healRange = HealingSpring.healRange[springId]!;
+      const healAmount = HealingSpring.healAmount[springId]!;
+      const sx = Position.x[springId]!;
+      const sy = Position.y[springId]!;
 
       for (const targetId of targets) {
-        const tx = Position.x[targetId];
-        const ty = Position.y[targetId];
+        const tx = Position.x[targetId]!;
+        const ty = Position.y[targetId]!;
         const dx = tx - sx;
         const dy = ty - sy;
 
         if (dx * dx + dy * dy <= healRange * healRange) {
-          Health.current[targetId] = Math.min(
-            Health.max[targetId],
-            Health.current[targetId] + healAmount * dt,
+          Health.current[targetId]! = Math.min(
+            Health.max[targetId]!,
+            Health.current[targetId]! + healAmount * dt,
           );
         }
       }

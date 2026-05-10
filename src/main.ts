@@ -26,30 +26,59 @@ import { SaveManager } from './utils/SaveManager.js';
 import { Sound } from './utils/Sound.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
-import { GamePhase, GameScreen, CType, TileType, UnitType, TowerType, WeatherType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
-import { Position, GridOccupant } from './components/Position.js';
-import { Health } from './components/Health.js';
-import { Attack } from './components/Attack.js';
-import { Render } from './components/Render.js';
-import { Unit } from './components/Unit.js';
-import { PlayerControllable } from './components/PlayerControllable.js';
-import { Skill } from './components/Skill.js';
-import { Tower } from './components/Tower.js';
-import { PlayerOwned } from './components/PlayerOwned.js';
-import { Enemy } from './components/Enemy.js';
-import { Production } from './components/Production.js';
-import { DeathEffect } from './components/DeathEffect.js';
-import { AI } from './components/AI.js';
-import { BatTower } from './components/BatTower.js';
+import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
 
-// New unit system imports
+// ---- bitecs component stores ----
+import {
+  Position, Health, Attack, Visual, Tower, PlayerControllable, PlayerOwned,
+  Skill, UnitTag, AI, BatTower, Production, Trap, GridOccupant,
+  DeathEffect, ExplosionEffect, Category, CategoryVal, Boss,
+  Movement, ShapeVal, Layer, LayerVal, Faction, FactionVal,
+  DamageTypeVal, TargetSelectionVal, AttackModeVal,
+  BatSwarmMember,
+  defineQuery,
+} from './core/components.js';
+
+import { hasComponent } from './core/World.js';
+
+// ---- New unit system imports ----
 import { AISystem } from './systems/AISystem.js';
 import { LifecycleSystem } from './systems/LifecycleSystem.js';
 import { UnitFactory } from './systems/UnitFactory.js';
 import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
 
-// Debug system imports
+// ---- Debug system imports ----
 import { DebugManager } from './debug/DebugManager.js';
+
+// ---- TowerType numeric ID → enum mapping (matches AttackSystem/BuildSystem) ----
+const TOWER_TYPE_BY_ID: TowerType[] = [
+  TowerType.Arrow,     // 0
+  TowerType.Cannon,    // 1
+  TowerType.Ice,       // 2
+  TowerType.Lightning, // 3
+  TowerType.Laser,     // 4
+  TowerType.Bat,       // 5
+];
+
+/** TowerType enum → bitecs ui8 */
+const TOWER_TYPE_ID: Record<TowerType, number> = {
+  [TowerType.Arrow]: 0,
+  [TowerType.Cannon]: 1,
+  [TowerType.Ice]: 2,
+  [TowerType.Lightning]: 3,
+  [TowerType.Laser]: 4,
+  [TowerType.Bat]: 5,
+};
+
+// ---- Utility: hex color → RGB ----
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
 
 class TowerDefenderGame extends Game {
   private currentScreen: GameScreen = GameScreen.LevelSelect;
@@ -67,16 +96,17 @@ class TowerDefenderGame extends Game {
   private buffSystem!: BuffSystem;
   private weatherSystem!: WeatherSystem;
   private healthSystem!: HealthSystem;
-  private baseHealth: Health | null = null;
+  /** Entity ID of the base (for checking HP ratio on victory) */
+  private baseEntityId: number | null = null;
   private batSwarmSystem!: BatSwarmSystem;
   private laserBeamSystem!: LaserBeamSystem;
 
-  // New unit system
+  // ---- New unit system ----
   private aiSystem!: AISystem;
   private lifecycleSystem!: LifecycleSystem;
   private unitFactory!: UnitFactory;
 
-  // Debug system
+  // ---- Debug system ----
   private debugManager!: DebugManager;
 
   private unitDragId: number | null = null;
@@ -96,11 +126,13 @@ class TowerDefenderGame extends Game {
     this.enterLevelSelect();
   }
 
-  // ---- Screen Management ----
+  // ================================================================
+  // Screen Management
+  // ================================================================
 
   private enterLevelSelect(): void {
     this.currentScreen = GameScreen.LevelSelect;
-    this.world.clear();
+    this.world.reset();
     this.onUpdate = (dt) => this.levelSelectUI.update(dt);
     this.onPostRender = null;
     this.onAfterUpdate = null;
@@ -119,7 +151,7 @@ class TowerDefenderGame extends Game {
     this.currentScreen = GameScreen.Battle;
     this.phase = GamePhase.Deployment;
 
-    this.world.clear();
+    this.world.reset();
     this.initBattle(config);
   }
 
@@ -131,18 +163,20 @@ class TowerDefenderGame extends Game {
     this.currentScreen = GameScreen.Battle;
     this.phase = GamePhase.Deployment;
 
-    this.world.clear();
+    this.world.reset();
     this.initBattle(config);
   }
 
-  // ---- Battle Init ----
+  // ================================================================
+  // Battle Init
+  // ================================================================
 
   private initBattle(config: LevelConfig): void {
     const map = config.map;
     this.currentMap = map;
     this.defeatSfxPlayed = false;
 
-    // Create base entity
+    // ---- Create base entity ----
     const basePath = map.enemyPath[map.enemyPath.length - 1]!;
     const ts = map.tileSize;
     const layout = computeSceneLayout(map, 1920, 1080);
@@ -150,26 +184,28 @@ class TowerDefenderGame extends Game {
     const oy = layout.offsetY;
     const baseX = basePath.col * ts + ts / 2 + ox;
     const baseY = basePath.row * ts + ts / 2 + oy;
-    const baseId = this.world.createEntity();
-    this.world.addComponent(baseId, new Position(baseX, baseY));
-    this.baseHealth = new Health(100);
-    this.world.addComponent(baseId, this.baseHealth);
-    const baseRender = new Render('hexagon', '#42a5f5', ts * 0.6);
-    baseRender.label = '基地';
-    baseRender.labelColor = '#ffffff';
-    baseRender.labelSize = 16;
-    this.world.addComponent(baseId, baseRender);
+    this.baseEntityId = this.world.createEntity();
+    this.world.addComponent(this.baseEntityId, Position, { x: baseX, y: baseY });
+    this.world.addComponent(this.baseEntityId, Health, { current: 100, max: 100 });
+    const baseRgb = hexToRgb('#42a5f5');
+    this.world.addComponent(this.baseEntityId, Visual, {
+      shape: ShapeVal.Hexagon,
+      colorR: baseRgb.r,
+      colorG: baseRgb.g,
+      colorB: baseRgb.b,
+      size: ts * 0.6,
+    });
 
     // Spawn neutral units from map config (stub)
     this.spawnNeutralUnits(map);
 
-    // Economy
+    // ---- Economy ----
     this.economy = new EconomySystem();
     this.economy.gold = config.startingGold;
 
-    // Wave system
+    // ---- Wave system ----
     this.waveSystem = new WaveSystem(
-      map, config.waves,
+      this.world, map, config.waves,
       () => this.phase,
       (p) => { this.phase = p; },
       () => {
@@ -177,7 +213,7 @@ class TowerDefenderGame extends Game {
       },
     );
 
-    // Weather system — init with level config
+    // ---- Weather system — init with level config ----
     this.weatherSystem = new WeatherSystem();
     if (config.weatherPool && config.weatherPool.length > 0) {
       const randomIdx = Math.floor(Math.random() * config.weatherPool.length);
@@ -192,7 +228,7 @@ class TowerDefenderGame extends Game {
       this.weatherSystem.init([WeatherType.Sunny]);
     }
 
-    // Build system
+    // ---- Build system ----
     this.buildSystem = new BuildSystem(
       map,
       () => this.phase,
@@ -203,42 +239,41 @@ class TowerDefenderGame extends Game {
       this.buildSystem.selectTower(config.availableTowers[0]);
     }
 
-    // Callbacks
+    // ---- Upgrade tower callback (bitecs component access) ----
     const upgradeTower = (entityId: number) => {
-      const tower = this.world.getComponent<Tower>(entityId, CType.Tower);
-      if (!tower) return;
-      if (tower.level >= 5) return;
+      const towerTypeNum = Tower.towerType[entityId];
+      if (towerTypeNum === undefined) return;
+      const towerLevel = Tower.level[entityId]!;
+      if (towerLevel >= 5) return;
 
-      const towerCfg = TOWER_CONFIGS[tower.towerType];
+      const tt = TOWER_TYPE_BY_ID[towerTypeNum];
+      if (tt === undefined) return;
+      const towerCfg = TOWER_CONFIGS[tt];
       if (!towerCfg) return;
 
-      const costIdx = tower.level - 1;
+      const costIdx = towerLevel - 1;
       const cost = towerCfg.upgradeCosts[costIdx];
       if (cost === undefined) return;
 
       if (!this.economy.spendGold(cost)) return;
 
-      tower.level++;
-      tower.totalInvested += cost;
+      Tower.level[entityId] = towerLevel + 1;
+      Tower.totalInvested[entityId]! += cost;
 
       // Bat towers have BatTower component instead of Attack
-      if (tower.towerType === TowerType.Bat) {
-        this.batSwarmSystem.upgradeBatTowerStats(entityId, tower.level);
+      if (tt === TowerType.Bat) {
+        this.batSwarmSystem.upgradeBatTowerStats(entityId, Tower.level[entityId]!);
       } else {
-        const atk = this.world.getComponent<Attack>(entityId, CType.Attack);
-        if (atk) {
-          atk.atk += towerCfg.upgradeAtkBonus[costIdx] ?? 0;
-          atk.range += towerCfg.upgradeRangeBonus[costIdx] ?? 0;
+        const atkDamage = Attack.damage[entityId];
+        if (atkDamage !== undefined) {
+          Attack.damage[entityId]! += towerCfg.upgradeAtkBonus[costIdx] ?? 0;
+          Attack.range[entityId]! += towerCfg.upgradeRangeBonus[costIdx] ?? 0;
         }
         this.weatherSystem.onTowerUpgraded(entityId);
       }
-
-      const render = this.world.getComponent<Render>(entityId, CType.Render);
-      if (render) {
-        render.label = towerCfg.name;
-      }
     };
 
+    // ---- UI system ----
     this.uiSystem = new UISystem(
       this.renderer,
       () => this.phase,
@@ -281,6 +316,7 @@ class TowerDefenderGame extends Game {
       () => this.weatherSystem.weatherName,
     );
 
+    // ---- Health system ----
     this.healthSystem = new HealthSystem(
       () => this.phase,
       (p) => { this.phase = p; },
@@ -289,16 +325,22 @@ class TowerDefenderGame extends Game {
         this.economy.rewardForEnemy(enemyId);
       },
       (unitId) => {
-        const unit = this.world.getComponent<Unit>(unitId, CType.Unit);
-        if (unit) {
-          this.economy.releaseUnit(unit.popCost);
+        const popCost = UnitTag.popCost[unitId];
+        if (popCost !== undefined) {
+          this.economy.releaseUnit(popCost);
         }
-        const unitPos = this.world.getComponent<Position>(unitId, CType.Position);
-        if (unitPos) {
+        // Death effect for player units
+        const posX = Position.x[unitId];
+        const posY = Position.y[unitId];
+        if (posX !== undefined && posY !== undefined) {
           const effectId = this.world.createEntity();
-          this.world.addComponent(effectId, new Position(unitPos.x, unitPos.y));
-          this.world.addComponent(effectId, new Render('circle', '#f44336', 24));
-          this.world.addComponent(effectId, new DeathEffect(0.3));
+          this.world.addComponent(effectId, Position, { x: posX, y: posY });
+          this.world.addComponent(effectId, Visual, {
+            shape: ShapeVal.Circle,
+            colorR: 0xf4, colorG: 0x43, colorB: 0x36,
+            size: 24,
+          });
+          this.world.addComponent(effectId, DeathEffect, { duration: 0.3 });
         }
       },
       (batId) => {
@@ -306,6 +348,7 @@ class TowerDefenderGame extends Game {
       },
     );
 
+    // ---- Core systems ----
     const renderSystem = new RenderSystem(
       this.renderer, map,
       () => this.uiSystem.selectedTowerEntityId,
@@ -333,7 +376,7 @@ class TowerDefenderGame extends Game {
     const lightningBoltSystem = new LightningBoltSystem(this.renderer);
     this.laserBeamSystem = new LaserBeamSystem(this.renderer);
 
-    // Initialize new unit system
+    // ---- New unit system ----
     this.aiSystem = new AISystem();
     this.lifecycleSystem = new LifecycleSystem();
     this.unitFactory = new UnitFactory(this.world);
@@ -345,7 +388,7 @@ class TowerDefenderGame extends Game {
     this.debugManager = new DebugManager(this.world);
     this.debugManager.registerAIConfigs(ALL_AI_CONFIGS);
 
-    // UI overlay
+    // ---- UI overlay (onPostRender) ----
     this.onPostRender = () => {
       lightningBoltSystem.renderBolts(this.world);
       this.laserBeamSystem.renderBeams(this.world);
@@ -363,7 +406,7 @@ class TowerDefenderGame extends Game {
       this.uiSystem.renderUI();
     };
 
-    // Input dispatch for battle
+    // ---- Input dispatch for battle ----
     this.input.onPointerDown = (e: InputEvent) => {
       if (this.buildSystem.dragState?.active) return;
       if (this.unitDragId !== null) return;
@@ -379,11 +422,15 @@ class TowerDefenderGame extends Game {
         this.uiSystem.enemyEntityId = null;
         this.uiSystem.selectedEntityId = unitId;
         this.uiSystem.selectedEntityType = 'unit';
-        const pos = this.world.getComponent<Position>(unitId, CType.Position);
-        const ctrl = this.world.getComponent<PlayerControllable>(unitId, CType.PlayerControllable);
-        if (pos && ctrl) {
-          ctrl.targetX = pos.x;
-          ctrl.targetY = pos.y;
+        const posX = Position.x[unitId];
+        const posY = Position.y[unitId];
+        if (posX !== undefined && posY !== undefined) {
+          const ctrlTargetX = PlayerControllable.targetX[unitId];
+          const ctrlTargetY = PlayerControllable.targetY[unitId];
+          if (ctrlTargetX !== undefined && ctrlTargetY !== undefined) {
+            PlayerControllable.targetX[unitId] = posX;
+            PlayerControllable.targetY[unitId] = posY;
+          }
         }
         return;
       }
@@ -393,10 +440,10 @@ class TowerDefenderGame extends Game {
 
     this.input.onPointerMove = (e: InputEvent) => {
       if (this.unitDragId !== null) {
-        const ctrl = this.world.getComponent<PlayerControllable>(this.unitDragId, CType.PlayerControllable);
-        if (ctrl) {
-          ctrl.targetX = e.x;
-          ctrl.targetY = e.y;
+        const ctrlTargetX = PlayerControllable.targetX[this.unitDragId];
+        if (ctrlTargetX !== undefined) {
+          PlayerControllable.targetX[this.unitDragId] = e.x;
+          PlayerControllable.targetY[this.unitDragId] = e.y;
         }
       }
     };
@@ -428,14 +475,14 @@ class TowerDefenderGame extends Game {
       }
     };
 
-    // Phase transition watcher
+    // ---- Phase transition watcher ----
     this.onUpdate = null;
     this.onAfterUpdate = () => {
       if (this.currentScreen !== GameScreen.Battle) return;
-      
+
       // Update debug manager
       this.debugManager.update();
-      
+
       if (this.phase === GamePhase.Victory) {
         this.handleVictory();
       } else if (this.phase === GamePhase.Defeat) {
@@ -447,7 +494,7 @@ class TowerDefenderGame extends Game {
       }
     };
 
-    // Register systems
+    // ---- Register systems ----
     this.world.registerSystem(this.lifecycleSystem);  // Lifecycle first
     this.world.registerSystem(this.aiSystem);         // AI system
     this.world.registerSystem(movementSystem);
@@ -477,11 +524,20 @@ class TowerDefenderGame extends Game {
     this.waveSystem.startAutoCountdown(5);
   }
 
-  // ---- Victory / Defeat ----
+  // ================================================================
+  // Victory / Defeat
+  // ================================================================
 
   private handleVictory(): void {
     this.phase = GamePhase.Victory;
-    const baseHpRatio = this.baseHealth ? this.baseHealth.ratio : 0;
+    let baseHpRatio = 0;
+    if (this.baseEntityId !== null) {
+      const cur = Health.current[this.baseEntityId];
+      const max = Health.max[this.baseEntityId];
+      if (cur !== undefined && max !== undefined && max > 0) {
+        baseHpRatio = cur / max;
+      }
+    }
     let stars = 1;
     if (baseHpRatio > 0.6) stars = 2;
     if (baseHpRatio >= 1.0) stars = 3;
@@ -501,85 +557,104 @@ class TowerDefenderGame extends Game {
     setTimeout(() => this.enterLevelSelect(), 1500);
   }
 
-  // ---- Neutral Units (stub) ----
+  // ================================================================
+  // Neutral Units (stub)
+  // ================================================================
 
   private spawnNeutralUnits(_map: MapConfig): void {
     // Phase 3 neutral units — stub for now
   }
 
-  // ---- Map Click ----
+  // ================================================================
+  // Map Click (bitecs query-based)
+  // ================================================================
 
   private findUnitAt(x: number, y: number): number | null {
-    const units = this.world.query(CType.Position, CType.Unit, CType.Render);
-    for (const id of units) {
-      const pos = this.world.getComponent<Position>(id, CType.Position);
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (!pos || !render) continue;
-      const r = render.size * 0.65;
-      if (Math.abs(x - pos.x) < r && Math.abs(y - pos.y) < r) return id;
+    // Use bitecs: entities with Position + UnitTag (player units) + Visual
+    for (let eid = 1; eid < Position.x.length; eid++) {
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      // Check if it's a player unit (UnitTag exists, isEnemy === 0, and has Visual)
+      if (UnitTag.isEnemy[eid] !== 0) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(x - px) < r && Math.abs(y - py) < r) return eid;
     }
     return null;
   }
 
   private handleMapClick(e: InputEvent): void {
+    const w = this.world.world;
+
     // Try clicking on an enemy first
-    const enemies = this.world.query(CType.Position, CType.Enemy, CType.Render);
-    for (const id of enemies) {
-      const pos = this.world.getComponent<Position>(id, CType.Position);
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (!pos || !render) continue;
-      const r = render.size * 0.65;
-      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
-        this.uiSystem.selectEnemy(id);
-        this.debugManager.selectEntity(id);
+    for (let eid = 1; eid < Position.x.length; eid++) {
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      if (UnitTag.isEnemy[eid] !== 1) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(e.x - px) < r && Math.abs(e.y - py) < r) {
+        this.uiSystem.selectEnemy(eid);
+        this.debugManager.selectEntity(eid);
         return;
       }
     }
 
     // Try clicking on a tower
-    const towers = this.world.query(CType.Position, CType.Tower, CType.Render);
-    for (const id of towers) {
-      const pos = this.world.getComponent<Position>(id, CType.Position);
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (!pos || !render) continue;
-      const r = render.size * 0.65;
-      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
+    for (let eid = 1; eid < Tower.towerType.length; eid++) {
+      if (Tower.towerType[eid] === undefined) continue;
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(e.x - px) < r && Math.abs(e.y - py) < r) {
         this.uiSystem.enemyEntityId = null;
-        this.uiSystem.selectedEntityId = id;
+        this.uiSystem.selectedEntityId = eid;
         this.uiSystem.selectedEntityType = 'tower';
-        this.debugManager.selectEntity(id);
+        this.debugManager.selectEntity(eid);
         return;
       }
     }
 
     // Try clicking on a trap
-    const traps = this.world.query(CType.Position, CType.Trap, CType.Render);
-    for (const id of traps) {
-      const pos = this.world.getComponent<Position>(id, CType.Position);
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (!pos || !render) continue;
-      const r = render.size * 0.65;
-      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
+    for (let eid = 1; eid < Trap.damagePerSecond.length; eid++) {
+      if (Trap.damagePerSecond[eid] === undefined) continue;
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(e.x - px) < r && Math.abs(e.y - py) < r) {
         this.uiSystem.enemyEntityId = null;
-        this.uiSystem.selectedEntityId = id;
+        this.uiSystem.selectedEntityId = eid;
         this.uiSystem.selectedEntityType = 'trap';
-        this.debugManager.selectEntity(id);
+        this.debugManager.selectEntity(eid);
         return;
       }
     }
 
     // Try clicking on a placed unit
-    const units = this.world.query(CType.Position, CType.Unit, CType.Render);
-    for (const id of units) {
-      const pos = this.world.getComponent<Position>(id, CType.Position);
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (!pos || !render) continue;
-      const r = render.size * 0.65;
-      if (Math.abs(e.x - pos.x) < r && Math.abs(e.y - pos.y) < r) {
+    for (let eid = 1; eid < Position.x.length; eid++) {
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      if (UnitTag.isEnemy[eid] !== 0) continue;
+      if (!hasComponent(w, eid, PlayerOwned)) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(e.x - px) < r && Math.abs(e.y - py) < r) {
         this.uiSystem.enemyEntityId = null;
-        this.uiSystem.selectedEntityId = id;
+        this.uiSystem.selectedEntityId = eid;
         this.uiSystem.selectedEntityType = 'unit';
-        this.debugManager.selectEntity(id);
+        this.debugManager.selectEntity(eid);
         return;
       }
     }
@@ -591,11 +666,15 @@ class TowerDefenderGame extends Game {
     this.debugManager.selectEntity(null);
   }
 
-  private spawnUnitAt(px: number, py: number): void {
-    const unitType = this.buildSystem.dragState?.unitType;
-    if (!unitType) return;
+  // ================================================================
+  // spawnUnitAt — bitecs version
+  // ================================================================
 
-    const config = UNIT_CONFIGS[unitType];
+  private spawnUnitAt(px: number, py: number): void {
+    const dragUnitType = this.buildSystem.dragState?.unitType;
+    if (!dragUnitType) return;
+
+    const config = UNIT_CONFIGS[dragUnitType];
     if (!config) return;
 
     const map = this.currentMap;
@@ -612,14 +691,13 @@ class TowerDefenderGame extends Game {
     const tile = map.tiles[row]![col]!;
     if (tile !== TileType.Empty && tile !== TileType.Path) return;
 
-    const occupants = this.world.query(CType.GridOccupant);
-    for (const id of occupants) {
-      const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) return;
+    // Check grid occupancy via GridOccupant SoA
+    for (let eid = 1; eid < GridOccupant.row.length; eid++) {
+      if (GridOccupant.row[eid] === undefined) continue;
+      if (GridOccupant.row[eid] === row && GridOccupant.col[eid] === col) return;
     }
 
     if (!this.economy.canDeployUnit(config.popCost)) return;
-
     if (!this.economy.spendGold(config.cost)) return;
 
     this.economy.deployUnit(config.popCost);
@@ -633,29 +711,116 @@ class TowerDefenderGame extends Game {
     const y = row * ts + ts / 2 + oy;
 
     const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new Health(config.hp));
-    this.world.addComponent(id, new Attack(config.atk, config.attackRange, config.attackSpeed));
-    this.world.addComponent(id, new Unit(config.type, config.popCost, config.skillId, config.speed, config.cost, x, y, config.moveRange));
-    this.world.addComponent(id, new PlayerControllable());
-    this.world.addComponent(id, new Skill(config.skillId, cooldown, energyCost));
-    this.world.addComponent(id, new PlayerOwned());
 
-    const render = new Render('circle', config.color, config.size);
-    render.outline = true;
-    render.label = config.name;
-    render.labelColor = '#ffffff';
-    render.labelSize = 16;
-    this.world.addComponent(id, render);
-    
-    // 添加AI组件 - 根据单位类型选择AI配置
-    const aiConfigId = this.getUnitAIConfig(unitType);
-    const ai = new AI(aiConfigId);
-    ai.setBlackboard('home_x', x);
-    ai.setBlackboard('home_y', y);
-    this.world.addComponent(id, ai);
+    // Position
+    this.world.addComponent(id, Position, { x, y });
+
+    // GridOccupant
+    this.world.addComponent(id, GridOccupant, { row, col });
+
+    // Health
+    this.world.addComponent(id, Health, {
+      current: config.hp,
+      max: config.hp,
+    });
+
+    // Attack (player units are physical damage by default)
+    this.world.addComponent(id, Attack, {
+      damageType: DamageTypeVal.Physical,
+      damage: config.atk,
+      attackSpeed: config.attackSpeed,
+      range: config.attackRange,
+      cooldownTimer: 0,
+      targetId: 0,
+      targetSelection: TargetSelectionVal.Nearest,
+      attackMode: AttackModeVal.SingleTarget,
+      splashRadius: 0,
+      chainCount: 0,
+      chainRange: 0,
+      chainDecay: 0,
+      drainPercent: 0,
+    });
+
+    // UnitTag (player unit)
+    this.world.addComponent(id, UnitTag, {
+      isEnemy: 0,
+      popCost: config.popCost,
+      cost: config.cost,
+    });
+
+    // Movement
+    this.world.addComponent(id, Movement, {
+      speed: config.speed,
+      currentSpeed: config.speed,
+      targetX: x,
+      targetY: y,
+      pathIndex: 0,
+      progress: 0,
+      moveMode: 5, // MoveModeVal.PlayerDirected
+      homeX: x,
+      homeY: y,
+      moveRange: config.moveRange,
+    });
+
+    // PlayerControllable
+    this.world.addComponent(id, PlayerControllable);
+
+    // Skill
+    const skillId = config.skillId === 'taunt' ? 0 : config.skillId === 'whirlwind' ? 1 : 0;
+    this.world.addComponent(id, Skill, {
+      skillId,
+      cooldown,
+      currentCooldown: 0,
+      energyCost,
+    });
+
+    // PlayerOwned (tag)
+    this.world.addComponent(id, PlayerOwned);
+
+    // Visual
+    const rgb = hexToRgb(config.color);
+    this.world.addComponent(id, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: rgb.r,
+      colorG: rgb.g,
+      colorB: rgb.b,
+      size: config.size,
+      alpha: 1,
+      outline: 1,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    // AI component — based on unit type
+    const aiConfigId = this.getUnitAIConfig(dragUnitType);
+    // Map AI config string to numeric ID (hardcoded for player units)
+    const AI_NUM_IDS: Record<string, number> = {
+      soldier_tank: 6,
+      soldier_dps: 7,
+      soldier_basic: 8,
+    };
+    this.world.addComponent(id, AI, {
+      configId: AI_NUM_IDS[aiConfigId] ?? 8,
+      targetId: 0,
+      lastUpdateTime: 0,
+      updateInterval: 0.1,
+      active: 1,
+    });
+
+    // Category: Soldier
+    this.world.addComponent(id, Category, { value: CategoryVal.Soldier });
+
+    // Layer: Ground
+    this.world.addComponent(id, Layer, { value: LayerVal.Ground });
+
+    // Faction: Player
+    this.world.addComponent(id, Faction, { value: FactionVal.Player });
   }
-  
+
+  // ================================================================
+  // AI config mapping
+  // ================================================================
+
   private getUnitAIConfig(unitType: UnitType): string {
     switch (unitType) {
       case UnitType.ShieldGuard:
@@ -667,31 +832,45 @@ class TowerDefenderGame extends Game {
     }
   }
 
-  private recycleEntity(entityId: number): void {
-    const tower = this.world.getComponent<Tower>(entityId, CType.Tower);
-    const unit = this.world.getComponent<Unit>(entityId, CType.Unit);
-    const prod = this.world.getComponent<Production>(entityId, CType.Production);
+  // ================================================================
+  // recycleEntity — bitecs component access
+  // ================================================================
 
+  private recycleEntity(entityId: number): void {
+    const tw = this.world.world;
     let refund = 0;
 
-    if (tower) {
-      refund = Math.floor(tower.totalInvested * 0.5);
+    // Check if it's a tower
+    const towerTypeNum = Tower.towerType[entityId];
+    if (towerTypeNum !== undefined) {
+      refund = Math.floor(Tower.totalInvested[entityId]! * 0.5);
       // If bat tower, destroy all its bats first
-      const bt = this.world.getComponent<BatTower>(entityId, CType.BatTower);
-      if (bt) {
-        for (const batId of bt.batIds) {
-          this.world.destroyEntity(batId);
+      if (BatTower.maxBats[entityId] !== undefined) {
+        // Iterate all entities and check BatSwarmMember.parentId
+        for (let eid = 1; eid < Position.x.length; eid++) {
+          if (BatSwarmMember.parentId[eid] === entityId) {
+            this.world.destroyEntity(eid);
+          }
         }
       }
-    } else if (unit) {
-      refund = Math.floor(unit.cost * 0.5);
-    } else if (this.world.hasComponent(entityId, CType.Trap)) {
+    }
+    // Check if it's a player unit
+    else if (UnitTag.isEnemy[entityId] === 0 && UnitTag.popCost[entityId] !== undefined) {
+      refund = Math.floor((UnitTag.cost[entityId] ?? 0) * 0.5);
+    }
+    // Check if it's a trap
+    else if (Trap.damagePerSecond[entityId] !== undefined) {
       refund = Math.floor(40 * 0.5);
-    } else if (prod) {
-      const cfg = PRODUCTION_CONFIGS[prod.productionType];
+    }
+    // Check if it's a production building
+    else if (Production.rate[entityId] !== undefined) {
+      const prodLevel = Production.level[entityId] ?? 1;
+      const cfg = PRODUCTION_CONFIGS[
+        Production.resourceType[entityId] === 0 ? ProductionType.GoldMine : ProductionType.EnergyTower
+      ];
       if (cfg) {
         let invested = cfg.cost;
-        for (let i = 0; i < prod.level - 1; i++) {
+        for (let i = 0; i < prodLevel - 1; i++) {
           invested += cfg.upgradeCosts[i] ?? 0;
         }
         refund = Math.floor(invested * 0.5);
@@ -700,8 +879,9 @@ class TowerDefenderGame extends Game {
 
     this.economy.addGold(refund);
 
-    if (unit) {
-      this.economy.releaseUnit(unit.popCost);
+    // Release population for units
+    if (UnitTag.isEnemy[entityId] === 0 && UnitTag.popCost[entityId] !== undefined) {
+      this.economy.releaseUnit(UnitTag.popCost[entityId]!);
     }
 
     this.world.destroyEntity(entityId);
@@ -710,7 +890,9 @@ class TowerDefenderGame extends Game {
   }
 }
 
-// ---- Entry ----
+// ================================================================
+// Entry
+// ================================================================
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 if (!canvas) throw new Error('Canvas element not found');

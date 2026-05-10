@@ -307,7 +307,7 @@ export class AttackNode extends ActionNode {
       // Reset cooldown
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
       // Deal damage
-      Health.current[targetId] -= attackDmg;
+      Health.current[targetId]! -= attackDmg;
 
       // Set target for rendering
       AI.targetId[eid] = targetId;
@@ -369,8 +369,8 @@ export class MoveToNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
     const targetParam = this.getParam<string>('target', context, 'path_waypoint');
     const eid = context.entityId;
-    const px = Position.x[eid];
-    const py = Position.y[eid];
+    const px = Position.x[eid]!;
+    const py = Position.y[eid]!;
 
     let targetX: number | null = null;
     let targetY: number | null = null;
