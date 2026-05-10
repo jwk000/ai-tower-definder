@@ -1,24 +1,56 @@
-import { System, GamePhase, EnemyType, CType, type WaveConfig } from '../types/index.js';
-import { World } from '../core/World.js';
-import { Position } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { Movement } from '../components/Movement.js';
-import { Enemy } from '../components/Enemy.js';
-import { EnemyAttacker } from '../components/EnemyAttacker.js';
-import { Render } from '../components/Render.js';
-import { Boss } from '../components/Boss.js';
-import { AI } from '../components/AI.js';
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import {
+  Position,
+  Health,
+  Movement,
+  UnitTag,
+  Visual,
+  AI,
+  Boss,
+  Attack,
+  Category,
+  CategoryVal,
+  Layer,
+  LayerVal,
+  Faction,
+  FactionVal,
+  MoveModeVal,
+  DamageTypeVal,
+} from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
-import type { MapConfig } from '../types/index.js';
+import { GamePhase, EnemyType, type WaveConfig, type MapConfig } from '../types/index.js';
 import { generateEndlessWave } from './EndlessWaveGenerator.js';
 import { RenderSystem } from './RenderSystem.js';
 import { Sound } from '../utils/Sound.js';
 
+// ---- bitecs query for alive enemy check ----
+
+const aliveEnemyQuery = defineQuery([Health, UnitTag]);
+
+// ---- AI config string → numeric index mapping ----
+
+const ENEMY_AI_IDS: Record<string, number> = {
+  enemy_basic: 0,
+  enemy_ranged: 1,
+  enemy_boss: 2,
+};
+
+// ---- hex color → RGB helper ----
+
+function hexToRGB(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
 /** Manages wave progression and enemy spawning */
 export class WaveSystem implements System {
   readonly name = 'WaveSystem';
-  readonly requiredComponents = [] as const; // No entities needed — this is a manager system
 
+  private world: TowerWorld;
   private waves: WaveConfig[];
   private currentWaveIndex: number = 0;
   private spawnQueue: { enemyType: EnemyType; count: number; interval: number }[] = [];
@@ -35,13 +67,14 @@ export class WaveSystem implements System {
   private countdownDuration: number = 5;
 
   constructor(
-    private world: World,
+    world: TowerWorld,
     private map: MapConfig,
     waves: WaveConfig[],
     private getPhase: () => GamePhase,
     private setPhase: (phase: GamePhase) => void,
     private onWaveComplete?: () => void,
   ) {
+    this.world = world;
     this.waves = waves;
   }
 
@@ -128,7 +161,10 @@ export class WaveSystem implements System {
     this.setPhase(GamePhase.Battle);
   }
 
-  update(_entities: number[], dt: number): void {
+  update(world: TowerWorld, dt: number): void {
+    // Store world reference for use in helper methods
+    this.world = world;
+
     // Auto-countdown (ticks regardless of wave state)
     if (this.countdown > 0) {
       this.countdown -= dt;
@@ -168,8 +204,8 @@ export class WaveSystem implements System {
       this.spawnedInWave >= this.totalInWave &&
       this.spawnQueue.length === 0
     ) {
-      const aliveEnemies = this.world.query(CType.Enemy, CType.Health);
-      if (aliveEnemies.length === 0) {
+      const hasAliveEnemies = this.hasAliveEnemies();
+      if (!hasAliveEnemies) {
         this.waveActive = false;
         this.isBossWave = false;
         this.currentWaveIndex++;
@@ -189,6 +225,17 @@ export class WaveSystem implements System {
     }
   }
 
+  /** Check if any enemy entities are still alive using bitecs query */
+  private hasAliveEnemies(): boolean {
+    const enemies = aliveEnemyQuery(this.world.world);
+    for (const eid of enemies) {
+      if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private spawnEnemy(type: EnemyType): void {
     const config = ENEMY_CONFIGS[type];
     if (!config) return;
@@ -200,32 +247,69 @@ export class WaveSystem implements System {
     const x = spawn.col * ts + ts / 2 + ox;
     const y = spawn.row * ts + ts / 2 + oy;
 
-    const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new Health(config.hp));
-    this.world.addComponent(id, new Movement(config.speed));
-    this.world.addComponent(id, new Enemy(config.type, config.defense, config.atk, config.speed));
+    const eid = this.world.createEntity();
+    const rgb = hexToRGB(config.color);
 
-    // 给有攻击范围的敌人添加 EnemyAttacker 组件
+    this.world.addComponent(eid, Position, { x, y });
+    this.world.addComponent(eid, Health, {
+      current: config.hp,
+      max: config.hp,
+      armor: config.defense,
+      magicResist: config.magicResist,
+    });
+    this.world.addComponent(eid, Movement, {
+      speed: config.speed,
+      moveMode: MoveModeVal.FollowPath,
+    });
+    this.world.addComponent(eid, UnitTag, {
+      isEnemy: 1,
+      rewardGold: config.rewardGold,
+    });
+    this.world.addComponent(eid, Visual, {
+      shape: 1, // ShapeVal.Circle
+      colorR: rgb.r,
+      colorG: rgb.g,
+      colorB: rgb.b,
+      size: config.radius * 2,
+      alpha: 1,
+    });
+    this.world.addComponent(eid, Category, {
+      value: CategoryVal.Enemy,
+    });
+    this.world.addComponent(eid, Layer, {
+      value: LayerVal.Ground,
+    });
+    this.world.addComponent(eid, Faction, {
+      value: FactionVal.Enemy,
+    });
+
+    // Ranged attackers get an Attack component (replaces old EnemyAttacker)
     if (config.attackRange > 0) {
-      this.world.addComponent(id, new EnemyAttacker(config.attackRange, config.attackSpeed, config.atk));
+      this.world.addComponent(eid, Attack, {
+        damage: config.atk,
+        attackSpeed: config.attackSpeed,
+        range: config.attackRange,
+        damageType: DamageTypeVal.Physical,
+      });
     }
 
-    const render = new Render('circle', config.color, config.radius * 2);
-    render.label = config.name;
-    render.labelColor = '#ffffff';
-    render.labelSize = 12;
-    this.world.addComponent(id, render);
-
+    // Boss component
     if (config.isBoss) {
-      this.world.addComponent(id, new Boss([], config.bossPhase2HpRatio ?? 0.5));
+      this.world.addComponent(eid, Boss, {
+        phase: 1,
+        phase2HpRatio: config.bossPhase2HpRatio ?? 0.5,
+      });
     }
-    
-    // 添加AI组件 - 根据敌人类型选择AI配置
+
+    // AI component
     const aiConfigId = this.getEnemyAIConfig(type);
-    this.world.addComponent(id, new AI(aiConfigId));
+    this.world.addComponent(eid, AI, {
+      configId: ENEMY_AI_IDS[aiConfigId] ?? 0,
+      active: 1,
+      updateInterval: 0.1,
+    });
   }
-  
+
   private getEnemyAIConfig(enemyType: EnemyType): string {
     switch (enemyType) {
       case EnemyType.Grunt:
