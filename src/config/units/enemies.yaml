@@ -1,0 +1,401 @@
+# ============================================================
+# Tower Defender — 敌方单位配置
+# ============================================================
+# 设计文档: design/03-unit-data.md
+
+# 小兵 — 最基础敌方单位
+grunt:
+  id: grunt
+  name: 小兵
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L1
+
+  stats:
+    hp: 50
+    atk: 5
+    attackSpeed: 1.0
+    speed: 80
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 10
+
+  visual:
+    shape: circle
+    color: "#ef5350"
+    size: 24
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 快兵 — 高速冲基地，不攻击建筑
+runner:
+  id: runner
+  name: 快兵
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L1
+
+  stats:
+    hp: 30
+    atk: 5
+    speed: 150
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 8
+
+  visual:
+    shape: circle
+    color: "#ffab91"
+    size: 20
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      ignoreBuildings: true
+      rushBase: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 重装兵 — 高护甲精英，可攻击建筑
+heavy:
+  id: heavy
+  name: 重装兵
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 200
+    atk: 15
+    attackSpeed: 0.8
+    range: 32
+    speed: 35
+    armor: 80
+    mr: 15
+    damageType: physical
+
+  reward:
+    gold: 20
+
+  visual:
+    shape: circle
+    color: "#8d6e63"
+    size: 44
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_heavy
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+
+---
+# 法师 — 远程魔法精英，可攻击建筑
+mage:
+  id: mage
+  name: 法师
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 80
+    atk: 25
+    attackSpeed: 0.6
+    range: 250
+    speed: 55
+    armor: 10
+    mr: 60
+    damageType: magic
+
+  reward:
+    gold: 15
+
+  visual:
+    shape: hexagon
+    color: "#ce93d8"
+    size: 28
+    outline: true
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+
+---
+# 自爆虫 — 死亡时AOE爆炸
+exploder:
+  id: exploder
+  name: 自爆虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 40
+    atk: 10
+    speed: 90
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 12
+
+  visual:
+    shape: circle
+    color: "#ff8a65"
+    size: 24
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: deal_aoe_damage
+        radius: 100
+        damage: 50
+        targets: [Player]
+      - type: play_effect
+        effect: explosion_red
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: visual_flash_loop
+        alphaRange: [0.5, 1.0]
+        speed: 8
+
+---
+# Boss指挥官 — 召唤+Buff型Boss
+boss_commander:
+  id: boss_commander
+  name: 指挥官
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 800
+    atk: 30
+    attackSpeed: 0.7
+    range: 100
+    speed: 40
+    armor: 60
+    mr: 40
+    damageType: physical
+
+  reward:
+    gold: 100
+    energy: 30
+
+  visual:
+    shape: circle
+    color: "#ffd54f"
+    size: 72
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  ai_tree: boss_commander_ai
+
+  skills:
+    - id: summon_grunts
+      name: 召唤小兵
+      cooldown: 12
+      energyCost: 0
+      range: 150
+      value: 3
+      description: 在周围召唤3个小兵
+    - id: war_cry
+      name: 战吼
+      cooldown: 15
+      energyCost: 0
+      range: 300
+      value: 30
+      buffId: war_cry_buff
+      description: 范围内所有敌人+30%速度+20%ATK，持续5s
+
+  lifecycle:
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: pause_world
+          duration: 0.3
+        - type: change_color
+          color: "#d32f2f"
+          blend: 0.35
+        - type: stat_change
+          speedBonus: 0.3
+          attackSpeedBonus: 0.5
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+
+---
+# Boss攻城兽 — 砸地+分裂型Boss
+boss_beast:
+  id: boss_beast
+  name: 攻城兽
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 1000
+    atk: 40
+    attackSpeed: 0.5
+    range: 80
+    speed: 35
+    armor: 80
+    mr: 20
+    damageType: physical
+
+  reward:
+    gold: 120
+
+  visual:
+    shape: circle
+    color: "#ff7043"
+    size: 80
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  ai_tree: boss_beast_ai
+
+  skills:
+    - id: ground_slam
+      name: 砸地
+      cooldown: 10
+      energyCost: 0
+      range: 150
+      value: 50
+      description: 150px内50点AOE伤害+50%减速，持续2s
+
+  lifecycle:
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: split_into
+          count: 2
+          unitType: boss_beast_spawn
+        - type: play_effect
+          effect: boss_split
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE

@@ -1,0 +1,339 @@
+# ============================================================
+# Tower Defender — 我方移动单位（士兵）配置
+# ============================================================
+# 设计文档: design/03-unit-data.md
+
+# 盾卫 — 坦克/嘲讽
+shield_guard:
+  id: shield_guard
+  name: 盾卫
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 300
+    atk: 8
+    attackSpeed: 0.8
+    range: 50
+    speed: 60
+    armor: 40
+    mr: 5
+    damageType: physical
+    moveRange: 200
+
+  cost:
+    build: 50
+    pop: 2
+
+  visual:
+    shape: rect
+    color: "#4dd0e1"
+    size: 30
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: player_directed
+
+  skills:
+    - id: taunt
+      name: 嘲讽
+      cooldown: 8
+      energyCost: 20
+      range: 120
+      value: 0
+      buffId: taunt_buff
+      description: 强制周围敌人攻击自己，持续3秒
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+
+---
+# 剑士 — DPS/旋风斩
+swordsman:
+  id: swordsman
+  name: 剑士
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 150
+    atk: 15
+    attackSpeed: 1.0
+    range: 55
+    speed: 80
+    armor: 10
+    mr: 0
+    damageType: physical
+    moveRange: 250
+
+  cost:
+    build: 50
+    pop: 2
+
+  visual:
+    shape: rect
+    color: "#e57373"
+    size: 26
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: nearest
+    attackMode: aoe_splash
+    movementMode: player_directed
+    special:
+      splashRadius: 80
+      splashDamage: 30
+
+  skills:
+    - id: whirlwind
+      name: 旋风斩
+      cooldown: 6
+      energyCost: 15
+      range: 80
+      value: 30
+      description: 对周围敌人造成30点AOE伤害
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: play_animation
+        animation: whirlwind_spin
+
+---
+# 弓手 — 远程DPS/狙击
+archer:
+  id: archer
+  name: 弓手
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 100
+    atk: 20
+    attackSpeed: 0.7
+    range: 250
+    speed: 70
+    armor: 5
+    mr: 0
+    damageType: physical
+    moveRange: 200
+
+  cost:
+    build: 55
+    pop: 2
+
+  visual:
+    shape: rect
+    color: "#66bb6a"
+    size: 24
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: player_directed
+
+  skills:
+    - id: snipe
+      name: 狙击
+      cooldown: 10
+      energyCost: 25
+      range: 400
+      value: 3.0
+      description: 超远程单体高伤害（基础ATK×3）
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_projectile
+        projectile: arrow_long
+
+---
+# 祭司 — 治疗/治疗链
+priest:
+  id: priest
+  name: 祭司
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 80
+    atk: 0
+    speed: 50
+    armor: 5
+    mr: 20
+    healAmount: 8
+    healRange: 150
+    moveRange: 180
+
+  cost:
+    build: 55
+    pop: 2
+
+  visual:
+    shape: rect
+    color: "#eeeeee"
+    size: 24
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: nearest
+    attackMode: heal
+    movementMode: player_directed
+
+  skills:
+    - id: heal_chain
+      name: 治疗链
+      cooldown: 5
+      energyCost: 10
+      range: 150
+      value: 5.0
+      description: 给周围单位/建筑持续回血
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+
+---
+# 工程师 — 修复建筑
+engineer:
+  id: engineer
+  name: 工程师
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 90
+    atk: 5
+    attackSpeed: 0.6
+    range: 40
+    speed: 50
+    armor: 10
+    mr: 5
+    moveRange: 180
+
+  cost:
+    build: 60
+    pop: 3
+
+  visual:
+    shape: rect
+    color: "#ffa726"
+    size: 26
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: player_directed
+
+  skills:
+    - id: emergency_repair
+      name: 紧急修复
+      cooldown: 12
+      energyCost: 20
+      range: 100
+      value: 0.5
+      description: 修复周围建筑50%最大HP
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+
+---
+# 刺客 — 高机动/暗杀
+assassin:
+  id: assassin
+  name: 刺客
+  category: Soldier
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 70
+    atk: 35
+    attackSpeed: 1.5
+    range: 40
+    speed: 110
+    armor: 0
+    mr: 0
+    damageType: physical
+    moveRange: 300
+
+  cost:
+    build: 60
+    pop: 3
+
+  visual:
+    shape: rect
+    color: "#ab47bc"
+    size: 22
+    outline: true
+    symbol: cross
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: player_directed
+
+  skills:
+    - id: assassinate
+      name: 暗杀
+      cooldown: 8
+      energyCost: 30
+      range: 300
+      value: 3.0
+      description: 瞬移300px到最弱敌人旁，造成高伤害
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: death_soldier
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: teleport_effect
+      - type: play_animation
+        animation: slash_cross

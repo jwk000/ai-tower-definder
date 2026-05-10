@@ -1,0 +1,58 @@
+# ============================================================
+# Tower Defender — 目标点配置
+# ============================================================
+# 设计文档: design/03-unit-data.md
+
+# 基地 — 玩家大本营
+base:
+  id: base
+  name: 基地
+  category: Objective
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 100
+    armor: 0
+    mr: 0
+
+  visual:
+    shape: hexagon
+    color: "#1e88e5"
+    size: 48
+    outline: true
+
+  behavior:
+    movementMode: hold_position
+
+  lifecycle:
+    onHit:
+      - type: flash_color
+        color: "#ff4444"
+        duration: 0.2
+
+---
+# 出生点 — 敌人生成位置
+spawn_point:
+  id: spawn_point
+  name: 出生点
+  category: Objective
+  faction: Enemy
+  layer: Ground
+
+  stats:
+    hp: -1  # 不可摧毁
+
+  visual:
+    shape: rect
+    color: "#ff8f00"
+    size: 40
+    outline: true
+
+  behavior:
+    movementMode: hold_position
+
+  lifecycle:
+    onCreate:
+      - type: visual_pulse
+        frequency: 1.5

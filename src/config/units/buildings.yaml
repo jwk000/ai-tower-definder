@@ -1,0 +1,85 @@
+# ============================================================
+# Tower Defender — 生产建筑配置
+# ============================================================
+# 设计文档: design/03-unit-data.md
+
+# 金矿 — 持续产出金币
+gold_mine:
+  id: gold_mine
+  name: 金矿
+  category: Building
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 80
+
+  cost:
+    build: 100
+    upgrade: [60, 120]
+
+  production:
+    resourceType: gold
+    baseRate: 2
+    ratePerLevel: 2
+    maxLevel: 3
+
+  visual:
+    shape: rect
+    color: "#ffd54f"
+    size: 28
+    outline: true
+
+  behavior:
+    movementMode: hold_position
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: destruction_particles
+    onUpgrade:
+      - type: play_effect
+        effect: upgrade_gold
+      - type: play_sound
+        sound: SFX_UPGRADE
+
+---
+# 能量塔 — 持续产出能量
+energy_tower:
+  id: energy_tower
+  name: 能量塔
+  category: Building
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 60
+
+  cost:
+    build: 75
+    upgrade: [50, 100]
+
+  production:
+    resourceType: energy
+    baseRate: 1
+    ratePerLevel: 1
+    maxLevel: 3
+
+  visual:
+    shape: rect
+    color: "#7e57c2"
+    size: 28
+    outline: true
+
+  behavior:
+    movementMode: hold_position
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: destruction_particles
+    onUpgrade:
+      - type: play_effect
+        effect: upgrade_energy
+      - type: play_sound
+        sound: SFX_UPGRADE

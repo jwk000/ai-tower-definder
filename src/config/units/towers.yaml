@@ -1,0 +1,363 @@
+# ============================================================
+# Tower Defender — 塔类配置
+# ============================================================
+# 设计文档: design/03-unit-data.md
+# 架构: 配置驱动 — 修改此文件即可改变游戏行为
+# ============================================================
+
+# 箭塔 — 基础单体攻击塔
+arrow_tower:
+  id: arrow_tower
+  name: 箭塔
+  category: Tower
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 100
+    atk: 10
+    attackSpeed: 1.0
+    range: 200
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  cost:
+    build: 50
+    upgrade: [40, 70, 110, 160]
+    atkGrowth: [5, 8, 12, 16]
+    rangeGrowth: [20, 20, 30, 30]
+
+  visual:
+    shape: rect
+    color: "#4fc3f7"
+    size: 36
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: hold_position
+
+  lifecycle:
+    onDeath:
+      - type: leave_ruins
+      - type: play_effect
+        effect: destruction_particles
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_projectile
+        projectile: arrow
+      - type: play_sound
+        sound: SFX_ARROW_SHOOT
+
+  passives:
+    l3:
+      id: precise_shot
+      name: 精准射击
+      description: 15%概率造成2倍暴击
+      params:
+        critChance: 0.15
+        critMultiplier: 2.0
+
+---
+# 炮塔 — AOE溅射攻击塔
+cannon_tower:
+  id: cannon_tower
+  name: 炮塔
+  category: Tower
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 120
+    atk: 25
+    attackSpeed: 0.4
+    range: 180
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  cost:
+    build: 80
+    upgrade: [50, 90, 140, 200]
+    atkGrowth: [8, 12, 16, 22]
+    rangeGrowth: [20, 20, 30, 30]
+
+  visual:
+    shape: rect
+    color: "#ff8a65"
+    size: 38
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: aoe_splash
+    movementMode: hold_position
+    special:
+      splashRadius: 80
+      splashPercent: 0.6
+      stunDuration: 1.5
+      bossImmuneStun: true
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: explosion_orange
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_projectile
+        projectile: cannonball
+      - type: play_sound
+        sound: SFX_CANNON_SHOOT
+
+  passives:
+    l3:
+      id: cluster_munition
+      name: 集束弹药
+      description: AOE半径+30%，溅射伤害提升至80%
+      params:
+        splashRadiusBonus: 1.3
+        splashPercent: 0.8
+
+---
+# 冰塔 — 减速/冰冻控制塔
+ice_tower:
+  id: ice_tower
+  name: 冰塔
+  category: Tower
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 100
+    atk: 5
+    attackSpeed: 1.2
+    range: 200
+    armor: 0
+    mr: 0
+    damageType: magic
+
+  cost:
+    build: 65
+    upgrade: [40, 70, 110, 160]
+    atkGrowth: [3, 5, 7, 10]
+    rangeGrowth: [20, 20, 30, 30]
+
+  visual:
+    shape: rect
+    color: "#81d4fa"
+    size: 34
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: hold_position
+    special:
+      slowPercent: 20
+      slowMaxStacks: 5
+      slowDuration: 3.0
+      freezeDuration: 1.0
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: ice_shatter
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_projectile
+        projectile: ice_crystal
+      - type: play_sound
+        sound: SFX_ICE_SHOOT
+
+  passives:
+    l3:
+      id: shatter
+      name: 碎裂
+      description: 冰冻结束时触发30伤害AOE
+      params:
+        shatterDamage: 30
+        shatterRadius: 80
+
+---
+# 电塔 — 连锁闪电攻击塔
+lightning_tower:
+  id: lightning_tower
+  name: 电塔
+  category: Tower
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 100
+    atk: 15
+    attackSpeed: 0.9
+    range: 170
+    armor: 0
+    mr: 0
+    damageType: magic
+
+  cost:
+    build: 70
+    upgrade: [45, 75, 120, 170]
+    atkGrowth: [6, 9, 13, 18]
+    chainGrowth: [1, 1, 1, 1]
+    rangeGrowth: [15, 15, 20, 20]
+
+  visual:
+    shape: rect
+    color: "#fff176"
+    size: 34
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: chain
+    movementMode: hold_position
+    special:
+      chainCount: 3
+      chainRange: 120
+      chainDecay: 0.2
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: electric_spark
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_lightning_bolt
+      - type: play_sound
+        sound: SFX_LIGHTNING
+
+  passives:
+    l3:
+      id: overcharge
+      name: 过载
+      description: 弹跳+2，衰减降至15%
+      params:
+        chainBonus: 2
+        chainDecay: 0.15
+
+---
+# 激光塔 — 贯穿光束攻击塔
+laser_tower:
+  id: laser_tower
+  name: 激光塔
+  category: Tower
+  faction: Player
+  layer: Ground
+
+  stats:
+    hp: 80
+    atk: 22
+    attackSpeed: 0.4
+    range: 250
+    armor: 0
+    mr: 0
+    damageType: magic
+
+  cost:
+    build: 90
+    upgrade: [55, 85, 130, 190]
+    atkGrowth: [6, 9, 13, 18]
+    rangeGrowth: [15, 15, 20, 20]
+
+  visual:
+    shape: rect
+    color: "#00e5ff"
+    size: 36
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: piercing
+    movementMode: hold_position
+    special:
+      pierceDecay: 0.15
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: crystal_shatter
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_laser_beam
+      - type: play_sound
+        sound: SFX_LASER
+
+---
+# 蝙蝠塔 — 特殊条件激活塔
+bat_tower:
+  id: bat_tower
+  name: 蝙蝠塔
+  category: Tower
+  faction: Player
+  layer: LowAir
+
+  stats:
+    hp: 90
+    atk: 25
+    attackSpeed: 0.75
+    range: 200
+    armor: 0
+    mr: 0
+    damageType: magic
+
+  cost:
+    build: 85
+    upgrade: [50, 80, 120, 175]
+    atkGrowth: [7, 10, 15, 21]
+    rangeGrowth: [15, 15, 20, 20]
+
+  visual:
+    shape: rect
+    color: "#7c4dff"
+    size: 34
+    outline: false
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: hold_position
+    special:
+      batCount: 3
+      batReplenishCD: 5.0
+      batHP: 40
+      batDamage: 12
+      batAttackRange: 80
+      batAttackSpeed: 1.0
+      batSpeed: 150
+      batSize: 10
+      drainPercent: 0.3
+      weatherGated: true
+      activeWeather: [Night, Fog]
+      fogImmuneRange: true
+
+  lifecycle:
+    onDeath:
+      - type: play_effect
+        effect: bat_dissolve
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onAttack:
+      - type: spawn_bat_swarm
+      - type: play_sound
+        sound: SFX_BAT_ATTACK
