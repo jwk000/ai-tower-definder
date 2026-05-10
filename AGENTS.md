@@ -21,13 +21,24 @@
 - **变更后验证**: 修改完成后，必须验证所有关联需求仍然正常工作。不确定影响范围时，主动列出受影响的需求清单向用户确认。
 - **提交说明**: 如果某次修改不可避免影响了已有行为，必须在 commit message 中明确说明影响范围和原因。
 
+## ⛔ 测试铁律：测试驱动开发（TDD），每次变更必须全量测试通过
+
+> **质量防线。测试不通过 = 任务未完成。**
+
+- **需求即测试**: 每个需求必须有对应的测试用例，无测试的需求视为未完成。
+- **TDD 流程**: 先写测试 → 测试失败（红）→ 实现功能（绿）→ 重构优化（不破绿）。
+- **全量通过**: 每次需求变更完成后，必须运行 `npm test` 确保所有已有测试通过。任何测试失败都必须在提交前修复。
+- **禁止行为**: 通过删除测试、跳过断言、`test.skip` 等方式"通过"测试。
+- **允许行为**: 当需求确实变更导致旧测试不再适用时，可以修改测试以匹配新需求，但必须在 commit message 中说明。
+- **提交前检查**: `npm run typecheck && npm test` 均通过后方可提交。
+
 ## Build & Run
 
 ```bash
 npm run dev          # dev server (localhost:3000)
 npm run build        # tsc --noEmit && vite build
 npm run typecheck    # TypeScript only, no emit
-npm test             # vitest (no tests written yet)
+npm test             # vitest
 npm run release      # clean + typecheck + build
 .\build.ps1 <cmd>    # Windows wrapper (or `make <cmd>`)
 ```
