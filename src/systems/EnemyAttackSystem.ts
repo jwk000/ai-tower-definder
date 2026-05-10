@@ -1,169 +1,304 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
-import { Position } from '../components/Position.js';
-import { Movement } from '../components/Movement.js';
-import { Enemy } from '../components/Enemy.js';
-import { EnemyAttacker } from '../components/EnemyAttacker.js';
-import { Health } from '../components/Health.js';
-import { Projectile } from '../components/Projectile.js';
-import { Render } from '../components/Render.js';
+// EnemyAttackSystem — bitecs migration
+// Enemy targeting and projectile spawning for enemies with Attack component.
+
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import {
+  Position,
+  Movement,
+  Health,
+  Attack,
+  UnitTag,
+  Projectile,
+  Visual,
+  Category,
+  Tower,
+  PlayerOwned,
+  BatSwarmMember,
+  CategoryVal,
+  ShapeVal,
+  MoveModeVal,
+  DamageTypeVal,
+} from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 
-// 敌人子弹配置
-const ENEMY_PROJECTILE_SPEED = 200; // 像素/秒
+// ---- Constants ----
 
+const ENEMY_PROJECTILE_SPEED = 200; // px/s
+
+// ---- Module-level bitecs queries ----
+
+/** Enemies capable of attacking: have position, movement, attack, and unit tag */
+const attackerQuery = defineQuery([Position, Movement, Attack, UnitTag]);
+
+/** Tower targets: must have Tower + Health + Position */
+const towerTargetQuery = defineQuery([Tower, Health, Position]);
+
+/** Bat swarm targets */
+const batTargetQuery = defineQuery([BatSwarmMember, Position, Health]);
+
+/** Player units (soldiers, etc.) */
+const unitTargetQuery = defineQuery([PlayerOwned, Position, Health]);
+
+/** Buildings and objectives (filtered by Category.value in loop) */
+const categoryTargetQuery = defineQuery([Category, Position, Health]);
+
+// ============================================================
+// System
+// ============================================================
+
+/**
+ * Handles enemy attack logic:
+ *  - Ranged enemies (canAttackBuildings=true) target towers, bats, buildings, objectives
+ *    and fire projectiles.
+ *  - Melee enemies target player units and deal direct damage.
+ *
+ * Movement is paused (MoveModeVal.HoldPosition) while an enemy has a valid target,
+ * and resumed (MoveModeVal.FollowPath) when the target is lost.
+ */
 export class EnemyAttackSystem implements System {
   readonly name = 'EnemyAttackSystem';
-  readonly requiredComponents = [CType.EnemyAttacker, CType.Enemy, CType.Position, CType.Movement] as const;
 
-  constructor(private world: World) {}
+  update(world: TowerWorld, dt: number): void {
+    const attackers = attackerQuery(world.world);
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const pos = this.world.getComponent<Position>(id, CType.Position)!;
-      const mov = this.world.getComponent<Movement>(id, CType.Movement)!;
-      const attacker = this.world.getComponent<EnemyAttacker>(id, CType.EnemyAttacker)!;
-      const enemy = this.world.getComponent<Enemy>(id, CType.Enemy)!;
+    for (let i = 0; i < attackers.length; i++) {
+      const eid = attackers[i]!;
 
-      // 获取敌人配置，判断是否可以攻击建筑
-      const config = ENEMY_CONFIGS[enemy.enemyType];
-      const canAttackBuildings = config?.canAttackBuildings ?? false;
+      // Only process actual enemies (defensive guard)
+      if (UnitTag.isEnemy[eid] !== 1) continue;
 
-      if (attacker.cooldown > 0) {
-        attacker.cooldown -= dt;
+      // Determine attack capability — prefer UnitTag flag, fall back to range heuristic
+      const canAttackBuildings =
+        UnitTag.canAttackBuildings[eid] === 1 || Attack.range[eid] > 0;
+
+      // Tick cooldown
+      if (Attack.cooldownTimer[eid] > 0) {
+        Attack.cooldownTimer[eid] -= dt;
       }
 
-      // Check if current target is still valid
-      if (attacker.targetId !== null) {
-        const targetHealth = this.world.getComponent<Health>(attacker.targetId, CType.Health);
-        const targetPos = this.world.getComponent<Position>(attacker.targetId, CType.Position);
+      const posX = Position.x[eid];
+      const posY = Position.y[eid];
 
-        if (!targetHealth?.alive || !targetPos) {
-          attacker.targetId = null;
-          enemy.movementPaused = false;
-          mov.speed = enemy.originalSpeed;
+      // ====================================================
+      // Check if current target is still valid
+      // ====================================================
+      const currentTarget = Attack.targetId[eid];
+      if (currentTarget !== 0) {
+        const targetValid = this.isTargetValid(currentTarget);
+
+        if (!targetValid) {
+          // Dead or invalid — clear target and resume movement
+          Attack.targetId[eid] = 0;
+          Movement.moveMode[eid] = MoveModeVal.FollowPath;
         } else {
-          const dx = targetPos.x - pos.x;
-          const dy = targetPos.y - pos.y;
+          const tX = Position.x[currentTarget];
+          const tY = Position.y[currentTarget];
+          const dx = tX - posX;
+          const dy = tY - posY;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist > attacker.attackRange) {
-            attacker.targetId = null;
-            enemy.movementPaused = false;
-            mov.speed = enemy.originalSpeed;
-          } else if (attacker.cooldown <= 0) {
-            // 远程敌人攻击建筑或蝙蝠时发射子弹
-            if (canAttackBuildings && (this.world.hasComponent(attacker.targetId, CType.Tower) || this.world.hasComponent(attacker.targetId, CType.BatSwarmMember))) {
-              this.spawnEnemyProjectile(id, pos, attacker.targetId, attacker.attackDamage);
-            } else {
-              // 近战攻击（对单位）直接造成伤害
-              targetHealth.takeDamage(attacker.attackDamage);
-            }
-            attacker.cooldown = 1 / attacker.attackSpeed;
+          if (dist > Attack.range[eid]) {
+            // Out of range — abandon
+            Attack.targetId[eid] = 0;
+            Movement.moveMode[eid] = MoveModeVal.FollowPath;
+          } else if (Attack.cooldownTimer[eid] <= 0) {
+            // Ready to attack!
+            this.doAttack(world, eid, currentTarget, posX, posY, canAttackBuildings);
+            Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
           }
         }
       }
 
-      // Search for new target
-      if (attacker.targetId === null) {
-        let closestId: number | null = null;
-        let closestDist = Infinity;
+      // ====================================================
+      // Search for a new target if none is set
+      // ====================================================
+      if (Attack.targetId[eid] === 0) {
+        const newTarget = this.findTarget(world, eid, posX, posY, canAttackBuildings);
 
-        // 远程敌人优先攻击建筑和蝙蝠
-        if (canAttackBuildings) {
-          const towers = this.world.query(CType.Health, CType.Position, CType.Tower);
-          for (const cid of towers) {
-            if (cid === id) continue;
-            const cpos = this.world.getComponent<Position>(cid, CType.Position);
-            const chealth = this.world.getComponent<Health>(cid, CType.Health);
-            if (!cpos || !chealth?.alive) continue;
+        if (newTarget !== 0) {
+          Attack.targetId[eid] = newTarget;
+          // Pause path-following while attacking
+          Movement.moveMode[eid] = MoveModeVal.HoldPosition;
 
-            const dx = cpos.x - pos.x;
-            const dy = cpos.y - pos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist <= attacker.attackRange && dist < closestDist) {
-              closestDist = dist;
-              closestId = cid;
-            }
-          }
-
-          // Also target bats (low-air friendly units)
-          const bats = this.world.query(CType.Health, CType.Position, CType.BatSwarmMember);
-          for (const cid of bats) {
-            if (cid === id) continue;
-            const cpos = this.world.getComponent<Position>(cid, CType.Position);
-            const chealth = this.world.getComponent<Health>(cid, CType.Health);
-            if (!cpos || !chealth?.alive) continue;
-
-            const dx = cpos.x - pos.x;
-            const dy = cpos.y - pos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist <= attacker.attackRange && dist < closestDist) {
-              closestDist = dist;
-              closestId = cid;
-            }
-          }
-        }
-
-        // 近战敌人攻击我方移动单位（Unit）
-        if (!canAttackBuildings) {
-          const units = this.world.query(CType.Health, CType.Position, CType.Unit);
-          for (const cid of units) {
-            if (cid === id) continue;
-            const cpos = this.world.getComponent<Position>(cid, CType.Position);
-            const chealth = this.world.getComponent<Health>(cid, CType.Health);
-            if (!cpos || !chealth?.alive) continue;
-
-            const dx = cpos.x - pos.x;
-            const dy = cpos.y - pos.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist <= attacker.attackRange && dist < closestDist) {
-              closestDist = dist;
-              closestId = cid;
-            }
-          }
-        }
-
-        if (closestId !== null) {
-          attacker.targetId = closestId;
-          enemy.movementPaused = true;
-          enemy.originalSpeed = mov.speed;
-          mov.speed = 0;
-
-          if (attacker.cooldown <= 0) {
-            const targetHealth = this.world.getComponent<Health>(closestId, CType.Health);
-            if (targetHealth) {
-              // 远程敌人攻击建筑或蝙蝠时发射子弹
-              if (canAttackBuildings && (this.world.hasComponent(closestId, CType.Tower) || this.world.hasComponent(closestId, CType.BatSwarmMember))) {
-                this.spawnEnemyProjectile(id, pos, closestId, attacker.attackDamage);
-              } else {
-                // 近战攻击直接造成伤害
-                targetHealth.takeDamage(attacker.attackDamage);
-              }
-              attacker.cooldown = 1 / attacker.attackSpeed;
-            }
+          if (Attack.cooldownTimer[eid] <= 0) {
+            this.doAttack(world, eid, newTarget, posX, posY, canAttackBuildings);
+            Attack.cooldownTimer[eid] = 1 / Attack.attackSpeed[eid];
           }
         }
       }
     }
   }
 
-  private spawnEnemyProjectile(fromId: number, fromPos: Position, targetId: number, damage: number): void {
-    const pid = this.world.createEntity();
-    this.world.addComponent(pid, new Position(fromPos.x, fromPos.y));
+  // ==========================================================
+  // Private helpers
+  // ==========================================================
 
-    const proj = new Projectile(targetId, ENEMY_PROJECTILE_SPEED, damage, fromPos.x, fromPos.y);
-    proj.sourceTowerId = fromId;
-    proj.sourceTowerType = 'enemy'; // 标记为敌人子弹
-    this.world.addComponent(pid, proj);
+  /** Return true if the target entity is alive and has health. */
+  private isTargetValid(targetId: number): boolean {
+    const hp = Health.current[targetId];
+    return hp !== undefined && hp > 0;
+  }
 
-    // 添加渲染组件，使用红色圆形子弹
-    const render = new Render('circle', '#ff5252', 10);
-    render.targetEntityId = targetId;
-    this.world.addComponent(pid, render);
+  /**
+   * Find the nearest valid target within attack range.
+   *
+   * - Ranged enemies (canAttackBuildings=true): search towers, bats, buildings, objectives.
+   * - Melee enemies: search player-owned units.
+   */
+  private findTarget(
+    world: TowerWorld,
+    eid: number,
+    fromX: number,
+    fromY: number,
+    canAttackBuildings: boolean,
+  ): number {
+    const range = Attack.range[eid];
+    let bestId = 0;
+    let bestDist = Infinity;
+
+    if (canAttackBuildings) {
+      // --- Ranged: towers ---
+      const towers = towerTargetQuery(world.world);
+      for (let i = 0; i < towers.length; i++) {
+        const tid = towers[i]!;
+        if (tid === eid) continue;
+        if (Health.current[tid] <= 0) continue;
+        const dx = Position.x[tid] - fromX;
+        const dy = Position.y[tid] - fromY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= range && dist < bestDist) {
+          bestDist = dist;
+          bestId = tid;
+        }
+      }
+
+      // --- Ranged: bat swarm ---
+      const bats = batTargetQuery(world.world);
+      for (let i = 0; i < bats.length; i++) {
+        const bid = bats[i]!;
+        if (bid === eid) continue;
+        if (Health.current[bid] <= 0) continue;
+        const dx = Position.x[bid] - fromX;
+        const dy = Position.y[bid] - fromY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= range && dist < bestDist) {
+          bestDist = dist;
+          bestId = bid;
+        }
+      }
+
+      // --- Ranged: buildings & objectives ---
+      const categoryTargets = categoryTargetQuery(world.world);
+      for (let i = 0; i < categoryTargets.length; i++) {
+        const cid = categoryTargets[i]!;
+        if (cid === eid) continue;
+        if (Health.current[cid] <= 0) continue;
+        const cat = Category.value[cid];
+        if (cat !== CategoryVal.Building && cat !== CategoryVal.Objective) continue;
+        const dx = Position.x[cid] - fromX;
+        const dy = Position.y[cid] - fromY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= range && dist < bestDist) {
+          bestDist = dist;
+          bestId = cid;
+        }
+      }
+    } else {
+      // --- Melee: player units ---
+      const units = unitTargetQuery(world.world);
+      for (let i = 0; i < units.length; i++) {
+        const uid = units[i]!;
+        if (uid === eid) continue;
+        if (Health.current[uid] <= 0) continue;
+        const dx = Position.x[uid] - fromX;
+        const dy = Position.y[uid] - fromY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= range && dist < bestDist) {
+          bestDist = dist;
+          bestId = uid;
+        }
+      }
+    }
+
+    return bestId;
+  }
+
+  /**
+   * Perform the actual attack based on type:
+   *  - Ranged enemies spawn a projectile toward the target.
+   *  - Melee enemies deal direct damage.
+   */
+  private doAttack(
+    world: TowerWorld,
+    sourceId: number,
+    targetId: number,
+    fromX: number,
+    fromY: number,
+    canAttackBuildings: boolean,
+  ): void {
+    const damage = Attack.damage[sourceId];
+
+    if (canAttackBuildings) {
+      // Ranged — spawn projectile
+      this.spawnProjectile(world, sourceId, targetId, damage, fromX, fromY);
+    } else {
+      // Melee — direct damage
+      const hp = Health.current[targetId];
+      if (hp !== undefined) {
+        Health.current[targetId] = hp - damage;
+      }
+    }
+  }
+
+  /** Create an enemy projectile entity flying toward the target. */
+  private spawnProjectile(
+    world: TowerWorld,
+    sourceId: number,
+    targetId: number,
+    damage: number,
+    fromX: number,
+    fromY: number,
+  ): void {
+    const pid = world.createEntity();
+
+    world.addComponent(pid, Position, { x: fromX, y: fromY });
+
+    world.addComponent(pid, Projectile, {
+      speed: ENEMY_PROJECTILE_SPEED,
+      damage,
+      damageType: DamageTypeVal.Physical,
+      targetId,
+      sourceId,
+      fromX,
+      fromY,
+      shape: ShapeVal.Circle,
+      colorR: 0xff,
+      colorG: 0x52,
+      colorB: 0x52,
+      size: 10,
+      splashRadius: 0,
+      stunDuration: 0,
+      slowPercent: 0,
+      slowMaxStacks: 0,
+      freezeDuration: 0,
+      chainCount: 0,
+      chainRange: 0,
+      chainDecay: 0,
+      isChain: 0,
+      chainIndex: 0,
+      drainAmount: 0,
+    });
+
+    world.addComponent(pid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: 0xff,
+      colorG: 0x52,
+      colorB: 0x52,
+      size: 10,
+      alpha: 1.0,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
   }
 }

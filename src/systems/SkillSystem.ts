@@ -1,115 +1,118 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType, SkillTrigger, BuffAttribute, type BuffInstance } from '../types/index.js';
-import { Skill } from '../components/Skill.js';
-import { Position } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { BuffContainer } from '../components/Buff.js';
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import { Skill, Position, Health, UnitTag, Taunted, enemyQuery } from '../core/components.js';
 import { SKILL_CONFIGS } from '../data/gameData.js';
+import { SkillTrigger } from '../types/index.js';
+import type { SkillConfig } from '../types/index.js';
+
+// --- Skill ID Mapping (string key → bitecs ui8 value) ---
+
+const SkillIdNum: Record<string, number> = {
+  taunt: 0,
+  whirlwind: 1,
+};
+
+/** Reverse lookup: ui8 → string skill key */
+const SKILL_ID_MAP: string[] = ['taunt', 'whirlwind'];
+
+// ============================================================
+// SkillSystem — 玩家技能执行（嘲讽、旋风斩）
+// ============================================================
 
 export class SkillSystem implements System {
   readonly name = 'SkillSystem';
-  readonly requiredComponents = [CType.Skill] as const;
 
-  constructor(
-    private world: World,
-    private spendEnergy: (amount: number) => boolean,
-  ) {}
+  private skillQuery = defineQuery([Skill]);
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const skill = this.world.getComponent<Skill>(id, CType.Skill);
-      if (!skill) continue;
+  constructor(private spendEnergy: (amount: number) => boolean) {}
 
-      skill.tickCooldown(dt);
+  // ---- Update (per-frame) ----
 
-      const config = SKILL_CONFIGS[skill.skillId];
-      if (!config) continue;
+  update(world: TowerWorld, dt: number): void {
+    const entities = this.skillQuery(world.world);
+    for (let i = 0; i < entities.length; i++) {
+      const eid = entities[i]!;
 
-      if (config.trigger === SkillTrigger.Passive) {
-        this.applyPassive(id, config);
+      // Tick cooldown
+      Skill.currentCooldown[eid] = Math.max(0, Skill.currentCooldown[eid] - dt);
+
+      // Apply passive skills
+      const sid = Skill.skillId[eid];
+      const key = SKILL_ID_MAP[sid];
+      if (key !== undefined) {
+        const config = SKILL_CONFIGS[key];
+        if (config && config.trigger === SkillTrigger.Passive) {
+          this.applyPassive(world, eid, config);
+        }
       }
     }
   }
 
+  // ---- Public API ----
+
+  /** Try to activate a skill. Returns true if skill was used (cooldown reset, energy spent). */
   useSkill(entityId: number, skillId: string): boolean {
-    const skill = this.world.getComponent<Skill>(entityId, CType.Skill);
-    if (!skill || skill.skillId !== skillId) return false;
-    if (!skill.isReady) return false;
+    const skillIdNum = SkillIdNum[skillId];
+    if (skillIdNum === undefined) return false;
+    if (Skill.skillId[entityId] !== skillIdNum) return false;
+    if (Skill.currentCooldown[entityId] > 0) return false;
 
     const config = SKILL_CONFIGS[skillId];
     if (!config) return false;
+    if (config.trigger !== SkillTrigger.Active) return false;
 
-    if (!this.spendEnergy(config.energyCost)) return false;
+    if (!this.spendEnergy(Skill.energyCost[entityId])) return false;
 
-    const pos = this.world.getComponent<Position>(entityId, CType.Position);
-    if (!pos) return false;
-
-    skill.resetCooldown();
-
-    if (skillId === 'taunt') {
-      this.executeTaunt(entityId, pos.x, pos.y, config);
-    } else if (skillId === 'whirlwind') {
-      this.executeWhirlwind(pos.x, pos.y, config);
-    }
-
+    Skill.currentCooldown[entityId] = Skill.cooldown[entityId];
     return true;
   }
 
-  private executeTaunt(sourceId: number, x: number, y: number, config: { range: number; value: number }): void {
-    const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
-    for (const enemyId of enemies) {
-      const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
-      if (!ePos) continue;
-      const dx = ePos.x - x;
-      const dy = ePos.y - y;
+  /** Execute taunt — enemies within range get Taunted component */
+  executeTaunt(world: TowerWorld, sourceId: number, x: number, y: number, config: { range: number; value: number }): void {
+    const enemies = enemyQuery(world.world);
+    for (let i = 0; i < enemies.length; i++) {
+      const eid = enemies[i]!;
+      if (UnitTag.isEnemy[eid] !== 1) continue;
+      const ex = Position.x[eid];
+      const ey = Position.y[eid];
+      if (ex === undefined || ey === undefined) continue;
+      const dx = ex - x;
+      const dy = ey - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= config.range) {
-        let container = this.world.getComponent<BuffContainer>(enemyId, CType.Buff);
-        if (!container) {
-          container = new BuffContainer();
-          this.world.addComponent(enemyId, container);
-        }
-        const tauntBuff: BuffInstance = {
-          id: 'taunt',
-          name: '嘲讽',
-          attribute: BuffAttribute.ATK,
-          value: 0,
-          isPercent: false,
-          duration: config.value,
-          maxStacks: 1,
-          currentStacks: 1,
-          sourceEntityId: sourceId,
-        };
-        container.addBuff(tauntBuff);
+        world.addComponent(eid, Taunted, { sourceId, timer: config.value });
       }
     }
   }
 
-  private executeWhirlwind(x: number, y: number, config: { range: number; value: number }): void {
-    const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
-    for (const enemyId of enemies) {
-      const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
-      if (!ePos) continue;
-      const dx = ePos.x - x;
-      const dy = ePos.y - y;
+  /** Execute whirlwind — enemies within range take direct damage */
+  executeWhirlwind(world: TowerWorld, x: number, y: number, config: { range: number; value: number }): void {
+    const enemies = enemyQuery(world.world);
+    for (let i = 0; i < enemies.length; i++) {
+      const eid = enemies[i]!;
+      if (UnitTag.isEnemy[eid] !== 1) continue;
+      const ex = Position.x[eid];
+      const ey = Position.y[eid];
+      if (ex === undefined || ey === undefined) continue;
+      const dx = ex - x;
+      const dy = ey - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= config.range) {
-        const health = this.world.getComponent<Health>(enemyId, CType.Health);
-        if (health) {
-          health.takeDamage(config.value);
-        }
+        Health.current[eid] -= config.value;
       }
     }
   }
 
-  private applyPassive(_entityId: number, _config: { trigger: SkillTrigger }): void {
-    // Passive skill framework — to be extended per-tower-skill
-  }
-
+  /** Check whether an entity's skill is ready to use */
   isSkillReady(entityId: number, skillId: string): boolean {
-    const skill = this.world.getComponent<Skill>(entityId, CType.Skill);
-    if (!skill || skill.skillId !== skillId) return false;
-    return skill.isReady;
+    const skillIdNum = SkillIdNum[skillId];
+    if (skillIdNum === undefined) return false;
+    if (Skill.skillId[entityId] !== skillIdNum) return false;
+    return Skill.currentCooldown[entityId] <= 0;
+  }
+
+  // ---- Private ----
+
+  private applyPassive(_world: TowerWorld, _entityId: number, _config: SkillConfig): void {
+    // Passive skill framework — to be extended per-tower-skill
   }
 }

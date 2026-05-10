@@ -1,67 +1,81 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType, GamePhase } from '../types/index.js';
-import { Health } from '../components/Health.js';
-import { Boss } from '../components/Boss.js';
-import { Enemy } from '../components/Enemy.js';
-import { GoldChest } from '../components/GoldChest.js';
-import { BatSwarmMember } from '../components/BatSwarmMember.js';
+import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import {
+  Health,
+  Boss,
+  UnitTag,
+  Category,
+  CategoryVal,
+  Movement,
+  BatSwarmMember,
+  PlayerOwned,
+  GoldChest,
+} from '../core/components.js';
+import { GamePhase } from '../types/index.js';
+
+const healthQuery = defineQuery([Health]);
+const bossQuery = defineQuery([Health, Boss]);
+const enemyMovementQuery = defineQuery([Movement, UnitTag]);
 
 /** Destroys dead entities and checks win/lose conditions */
 export class HealthSystem implements System {
   readonly name = 'HealthSystem';
-  readonly requiredComponents = [CType.Health] as const;
 
   private enemyPauseTimer: number = 0;
   private pausedThisTransition: boolean = false;
 
   constructor(
-    private world: World,
     private getPhase: () => GamePhase,
-    private setPhase: (phase: GamePhase) => void,
-    private onEnemyKilled: (enemyId: number) => void,
-    private onUnitDied?: (unitId: number) => void,
-    private onChestDestroyed?: (chestId: number) => void,
-    private onBatDied?: (batId: number) => void,
+    private setPhase: (p: GamePhase) => void,
+    private onEnemyKilled: (id: number) => void,
+    private onUnitDied?: (id: number) => void,
+    private onBatDied?: (id: number) => void,
   ) {}
 
-  update(entities: number[], dt: number): void {
+  update(world: TowerWorld, dt: number): void {
     const phase = this.getPhase();
     if (phase === GamePhase.Victory || phase === GamePhase.Defeat) return;
 
-    this.updateBossPhaseTransitions();
-    this.updateEnemyPause(dt);
+    this.updateBossPhaseTransitions(world);
+    this.updateEnemyPause(world, dt);
 
     let baseAlive = true;
+    const entities = healthQuery(world.world);
 
-    for (const id of entities) {
-      const health = this.world.getComponent<Health>(id, CType.Health)!;
+    for (const eid of entities) {
+      if (Health.current[eid] > 0) continue;
 
-      if (!health.alive) {
-        const isEnemy = this.world.hasComponent(id, CType.Enemy);
-        const isTower = this.world.hasComponent(id, CType.Tower);
-        const isProduction = this.world.hasComponent(id, CType.Production);
-        const isUnit = this.world.hasComponent(id, CType.Unit);
-        const isChest = this.world.hasComponent(id, CType.GoldChest);
-        const isBat = this.world.hasComponent(id, CType.BatSwarmMember);
-
-        if (isEnemy) {
-          this.onEnemyKilled(id);
-          this.world.destroyEntity(id);
-        } else if (isBat) {
-          this.onBatDied?.(id);
-          this.world.destroyEntity(id);
-        } else if (isUnit) {
-          this.onUnitDied?.(id);
-          this.world.destroyEntity(id);
-        } else if (isChest) {
-          this.onChestDestroyed?.(id);
-          this.world.destroyEntity(id);
-        } else if (isTower || isProduction) {
-          this.world.destroyEntity(id);
-        } else {
-          baseAlive = false;
-        }
+      // Enemy (includes bosses — they also have UnitTag.isEnemy === 1)
+      if (UnitTag.isEnemy[eid] === 1) {
+        this.onEnemyKilled(eid);
+        world.destroyEntity(eid);
+      }
+      // Bat swarm member
+      else if (BatSwarmMember.parentId[eid] !== undefined) {
+        this.onBatDied?.(eid);
+        world.destroyEntity(eid);
+      }
+      // Player unit (soldier)
+      else if (
+        Category.value[eid] === CategoryVal.Soldier &&
+        hasComponent(world.world, eid, PlayerOwned)
+      ) {
+        this.onUnitDied?.(eid);
+        world.destroyEntity(eid);
+      }
+      // Gold chest — just destroy (callback removed in bitecs migration)
+      else if (GoldChest.goldMin[eid] !== undefined) {
+        world.destroyEntity(eid);
+      }
+      // Tower or building / production
+      else if (
+        Category.value[eid] === CategoryVal.Tower ||
+        Category.value[eid] === CategoryVal.Building
+      ) {
+        world.destroyEntity(eid);
+      }
+      // Base entity — has Health but none of the above component types
+      else {
+        baseAlive = false;
       }
     }
 
@@ -70,44 +84,45 @@ export class HealthSystem implements System {
     }
   }
 
-  private updateBossPhaseTransitions(): void {
-    const bosses = this.world.query(CType.Boss, CType.Health);
+  private updateBossPhaseTransitions(world: TowerWorld): void {
+    const bosses = bossQuery(world.world);
     for (const bossId of bosses) {
-      const boss = this.world.getComponent<Boss>(bossId, CType.Boss);
-      const health = this.world.getComponent<Health>(bossId, CType.Health);
-      if (!boss || !health) continue;
-
-      if (boss.phaseTransitionTimer > 0) {
-        boss.phaseTransitionTimer = Math.max(0, boss.phaseTransitionTimer - 1 / 60);
+      if (Boss.transitionTimer[bossId] > 0) {
+        Boss.transitionTimer[bossId] = Math.max(0, Boss.transitionTimer[bossId] - 1 / 60);
       }
 
-      if (boss.phase === 1 && health.ratio <= boss.phase2HpRatio) {
-        boss.phase = 2;
-        boss.phaseTransitionTimer = 0.5;
+      if (
+        Boss.phase[bossId] === 1 &&
+        Health.current[bossId] / Health.max[bossId] < Boss.phase2HpRatio[bossId]
+      ) {
+        Boss.phase[bossId] = 2;
+        Boss.transitionTimer[bossId] = 0.5;
         this.enemyPauseTimer = 0.3;
         this.pausedThisTransition = false;
       }
     }
   }
 
-  private updateEnemyPause(dt: number): void {
+  private updateEnemyPause(world: TowerWorld, dt: number): void {
     if (this.enemyPauseTimer > 0) {
       this.enemyPauseTimer -= dt;
 
       if (!this.pausedThisTransition) {
         this.pausedThisTransition = true;
-        const enemies = this.world.query(CType.Enemy);
-        for (const id of enemies) {
-          const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-          if (enemy) enemy.movementPaused = true;
+        const enemies = enemyMovementQuery(world.world);
+        for (const eid of enemies) {
+          if (UnitTag.isEnemy[eid] === 1) {
+            Movement.currentSpeed[eid] = 0;
+          }
         }
       }
 
       if (this.enemyPauseTimer <= 0) {
-        const enemies = this.world.query(CType.Enemy);
-        for (const id of enemies) {
-          const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-          if (enemy) enemy.movementPaused = false;
+        const enemies = enemyMovementQuery(world.world);
+        for (const eid of enemies) {
+          if (UnitTag.isEnemy[eid] === 1) {
+            Movement.currentSpeed[eid] = Movement.speed[eid];
+          }
         }
       }
     }

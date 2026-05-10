@@ -1,258 +1,239 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType, TowerType, BuffAttribute } from '../types/index.js';
-import type { BuffInstance } from '../types/index.js';
-import { Position } from '../components/Position.js';
-import { Projectile } from '../components/Projectile.js';
-import { Health } from '../components/Health.js';
-import { Movement } from '../components/Movement.js';
-import { Enemy } from '../components/Enemy.js';
-import { BuffContainer } from '../components/Buff.js';
-import { Render } from '../components/Render.js';
-import { ExplosionEffect } from '../components/ExplosionEffect.js';
+// ============================================================
+// Tower Defender — ProjectileSystem (bitecs migration)
+//
+// Moves projectiles toward targets, deals damage on impact,
+// and applies special effects (AOE splash, chain lightning,
+// slow/freeze/stun status via BuffSystem).
+//
+// Buff duration ticking removed — delegated to BuffSystem.
+// ============================================================
 
-const LIGHTNING_RENDER = { shape: 'triangle' as const, color: '#fff176', size: 10 };
+import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import {
+  Position, Projectile, Health, Visual,
+  Stunned, ExplosionEffect,
+  UnitTag, Boss,
+} from '../core/components.js';
+import { addBuff } from './BuffSystem.js';
+import type { BuffData } from './BuffSystem.js';
 
-/** Moves projectiles toward their targets, deals damage on impact, applies special effects */
+// ============================================================
+// Queries
+// ============================================================
+
+const projectileQuery = defineQuery([Position, Projectile]);
+const enemyQuery = defineQuery([Position, Health, UnitTag]);
+
+// ============================================================
+// Constants
+// ============================================================
+
+/** ShapeVal constants to avoid magic numbers */
+const SHAPE_CIRCLE = 1;
+const SHAPE_TRIANGLE = 2;
+
+/** Lightning chain colour — warm yellow */
+const LIGHTNING_R = 0xff;
+const LIGHTNING_G = 0xf1;
+const LIGHTNING_B = 0x76;
+
+/** Explosion ring colour — orange */
+const EXPLOSION_R = 0xff;
+const EXPLOSION_G = 0x6d;
+const EXPLOSION_B = 0x00;
+
+// ============================================================
+// Helpers
+// ============================================================
+
+/** Check whether an entity is alive (has Health with current > 0) */
+function isAlive(eid: number): boolean {
+  const hp = Health.current[eid];
+  return hp !== undefined && hp > 0;
+}
+
+// ============================================================
+// ProjectileSystem
+// ============================================================
+
 export class ProjectileSystem implements System {
   readonly name = 'ProjectileSystem';
-  readonly requiredComponents = [CType.Position, CType.Projectile] as const;
 
-  private originalSpeeds: Map<number, number> = new Map();
+  // ---- Frame update ----
 
-  constructor(private world: World) {}
+  update(world: TowerWorld, dt: number): void {
+    const entities = projectileQuery(world.world);
 
-  update(entities: number[], dt: number): void {
-    this.tickBuffDurations(dt);
+    for (const eid of entities) {
+      const targetId = Projectile.targetId[eid] as number;
 
-    for (const id of entities) {
-      const pos = this.world.getComponent<Position>(id, CType.Position)!;
-      const proj = this.world.getComponent<Projectile>(id, CType.Projectile)!;
-
-      if (!this.world.isAlive(proj.targetId)) {
-        this.world.destroyEntity(id);
+      // Target dead / gone — destroy projectile
+      if (!isAlive(targetId)) {
+        world.destroyEntity(eid);
         continue;
       }
 
-      const targetPos = this.world.getComponent<Position>(proj.targetId, CType.Position);
-      if (!targetPos) {
-        this.world.destroyEntity(id);
+      const px = Position.x[eid]!;
+      const py = Position.y[eid]!;
+      const tx = Position.x[targetId];
+      const ty = Position.y[targetId];
+
+      if (tx === undefined || ty === undefined) {
+        world.destroyEntity(eid);
         continue;
       }
 
-      if (!this.world.isAlive(proj.targetId)) {
-        this.world.destroyEntity(id);
-        continue;
-      }
-
-      const dx = targetPos.x - pos.x;
-      const dy = targetPos.y - pos.y;
+      // Move toward target
+      const dx = tx - px;
+      const dy = ty - py;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const moveDist = proj.speed * dt;
+      const speed = Projectile.speed[eid]!;
+      const moveDist = speed * dt;
 
       if (dist <= moveDist + 2) {
-        this.onHit(id, proj, targetPos.x, targetPos.y);
-        this.world.destroyEntity(id);
+        // Impact!
+        this.onHit(world, eid, tx, ty);
+        world.destroyEntity(eid);
       } else {
-        pos.x += (dx / dist) * moveDist;
-        pos.y += (dy / dist) * moveDist;
+        Position.x[eid] = px + (dx / dist) * moveDist;
+        Position.y[eid] = py + (dy / dist) * moveDist;
       }
     }
   }
 
-  private tickBuffDurations(dt: number): void {
-    const buffEntities = this.world.query(CType.Buff);
-    for (const id of buffEntities) {
-      const container = this.world.getComponent<BuffContainer>(id, CType.Buff);
-      if (!container) continue;
+  // ---- Impact handler ----
 
-      const toRemove: string[] = [];
-      for (const [buffId, b] of container.buffs) {
-        if (b.duration > 0) {
-          b.duration -= dt;
-          if (b.duration <= 0) {
-            this.onBuffExpire(id, b);
-            toRemove.push(buffId);
-          }
-        }
-      }
-      for (const buffId of toRemove) {
-        container.removeBuff(buffId);
+  private onHit(world: TowerWorld, eid: number, hitX: number, hitY: number): void {
+    const targetId = Projectile.targetId[eid] as number;
+    const damage = Projectile.damage[eid]!;
+    const sourceId = Projectile.sourceId[eid] as number;
+
+    // -- Deal damage to primary target --
+    if (isAlive(targetId)) {
+      Health.current[targetId] = (Health.current[targetId] ?? 0) - damage;
+
+      // Hit flash (if target has Visual component)
+      if (hasComponent(world.world, targetId, Visual)) {
+        Visual.hitFlashTimer[targetId] = 0.12;
       }
     }
-  }
 
-  private onBuffExpire(entityId: number, buff: BuffInstance): void {
-    if (buff.id === 'ice_frozen') {
-      const originalSpeed = this.originalSpeeds.get(entityId);
-      if (originalSpeed !== undefined) {
-        const mov = this.world.getComponent<Movement>(entityId, CType.Movement);
-        if (mov) {
-          mov.speed = originalSpeed;
-        }
-        this.originalSpeeds.delete(entityId);
+    // -- Read special-effect fields from projectile --
+    const splashRadius = Projectile.splashRadius[eid]!;
+    const stunDuration = Projectile.stunDuration[eid]!;
+    const slowPercent = Projectile.slowPercent[eid]!;
+    const slowMaxStacks = Projectile.slowMaxStacks[eid] as number;
+    const chainCount = Projectile.chainCount[eid] as number;
+    const chainRange = Projectile.chainRange[eid]!;
+    const chainDecay = Projectile.chainDecay[eid]!;
+    const isChain = Projectile.isChain[eid] as number;
+
+    // -- Cannon: AOE splash + stun --
+    if (splashRadius > 0) {
+      this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage);
+    }
+
+    // -- Ice: slow debuff (BuffSystem handles stacking → freeze) --
+    if (slowPercent > 0) {
+      if (isAlive(targetId) && !hasComponent(world.world, targetId, Stunned)) {
+        const buff: BuffData = {
+          id: 'ice_slow',
+          attribute: 'speed',
+          value: -slowPercent,       // negative = percent reduction
+          isPercent: true,
+          duration: 3.0,
+          stacks: 1,
+          maxStacks: slowMaxStacks,
+          sourceId,
+        };
+        addBuff(world, targetId, buff);
       }
     }
+
+    // -- Lightning: chain to nearby enemies (initial projectile only) --
+    if (chainCount > 0 && !isChain) {
+      this.applyChain(world, eid, hitX, hitY, chainCount, chainRange, chainDecay, damage);
+    }
+
+    // -- Visual: explosion ring --
+    const visRadius = splashRadius > 0 ? splashRadius : 30;
+    this.spawnExplosion(world, hitX, hitY, visRadius);
   }
 
-  private onHit(projectileId: number, proj: Projectile, hitX: number, hitY: number): void {
-    const health = this.world.getComponent<Health>(proj.targetId, CType.Health);
-    if (health && this.world.isAlive(proj.targetId)) {
-      health.takeDamage(proj.damage);
-    }
+  // ---- Cannon: AOE splash damage + stun ----
 
-    // Hit flash on main target
-    const targetRender = this.world.getComponent<Render>(proj.targetId, CType.Render);
-    if (targetRender) {
-      targetRender.hitFlashTimer = 0.12;
-    }
+  private applySplash(
+    world: TowerWorld,
+    sourceTargetId: number,
+    hitX: number, hitY: number,
+    radius: number, stunDuration: number, damage: number,
+  ): void {
+    const splashDamage = damage * 0.6;
 
-    const towerType = proj.sourceTowerType as TowerType;
+    for (const enemyId of enemyQuery(world.world)) {
+      if (!isAlive(enemyId)) continue;
 
-    switch (towerType) {
-      case TowerType.Cannon:
-        this.spawnExplosion(hitX, hitY, proj.splashRadius ?? 80);
-        this.applyCannonSplash(proj, hitX, hitY);
-        break;
-      case TowerType.Ice:
-        this.applyIceSlow(proj);
-        break;
-      case TowerType.Lightning:
-        if (!proj.isChain) {
-          this.applyLightningChain(proj, hitX, hitY);
-        }
-        break;
-    }
-  }
+      const ex = Position.x[enemyId];
+      const ey = Position.y[enemyId];
+      if (ex === undefined || ey === undefined) continue;
 
-  private applyCannonSplash(proj: Projectile, hitX: number, hitY: number): void {
-    const splashRadius = proj.splashRadius ?? 80;
-    const stunDuration = proj.stunDuration ?? 1.5;
-    const splashDamage = proj.damage * 0.6;
-
-    const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
-    for (const enemyId of enemies) {
-      if (!this.world.isAlive(enemyId)) continue;
-      const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
-      if (!ePos) continue;
-
-      const dx = ePos.x - hitX;
-      const dy = ePos.y - hitY;
+      const dx = ex - hitX;
+      const dy = ey - hitY;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist <= splashRadius) {
-        if (enemyId !== proj.targetId) {
-          const eHealth = this.world.getComponent<Health>(enemyId, CType.Health);
-          if (eHealth) eHealth.takeDamage(splashDamage);
+      if (dist > radius) continue;
 
-          const eRender = this.world.getComponent<Render>(enemyId, CType.Render);
-          if (eRender) {
-            eRender.hitFlashTimer = 0.12;
-          }
-        }
+      // AOE damage (main target already took full damage)
+      if (enemyId !== sourceTargetId) {
+        Health.current[enemyId] = (Health.current[enemyId] ?? 0) - splashDamage;
 
-        // Stun effect: enemies stop moving for stunDuration (skip bosses)
-        const isBoss = this.world.hasComponent(enemyId, CType.Boss);
-        if (!isBoss) {
-          const enemy = this.world.getComponent<Enemy>(enemyId, CType.Enemy);
-          if (enemy) {
-            enemy.stunTimer = Math.max(enemy.stunTimer, stunDuration);
-          }
+        // Hit flash
+        if (hasComponent(world.world, enemyId, Visual)) {
+          Visual.hitFlashTimer[enemyId] = 0.12;
         }
       }
-    }
-  }
 
-  private applyIceSlow(proj: Projectile): void {
-    const targetId = proj.targetId;
-    if (!this.world.isAlive(targetId)) return;
+      // Stun: skip bosses
+      if (hasComponent(world.world, enemyId, Boss)) continue;
 
-    const slowPercent = proj.slowPercent ?? 20;
-    const maxStacks = proj.slowMaxStacks ?? 5;
-    const freezeDuration = proj.freezeDuration ?? 1.0;
-
-    let container = this.world.getComponent<BuffContainer>(targetId, CType.Buff);
-    if (!container) {
-      container = new BuffContainer();
-      this.world.addComponent(targetId, container);
-    }
-
-    const existingFrozen = container.buffs.get('ice_frozen');
-    if (existingFrozen) return;
-
-    const mov = this.world.getComponent<Movement>(targetId, CType.Movement);
-    if (!mov) return;
-
-    const existingSlow = container.buffs.get('ice_slow');
-
-    if (!this.originalSpeeds.has(targetId) && !existingSlow) {
-      this.originalSpeeds.set(targetId, mov.speed);
-    }
-
-    const originalSpeed = this.originalSpeeds.get(targetId) ?? mov.speed;
-
-    if (existingSlow) {
-      existingSlow.currentStacks = Math.min(existingSlow.currentStacks + 1, maxStacks);
-      existingSlow.duration = 3.0;
-
-      if (existingSlow.currentStacks >= maxStacks) {
-        container.removeBuff('ice_slow');
-
-        container.addBuff({
-          id: 'ice_frozen',
-          name: '冰冻',
-          attribute: BuffAttribute.Speed,
-          value: 0,
-          isPercent: false,
-          duration: freezeDuration,
-          maxStacks: 1,
-          currentStacks: 1,
-          sourceEntityId: proj.sourceTowerId,
-        });
-
-        mov.speed = 0;
-        return;
-      }
-    } else {
-      container.addBuff({
-        id: 'ice_slow',
-        name: '寒冰',
-        attribute: BuffAttribute.Speed,
-        value: slowPercent,
-        isPercent: true,
-        duration: 3.0,
-        maxStacks: maxStacks,
-        currentStacks: 1,
-        sourceEntityId: proj.sourceTowerId,
+      const existing = hasComponent(world.world, enemyId, Stunned)
+        ? Stunned.timer[enemyId]!
+        : 0;
+      world.addComponent(enemyId, Stunned, {
+        timer: Math.max(existing, stunDuration),
       });
     }
-
-    const totalSlow = (existingSlow?.currentStacks ?? 1) * (slowPercent / 100);
-    mov.speed = originalSpeed * (1 - totalSlow);
   }
 
-  private applyLightningChain(proj: Projectile, hitX: number, hitY: number): void {
-    const chainRange = proj.chainRange ?? 120;
-    const chainCount = proj.chainCount ?? 3;
-    const chainDecay = proj.chainDecay ?? 0.2;
+  // ---- Lightning: chain to nearby enemies ----
 
-    const hitIds = new Set<number>([proj.targetId]);
+  private applyChain(
+    world: TowerWorld,
+    sourceEid: number,
+    hitX: number, hitY: number,
+    chainCount: number, chainRange: number,
+    chainDecay: number, damage: number,
+  ): void {
+    const sourceId = Projectile.sourceId[sourceEid] as number;
+    const primaryTarget = Projectile.targetId[sourceEid] as number;
+    const hitIds = new Set<number>([primaryTarget]);
+
     let fromX = hitX;
     let fromY = hitY;
 
-    for (let n = 0; n < chainCount - 1; n++) {
-      const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
-
+    for (let hop = 0; hop < chainCount - 1; hop++) {
       let nearestId: number | null = null;
       let nearestDist = chainRange + 1;
 
-      for (const enemyId of enemies) {
-        if (hitIds.has(enemyId) || !this.world.isAlive(enemyId)) continue;
-        const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
-        if (!ePos) continue;
+      for (const enemyId of enemyQuery(world.world)) {
+        if (hitIds.has(enemyId) || !isAlive(enemyId)) continue;
 
-        const dx = ePos.x - fromX;
-        const dy = ePos.y - fromY;
+        const ex = Position.x[enemyId];
+        const ey = Position.y[enemyId];
+        if (ex === undefined || ey === undefined) continue;
+
+        const dx = ex - fromX;
+        const dy = ey - fromY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= chainRange && dist < nearestDist) {
@@ -264,31 +245,70 @@ export class ProjectileSystem implements System {
       if (nearestId === null) break;
 
       hitIds.add(nearestId);
-      const ePos = this.world.getComponent<Position>(nearestId, CType.Position)!;
-      const chainDamage = proj.damage * Math.pow(0.8, n);
 
-      const pid = this.world.createEntity();
-      this.world.addComponent(pid, new Position(fromX, fromY));
-      const chainProj = new Projectile(nearestId, 600, chainDamage, fromX, fromY);
-      chainProj.sourceTowerId = proj.sourceTowerId;
-      chainProj.sourceTowerType = TowerType.Lightning;
-      chainProj.isChain = true;
-      chainProj.chainIndex = n + 1;
-      this.world.addComponent(pid, chainProj);
+      // Damage decays per hop: (1 - chainDecay)^hop
+      const hopDamage = damage * Math.pow(1 - chainDecay, hop);
 
-      const render = new Render(LIGHTNING_RENDER.shape, LIGHTNING_RENDER.color, LIGHTNING_RENDER.size);
-      render.targetEntityId = nearestId;
-      this.world.addComponent(pid, render);
+      // Spawn a new chain projectile entity
+      const pid = world.createEntity();
+      world.addComponent(pid, Position, { x: fromX, y: fromY });
+      world.addComponent(pid, Projectile, {
+        speed: 600,
+        damage: hopDamage,
+        targetId: nearestId,
+        sourceId,
+        fromX,
+        fromY,
+        shape: SHAPE_TRIANGLE,
+        colorR: LIGHTNING_R,
+        colorG: LIGHTNING_G,
+        colorB: LIGHTNING_B,
+        size: 10,
+        isChain: 1,
+        chainIndex: hop + 1,
+      });
+      world.addComponent(pid, Visual, {
+        shape: SHAPE_TRIANGLE,
+        colorR: LIGHTNING_R,
+        colorG: LIGHTNING_G,
+        colorB: LIGHTNING_B,
+        size: 10,
+        alpha: 1,
+        outline: 0,
+        hitFlashTimer: 0,
+        idlePhase: 0,
+      });
 
-      fromX = ePos.x;
-      fromY = ePos.y;
+      // Next hop origin = current target position
+      fromX = Position.x[nearestId]!;
+      fromY = Position.y[nearestId]!;
     }
   }
 
-  private spawnExplosion(x: number, y: number, radius: number): void {
-    const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new ExplosionEffect(radius, '#ff6d00', 0.35));
-    this.world.addComponent(id, new Render('circle', '#ff6d00', 4));
+  // ---- Visual: explosion ring ----
+
+  private spawnExplosion(world: TowerWorld, x: number, y: number, radius: number): void {
+    const id = world.createEntity();
+    world.addComponent(id, Position, { x, y });
+    world.addComponent(id, ExplosionEffect, {
+      duration: 0.35,
+      elapsed: 0,
+      radius: 4,             // initial visual size
+      maxRadius: radius,     // expands to this
+      colorR: EXPLOSION_R,
+      colorG: EXPLOSION_G,
+      colorB: EXPLOSION_B,
+    });
+    world.addComponent(id, Visual, {
+      shape: SHAPE_CIRCLE,
+      colorR: EXPLOSION_R,
+      colorG: EXPLOSION_G,
+      colorB: EXPLOSION_B,
+      size: 4,
+      alpha: 1,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
   }
 }

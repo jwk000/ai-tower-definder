@@ -1,53 +1,63 @@
-import { System, CType, type GridPos } from '../types/index.js';
-import { World } from '../core/World.js';
-import { Position } from '../components/Position.js';
-import { Movement } from '../components/Movement.js';
-import { Health } from '../components/Health.js';
-import { Enemy } from '../components/Enemy.js';
+import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import {
+  Position, Movement, Health, UnitTag, Stunned, MoveModeVal,
+  Visual, Attack, Projectile, DeathEffect, Trap,
+} from '../core/components.js';
 import type { MapConfig } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
-import { getEntityRadius, checkEntityCollision, findAvoidanceTarget } from '../utils/collision.js';
+
+interface CollisionResult {
+  blocked: boolean;
+  pushX: number;
+  pushY: number;
+}
+
+/** Components excluded from collision — projectiles, death effects, traps pass through */
+const EXCLUDE_COLLISION = [Projectile, DeathEffect, Trap] as const;
 
 export class MovementSystem implements System {
   readonly name = 'MovementSystem';
-  readonly requiredComponents = [CType.Position, CType.Movement, CType.Enemy] as const;
 
-  constructor(
-    private world: World,
-    private map: MapConfig,
-  ) {}
+  /** Query: all moving units (enemies + player units with path-following capability) */
+  private movingQuery = defineQuery([Position, Movement, UnitTag]);
+  /** Query: all entities with physical presence (for collision detection) */
+  private collisionQuery = defineQuery([Position, Visual]);
+  /** Query: base / friendly health entities (for base damage on enemy reach-end) */
+  private baseQuery = defineQuery([Position, Health]);
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-      if (!enemy) continue;
+  constructor(private map: MapConfig) {}
 
-      if (enemy.stunTimer > 0) {
-        enemy.stunTimer -= dt;
+  update(world: TowerWorld, dt: number): void {
+    const entities = this.movingQuery(world.world);
+    const path = this.map.enemyPath;
+    const ts = this.map.tileSize;
+    const ox = RenderSystem.sceneOffsetX;
+    const oy = RenderSystem.sceneOffsetY;
+
+    for (let i = 0; i < entities.length; i++) {
+      const eid = entities[i]!;
+
+      // Only process enemy units
+      if (UnitTag.isEnemy[eid] !== 1) continue;
+
+      // Skip stunned entities
+      if (Stunned.timer[eid] > 0) continue;
+
+      // Skip if not in follow-path mode (e.g. hold-position)
+      if (Movement.moveMode[eid] !== MoveModeVal.FollowPath) continue;
+
+      const pathIndex = Movement.pathIndex[eid];
+
+      // Reached end of path — damage base and destroy
+      if (pathIndex >= path.length - 1) {
+        this.onReachEnd(world, eid);
         continue;
       }
 
-      if (enemy.movementPaused) continue;
+      const current = path[pathIndex]!;
+      const next = path[pathIndex + 1]!;
 
-      const pos = this.world.getComponent<Position>(id, CType.Position)!;
-      const mov = this.world.getComponent<Movement>(id, CType.Movement)!;
-
-      const radius = getEntityRadius(this.world, id);
-
-      const path = this.map.enemyPath;
-      const currentIdx = mov.pathIndex;
-
-      if (currentIdx >= path.length - 1) {
-        this.onReachEnd(id);
-        continue;
-      }
-
-      const current = path[currentIdx]!;
-      const next = path[currentIdx + 1]!;
-
-      const ts = this.map.tileSize;
-      const ox = RenderSystem.sceneOffsetX;
-      const oy = RenderSystem.sceneOffsetY;
+      // World-space coordinates of current and next waypoint
       const cx = current.col * ts + ts / 2 + ox;
       const cy = current.row * ts + ts / 2 + oy;
       const nx = next.col * ts + ts / 2 + ox;
@@ -57,96 +67,192 @@ export class MovementSystem implements System {
       const dy = ny - cy;
       const segmentLen = Math.sqrt(dx * dx + dy * dy);
 
-      if (segmentLen > 0) {
-        const dist = mov.speed * dt;
-        const reachedNext = mov.advance(dist, segmentLen);
+      if (segmentLen <= 0) continue;
 
-        const t = mov.progressValue;
-        let newX = cx + dx * t;
-        let newY = cy + dy * t;
+      const speed = Movement.speed[eid];
+      const dist = speed * dt;
 
-        if (reachedNext) {
-          newX = nx;
-          newY = ny;
-        }
+      let progress = Movement.progress[eid];
+      progress += dist / segmentLen;
 
-        const entityCollision = checkEntityCollision(
-          this.world,
-          id,
-          newX,
-          newY,
-          radius,
-          [CType.Projectile, CType.DeathEffect, CType.Trap]
-        );
+      let newX: number;
+      let newY: number;
 
-        if (entityCollision.blocked) {
-          const avoidance = findAvoidanceTarget(
-            this.world,
-            id,
-            pos.x,
-            pos.y,
-            radius,
-            nx,
-            ny,
-            [CType.Projectile, CType.DeathEffect, CType.Trap]
-          );
+      if (progress >= 1.0) {
+        // Reached waypoint — advance to next
+        Movement.pathIndex[eid] = pathIndex + 1;
+        Movement.progress[eid] = 0;
+        newX = nx;
+        newY = ny;
+      } else {
+        Movement.progress[eid] = progress;
+        newX = cx + dx * progress;
+        newY = cy + dy * progress;
+      }
 
-          if (avoidance) {
-            const avoidDx = avoidance.x - pos.x;
-            const avoidDy = avoidance.y - pos.y;
-            const avoidDist = Math.sqrt(avoidDx * avoidDx + avoidDy * avoidDy);
+      const posX = Position.x[eid];
+      const posY = Position.y[eid];
+      const radius = this.getEntityRadius(eid);
 
-            if (avoidDist > 0.1) {
-              const avoidStep = Math.min(dist * 0.8, avoidDist);
-              const avoidX = pos.x + (avoidDx / avoidDist) * avoidStep;
-              const avoidY = pos.y + (avoidDy / avoidDist) * avoidStep;
+      // Collision avoidance
+      const collision = this.checkCollision(world, eid, newX, newY, radius);
 
-              const recheck = checkEntityCollision(
-                this.world,
-                id,
-                avoidX,
-                avoidY,
-                radius,
-                [CType.Projectile, CType.DeathEffect, CType.Trap]
-              );
+      if (collision.blocked) {
+        const avoidance = this.findAvoidance(world, eid, posX, posY, radius, nx, ny);
 
-              if (!recheck.blocked) {
-                pos.x = avoidX;
-                pos.y = avoidY;
-              } else {
-                pos.x = newX;
-                pos.y = newY;
-              }
-            } else {
-              pos.x = newX;
-              pos.y = newY;
-            }
+        if (avoidance) {
+          const avoidDx = avoidance.x - posX;
+          const avoidDy = avoidance.y - posY;
+          const avoidDist = Math.sqrt(avoidDx * avoidDx + avoidDy * avoidDy);
+
+          if (avoidDist > 0.1) {
+            const avoidStep = Math.min(dist * 0.8, avoidDist);
+            const avoidX = posX + (avoidDx / avoidDist) * avoidStep;
+            const avoidY = posY + (avoidDy / avoidDist) * avoidStep;
+
+            const recheck = this.checkCollision(world, eid, avoidX, avoidY, radius);
+            Position.x[eid] = recheck.blocked ? newX : avoidX;
+            Position.y[eid] = recheck.blocked ? newY : avoidY;
           } else {
-            pos.x = newX;
-            pos.y = newY;
+            Position.x[eid] = newX;
+            Position.y[eid] = newY;
           }
         } else {
-          pos.x = newX;
-          pos.y = newY;
+          Position.x[eid] = newX;
+          Position.y[eid] = newY;
         }
+      } else {
+        Position.x[eid] = newX;
+        Position.y[eid] = newY;
       }
     }
   }
 
-  private onReachEnd(enemyId: number): void {
-    const enemy = this.world.getComponent<Enemy>(enemyId, CType.Enemy);
-    const damage = enemy?.atk ?? 10;
+  /** Deal damage to base and destroy enemy that reached the end */
+  private onReachEnd(world: TowerWorld, eid: number): void {
+    const damage = Attack.damage[eid] ?? 10;
 
-    const bases = this.world.query(CType.Health, CType.Position);
-    for (const baseId of bases) {
-      if (!this.world.hasComponent(baseId, CType.Enemy)) {
-        const health = this.world.getComponent<Health>(baseId, CType.Health);
-        if (health) {
-          health.takeDamage(damage);
+    const bases = this.baseQuery(world.world);
+    for (let i = 0; i < bases.length; i++) {
+      const baseId = bases[i]!;
+      if (UnitTag.isEnemy[baseId] === 1) continue; // skip enemy health entities
+      Health.current[baseId] -= damage;
+      if (Health.current[baseId] < 0) Health.current[baseId] = 0;
+    }
+
+    world.destroyEntity(eid);
+  }
+
+  // ---- Bitecs-compatible collision helpers ----
+
+  private getEntityRadius(eid: number): number {
+    return (Visual.size[eid] ?? 32) / 2;
+  }
+
+  /** Check if moving to (x, y) would collide with any non-excluded entity */
+  private checkCollision(
+    world: TowerWorld,
+    selfId: number,
+    x: number,
+    y: number,
+    radius: number,
+  ): CollisionResult {
+    const result: CollisionResult = { blocked: false, pushX: 0, pushY: 0 };
+    const others = this.collisionQuery(world.world);
+
+    for (let i = 0; i < others.length; i++) {
+      const otherId = others[i]!;
+      if (otherId === selfId) continue;
+
+      if (this.isExcluded(world, otherId)) continue;
+
+      const otherX = Position.x[otherId];
+      const otherY = Position.y[otherId];
+      const otherRadius = this.getEntityRadius(otherId);
+
+      const dx = x - otherX;
+      const dy = y - otherY;
+      const distSq = dx * dx + dy * dy;
+      const minDist = radius + otherRadius;
+
+      if (distSq < minDist * minDist && distSq > 0.01) {
+        const dist = Math.sqrt(distSq);
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        result.blocked = true;
+        result.pushX += nx * overlap;
+        result.pushY += ny * overlap;
+      }
+    }
+
+    return result;
+  }
+
+  /** Find a perpendicular avoidance position near a blocking entity */
+  private findAvoidance(
+    world: TowerWorld,
+    selfId: number,
+    x: number,
+    y: number,
+    radius: number,
+    targetX: number,
+    targetY: number,
+  ): { x: number; y: number } | null {
+    const others = this.collisionQuery(world.world);
+
+    for (let i = 0; i < others.length; i++) {
+      const otherId = others[i]!;
+      if (otherId === selfId) continue;
+
+      if (this.isExcluded(world, otherId)) continue;
+
+      const otherX = Position.x[otherId];
+      const otherY = Position.y[otherId];
+      const otherRadius = this.getEntityRadius(otherId);
+
+      const dx = x - otherX;
+      const dy = y - otherY;
+      const distSq = dx * dx + dy * dy;
+      const minDist = radius + otherRadius + 10;
+
+      if (distSq < minDist * minDist && distSq > 0.01) {
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const toTargetX = targetX - x;
+        const toTargetY = targetY - y;
+        const toTargetLen = Math.sqrt(toTargetX * toTargetX + toTargetY * toTargetY);
+
+        if (toTargetLen > 0.01) {
+          const dirX = toTargetX / toTargetLen;
+          const dirY = toTargetY / toTargetLen;
+          const perpX = -dirY;
+          const perpY = dirX;
+          const dot = nx * perpX + ny * perpY;
+          const sign = dot > 0 ? 1 : -1;
+          return {
+            x: otherX + (radius + otherRadius + 15) * perpX * sign,
+            y: otherY + (radius + otherRadius + 15) * perpY * sign,
+          };
+        } else {
+          return {
+            x: otherX + nx * (radius + otherRadius + 15),
+            y: otherY + ny * (radius + otherRadius + 15),
+          };
         }
       }
     }
 
-    this.world.destroyEntity(enemyId);
+    return null;
+  }
+
+  /** Check if an entity should be excluded from collision (projectiles, effects, traps) */
+  private isExcluded(world: TowerWorld, eid: number): boolean {
+    for (const comp of EXCLUDE_COLLISION) {
+      if (hasComponent(world.world, eid, comp)) return true;
+    }
+    return false;
   }
 }
