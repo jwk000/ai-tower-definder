@@ -1,17 +1,48 @@
-import { System, GamePhase, TowerType, UnitType, ProductionType, CType, type ShapeType } from '../types/index.js';
-import { World } from '../core/World.js';
+// ============================================================
+// Tower Defender — UISystem (bitecs migration)
+//
+// HUD, tooltips, buttons, overlays — the largest UI system.
+// Canvas 2D drawing code preserved; data access migrated to
+// bitecs SoA stores and defineQuery.
+// ============================================================
+
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS, ENEMY_CONFIGS } from '../data/gameData.js';
+import { GamePhase, TowerType, UnitType, ProductionType, type ShapeType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
-import { Position } from '../components/Position.js';
-import { Attack } from '../components/Attack.js';
-import { Tower } from '../components/Tower.js';
-import { Health } from '../components/Health.js';
-import { Enemy } from '../components/Enemy.js';
-import { Unit } from '../components/Unit.js';
-import { Production } from '../components/Production.js';
-import { Trap } from '../components/Trap.js';
 import { FONTS, getFont } from '../config/fonts.js';
+import {
+  Position,
+  Health,
+  Tower,
+  Attack,
+  UnitTag,
+  Visual,
+  Production,
+  Category,
+  CategoryVal,
+  Trap,
+  Movement,
+  Boss,
+} from '../core/components.js';
+
+// ============================================================
+// TowerType numeric ID → enum mapping (matches BuildSystem)
+// ============================================================
+
+const TOWER_TYPE_BY_ID: TowerType[] = [
+  TowerType.Arrow,     // 0
+  TowerType.Cannon,    // 1
+  TowerType.Ice,       // 2
+  TowerType.Lightning, // 3
+  TowerType.Laser,     // 4
+  TowerType.Bat,       // 5
+];
+
+// ============================================================
+// Interface types (unchanged from original)
+// ============================================================
 
 interface UIButton {
   x: number; y: number; w: number; h: number;
@@ -44,9 +75,19 @@ interface DragState {
   productionType?: ProductionType;
 }
 
+// ============================================================
+// bitecs query — alive enemy count (replaces world.query(CType.Enemy))
+// ============================================================
+
+const aliveEnemyQuery = defineQuery([Health, UnitTag]);
+
+// ============================================================
+// UISystem
+// ============================================================
+
 export class UISystem implements System {
   readonly name = 'UISystem';
-  readonly requiredComponents = [] as const;
+  // requiredComponents removed — no entity iteration; queries run inline
 
   static readonly TOP_H = 36;
   static readonly BTN_W = 120;
@@ -63,6 +104,9 @@ export class UISystem implements System {
   public enemyEntityId: number | null = null;
   private enemySelectTimer: number = 0;
 
+  /** Cached world reference — set at beginning of each update() call */
+  private _world: TowerWorld | null = null;
+
   selectEnemy(id: number): void {
     this.selectedEntityId = null;
     this.selectedEntityType = null;
@@ -71,7 +115,6 @@ export class UISystem implements System {
   }
 
   constructor(
-    private world: World,
     private renderer: Renderer,
     private getPhase: () => GamePhase,
     private getGold: () => number,
@@ -104,6 +147,8 @@ export class UISystem implements System {
     private getWeatherName: (() => string) | null = null,
   ) {}
 
+  // ---- Selection getter/setter helpers (unchanged) ----
+
   get selectedTowerEntityId(): number | null {
     return this.selectedEntityType === 'tower' ? this.selectedEntityId : null;
   }
@@ -128,8 +173,14 @@ export class UISystem implements System {
     this.selectedEntityType = id !== null ? 'trap' : null;
   }
 
-  update(_entities: number[], dt: number): void {
+  // ============================================================
+  // System.update — cache world, build UI state
+  // ============================================================
+
+  update(world: TowerWorld, dt: number): void {
+    this._world = world;
     const phase = this.getPhase();
+
     this.buttons = [];
     this.infos = [];
     this.overlay = null;
@@ -166,27 +217,34 @@ export class UISystem implements System {
     this.buildDragGhost();
   }
 
+  // ============================================================
+  // Range Preview (tower / trap)
+  // ============================================================
+
   private drawRangePreview(): void {
     const id = this.selectedEntityId;
-    if (id === null) return;
+    if (id === null || !this._world) return;
 
-    const pos = this.world.getComponent<Position>(id, CType.Position);
-    if (!pos) return;
+    const px = Position.x[id];
+    const py = Position.y[id];
+    if (px === undefined) return;
 
     let diameter = 0;
     let color = '#ffffff';
 
     if (this.selectedEntityType === 'tower') {
-      const atk = this.world.getComponent<Attack>(id, CType.Attack);
-      const tower = this.world.getComponent<Tower>(id, CType.Tower);
-      if (!atk || !tower) return;
-      const config = TOWER_CONFIGS[tower.towerType];
-      diameter = atk.range * 2;
+      const atkRange = Attack.range[id];
+      const towerTypeVal = Tower.towerType[id];
+      if (atkRange === undefined || towerTypeVal === undefined) return;
+
+      const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal];
+      const config = towerTypeEnum ? TOWER_CONFIGS[towerTypeEnum] : undefined;
+      diameter = atkRange * 2;
       color = config?.color ?? '#ffffff';
     } else if (this.selectedEntityType === 'trap') {
-      const trap = this.world.getComponent<Trap>(id, CType.Trap);
-      if (!trap) return;
-      diameter = trap.radius * 2;
+      const trapRadius = Trap.radius[id];
+      if (trapRadius === undefined) return;
+      diameter = trapRadius * 2;
       color = '#e53935';
     } else {
       return;
@@ -194,14 +252,14 @@ export class UISystem implements System {
 
     this.renderer.push({
       shape: 'circle',
-      x: pos.x, y: pos.y,
+      x: px, y: py,
       size: diameter,
       color,
       alpha: 0.15,
     });
     this.renderer.push({
       shape: 'circle',
-      x: pos.x, y: pos.y,
+      x: px, y: py,
       size: diameter,
       color,
       alpha: 0.4,
@@ -209,6 +267,10 @@ export class UISystem implements System {
       strokeWidth: 2,
     });
   }
+
+  // ============================================================
+  // renderUI — direct Canvas 2D text overlay (called from onPostRender)
+  // ============================================================
 
   renderUI(): void {
     const ctx = this.renderer.context;
@@ -242,6 +304,8 @@ export class UISystem implements System {
     }
   }
 
+  // ---- Button drawing ----
+
   private drawButton(btn: UIButton): void {
     const ctx = this.renderer.context;
     const enabled = typeof btn.enabled === 'function' ? btn.enabled() : btn.enabled;
@@ -260,9 +324,12 @@ export class UISystem implements System {
     ctx.restore();
   }
 
-  // ---- Top HUD (compact single line) ----
+  // ============================================================
+  // Top HUD (compact single line)
+  // ============================================================
 
   private buildTopHUD(phase: GamePhase): void {
+    const world = this._world;
     const gold = this.getGold();
     const energy = this.getEnergy();
     const population = this.getPopulation();
@@ -284,8 +351,16 @@ export class UISystem implements System {
       color: '#ffd54f', size: 20,
     });
 
-    if (phase === GamePhase.Battle) {
-      const alive = this.world.query(CType.Enemy).length;
+    if (phase === GamePhase.Battle && world) {
+      // Count alive enemies via bitecs query
+      let aliveCount = 0;
+      const enemies = aliveEnemyQuery(world.world);
+      for (const eid of enemies) {
+        if (UnitTag.isEnemy[eid] === 1 && Health.current[eid] > 0) {
+          aliveCount++;
+        }
+      }
+
       const totalSpawned = this.getTotalSpawned?.() ?? 0;
       const weatherName = this.getWeatherName?.() ?? '';
       this.infos.push({
@@ -295,7 +370,7 @@ export class UISystem implements System {
       });
       this.infos.push({
         x: 1000, y: UISystem.TOP_H / 2,
-        text: `敌军:${alive}/${totalSpawned}`,
+        text: `敌军:${aliveCount}/${totalSpawned}`,
         color: '#ef5350', size: 20,
       });
       if (weatherName) {
@@ -416,7 +491,9 @@ export class UISystem implements System {
     });
   }
 
-  // ---- Bottom Panel (unified toolbar) ----
+  // ============================================================
+  // Bottom Panel (unified toolbar)
+  // ============================================================
 
   private getSceneBottom(): number {
     return RenderSystem.sceneOffsetY + RenderSystem.sceneH;
@@ -614,25 +691,38 @@ export class UISystem implements System {
       alpha: 1,
     });
 
-    // ---- Selected entity info ----
+    // ---- Selected entity info (bitecs stores) ----
     this.infos.push({ x: divX3 + 80, y: panelY + 6, text: '选中信息', color: '#aaaaaa', size: 14, align: 'center' });
 
     if (this.selectedEntityId !== null) {
+      const id = this.selectedEntityId;
       const infoX = divX3 + 20;
+
       if (this.selectedEntityType === 'tower') {
-        const tower = this.world.getComponent<Tower>(this.selectedEntityId, CType.Tower);
-        const atk = this.world.getComponent<Attack>(this.selectedEntityId, CType.Attack);
-        const health = this.world.getComponent<Health>(this.selectedEntityId, CType.Health);
-        if (tower) {
-          const cfg = TOWER_CONFIGS[tower.towerType];
+        const towerTypeVal = Tower.towerType[id];
+        const atkDamage = Attack.damage[id];
+        const hpCurrent = Health.current[id];
+        const hpMax = Health.max[id];
+
+        if (towerTypeVal !== undefined) {
+          const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal];
+          const cfg = towerTypeEnum ? TOWER_CONFIGS[towerTypeEnum] : undefined;
+          const towerLevel = Tower.level[id] ?? 1;
+
           if (cfg) {
-            this.infos.push({ x: infoX, y: btnY + 26, text: `${cfg.name} Lv.${tower.level}`, color: '#ffffff', size: 20 });
-            this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${cfg.hp}/${cfg.hp}`} ATK: ${atk ? atk.atk : cfg.atk}`, color: '#ffffff', size: 16 });
-            if (health) {
+            this.infos.push({ x: infoX, y: btnY + 26, text: `${cfg.name} Lv.${towerLevel}`, color: '#ffffff', size: 20 });
+
+            const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : cfg.hp;
+            const displayMax = hpMax !== undefined ? hpMax : cfg.hp;
+            const displayAtk = atkDamage !== undefined ? atkDamage : cfg.atk;
+            this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax} ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
+
+            if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
+              const ratio = hpCurrent / hpMax;
               const barW2 = 160;
               this.renderer.push({ shape: 'rect', x: infoX + barW2 / 2, y: btnY + 68, size: barW2, h: 8, color: '#222222', alpha: 0.9 });
-              const fillW = Math.max(barW2 * health.ratio, 0);
-              const barColor = health.ratio > 0.6 ? '#4caf50' : health.ratio > 0.3 ? '#ffc107' : '#f44336';
+              const fillW = Math.max(barW2 * ratio, 0);
+              const barColor = ratio > 0.6 ? '#4caf50' : ratio > 0.3 ? '#ffc107' : '#f44336';
               if (fillW > 0) {
                 this.renderer.push({ shape: 'rect', x: infoX + fillW / 2, y: btnY + 68, size: fillW, h: 8, color: barColor, alpha: 0.95 });
               }
@@ -640,39 +730,63 @@ export class UISystem implements System {
           }
         }
       } else if (this.selectedEntityType === 'unit') {
-        const unitComp = this.world.getComponent<Unit>(this.selectedEntityId, CType.Unit);
-        const health = this.world.getComponent<Health>(this.selectedEntityId, CType.Health);
-        const atk = this.world.getComponent<Attack>(this.selectedEntityId, CType.Attack);
-        if (unitComp) {
-          const cfg = UNIT_CONFIGS[unitComp.unitType];
-          if (cfg) {
-            this.infos.push({ x: infoX, y: btnY + 26, text: cfg.name, color: '#ffffff', size: 20 });
-            this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${cfg.hp}/${cfg.hp}`} ATK: ${atk ? atk.atk : cfg.atk}`, color: '#ffffff', size: 16 });
+        const hpCurrent = Health.current[id];
+        const hpMax = Health.max[id];
+        const atkDamage = Attack.damage[id];
+        const unitCost = UnitTag.cost[id];
+
+        // Use available bitecs data — unitType config lookup not available in bitecs
+        if (unitCost !== undefined) {
+          // Try to identify unit type by config lookup (reverse lookup from cost)
+          let unitName = '单位';
+          let cfgHp = 150;
+          let cfgAtk = 15;
+
+          for (const utype of unitTypes) {
+            const uc = UNIT_CONFIGS[utype];
+            if (uc && Math.abs(uc.cost - unitCost) < 1) {
+              unitName = uc.name;
+              cfgHp = uc.hp;
+              cfgAtk = uc.atk;
+              break;
+            }
           }
+
+          this.infos.push({ x: infoX, y: btnY + 26, text: unitName, color: '#ffffff', size: 20 });
+
+          const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : cfgHp;
+          const displayMax = hpMax !== undefined ? hpMax : cfgHp;
+          const displayAtk = atkDamage !== undefined ? atkDamage : cfgAtk;
+          this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax} ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
         }
       } else if (this.selectedEntityType === 'trap') {
-        const trap = this.world.getComponent<Trap>(this.selectedEntityId, CType.Trap);
-        if (trap) {
+        const trapDps = Trap.damagePerSecond[id];
+        const trapRadius = Trap.radius[id];
+
+        if (trapDps !== undefined && trapRadius !== undefined) {
           this.infos.push({ x: infoX, y: btnY + 26, text: '地刺', color: '#ffffff', size: 20 });
-          this.infos.push({ x: infoX, y: btnY + 50, text: `DPS: ${trap.damagePerSecond}  范围: ${trap.radius}px`, color: '#ffffff', size: 16 });
+          this.infos.push({ x: infoX, y: btnY + 50, text: `DPS: ${trapDps}  范围: ${trapRadius}px`, color: '#ffffff', size: 16 });
         }
       }
     }
   }
 
-  // ---- Entity Tooltip (above selected entity) ----
+  // ============================================================
+  // Entity Tooltip (above selected entity)
+  // ============================================================
 
   private buildEntityTooltip(): void {
     const id = this.selectedEntityId;
     if (id === null) return;
 
-    const pos = this.world.getComponent<Position>(id, CType.Position);
-    if (!pos) return;
+    const px = Position.x[id];
+    const py = Position.y[id];
+    if (px === undefined) return;
 
     const tw = 230;
     const th = 110;
-    const tx = pos.x;
-    const ty = pos.y - 110;
+    const tx = px;
+    const ty = py - 110;
 
     this.renderer.push({
       shape: 'rect',
@@ -685,27 +799,32 @@ export class UISystem implements System {
     });
 
     if (this.selectedEntityType === 'tower') {
-      const tower = this.world.getComponent<Tower>(id, CType.Tower);
-      const atk = this.world.getComponent<Attack>(id, CType.Attack);
-      const health = this.world.getComponent<Health>(id, CType.Health);
-      if (tower) {
-        const config = TOWER_CONFIGS[tower.towerType];
+      const towerTypeVal = Tower.towerType[id];
+      const atkDamage = Attack.damage[id];
+      const hpCurrent = Health.current[id];
+      const hpMax = Health.max[id];
+
+      if (towerTypeVal !== undefined) {
+        const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal];
+        const config = towerTypeEnum ? TOWER_CONFIGS[towerTypeEnum] : undefined;
+        const towerLevel = Tower.level[id] ?? 1;
+
         if (config) {
           this.infos.push({
             x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
-            text: `${config.name} Lv.${tower.level}`,
+            text: `${config.name} Lv.${towerLevel}`,
             color: '#ffffff', size: 18,
           });
           this.infos.push({
             x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-            text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${config.hp}/${config.hp}`}  ATK: ${atk ? atk.atk : config.atk}`,
+            text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${config.hp}/${config.hp}`}  ATK: ${atkDamage !== undefined ? atkDamage : config.atk}`,
             color: '#ffffff', size: 16,
           });
 
           // Upgrade button
-          const isMaxLevel = tower.level >= 5;
-          const costIdx = tower.level - 1;
-          const upgradeCost = tower.level <= config.upgradeCosts.length
+          const isMaxLevel = towerLevel >= 5;
+          const costIdx = towerLevel - 1;
+          const upgradeCost = towerLevel <= config.upgradeCosts.length
             ? config.upgradeCosts[costIdx]
             : undefined;
           if (!isMaxLevel && upgradeCost !== undefined) {
@@ -733,7 +852,8 @@ export class UISystem implements System {
           }
 
           // Recycle button
-          const refund = Math.floor(tower.totalInvested * 0.5);
+          const totalInvested = Tower.totalInvested[id] ?? config.cost;
+          const refund = Math.floor(totalInvested * 0.5);
           const rbw = 65;
           const rbh = 20;
           const rbx = tx + tw / 2 - rbw - 10;
@@ -756,63 +876,79 @@ export class UISystem implements System {
           });
 
           // HP bar
-          if (health) {
+          if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
+            const ratio = hpCurrent / hpMax;
             const barX = tx - tw / 2 + 10;
             const barW = 120;
             this.renderer.push({ shape: 'rect', x: barX + barW / 2, y: ty + th / 2 - 12, size: barW, h: 6, color: '#222222', alpha: 0.9 });
-            const fillW = Math.max(barW * health.ratio, 0);
+            const fillW = Math.max(barW * ratio, 0);
             if (fillW > 0) {
-              const barColor = health.ratio > 0.6 ? '#4caf50' : health.ratio > 0.3 ? '#ffc107' : '#f44336';
+              const barColor = ratio > 0.6 ? '#4caf50' : ratio > 0.3 ? '#ffc107' : '#f44336';
               this.renderer.push({ shape: 'rect', x: barX + fillW / 2, y: ty + th / 2 - 12, size: fillW, h: 6, color: barColor, alpha: 0.95 });
             }
           }
         }
       }
     } else if (this.selectedEntityType === 'unit') {
-      const unitComp = this.world.getComponent<Unit>(id, CType.Unit);
-      const health = this.world.getComponent<Health>(id, CType.Health);
-      const atk = this.world.getComponent<Attack>(id, CType.Attack);
-      if (unitComp) {
-        const cfg = UNIT_CONFIGS[unitComp.unitType];
-        if (cfg) {
-          this.infos.push({
-            x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
-            text: cfg.name,
-            color: '#ffffff', size: 18,
-          });
-          this.infos.push({
-            x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-            text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${cfg.hp}/${cfg.hp}`}  ATK: ${atk ? atk.atk : cfg.atk}`,
-            color: '#ffffff', size: 16,
-          });
+      const hpCurrent = Health.current[id];
+      const hpMax = Health.max[id];
+      const atkDamage = Attack.damage[id];
+      const unitCost = UnitTag.cost[id];
 
-          // Recycle button
-          const refund = Math.floor(unitComp.cost * 0.5);
-          const rbw = 65;
-          const rbh = 20;
-          const rbx = tx - tw / 2 + 10;
-          const rby = ty - th / 2 + 52;
-          this.renderer.push({
-            shape: 'rect',
-            x: rbx + rbw / 2, y: rby + rbh / 2,
-            size: rbw, h: rbh,
-            color: '#c62828',
-            alpha: 0.9,
-            stroke: '#ffffff', strokeWidth: 1,
-          });
-          this.buttons.push({
-            x: rbx, y: rby, w: rbw, h: rbh,
-            label: `回收${refund}G`,
-            color: '#c62828',
-            textColor: '#ffffff',
-            enabled: true,
-            onClick: () => { this.onRecycleEntity?.(id); },
-          });
+      if (unitCost !== undefined) {
+        let unitName = '单位';
+        let cfgHp = 150;
+        let cfgAtk = 15;
+
+        for (const utype of [UnitType.ShieldGuard, UnitType.Swordsman]) {
+          const uc = UNIT_CONFIGS[utype];
+          if (uc && Math.abs(uc.cost - unitCost) < 1) {
+            unitName = uc.name;
+            cfgHp = uc.hp;
+            cfgAtk = uc.atk;
+            break;
+          }
         }
+
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
+          text: unitName,
+          color: '#ffffff', size: 18,
+        });
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
+          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${cfgHp}/${cfgHp}`}  ATK: ${atkDamage !== undefined ? atkDamage : cfgAtk}`,
+          color: '#ffffff', size: 16,
+        });
+
+        // Recycle button
+        const refund = Math.floor(unitCost * 0.5);
+        const rbw = 65;
+        const rbh = 20;
+        const rbx = tx - tw / 2 + 10;
+        const rby = ty - th / 2 + 52;
+        this.renderer.push({
+          shape: 'rect',
+          x: rbx + rbw / 2, y: rby + rbh / 2,
+          size: rbw, h: rbh,
+          color: '#c62828',
+          alpha: 0.9,
+          stroke: '#ffffff', strokeWidth: 1,
+        });
+        this.buttons.push({
+          x: rbx, y: rby, w: rbw, h: rbh,
+          label: `回收${refund}G`,
+          color: '#c62828',
+          textColor: '#ffffff',
+          enabled: true,
+          onClick: () => { this.onRecycleEntity?.(id); },
+        });
       }
     } else if (this.selectedEntityType === 'trap') {
-      const trap = this.world.getComponent<Trap>(id, CType.Trap);
-      if (trap) {
+      const trapDps = Trap.damagePerSecond[id];
+      const trapRadius = Trap.radius[id];
+
+      if (trapDps !== undefined && trapRadius !== undefined) {
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
           text: '地刺',
@@ -820,7 +956,7 @@ export class UISystem implements System {
         });
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-          text: `DPS: ${trap.damagePerSecond}  范围: ${trap.radius}px`,
+          text: `DPS: ${trapDps}  范围: ${trapRadius}px`,
           color: '#ffffff', size: 16,
         });
 
@@ -849,24 +985,27 @@ export class UISystem implements System {
     }
   }
 
-  // ---- Enemy Tooltip ----
+  // ============================================================
+  // Enemy Tooltip
+  // ============================================================
 
   private buildEnemyTooltip(): void {
     const id = this.enemyEntityId;
     if (id === null) return;
 
-    const pos = this.world.getComponent<Position>(id, CType.Position);
-    const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-    const health = this.world.getComponent<Health>(id, CType.Health);
-    if (!pos || !enemy) return;
+    const px = Position.x[id];
+    const py = Position.y[id];
+    const hpCurrent = Health.current[id];
+    const hpMax = Health.max[id];
+    const moveSpeed = Movement.speed[id];
+    const isBoss = UnitTag.isBoss[id] === 1;
 
-    const config = ENEMY_CONFIGS[enemy.enemyType];
-    if (!config) return;
+    if (px === undefined) return;
 
     const tw = 200;
     const th = 100;
-    const tx = pos.x;
-    const ty = pos.y - 100;
+    const tx = px;
+    const ty = py - 100;
 
     this.renderer.push({
       shape: 'rect',
@@ -878,31 +1017,46 @@ export class UISystem implements System {
       strokeWidth: 1,
     });
 
+    const enemyName = isBoss ? 'Boss' : '敌人';
     this.infos.push({
       x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
-      text: config.name,
+      text: enemyName,
       color: '#ef5350', size: 18,
     });
-    this.infos.push({
-      x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-      text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${config.hp}/${config.hp}`}`,
-      color: '#ffffff', size: 16,
-    });
-    this.infos.push({
-      x: tx - tw / 2 + 10, y: ty - th / 2 + 56,
-      text: `速度: ${config.speed}`,
-      color: '#ffffff', size: 16,
-    });
-    if (config.description) {
+
+    if (hpCurrent !== undefined && hpMax !== undefined) {
       this.infos.push({
-        x: tx - tw / 2 + 10, y: ty - th / 2 + 76,
-        text: config.description,
-        color: '#aaaaaa', size: 16,
+        x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
+        text: `HP: ${Math.ceil(hpCurrent)}/${hpMax}`,
+        color: '#ffffff', size: 16,
       });
+    }
+
+    if (moveSpeed !== undefined) {
+      this.infos.push({
+        x: tx - tw / 2 + 10, y: ty - th / 2 + 56,
+        text: `速度: ${moveSpeed}`,
+        color: '#ffffff', size: 16,
+      });
+    }
+
+    if (isBoss) {
+      const bossPhase = Boss.phase[id];
+      const bossTimer = Boss.transitionTimer[id];
+      if (bossPhase !== undefined) {
+        const phaseText = bossPhase === 2 ? '形态 2' : bossTimer && bossTimer > 0 ? '转换中...' : '形态 1';
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 76,
+          text: phaseText,
+          color: '#aaaaaa', size: 16,
+        });
+      }
     }
   }
 
-  // ---- Drag Ghost ----
+  // ============================================================
+  // Drag Ghost (unchanged — no component access)
+  // ============================================================
 
   private buildDragGhost(): void {
     const ds = this.getDragState?.();
@@ -976,7 +1130,9 @@ export class UISystem implements System {
     });
   }
 
-  // ---- Overlays ----
+  // ============================================================
+  // Overlays (Victory / Defeat)
+  // ============================================================
 
   private buildOverlay(phase: GamePhase): void {
     if (phase === GamePhase.Victory) {
@@ -997,6 +1153,10 @@ export class UISystem implements System {
       this.overlay = { phase, color: '#f44336', title: '失败!', subtext: '刷新页面重新开始' };
     }
   }
+
+  // ============================================================
+  // Pause Overlay
+  // ============================================================
 
   private buildPauseOverlay(): void {
     const mapCenterX = RenderSystem.sceneOffsetX + RenderSystem.sceneW / 2;
@@ -1117,7 +1277,9 @@ export class UISystem implements System {
     });
   }
 
-  // ---- Input ----
+  // ============================================================
+  // Input — button hit-testing (unchanged)
+  // ============================================================
 
   handleClick(x: number, y: number): boolean {
     for (const btn of this.buttons) {

@@ -336,7 +336,7 @@ class TowerDefenderGame extends Game {
     this.laserBeamSystem = new LaserBeamSystem(this.renderer);
 
     // Initialize new unit system
-    this.aiSystem = new AISystem(this.world);
+    this.aiSystem = new AISystem();
     this.lifecycleSystem = new LifecycleSystem();
     this.unitFactory = new UnitFactory(this.world);
 
