@@ -268,6 +268,9 @@ class TowerDefenderGame extends Game {
       Tower.level[entityId] = towerLevel + 1;
       Tower.totalInvested[entityId]! += cost;
 
+      // Upgrade visual flash
+      Visual.hitFlashTimer[entityId] = 0.2;
+
       // Bat towers have BatTower component instead of Attack
       if (tt === TowerType.Bat) {
         this.batSwarmSystem.upgradeBatTowerStats(entityId, Tower.level[entityId]!);
