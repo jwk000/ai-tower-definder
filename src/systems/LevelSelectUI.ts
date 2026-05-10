@@ -74,13 +74,19 @@ export class LevelSelectUI {
   }
 
   private draw(): void {
-    const dw = LayoutManager.DESIGN_W;
-    const dh = LayoutManager.DESIGN_H;
+    // Full-viewport background
+    const barLeft = LayoutManager.toDesignX(0);
+    const barRight = LayoutManager.toDesignX(LayoutManager.viewportW);
+    const bgCenterX = (barLeft + barRight) / 2;
+    const bgWidth = barRight - barLeft;
+    const bgHeight = LayoutManager.DESIGN_H;  // full design height
 
     this.renderer.push({
-      shape: 'rect', x: dw / 2, y: dh / 2,
-      size: dw, color: '#0d1317', h: dh, alpha: 1,
+      shape: 'rect', x: bgCenterX, y: bgHeight / 2,
+      size: bgWidth, color: '#0d1317', h: bgHeight, alpha: 1,
     });
+
+    const dw = LayoutManager.DESIGN_W;
 
     this.renderer.push({
       shape: 'rect', x: dw / 2, y: 50,

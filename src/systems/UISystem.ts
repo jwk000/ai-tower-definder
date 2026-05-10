@@ -337,6 +337,21 @@ export class UISystem implements System {
   // Top HUD (compact single line)
   // ============================================================
 
+  /** Design-space X of viewport right edge (for right-anchored elements) */
+  private viewportRightDesignX(): number {
+    return LayoutManager.toDesignX(LayoutManager.viewportW);
+  }
+
+  /** Design-space X of viewport left edge */
+  private viewportLeftDesignX(): number {
+    return LayoutManager.toDesignX(0);
+  }
+
+  /** Design-space X of viewport horizontal center */
+  private viewportCenterDesignX(): number {
+    return LayoutManager.toDesignX(LayoutManager.viewportW / 2);
+  }
+
   private buildTopHUD(phase: GamePhase): void {
     const world = this._world;
     const gold = this.getGold();
@@ -346,10 +361,16 @@ export class UISystem implements System {
     const wave = this.getWave();
     const total = this.getTotalWaves();
 
+    // Full-viewport HUD background bar
+    const barLeft = this.viewportLeftDesignX();
+    const barRight = this.viewportRightDesignX();
+    const barCenterX = (barLeft + barRight) / 2;
+    const barWidth = barRight - barLeft;
+
     this.renderer.push({
       shape: 'rect',
-      x: LayoutManager.DESIGN_W / 2, y: UISystem.TOP_H / 2,
-      size: LayoutManager.DESIGN_W, h: UISystem.TOP_H,
+      x: barCenterX, y: UISystem.TOP_H / 2,
+      size: barWidth, h: UISystem.TOP_H,
       color: '#0d1b2a',
       alpha: 0.9,
     });
@@ -412,15 +433,18 @@ export class UISystem implements System {
 
     const currentlyPaused = this.isPaused?.() ?? false;
 
+    // Viewport-right-anchored button positions (design-space)
+    const rightEdgeD = this.viewportRightDesignX();
+
     if (!currentlyPaused && this.getCountdown && this.getCountdown() > 0) {
       const cd = this.getCountdown();
       this.infos.push({
-        x: 1650, y: UISystem.TOP_H / 2,
+        x: rightEdgeD - 270, y: UISystem.TOP_H / 2,
         text: `⏱${formatNumber(cd)}s`,
         color: '#ffd54f', size: 20,
       });
 
-      const skipBtnX = 1780;
+      const skipBtnX = rightEdgeD - 133;  // 12(gap) + 50(btnW) + 12(gap) + 30(btnW) + 12(gap) + 29(btnW) = 133
       const skipBtnW = 50;
       const skipBtnH = 28;
       const skipBtnY = (UISystem.TOP_H - skipBtnH) / 2;
@@ -444,7 +468,7 @@ export class UISystem implements System {
       });
     }
 
-    const speedX = 1850;
+    const speedBtnX = rightEdgeD - 71;    // 12(gap) + 30(btnW) + 12(gap) + 29(btnW) = 71
     const speedBtnW = 30;
     const speedBtnH = 28;
     const speedBtnY = (UISystem.TOP_H - speedBtnH) / 2;
@@ -454,7 +478,7 @@ export class UISystem implements System {
 
     this.renderer.push({
       shape: 'rect',
-      x: speedX + speedBtnW / 2, y: speedBtnY + speedBtnH / 2,
+      x: speedBtnX + speedBtnW / 2, y: speedBtnY + speedBtnH / 2,
       size: speedBtnW, h: speedBtnH,
       color: speedColor,
       alpha: 0.9,
@@ -462,7 +486,7 @@ export class UISystem implements System {
     });
 
     this.buttons.push({
-      x: speedX, y: speedBtnY, w: speedBtnW, h: speedBtnH,
+      x: speedBtnX, y: speedBtnY, w: speedBtnW, h: speedBtnH,
       label: speedLabel,
       color: speedColor,
       textColor: '#ffffff',
@@ -470,7 +494,7 @@ export class UISystem implements System {
       onClick: () => { this.onToggleSpeed?.(); },
     });
 
-    const pauseBtnX = 1891;
+    const pauseBtnX = rightEdgeD - 29;    // touches viewport right edge
     const pauseBtnW = 29;
     const pauseBtnH = 28;
     const pauseBtnY = (UISystem.TOP_H - pauseBtnH) / 2;
