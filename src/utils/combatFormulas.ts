@@ -218,14 +218,14 @@ export function applyBuffStacks(
  */
 export function waveHpMultiplier(waveNumber: number): number {
   if (waveNumber <= 20) {
-    if (waveNumber <= 3) return 0.6 + (waveNumber - 1) * 0.1;
-    if (waveNumber <= 8) return 1.0 + (waveNumber - 4) * 0.06;
-    if (waveNumber <= 15) return 1.4 + (waveNumber - 9) * 0.057;
-    return 1.9 + (waveNumber - 16) * 0.12;
+    if (waveNumber <= 3) return 0.7 + (waveNumber - 1) * 0.1;
+    if (waveNumber <= 8) return 1.0 + (waveNumber - 4) * 0.1;
+    if (waveNumber <= 15) return 1.5 + (waveNumber - 9) * (0.5 / 6);
+    return 2.1 + (waveNumber - 16) * (0.7 / 4);
   }
-  // 20波以后每波+15%
+  // 20波以后每波+12%
   const base = waveHpMultiplier(20);
-  return base * Math.pow(1.15, waveNumber - 20);
+  return base * Math.pow(1.12, waveNumber - 20);
 }
 
 /**
@@ -234,7 +234,10 @@ export function waveHpMultiplier(waveNumber: number): number {
  * @param cap 速度上限 (默认200%)
  */
 export function waveSpeedMultiplier(waveNumber: number, cap: number = 2.0): number {
-  const raw = 1.0 + Math.max(0, waveNumber - 9) * 0.03;
+  if (waveNumber <= 8) return 1.0;
+  if (waveNumber <= 15) return 1.05;
+  if (waveNumber <= 20) return 1.1;
+  const raw = 1.1 + (waveNumber - 20) * 0.025;
   return Math.min(raw, cap);
 }
 
@@ -244,11 +247,11 @@ export function waveSpeedMultiplier(waveNumber: number, cap: number = 2.0): numb
  */
 export function waveArmorBonus(waveNumber: number): number {
   if (waveNumber <= 3) return 0;
-  if (waveNumber <= 8) return 3;
-  if (waveNumber <= 15) return 6;
-  if (waveNumber <= 20) return 13;
-  // 20+ 每波 +1.5
-  return 13 + (waveNumber - 20) * 1.5;
+  if (waveNumber <= 8) return 2;
+  if (waveNumber <= 15) return 5;
+  if (waveNumber <= 20) return 10;
+  // 20+ 每波 +1.2
+  return 10 + (waveNumber - 20) * 1.2;
 }
 
 /**
@@ -257,9 +260,9 @@ export function waveArmorBonus(waveNumber: number): number {
  */
 export function waveMrBonus(waveNumber: number): number {
   if (waveNumber <= 3) return 0;
-  if (waveNumber <= 8) return 2;
-  if (waveNumber <= 15) return 4;
-  if (waveNumber <= 20) return 9;
-  // 20+ 每波 +1.0
-  return 9 + (waveNumber - 20) * 1.0;
+  if (waveNumber <= 8) return 1;
+  if (waveNumber <= 15) return 3;
+  if (waveNumber <= 20) return 7;
+  // 20+ 每波 +0.8
+  return 7 + (waveNumber - 20) * 0.8;
 }

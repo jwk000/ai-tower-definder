@@ -15,38 +15,38 @@ describe('EconomySystem — 资源管理', () => {
     world.registerSystem(economy);
   });
 
-  it('初始状态: gold=200, energy=50, population=0', () => {
-    expect(economy.gold).toBe(200);
+  it('初始状态: gold=220, energy=50, population=0', () => {
+    expect(economy.gold).toBe(220);
     expect(economy.energy).toBe(50);
     expect(economy.population).toBe(0);
   });
 
   it('addGold 累积到 pendingGold，update 后结算', () => {
     economy.addGold(50);
-    expect(economy.gold).toBe(200);
+    expect(economy.gold).toBe(220);
     world.update(0.016);
-    expect(economy.gold).toBe(250);
+    expect(economy.gold).toBe(270);
   });
 
   it('spendGold 充足时立即结算，返回 true', () => {
     const result = economy.spendGold(150);
     expect(result).toBe(true);
-    expect(economy.gold).toBe(50);
+    expect(economy.gold).toBe(70);
   });
 
   it('spendGold 优先消耗 pendingGold', () => {
     economy.addGold(100);
     const result = economy.spendGold(80);
     expect(result).toBe(true);
-    expect(economy.gold).toBe(200);
-    world.update(0.016);
     expect(economy.gold).toBe(220);
+    world.update(0.016);
+    expect(economy.gold).toBe(240);
   });
 
   it('spendGold 不足时返回 false，余额不变', () => {
     const result = economy.spendGold(250);
     expect(result).toBe(false);
-    expect(economy.gold).toBe(200);
+    expect(economy.gold).toBe(220);
   });
 
   it('spendEnergy 充足时立即结算，返回 true', () => {
@@ -112,7 +112,7 @@ describe('EconomySystem — 资源管理', () => {
     economy.addGold(100);
     economy.addEnergy(50);
     world.update(0.016);
-    expect(economy.gold).toBe(300);
+    expect(economy.gold).toBe(320);
     expect(economy.energy).toBe(100);
   });
 });
