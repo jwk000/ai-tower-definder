@@ -44,7 +44,7 @@ export class MovementSystem implements System {
       if (Stunned.timer[eid]! > 0) continue;
 
       // Skip frozen entities — completely immobilized
-      if (hasComponent(world.world, eid, Frozen)) continue;
+      if (hasComponent(world.world, Frozen, eid)) continue;
 
       // Skip if not in follow-path mode (e.g. hold-position)
       if (Movement.moveMode[eid] !== MoveModeVal.FollowPath) continue;
@@ -73,9 +73,9 @@ export class MovementSystem implements System {
       if (segmentLen <= 0) continue;
 
       const baseSpeed = Movement.speed[eid]!;
-      const slowFactor = hasComponent(world.world, eid, Slowed)
-        ? Math.max(0.05, 1 - Slowed.percent[eid]! / 100)
-        : 1;
+const slowFactor = hasComponent(world.world, Slowed, eid)
+      ? Math.max(0.05, 1 - Slowed.percent[eid]! / 100)
+      : 1;
       const speed = baseSpeed * slowFactor;
       const dist = speed * dt;
 
@@ -258,7 +258,7 @@ export class MovementSystem implements System {
   /** Check if an entity should be excluded from collision (projectiles, effects, traps) */
   private isExcluded(world: TowerWorld, eid: number): boolean {
     for (const comp of EXCLUDE_COLLISION) {
-      if (hasComponent(world.world, eid, comp)) return true;
+      if (hasComponent(world.world, comp, eid)) return true;
     }
     return false;
   }

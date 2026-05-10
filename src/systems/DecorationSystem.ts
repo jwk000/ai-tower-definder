@@ -129,88 +129,88 @@ export class DecorationSystem implements System {
   private static readonly COMPOSITE_VISUALS: Record<ObstacleType, CompositeVisual> = {
     // ---- 平原 ----
     [ObstacleType.Tree]: [
-      { shape: 'rect',     offsetX: 0, offsetY: 3,  size: 5,  h: 10, color: '#5d4037' },  // 树干
+      { shape: 'rect', offsetX: 0, offsetY: 3, size: 5, h: 10, color: '#5d4037' },  // 树干
       { shape: 'triangle', offsetX: 0, offsetY: -4, size: 14, color: '#2e7d32' },           // 树冠
       { shape: 'triangle', offsetX: 0, offsetY: -6, size: 10, color: '#388e3c', alpha: 0.7 }, // 高光层
     ],
     [ObstacleType.Bush]: [
-      { shape: 'circle', offsetX: -3, offsetY: -1, size: 8,  color: '#388e3c' },
-      { shape: 'circle', offsetX: 3,  offsetY: 0,  size: 7,  color: '#2e7d32' },
-      { shape: 'circle', offsetX: 0,  offsetY: 2,  size: 9,  color: '#43a047', alpha: 0.8 },
+      { shape: 'circle', offsetX: -3, offsetY: -1, size: 8, color: '#388e3c' },
+      { shape: 'circle', offsetX: 3, offsetY: 0, size: 7, color: '#2e7d32' },
+      { shape: 'circle', offsetX: 0, offsetY: 2, size: 9, color: '#43a047', alpha: 0.8 },
     ],
     [ObstacleType.Flower]: [
-      { shape: 'circle', offsetX: 0,  offsetY: -3, size: 3, color: '#f48fb1' },
-      { shape: 'circle', offsetX: -3, offsetY: 1,  size: 3, color: '#f48fb1' },
-      { shape: 'circle', offsetX: 3,  offsetY: 1,  size: 3, color: '#f48fb1' },
-      { shape: 'circle', offsetX: 0,  offsetY: -1, size: 4, color: '#f06292' },
-      { shape: 'circle', offsetX: 0,  offsetY: -1, size: 2, color: '#fce4ec' },
+      { shape: 'circle', offsetX: 0, offsetY: -3, size: 3, color: '#f48fb1' },
+      { shape: 'circle', offsetX: -3, offsetY: 1, size: 3, color: '#f48fb1' },
+      { shape: 'circle', offsetX: 3, offsetY: 1, size: 3, color: '#f48fb1' },
+      { shape: 'circle', offsetX: 0, offsetY: -1, size: 4, color: '#f06292' },
+      { shape: 'circle', offsetX: 0, offsetY: -1, size: 2, color: '#fce4ec' },
     ],
 
     // ---- 沙漠 ----
     [ObstacleType.Rock]: [
-      { shape: 'diamond',  offsetX: 0,  offsetY: 0,  size: 12, color: '#6d4c41' },
-      { shape: 'triangle', offsetX: -3, offsetY: -3, size: 5,  color: '#8d6e63', alpha: 0.6 },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 12, color: '#6d4c41' },
+      { shape: 'triangle', offsetX: -3, offsetY: -3, size: 5, color: '#8d6e63', alpha: 0.6 },
     ],
     [ObstacleType.Cactus]: [
-      { shape: 'rect',     offsetX: 0,  offsetY: 0,  size: 6,  h: 12, color: '#558b2f' },   // 主干
-      { shape: 'rect',     offsetX: -5, offsetY: -3, size: 4,  h: 7,  color: '#558b2f' },   // 左臂
-      { shape: 'rect',     offsetX: 5,  offsetY: -2, size: 4,  h: 6,  color: '#558b2f' },   // 右臂
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 6, h: 12, color: '#558b2f' },   // 主干
+      { shape: 'rect', offsetX: -5, offsetY: -3, size: 4, h: 7, color: '#558b2f' },   // 左臂
+      { shape: 'rect', offsetX: 5, offsetY: -2, size: 4, h: 6, color: '#558b2f' },   // 右臂
     ],
     [ObstacleType.Bones]: [
-      { shape: 'rect',     offsetX: -3, offsetY: 0,  size: 3,  h: 10, color: '#d7ccc8', alpha: 0.7 },
-      { shape: 'rect',     offsetX: 3,  offsetY: -2, size: 3,  h: 6,  color: '#d7ccc8', alpha: 0.7 },
-      { shape: 'circle',   offsetX: 0,  offsetY: -1, size: 7,  color: '#d7ccc8', alpha: 0.7 },
+      { shape: 'rect', offsetX: -3, offsetY: 0, size: 3, h: 10, color: '#d7ccc8', alpha: 0.7 },
+      { shape: 'rect', offsetX: 3, offsetY: -2, size: 3, h: 6, color: '#d7ccc8', alpha: 0.7 },
+      { shape: 'circle', offsetX: 0, offsetY: -1, size: 7, color: '#d7ccc8', alpha: 0.7 },
     ],
 
     // ---- 冰原 ----
     [ObstacleType.IceCrystal]: [
-      { shape: 'diamond',  offsetX: 0,  offsetY: 0,  size: 11, color: '#80deea' },
-      { shape: 'diamond',  offsetX: 0,  offsetY: 0,  size: 5,  color: '#e0f7fa', alpha: 0.8 },
-      { shape: 'triangle', offsetX: -6, offsetY: 2,  size: 6,  color: '#4dd0e1', alpha: 0.6 },
-      { shape: 'triangle', offsetX: 6,  offsetY: 2,  size: 6,  color: '#4dd0e1', alpha: 0.6 },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 11, color: '#80deea' },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 5, color: '#e0f7fa', alpha: 0.8 },
+      { shape: 'triangle', offsetX: -6, offsetY: 2, size: 6, color: '#4dd0e1', alpha: 0.6 },
+      { shape: 'triangle', offsetX: 6, offsetY: 2, size: 6, color: '#4dd0e1', alpha: 0.6 },
     ],
     [ObstacleType.SnowTree]: [
-      { shape: 'rect',     offsetX: 0,  offsetY: 2,  size: 4,  h: 10, color: '#607d8b' },
-      { shape: 'triangle', offsetX: 0,  offsetY: -5, size: 13, color: '#b0bec5' },
-      { shape: 'triangle', offsetX: 0,  offsetY: -7, size: 10, color: '#cfd8dc', alpha: 0.6 },
+      { shape: 'rect', offsetX: 0, offsetY: 2, size: 4, h: 10, color: '#607d8b' },
+      { shape: 'triangle', offsetX: 0, offsetY: -5, size: 13, color: '#b0bec5' },
+      { shape: 'triangle', offsetX: 0, offsetY: -7, size: 10, color: '#cfd8dc', alpha: 0.6 },
     ],
     [ObstacleType.FrozenRock]: [
-      { shape: 'circle',  offsetX: 0,  offsetY: 0,  size: 10, color: '#90a4ae' },
-      { shape: 'circle',  offsetX: -2, offsetY: -2, size: 4,  color: '#cfd8dc', alpha: 0.5 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 10, color: '#90a4ae' },
+      { shape: 'circle', offsetX: -2, offsetY: -2, size: 4, color: '#cfd8dc', alpha: 0.5 },
     ],
 
     // ---- 火山 ----
     [ObstacleType.LavaVent]: [
-      { shape: 'circle',  offsetX: 0,  offsetY: 0,  size: 9,  color: '#d32f2f' },
-      { shape: 'circle',  offsetX: 0,  offsetY: 0,  size: 4,  color: '#ff8f00', alpha: 0.9 },
-      { shape: 'circle',  offsetX: 0,  offsetY: -6, size: 3,  color: '#ffcc02', alpha: 0.4 }, // 火星
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 9, color: '#d32f2f' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 4, color: '#ff8f00', alpha: 0.9 },
+      { shape: 'circle', offsetX: 0, offsetY: -6, size: 3, color: '#ffcc02', alpha: 0.4 }, // 火星
     ],
     [ObstacleType.ScorchedTree]: [
-      { shape: 'rect',     offsetX: 0,  offsetY: 3,  size: 4,  h: 10, color: '#3e2723' },
-      { shape: 'triangle', offsetX: -2, offsetY: -3, size: 8,  color: '#3e2723' },
-      { shape: 'triangle', offsetX: 3,  offsetY: -4, size: 6,  color: '#4e342e' },
+      { shape: 'rect', offsetX: 0, offsetY: 3, size: 4, h: 10, color: '#3e2723' },
+      { shape: 'triangle', offsetX: -2, offsetY: -3, size: 8, color: '#3e2723' },
+      { shape: 'triangle', offsetX: 3, offsetY: -4, size: 6, color: '#4e342e' },
     ],
     [ObstacleType.VolcanicRock]: [
-      { shape: 'circle',   offsetX: 0,  offsetY: 0,  size: 10, color: '#424242' },
-      { shape: 'circle',   offsetX: 2,  offsetY: -2, size: 5,  color: '#616161', alpha: 0.5 },
-      { shape: 'triangle', offsetX: -3, offsetY: 3,  size: 5,  color: '#212121', alpha: 0.4 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 10, color: '#424242' },
+      { shape: 'circle', offsetX: 2, offsetY: -2, size: 5, color: '#616161', alpha: 0.5 },
+      { shape: 'triangle', offsetX: -3, offsetY: 3, size: 5, color: '#212121', alpha: 0.4 },
     ],
 
     // ---- 城堡 ----
     [ObstacleType.Pillar]: [
-      { shape: 'rect',    offsetX: 0, offsetY: 0,  size: 13, h: 24, color: '#757575' },
-      { shape: 'rect',    offsetX: 0, offsetY: -12, size: 15, h: 4,  color: '#9e9e9e' },      // 柱顶
-      { shape: 'rect',    offsetX: 0, offsetY: 12,  size: 15, h: 4,  color: '#616161' },      // 柱基
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 13, h: 24, color: '#757575' },
+      { shape: 'rect', offsetX: 0, offsetY: -12, size: 15, h: 4, color: '#9e9e9e' },      // 柱顶
+      { shape: 'rect', offsetX: 0, offsetY: 12, size: 15, h: 4, color: '#616161' },      // 柱基
     ],
     [ObstacleType.Brazier]: [
-      { shape: 'rect',    offsetX: 0,  offsetY: 5,  size: 3,  h: 14, color: '#757575' },      // 柱子
-      { shape: 'diamond', offsetX: 0,  offsetY: -5, size: 8,  color: '#ff8f00' },             // 火焰
-      { shape: 'diamond', offsetX: 0,  offsetY: -4, size: 4,  color: '#ffcc80', alpha: 0.8 },// 焰心
+      { shape: 'rect', offsetX: 0, offsetY: 5, size: 3, h: 14, color: '#757575' },      // 柱子
+      { shape: 'diamond', offsetX: 0, offsetY: -5, size: 8, color: '#ff8f00' },             // 火焰
+      { shape: 'diamond', offsetX: 0, offsetY: -4, size: 4, color: '#ffcc80', alpha: 0.8 },// 焰心
     ],
     [ObstacleType.Rubble]: [
-      { shape: 'circle',  offsetX: -2, offsetY: 0,  size: 5,  color: '#616161', alpha: 0.6 },
-      { shape: 'circle',  offsetX: 4,  offsetY: 2,  size: 6,  color: '#757575', alpha: 0.6 },
-      { shape: 'circle',  offsetX: -1, offsetY: 3,  size: 4,  color: '#424242', alpha: 0.6 },
+      { shape: 'circle', offsetX: -2, offsetY: 0, size: 5, color: '#616161', alpha: 0.6 },
+      { shape: 'circle', offsetX: 4, offsetY: 2, size: 6, color: '#757575', alpha: 0.6 },
+      { shape: 'circle', offsetX: -1, offsetY: 3, size: 4, color: '#424242', alpha: 0.6 },
     ],
   };
 
@@ -218,11 +218,11 @@ export class DecorationSystem implements System {
    * 植物微动参数表
    */
   private static readonly SWAY_PARAMS: Partial<Record<ObstacleType, SwayParams>> = {
-    [ObstacleType.Tree]:         { amplitudeX: 1.5, amplitudeY: 0.5, frequency: 0.6, windMultiplier: 2.5 },
-    [ObstacleType.Bush]:         { amplitudeX: 1.0, amplitudeY: 0.3, frequency: 0.8, windMultiplier: 3.0 },
-    [ObstacleType.Flower]:       { amplitudeX: 1.5, amplitudeY: 1.0, frequency: 1.2, windMultiplier: 3.5 },
-    [ObstacleType.Cactus]:       { amplitudeX: 0.8, amplitudeY: 0.3, frequency: 0.5, windMultiplier: 2.0 },
-    [ObstacleType.SnowTree]:     { amplitudeX: 1.2, amplitudeY: 0.4, frequency: 0.5, windMultiplier: 2.0 },
+    [ObstacleType.Tree]: { amplitudeX: 1.5, amplitudeY: 0.5, frequency: 0.6, windMultiplier: 2.5 },
+    [ObstacleType.Bush]: { amplitudeX: 1.0, amplitudeY: 0.3, frequency: 0.8, windMultiplier: 3.0 },
+    [ObstacleType.Flower]: { amplitudeX: 1.5, amplitudeY: 1.0, frequency: 1.2, windMultiplier: 3.5 },
+    [ObstacleType.Cactus]: { amplitudeX: 0.8, amplitudeY: 0.3, frequency: 0.5, windMultiplier: 2.0 },
+    [ObstacleType.SnowTree]: { amplitudeX: 1.2, amplitudeY: 0.4, frequency: 0.5, windMultiplier: 2.0 },
     [ObstacleType.ScorchedTree]: { amplitudeX: 1.0, amplitudeY: 0.3, frequency: 0.4, windMultiplier: 2.0 },
   };
 
@@ -238,11 +238,11 @@ export class DecorationSystem implements System {
 
   /** 天空渐变配色 */
   static readonly SKY_COLORS: Record<string, { top: string; bottom: string }> = {
-    plains:  { top: '#87CEEB', bottom: '#E8F5E9' },
-    desert:  { top: '#FF9800', bottom: '#FFE0B2' },
-    tundra:  { top: '#BBDEFB', bottom: '#ECEFF1' },
+    plains: { top: '#87CEEB', bottom: '#E8F5E9' },
+    desert: { top: '#FF9800', bottom: '#FFE0B2' },
+    tundra: { top: '#BBDEFB', bottom: '#ECEFF1' },
     volcano: { top: '#D32F2F', bottom: '#1A0000' },
-    castle:  { top: '#1A237E', bottom: '#37474F' },
+    castle: { top: '#1A237E', bottom: '#37474F' },
   };
 
   // ============================================================
@@ -319,32 +319,24 @@ export class DecorationSystem implements System {
     const mapH = this.map.rows * this.ts;
     const theme = this.detectTheme();
 
-    // 1. 天空渐变 — 直接绘制在 canvas 上
-    const skyTop = 0;
-    const skyBottom = this.oy + mapH;
+    // Full-screen sky gradient (1920×1080) — covers entire canvas
     const sky = DecorationSystem.SKY_COLORS[theme] ?? DecorationSystem.SKY_COLORS['plains']!;
-
-    const grad = ctx.createLinearGradient(0, skyTop, 0, skyBottom);
-    grad.addColorStop(0, sky.top);
-    grad.addColorStop(0.5, sky.top);
-    grad.addColorStop(1, sky.bottom);
+    const grad = ctx.createLinearGradient(0, 0, 0, 1080);
+    grad.addColorStop(0, sky.top);          // pure sky at top
+    grad.addColorStop(0.25, sky.top);        // sky persists through upper quarter
+    grad.addColorStop(0.55, sky.bottom);     // transition to ground around map level
+    grad.addColorStop(1, '#1a1a2e');        // fade to dark at screen bottom
 
     ctx.save();
     ctx.fillStyle = grad;
-    ctx.fillRect(0, skyTop, 1920, skyBottom);
+    ctx.fillRect(0, 0, 1920, 1080);
     ctx.restore();
 
-    // 2. 远景 — 通过命令缓冲（会画在地图瓦片之下）
+    // Distant scenery — rendered via command buffer (drawn behind map tiles)
     const distantFn = DecorationSystem.DISTANT_SCENERY[theme];
     if (distantFn) {
       distantFn(this.ox, this.oy, mapW, this.renderer);
     }
-
-    // 3. 地面底色（地图区域之外）
-    // 地图下方用深色填充，避免露出天空色
-    const groundTop = this.oy + mapH;
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, groundTop, 1920, 1080 - groundTop);
   }
 
   /** 通过地图主题色推断当前主题 */
@@ -373,8 +365,7 @@ export class DecorationSystem implements System {
     }
 
     const mapW = this.map.cols * this.ts;
-    const mapH = this.map.rows * this.ts;
-    const skyArea = this.oy * 0.8; // 云只在天空区域（顶部 80% 的空白区）
+    const skyArea = this.oy; // full sky height above map (216px)
 
     for (const cloud of this.clouds) {
       // 更新位置
@@ -401,7 +392,7 @@ export class DecorationSystem implements System {
   }
 
   private initClouds(): void {
-    const skyArea = this.oy * 0.8;
+    const skyArea = this.oy;
     const count = 3 + Math.floor(Math.random() * 3); // 3-5 朵云
 
     for (let i = 0; i < count; i++) {
@@ -464,16 +455,16 @@ export class DecorationSystem implements System {
           : 1;
 
         swayX = Math.sin(this.currentTime * swayParams.frequency * Math.PI * 2 + phaseOffset)
-                * swayParams.amplitudeX * windFactor;
+          * swayParams.amplitudeX * windFactor;
         swayY = Math.cos(this.currentTime * swayParams.frequency * 1.3 * Math.PI * 2 + phaseOffset)
-                * swayParams.amplitudeY * 0.7;
+          * swayParams.amplitudeY * 0.7;
       }
 
       // 火炬火焰脉动（Brazier 特殊处理）
       if (obs.type === ObstacleType.Brazier) {
         const flicker = Math.sin(this.currentTime * 4.5 + obs.col * 1.2) * 0.5 +
-                        Math.sin(this.currentTime * 7.3 + obs.row * 0.8) * 0.3 +
-                        Math.sin(this.currentTime * 11.1 + obs.col + obs.row) * 0.2;
+          Math.sin(this.currentTime * 7.3 + obs.row * 0.8) * 0.3 +
+          Math.sin(this.currentTime * 11.1 + obs.col + obs.row) * 0.2;
         // 火焰和焰心部分的缩放
         const flameScale = 1 + flicker * 0.25;
         const brazierParts = DecorationSystem.COMPOSITE_VISUALS[obs.type]!;
@@ -540,8 +531,7 @@ export class DecorationSystem implements System {
     }
 
     const mapW = this.map.cols * this.ts;
-    const skyTop = 0;
-    const skyMid = this.oy * 0.6;  // 飞鸟活动区域：天空上半部
+    const skyMid = this.oy * 0.8;  // birds fly in upper 80% of sky area
 
     for (const bird of this.birds) {
       // 更新位置
@@ -595,6 +585,8 @@ export class DecorationSystem implements System {
 
   private initBirds(): void {
     const skyMid = this.oy * 0.6;
+
+    // 所有主题统一使用白色飞鸟
     const colors = ['#37474f', '#455a64', '#546e7a', '#263238'];
 
     // 根据关卡主题选择鸟的颜色
@@ -609,14 +601,14 @@ export class DecorationSystem implements System {
     } else {
       birdColors = colors;
     }
-
+    
     const count = 3 + Math.floor(Math.random() * 3); // 3-5 只鸟
 
     for (let i = 0; i < count; i++) {
       this.birds.push({
         x: Math.random() * 1920,
         y: 15 + Math.random() * skyMid,
-        size: 5 + Math.random() * 4,
+        size: 7 + Math.random() * 7,              // 7-14px（放大）
         speed: 30 + Math.random() * 50,       // 30-80 px/s
         flapSpeed: 3 + Math.random() * 3,     // 3-6 Hz
         phase: Math.random() * 2,
@@ -672,7 +664,7 @@ export class DecorationSystem implements System {
         const phaseOffset = obs.row * 17 + obs.col * 11 + i * 7;
         const freq = 1.2 + (i % 3) * 0.4; // 1.2-2.0 Hz
         const sway = Math.sin(this.currentTime * freq * Math.PI * 2 + phaseOffset * 0.1)
-                     * 2.0 * windFactor;
+          * 2.0 * windFactor;
 
         // 草叶：向上的小三角形，会随风摇摆
         const bladeHeight = 5 + (i % 3) * 2;

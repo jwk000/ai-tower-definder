@@ -1,6 +1,7 @@
 import { TowerWorld } from './World.js';
 import { InputManager } from '../input/InputManager.js';
 import { Renderer } from '../render/Renderer.js';
+import { tickFrame, systemCrashed, systemStart, systemEnd } from '../utils/debugLog.js';
 
 export class Game {
   world: TowerWorld;
@@ -41,6 +42,9 @@ export class Game {
     if (!this.running) return;
 
     try {
+      // Advance debug log frame counter (each loop iteration = 1 frame)
+      tickFrame();
+
       const rawDt = Math.min((now - this.lastTime) / 1000, 0.05);
       this.lastTime = now;
 
@@ -57,9 +61,13 @@ export class Game {
           this.onUpdate(dt);
         } else {
           for (const sys of this.world.systems) {
+            const t0 = performance.now();
             try {
+              systemStart(sys.name);
               sys.update(this.world, dt);
+              systemEnd(sys.name, performance.now() - t0);
             } catch (sysErr) {
+              systemCrashed(sys.name, sysErr);
               throw new Error(`System "${sys.name}" crashed: ${String(sysErr)}`);
             }
           }

@@ -401,7 +401,7 @@ export class UnitSystem implements System {
   /** Check if entity should be excluded from collision (projectiles, effects, traps) */
   private isExcluded(world: TowerWorld, eid: number): boolean {
     for (const comp of EXCLUDE_COLLISION) {
-      if (hasComponent(world.world, eid, comp)) return true;
+      if (hasComponent(world.world, comp, eid)) return true;
     }
     return false;
   }

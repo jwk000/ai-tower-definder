@@ -13,12 +13,12 @@ import {
   CategoryVal,
   Layer,
   LayerVal,
-  ShapeVal,
   DamageTypeVal,
   TargetSelectionVal,
   AttackModeVal,
 } from '../core/components.js';
 import type { WeatherSystem } from './WeatherSystem.js';
+import { Renderer } from '../render/Renderer.js';
 
 // ============================================================
 // Boid tuning constants
@@ -58,10 +58,22 @@ export class BatSwarmSystem implements System {
   /** Per-bat velocity (vx, vy) — persistent boid state not stored in components */
   private batVelocities = new Map<number, { vx: number; vy: number }>();
 
+  /** Per-bat wing animation state (for composite rendering like background birds) */
+  private batAnimStates = new Map<number, {
+    flapPhase: number;
+    flapSpeed: number;
+    hoverFreq: number;
+    hoverPhase: number;
+    hoverAmp: number;
+  }>();
+
   /** Current world reference — set each frame in update() */
   private world: TowerWorld | null = null;
 
-  constructor(private weatherSystem?: WeatherSystem) {}
+  constructor(
+    private weatherSystem?: WeatherSystem,
+    private renderer?: Renderer,
+  ) {}
 
   // ============================================================
   // System.update
@@ -127,8 +139,19 @@ export class BatSwarmSystem implements System {
       }
     }
 
+    // ── Pass 4: render bats as composite shapes (body + wings) ──
+    if (this.renderer) {
+      for (let i = 0; i < bats.length; i++) {
+        const batId = bats[i]!;
+        if (Health.current[batId]! <= 0) continue;
+        this.renderBat(batId);
+      }
+    }
+
     // Clean up velocities for bats no longer in the world
     this.cleanupStaleVelocities(bats);
+    // Clean up animation states for dead bats
+    this.cleanupStaleAnimations(bats);
   }
 
   // ============================================================
@@ -377,14 +400,7 @@ export class BatSwarmSystem implements System {
       drainPercent: 0,
     });
     world.addComponent(batId, BatSwarmMember, { parentId: towerId });
-    world.addComponent(batId, Visual, {
-      shape: ShapeVal.Circle,
-      colorR: 0x2d,
-      colorG: 0x2d,
-      colorB: 0x2d,
-      size: BatTower.batSize[towerId],
-      alpha: 0.9,
-    });
+    // Visual rendering handled in renderBat() (composite body + wings like birds)
     world.addComponent(batId, PlayerOwned, {});
     world.addComponent(batId, Category, { value: CategoryVal.Soldier });
     world.addComponent(batId, Layer, { value: LayerVal.LowAir });
@@ -396,7 +412,99 @@ export class BatSwarmSystem implements System {
       vy: Math.sin(velAngle) * 30,
     });
 
+    // Initialize wing animation state (matching background bird style)
+    this.batAnimStates.set(batId, {
+      flapPhase: Math.random() * 2,
+      flapSpeed: 3 + Math.random() * 3,       // 3-6 Hz
+      hoverFreq: 0.3 + Math.random() * 0.5,
+      hoverPhase: Math.random() * Math.PI * 2,
+      hoverAmp: 3 + Math.random() * 5,        // 3-8px
+    });
+
     return batId;
+  }
+
+  // ============================================================
+  // Rendering — composite shape (body + wings, matching birds)
+  // ============================================================
+
+  /**
+   * Render a single bat as composite geometry:
+   * body (circle) + left wing (triangle) + right wing (triangle)
+   * with wing-flapping and hover animation — same style as background birds.
+   */
+  private renderBat(batId: number): void {
+    const x = Position.x[batId];
+    const y = Position.y[batId];
+    if (x === undefined || y === undefined) return;
+
+    const parentId = BatSwarmMember.parentId[batId];
+    const size = (parentId !== undefined ? BatTower.batSize[parentId] : undefined) ?? 10;
+
+    // Get or lazily create animation state
+    let anim = this.batAnimStates.get(batId);
+    if (!anim) {
+      anim = {
+        flapPhase: Math.random() * 2,
+        flapSpeed: 3 + Math.random() * 3,
+        hoverFreq: 0.3 + Math.random() * 0.5,
+        hoverPhase: Math.random() * Math.PI * 2,
+        hoverAmp: 3 + Math.random() * 5,
+      };
+      this.batAnimStates.set(batId, anim);
+    }
+
+    // Update animation phase (per-frame, independent of dt — locked to frame rate)
+    anim.flapPhase += anim.flapSpeed * (1 / 60);
+
+    // Hover (sinusoidal vertical bob)
+    const hoverY = y + Math.sin(this.frameCounter * 0.016 * anim.hoverFreq + anim.hoverPhase) * anim.hoverAmp;
+
+    // Wing angle (30°-70° sinusoidal)
+    const wingAngle = Math.sin(anim.flapPhase * Math.PI * 2) * 40;
+    const wingOpen = 30 + wingAngle;
+
+    const r = this.renderer!;
+
+    // Body (small circle)
+    r.push({
+      shape: 'circle',
+      x,
+      y: hoverY,
+      size: size * 0.6,
+      color: '#2d2d2d',
+      alpha: 0.85,
+    });
+
+    // Left wing (triangle)
+    r.push({
+      shape: 'triangle',
+      x: x - Math.cos(wingOpen * Math.PI / 180) * size * 0.5,
+      y: hoverY - Math.sin(wingOpen * Math.PI / 180) * size * 0.5,
+      size: size * 0.7,
+      color: '#2d2d2d',
+      alpha: 0.7,
+    });
+
+    // Right wing (triangle)
+    r.push({
+      shape: 'triangle',
+      x: x + Math.cos(wingOpen * Math.PI / 180) * size * 0.5,
+      y: hoverY - Math.sin(wingOpen * Math.PI / 180) * size * 0.5,
+      size: size * 0.7,
+      color: '#2d2d2d',
+      alpha: 0.7,
+    });
+  }
+
+  /** Remove animation entries for bats that no longer exist */
+  private cleanupStaleAnimations(activeBats: readonly number[]): void {
+    const activeSet = new Set(activeBats);
+    for (const batId of this.batAnimStates.keys()) {
+      if (!activeSet.has(batId)) {
+        this.batAnimStates.delete(batId);
+      }
+    }
   }
 
   // ============================================================
@@ -408,7 +516,7 @@ export class BatSwarmSystem implements System {
     if (!this.world) return;
     const parentId = BatSwarmMember.parentId[batId];
     if (parentId === undefined || parentId === 0) return;
-    if (!hasComponent(this.world.world, parentId, BatTower)) return;
+    if (!hasComponent(this.world.world, BatTower, parentId)) return;
 
     BatTower.replenishTimer[parentId] = BatTower.replenishCooldown[parentId]!;
   }

@@ -189,17 +189,17 @@ export class RenderSystem implements System {
       const posY = Position.y[eid]!;
 
       // ---- Type identification ----
-      const isProjectile = hasComponent(world.world, eid, Projectile);
-      const isEnemy = hasComponent(world.world, eid, Category) && Category.value[eid] === CategoryVal.Enemy;
-      const isTower = hasComponent(world.world, eid, Tower);
-      const isTrap = hasComponent(world.world, eid, Trap);
-      const isUnit = hasComponent(world.world, eid, Category) && Category.value[eid] === CategoryVal.Soldier;
-      const isProduction = hasComponent(world.world, eid, Production);
+      const isProjectile = hasComponent(world.world, Projectile, eid);
+      const isEnemy = hasComponent(world.world, Category, eid) && Category.value[eid] === CategoryVal.Enemy;
+      const isTower = hasComponent(world.world, Tower, eid);
+      const isTrap = hasComponent(world.world, Trap, eid);
+      const isUnit = hasComponent(world.world, Category, eid) && Category.value[eid] === CategoryVal.Soldier;
+      const isProduction = hasComponent(world.world, Production, eid);
 
       // ---- Buff/status flags (computed once) ----
-      const hasFrozen = hasComponent(world.world, eid, Frozen);
-      const hasSlowed = hasComponent(world.world, eid, Slowed);
-      const hasStunnedComponent = hasComponent(world.world, eid, Stunned);
+      const hasFrozen = hasComponent(world.world, Frozen, eid);
+      const hasSlowed = hasComponent(world.world, Slowed, eid);
+      const hasStunnedComponent = hasComponent(world.world, Stunned, eid);
 
       // ========================================
       // TRAP rendering
@@ -284,7 +284,7 @@ export class RenderSystem implements System {
       // ========================================
       // Boss rendering
       // ========================================
-      const isBossEntity = hasComponent(world.world, eid, Boss);
+      const isBossEntity = hasComponent(world.world, Boss, eid);
       let drawSize = Visual.size[eid]!;
       if (isBossEntity) {
         drawSize = Visual.size[eid]! * 1.3;
@@ -315,7 +315,7 @@ export class RenderSystem implements System {
       // Unit move-range circle (when selected)
       // ========================================
       if (isUnit && selectedUnitId === eid) {
-        if (hasComponent(world.world, eid, Movement)) {
+        if (hasComponent(world.world, Movement, eid)) {
           const moveRange = Movement.moveRange[eid]!;
           this.renderer.push({
             shape: 'circle',
@@ -385,7 +385,7 @@ export class RenderSystem implements System {
       const entityTop = posY - drawSize / 2;
       const healthBarY = entityTop - 8;  // bar center, 6px height
 
-      const hasHealth = hasComponent(world.world, eid, Health);
+      const hasHealth = hasComponent(world.world, Health, eid);
       if (hasHealth && !isProjectile && drawSize > 0 && isFinite(entityTop)) {
         const hpCurrent = Health.current[eid]!;
         const hpMax = Health.max[eid]!;
@@ -446,7 +446,7 @@ export class RenderSystem implements System {
       // 5. Unit info panel (when selected — detailed stats)
       // ========================================
       if (isUnit && selectedUnitId === eid) {
-        const hasAttackComp = hasComponent(world.world, eid, Attack);
+        const hasAttackComp = hasComponent(world.world, Attack, eid);
         if (hasHealth && hasAttackComp) {
           const hpCurrent = Math.ceil(Health.current[eid]!);
           const hpMax = Health.max[eid]!;

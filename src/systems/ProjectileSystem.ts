@@ -113,7 +113,7 @@ export class ProjectileSystem implements System {
       Health.current[targetId] = (Health.current[targetId] ?? 0) - damage;
 
       // Hit flash (if target has Visual component)
-      if (hasComponent(world.world, targetId, Visual)) {
+      if (hasComponent(world.world, Visual, targetId)) {
         Visual.hitFlashTimer[targetId] = 0.12;
       }
     }
@@ -135,7 +135,7 @@ export class ProjectileSystem implements System {
 
     // -- Ice: slow debuff (BuffSystem handles stacking → freeze) --
     if (slowPercent > 0) {
-      if (isAlive(targetId) && !hasComponent(world.world, targetId, Stunned)) {
+      if (isAlive(targetId) && !hasComponent(world.world, Stunned, targetId)) {
         const buff: BuffData = {
           id: 'ice_slow',
           attribute: 'speed',
@@ -200,15 +200,15 @@ export class ProjectileSystem implements System {
         Health.current[enemyId] = (Health.current[enemyId] ?? 0) - splashDamage;
 
         // Hit flash
-        if (hasComponent(world.world, enemyId, Visual)) {
+        if (hasComponent(world.world, Visual, enemyId)) {
           Visual.hitFlashTimer[enemyId] = 0.12;
         }
       }
 
       // Stun: skip bosses
-      if (hasComponent(world.world, enemyId, Boss)) continue;
+      if (hasComponent(world.world, Boss, enemyId)) continue;
 
-      const existing = hasComponent(world.world, enemyId, Stunned)
+      const existing = hasComponent(world.world, Stunned, enemyId)
         ? Stunned.timer[enemyId]!
         : 0;
       world.addComponent(enemyId, Stunned, {

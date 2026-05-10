@@ -18,9 +18,10 @@ declare module 'bitecs' {
   export function removeEntity(world: IWorld, eid: number): void;
 
   // --- Component management ---
-  export function addComponent(world: IWorld, eid: number, component: object): void;
-  export function removeComponent(world: IWorld, eid: number, ...components: object[]): void;
-  export function hasComponent(world: IWorld, eid: number, component: object): boolean;
+  // NOTE: bitecs signature is (world, component, eid)
+  export function addComponent(world: IWorld, component: object, eid: number): void;
+  export function removeComponent(world: IWorld, component: object, eid: number): void;
+  export function hasComponent(world: IWorld, component: object, eid: number): boolean;
 
   // --- Legacy types ---
   export const Types: {

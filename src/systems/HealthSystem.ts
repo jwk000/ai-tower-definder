@@ -57,7 +57,7 @@ export class HealthSystem implements System {
       // Player unit (soldier)
       else if (
         Category.value[eid] === CategoryVal.Soldier &&
-        hasComponent(world.world, eid, PlayerOwned)
+        hasComponent(world.world, PlayerOwned, eid)
       ) {
         this.onUnitDied?.(eid);
         world.destroyEntity(eid);

@@ -29,6 +29,9 @@ import {
 // reference the component stores when calling addComponent / query.
 import * as components from '../core/components.js';
 
+// Debug logging
+import { entityCreated, entityDestroyed, componentAdded, componentRemoved } from '../utils/debugLog.js';
+
 // ============================================================
 // System Interface
 // ============================================================
@@ -69,12 +72,15 @@ export class TowerWorld {
 
   /** Create a new entity and return its ID */
   createEntity(): number {
-    return addEntity(this.world);
+    const eid = addEntity(this.world);
+    entityCreated(eid, 'World.createEntity');
+    return eid;
   }
 
   /** Mark an entity for deferred removal (cleaned up at end of update) */
   destroyEntity(eid: number): void {
     this.deadEntities.add(eid);
+    entityDestroyed(eid, 'deferred (marked for cleanup)');
   }
 
   // ---- Components ----
@@ -99,11 +105,14 @@ export class TowerWorld {
         }
       }
     }
+
+    componentAdded(eid, getComponentLabel(component));
   }
 
   /** Remove a component from an entity */
   removeComponent(eid: number, component: object): void {
     removeComponent(this.world, component, eid);
+    componentRemoved(eid, getComponentLabel(component));
   }
 
   // ---- Systems ----
@@ -137,6 +146,7 @@ export class TowerWorld {
       for (const eid of this.deadEntities) {
         removeEntity(this.world, eid);
         this.displayNames.delete(eid);
+        entityDestroyed(eid, 'cleanupDeadEntities (bitecs removed)');
       }
       this.deadEntities.clear();
     }
@@ -165,7 +175,7 @@ export class TowerWorld {
   /** Compatibility: check if entity has a component */
   hasComponent(eid: number, component: object | string): boolean {
     if (typeof component === 'string') return false; // no string-based components
-    return hasComponent(this.world, eid, component);
+    return hasComponent(this.world, component, eid);
   }
 
   /** Compatibility: get component value */
@@ -186,7 +196,7 @@ export class TowerWorld {
     for (let eid = 0; eid < len; eid++) {
       let match = true;
       for (const comp of stores) {
-        if (!hasComponent(this.world, eid, comp)) {
+        if (!hasComponent(this.world, comp, eid)) {
           match = false;
           break;
         }
@@ -212,3 +222,22 @@ export {
 };
 
 export type { BitecsWorld };
+
+// ============================================================
+// Helpers
+// ============================================================
+
+/** 获取组件的可读名称（用于调试日志） */
+function getComponentLabel(component: object): string {
+  // 遍历 components 模块查找匹配的组件
+  for (const [name, comp] of Object.entries(components)) {
+    if (comp === component) {
+      return name;
+    }
+  }
+  // 回退：尝试从构造函数名推断
+  const ctor = (component as Record<string, unknown>).constructor as
+    | { name?: string }
+    | undefined;
+  return ctor?.name ?? 'UnknownComponent';
+}

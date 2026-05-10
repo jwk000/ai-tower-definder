@@ -11,6 +11,7 @@
 
 import { TowerWorld, type System, hasComponent, entityExists } from '../core/World.js';
 import { Slowed, Frozen, Stunned, defineQuery } from '../core/components.js';
+import { error, warn, debug, getFrame } from '../utils/debugLog.js';
 
 // ============================================================
 // Buff Data Types
@@ -57,11 +58,15 @@ export class BuffSystem implements System {
 
   update(world: TowerWorld, dt: number): void {
     const w = world.world;
+    const frame = getFrame();
 
     // ---- 1. Tick buff durations from side-channel Map ----
     for (const [eid, buffs] of buffMap) {
-      // Entity may have been destroyed by HealthSystem — clean up silently
+      // Entity may have been destroyed — clean up silently
       if (!entityExists(w, eid)) {
+        debug('BuffSystem', `[F${frame}] eid=${eid} stale in buffMap → cleanup (entity gone)`, {
+          buffCount: buffs.size,
+        });
         buffMap.delete(eid);
         continue;
       }
@@ -76,6 +81,9 @@ export class BuffSystem implements System {
       }
 
       for (const buffId of expired) {
+        debug('BuffSystem', `[F${frame}] eid=${eid} buff "${buffId}" expired`, {
+          remaining: buffs.size - 1,
+        });
         buffs.delete(buffId);
       }
 
@@ -87,23 +95,53 @@ export class BuffSystem implements System {
 
       // ---- Clean up entity entry when no buffs remain ----
       if (buffs.size === 0) {
+        debug('BuffSystem', `[F${frame}] eid=${eid} all buffs cleared → removing from map`);
         buffMap.delete(eid);
       }
     }
 
     // ---- 2. Tick Frozen component timers ----
-    for (const eid of frozenQuery(w)) {
+    const frozenEntities = frozenQuery(w);
+    for (const eid of frozenEntities) {
+      // Defensive: verify entity still exists before accessing
+      if (!entityExists(w, eid)) {
+        warn('BuffSystem', `[F${frame}] eid=${eid} in frozenQuery but entity does not exist — skipping`);
+        continue;
+      }
       Frozen.timer[eid]! -= dt;
       if (Frozen.timer[eid]! <= 0) {
-        world.removeComponent(eid, Frozen);
+        debug('BuffSystem', `[F${frame}] eid=${eid} Frozen expired → removing component`);
+        try {
+          world.removeComponent(eid, Frozen);
+        } catch (e) {
+          error('BuffSystem', `[F${frame}] Failed to remove Frozen from eid=${eid}`, {
+            error: String(e),
+            entityExists: entityExists(w, eid),
+          });
+          throw e;
+        }
       }
     }
 
     // ---- 3. Tick Stunned component timers ----
-    for (const eid of stunnedQuery(w)) {
+    const stunnedEntities = stunnedQuery(w);
+    for (const eid of stunnedEntities) {
+      if (!entityExists(w, eid)) {
+        warn('BuffSystem', `[F${frame}] eid=${eid} in stunnedQuery but entity does not exist — skipping`);
+        continue;
+      }
       Stunned.timer[eid]! -= dt;
       if (Stunned.timer[eid]! <= 0) {
-        world.removeComponent(eid, Stunned);
+        debug('BuffSystem', `[F${frame}] eid=${eid} Stunned expired → removing component`);
+        try {
+          world.removeComponent(eid, Stunned);
+        } catch (e) {
+          error('BuffSystem', `[F${frame}] Failed to remove Stunned from eid=${eid}`, {
+            error: String(e),
+            entityExists: entityExists(w, eid),
+          });
+          throw e;
+        }
       }
     }
   }
@@ -111,16 +149,29 @@ export class BuffSystem implements System {
   // ---- Private helpers ----
 
   private checkFreeze(world: TowerWorld, eid: number, buffs: Map<string, BuffData>): void {
+    const frame = getFrame();
     for (const [buffId, buff] of buffs) {
       if (buff.stacks >= buff.maxStacks && buff.isPercent && buff.attribute === 'speed') {
         buffs.delete(buffId);
-        world.addComponent(eid, Frozen, { timer: 1.0 });
+        try {
+          world.addComponent(eid, Frozen, { timer: 1.0 });
+          debug('BuffSystem', `[F${frame}] eid=${eid} FROZEN triggered (stacks=${buff.stacks}/${buff.maxStacks})`);
+        } catch (e) {
+          error('BuffSystem', `[F${frame}] checkFreeze: Failed to add Frozen to eid=${eid}`, {
+            error: String(e),
+            entityExists: entityExists(world.world, eid),
+          });
+          throw e;
+        }
         break;
       }
     }
   }
 
   private syncSlowed(world: TowerWorld, eid: number, buffs: Map<string, BuffData>): void {
+    const w = world.world;
+    const frame = getFrame();
+
     // Find the active slow-type buff (percent speed reduction)
     let slowBuff: BuffData | undefined;
     for (const buff of buffs.values()) {
@@ -131,15 +182,34 @@ export class BuffSystem implements System {
     }
 
     if (slowBuff) {
-      world.addComponent(eid, Slowed, {
-        percent: Math.abs(slowBuff.value),
-        timer: slowBuff.duration,
-        stacks: slowBuff.stacks,
-        maxStacks: slowBuff.maxStacks,
-      });
+      try {
+        world.addComponent(eid, Slowed, {
+          percent: Math.abs(slowBuff.value),
+          timer: slowBuff.duration,
+          stacks: slowBuff.stacks,
+          maxStacks: slowBuff.maxStacks,
+        });
+      } catch (e) {
+        error('BuffSystem', `[F${frame}] syncSlowed: Failed to add Slowed to eid=${eid}`, {
+          error: String(e),
+          entityExists: entityExists(w, eid),
+          slowBuff: { id: slowBuff.id, value: slowBuff.value, stacks: slowBuff.stacks },
+        });
+        throw e;
+      }
     } else {
-      if (hasComponent(world.world, eid, Slowed)) {
-        world.removeComponent(eid, Slowed);
+      if (hasComponent(w, Slowed, eid)) {
+        try {
+          world.removeComponent(eid, Slowed);
+          debug('BuffSystem', `[F${frame}] eid=${eid} Slowed removed (no slow buff active)`);
+        } catch (e) {
+          error('BuffSystem', `[F${frame}] syncSlowed: Failed to remove Slowed from eid=${eid}`, {
+            error: String(e),
+            entityExists: entityExists(w, eid),
+            hasComponent: true,
+          });
+          throw e;
+        }
       }
     }
   }

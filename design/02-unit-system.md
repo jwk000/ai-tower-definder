@@ -179,7 +179,7 @@ arrow_tower:
   
   stats: {hp: 100, atk: 10, attackSpeed: 1.0, range: 200, armor: 0, mr: 0}
   cost: {build: 50, upgrade: [40, 70, 110, 160]}
-  visual: {shape: rect, color: "#4fc3f7", size: 36}
+   visual: {shape: "复合几何体", color: "#4fc3f7", size: 36}
   
   # 行为规则
   behavior:
@@ -213,7 +213,7 @@ exploder:
   
   stats: {hp: 40, atk: 10, speed: 90, armor: 0, mr: 0}
   reward: {gold: 12}
-  visual: {shape: circle, color: "#ff8a65", size: 12}
+   visual: {shape: "复合几何体", color: "#ff8a65", size: 12}
   
   behavior:
     targetSelection: nearest
@@ -248,7 +248,7 @@ boss_commander:
   faction: Enemy
   
   stats: {hp: 800, atk: 30, speed: 40, armor: 60, mr: 40}
-  visual: {shape: circle, color: "#ffd54f", size: 36, crown: true}
+   visual: {shape: "复合几何体", color: "#ffd54f", size: 36, crown: true}
   
   behavior:
     targetSelection: nearest
@@ -289,7 +289,7 @@ spike_trap:
   
   stats: {hp: 1, atk: 30}
   cost: {build: 40}
-  visual: {shape: triangle_cluster, color: "#e53935", size: 28}
+   visual: {shape: "复合几何体", color: "#e53935", size: 28}
   
   behavior:
     targetSelection: nearest

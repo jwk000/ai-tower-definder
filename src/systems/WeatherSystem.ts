@@ -136,8 +136,8 @@ export class WeatherSystem implements System {
 
     const w = this.towerWorld;
     if (!w) return;
-    if (!hasComponent(w.world, entityId, Attack)) return;
-    if (!hasComponent(w.world, entityId, Tower)) return;
+if (!hasComponent(w.world, Attack, entityId)) return;
+if (!hasComponent(w.world, Tower, entityId)) return;
 
     // Recalculate base: current = base * (1 + mod/100), so base = current / (1 + mod/100)
     const config = WEATHER_CONFIGS[this.currentWeather];
@@ -190,8 +190,8 @@ export class WeatherSystem implements System {
   private clearWeatherModifiers(): void {
     const w = this.towerWorld;
     for (const [entityId, baseMap] of this.baseValues) {
-      const hasAtk = w ? hasComponent(w.world, entityId, Attack) : false;
-      const hasMov = w ? hasComponent(w.world, entityId, Movement) : false;
+const hasAtk = w ? hasComponent(w.world, Attack, entityId) : false;
+const hasMov = w ? hasComponent(w.world, Movement, entityId) : false;
 
       if (baseMap['atk'] !== undefined && hasAtk) {
         Attack.damage[entityId] = baseMap['atk']!;
@@ -271,8 +271,8 @@ export class WeatherSystem implements System {
     }
 
     const value = modifier.value;
-    const hasAtk = hasComponent(rawWorld, entityId, Attack);
-    const hasMov = hasComponent(rawWorld, entityId, Movement);
+const hasAtk = hasComponent(rawWorld, Attack, entityId);
+const hasMov = hasComponent(rawWorld, Movement, entityId);
 
     switch (modifier.attribute) {
       case BuffAttribute.ATK: {

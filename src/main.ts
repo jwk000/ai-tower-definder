@@ -669,7 +669,7 @@ class TowerDefenderGame extends Game {
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
       if (UnitTag.isEnemy[eid] !== 0) continue;
-      if (!hasComponent(w, eid, PlayerOwned)) continue;
+      if (!hasComponent(w, PlayerOwned, eid)) continue;
       const size = Visual.size[eid];
       if (size === undefined) continue;
       const r = size * 0.65;
