@@ -8,6 +8,7 @@
 
 import { TowerWorld, System, defineQuery, hasComponent } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
+import { LayoutManager } from '../ui/LayoutManager.js';
 import { TileType, TowerType } from '../types/index.js';
 import type { MapConfig, SceneLayout, ShapeType, CompositePart, UpgradeVisualConfig } from '../types/index.js';
 import {
@@ -103,7 +104,7 @@ export class RenderSystem implements System {
     private getSelectedUnitId: () => number | null = () => null,
     private getSelectedTrapId: () => number | null = () => null,
   ) {
-    const layout = computeSceneLayout(map, 1920, 1080);
+    const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     RenderSystem.sceneOffsetX = layout.offsetX;
     RenderSystem.sceneOffsetY = layout.offsetY;
     RenderSystem.sceneW = layout.mapPixelW;
