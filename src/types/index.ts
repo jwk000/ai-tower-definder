@@ -76,6 +76,54 @@ export interface ObstaclePlacement {
   type: ObstacleType;
 }
 
+// ---- 场景表现增强 ----
+
+/** 环境生物类型 */
+export enum AmbientCreatureType {
+  Bird = 0,            // 小鸟
+  Butterfly = 1,       // 蝴蝶
+  Squirrel = 2,        // 松鼠（平原）
+  Lizard = 3,          // 蜥蜴（沙漠）
+  Penguin = 4,         // 企鹅（冰原）
+  Firefly = 5,         // 萤火虫（火山/夜晚）
+  Rat = 6,             // 老鼠（城堡）
+  // 通用
+  GrassBlade = 10,     // 草丛叶片（微动）
+  FloatingDust = 11,   // 漂浮尘埃/花粉
+}
+
+/** 环境生物预设活动路径 */
+export interface CreaturePath {
+  type: AmbientCreatureType;
+  /** 路径点序列（像素坐标，非网格坐标） */
+  waypoints: { x: number; y: number }[];
+  /** true = 循环路径，false = 来回走动 */
+  loop: boolean;
+}
+
+/** 环境生物配置 */
+export interface AmbientCreatureConfig {
+  birds: { min: number; max: number };
+  groundAnimals: {
+    types: AmbientCreatureType[];
+    count: number;
+    spawnChance: number;  // 每波刷新概率 (0-1)
+  };
+  grassBlades: { enabled: boolean; density: number };  // density: 0-1
+  floatingDust: { enabled: boolean };
+}
+
+/** 全屏环境特效开关 */
+export interface EnvironmentFXConfig {
+  sunRays: boolean;
+  cloudShadows: boolean;
+  windLines: boolean;
+  vignette: boolean;
+  heatShimmer: boolean;
+  waterShimmer: boolean;
+  cameraBreathing: boolean;
+}
+
 export interface MapConfig {
   name: string;
   cols: number;
@@ -92,6 +140,12 @@ export interface MapConfig {
     row: number; col: number;
     config?: Record<string, number>;
   }>;
+  /** 动态环境生物配置 */
+  ambientCreatures?: AmbientCreatureConfig;
+  /** 全屏环境特效开关 */
+  environmentFX?: EnvironmentFXConfig;
+  /** 生物活动预设路径 */
+  creaturePaths?: CreaturePath[];
 }
 
 export interface GridPos {
