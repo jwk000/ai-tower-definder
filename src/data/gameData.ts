@@ -13,6 +13,7 @@ import {
   type MapConfig,
   type WaveConfig,
   type GridPos,
+  type UpgradeVisualRegistry,
 } from '../types/index.js';
 
 // ---- Tower Configs ----
@@ -116,6 +117,143 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     batAttackSpeed: 0.8,
     batSpeed: 120,
   },
+};
+
+// ---- Upgrade Visual Configs ----
+
+export const UPGRADE_VISUALS: UpgradeVisualRegistry = {
+  arrow_tower: [
+    // L1: base form
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    // L2: slightly larger, 1 diamond
+    { level: 2, scaleMultiplier: 1.08, extraParts: [] },
+    // L3: larger, glow, passive visual
+    { level: 3, scaleMultiplier: 1.17, extraParts: [
+      { shape: 'triangle', offsetX: -7, offsetY: -25, size: 6, color: '#8d6e63', alpha: 0.7 },
+      { shape: 'triangle', offsetX: 7, offsetY: -25, size: 6, color: '#8d6e63', alpha: 0.7 },
+    ], glow: { radius: 24, color: '#4fc3f7', alpha: 0.15 }, passiveVisual: { type: 'crit_flash', description: '15% crit — golden flash on arrow tip' } },
+    // L4
+    { level: 4, scaleMultiplier: 1.25, extraParts: [
+      { shape: 'triangle', offsetX: -8, offsetY: -28, size: 8, color: '#8d6e63', alpha: 0.8 },
+      { shape: 'triangle', offsetX: 8, offsetY: -28, size: 8, color: '#8d6e63', alpha: 0.8 },
+      { shape: 'circle', offsetX: -6, offsetY: -5, size: 3, color: '#ffd700', alpha: 0.8 },
+      { shape: 'circle', offsetX: 6, offsetY: -5, size: 3, color: '#ffd700', alpha: 0.8 },
+    ], glow: { radius: 28, color: '#4fc3f7', alpha: 0.25 } },
+    // L5: final form
+    { level: 5, scaleMultiplier: 1.36, extraParts: [
+      { shape: 'triangle', offsetX: 0, offsetY: -30, size: 20, color: '#4fc3f7', alpha: 1 },
+      { shape: 'triangle', offsetX: -9, offsetY: -24, size: 14, color: '#4fc3f7', alpha: 0.85 },
+      { shape: 'triangle', offsetX: 9, offsetY: -24, size: 14, color: '#4fc3f7', alpha: 0.85 },
+      { shape: 'triangle', offsetX: -10, offsetY: -30, size: 10, color: '#ffd700', alpha: 0.8 },
+      { shape: 'triangle', offsetX: 10, offsetY: -30, size: 10, color: '#ffd700', alpha: 0.8 },
+      { shape: 'circle', offsetX: 0, offsetY: -35, size: 6, color: '#ffffff', alpha: 0.8 },
+    ], glow: { radius: 36, color: '#4fc3f7', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
+  cannon_tower: [
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    { level: 2, scaleMultiplier: 1.08, extraParts: [] },
+    { level: 3, scaleMultiplier: 1.16, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: -2, size: 22, color: '#616161', alpha: 0.6, stroke: '#616161', strokeWidth: 2 },
+    ], glow: { radius: 24, color: '#ff8a65', alpha: 0.15 }, passiveVisual: { type: 'aoe_ring', description: 'AOE +30%, splash 80%' } },
+    { level: 4, scaleMultiplier: 1.24, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: -2, size: 26, color: '#616161', alpha: 0.7, stroke: '#616161', strokeWidth: 2 },
+      { shape: 'circle', offsetX: -8, offsetY: 8, size: 4, color: '#9e9e9e', alpha: 0.8 },
+      { shape: 'circle', offsetX: 8, offsetY: 8, size: 4, color: '#9e9e9e', alpha: 0.8 },
+      { shape: 'circle', offsetX: -8, offsetY: -8, size: 4, color: '#9e9e9e', alpha: 0.8 },
+      { shape: 'circle', offsetX: 8, offsetY: -8, size: 4, color: '#9e9e9e', alpha: 0.8 },
+    ], glow: { radius: 30, color: '#ff8a65', alpha: 0.25 } },
+    { level: 5, scaleMultiplier: 1.34, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: -3, size: 30, color: '#ffd700', alpha: 0.7, stroke: '#ffd700', strokeWidth: 2 },
+      { shape: 'circle', offsetX: 0, offsetY: 12, size: 10, color: '#37474f', alpha: 1 },
+      { shape: 'circle', offsetX: -10, offsetY: 5, size: 10, color: '#455a64', alpha: 0.8 },
+      { shape: 'circle', offsetX: 10, offsetY: 5, size: 10, color: '#455a64', alpha: 0.8 },
+      { shape: 'triangle', offsetX: 0, offsetY: 20, size: 8, color: '#ff6e40', alpha: 0.6 },
+    ], glow: { radius: 45, color: '#ff8a65', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
+  ice_tower: [
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    { level: 2, scaleMultiplier: 1.09, extraParts: [] },
+    { level: 3, scaleMultiplier: 1.18, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 40, color: '#b2ebf2', alpha: 0.3, stroke: '#b2ebf2', strokeWidth: 1 },
+    ], glow: { radius: 24, color: '#81d4fa', alpha: 0.15 }, passiveVisual: { type: 'shatter_effect', description: 'freeze ends in 30 dmg AOE' } },
+    { level: 4, scaleMultiplier: 1.26, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 46, color: '#b2ebf2', alpha: 0.35, stroke: '#b2ebf2', strokeWidth: 1.5 },
+      { shape: 'triangle', offsetX: 0, offsetY: -24, size: 8, color: '#b2ebf2', alpha: 0.7 },
+      { shape: 'triangle', offsetX: 21, offsetY: -12, size: 8, color: '#b2ebf2', alpha: 0.7, rotation: Math.PI / 3 },
+      { shape: 'triangle', offsetX: 21, offsetY: 12, size: 8, color: '#b2ebf2', alpha: 0.7, rotation: Math.PI * 2/3 },
+      { shape: 'triangle', offsetX: 0, offsetY: 24, size: 8, color: '#b2ebf2', alpha: 0.7, rotation: Math.PI },
+      { shape: 'triangle', offsetX: -21, offsetY: 12, size: 8, color: '#b2ebf2', alpha: 0.7, rotation: Math.PI * 4/3 },
+      { shape: 'triangle', offsetX: -21, offsetY: -12, size: 8, color: '#b2ebf2', alpha: 0.7, rotation: Math.PI * 5/3 },
+    ], glow: { radius: 30, color: '#81d4fa', alpha: 0.25 } },
+    { level: 5, scaleMultiplier: 1.38, extraParts: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 52, color: '#e0f7fa', alpha: 0.4, stroke: '#e0f7fa', strokeWidth: 2 },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 20, color: '#ffffff', alpha: 0.5 },
+    ], glow: { radius: 48, color: '#81d4fa', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
+  lightning_tower: [
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    { level: 2, scaleMultiplier: 1.09, extraParts: [] },
+    { level: 3, scaleMultiplier: 1.18, extraParts: [
+      { shape: 'triangle', offsetX: -10, offsetY: -18, size: 10, color: '#ffb300', alpha: 0.9 },
+    ], glow: { radius: 22, color: '#fff176', alpha: 0.15 }, passiveVisual: { type: 'arc_upgrade', description: 'bounces +2, decay down to 15%' } },
+    { level: 4, scaleMultiplier: 1.26, extraParts: [
+      { shape: 'triangle', offsetX: -12, offsetY: -20, size: 11, color: '#ffb300', alpha: 0.9 },
+      { shape: 'triangle', offsetX: 12, offsetY: -20, size: 11, color: '#ffb300', alpha: 0.9 },
+      { shape: 'circle', offsetX: -10, offsetY: 12, size: 6, color: '#ffb300', alpha: 0.6 },
+      { shape: 'circle', offsetX: 10, offsetY: 12, size: 6, color: '#ffb300', alpha: 0.6 },
+    ], glow: { radius: 28, color: '#fff176', alpha: 0.25 } },
+    { level: 5, scaleMultiplier: 1.38, extraParts: [
+      { shape: 'triangle', offsetX: 0, offsetY: -22, size: 14, color: '#ffb300', alpha: 1 },
+      { shape: 'triangle', offsetX: -10, offsetY: -16, size: 11, color: '#ffb300', alpha: 0.85 },
+      { shape: 'triangle', offsetX: 10, offsetY: -16, size: 11, color: '#ffb300', alpha: 0.85 },
+      { shape: 'triangle', offsetX: -18, offsetY: -10, size: 10, color: '#ffb300', alpha: 0.7 },
+      { shape: 'triangle', offsetX: 18, offsetY: -10, size: 10, color: '#ffb300', alpha: 0.7 },
+    ], glow: { radius: 42, color: '#fff176', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
+  laser_tower: [
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    { level: 2, scaleMultiplier: 1.08, extraParts: [] },
+    { level: 3, scaleMultiplier: 1.17, extraParts: [
+      { shape: 'diamond', offsetX: 0, offsetY: -20, size: 10, color: '#ffffff', alpha: 0.5 },
+    ], glow: { radius: 22, color: '#00e5ff', alpha: 0.15 }, passiveVisual: { type: 'beam_widen', description: 'beam width 6px -> 8px' } },
+    { level: 4, scaleMultiplier: 1.25, extraParts: [
+      { shape: 'diamond', offsetX: 0, offsetY: -22, size: 12, color: '#ffffff', alpha: 0.6 },
+      { shape: 'rect', offsetX: -8, offsetY: -5, size: 6, color: '#26c6da', alpha: 0.6 },
+      { shape: 'rect', offsetX: 8, offsetY: -5, size: 6, color: '#26c6da', alpha: 0.6 },
+    ], glow: { radius: 28, color: '#00e5ff', alpha: 0.25 } },
+    { level: 5, scaleMultiplier: 1.36, extraParts: [
+      { shape: 'diamond', offsetX: 0, offsetY: -24, size: 14, color: '#ffffff', alpha: 0.8 },
+      { shape: 'rect', offsetX: -8, offsetY: -5, size: 6, color: '#18ffff', alpha: 0.7 },
+      { shape: 'rect', offsetX: 8, offsetY: -5, size: 6, color: '#18ffff', alpha: 0.7 },
+      { shape: 'rect', offsetX: -14, offsetY: -10, size: 6, color: '#18ffff', alpha: 0.5 },
+      { shape: 'rect', offsetX: 14, offsetY: -10, size: 6, color: '#18ffff', alpha: 0.5 },
+    ], glow: { radius: 48, color: '#00e5ff', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
+  bat_tower: [
+    { level: 1, scaleMultiplier: 1.0, extraParts: [] },
+    { level: 2, scaleMultiplier: 1.09, extraParts: [] },
+    { level: 3, scaleMultiplier: 1.18, extraParts: [
+      { shape: 'triangle', offsetX: -8, offsetY: -10, size: 14, color: '#7b1fa2', alpha: 0.8, rotation: -0.2 },
+      { shape: 'triangle', offsetX: 8, offsetY: -10, size: 14, color: '#7b1fa2', alpha: 0.8, rotation: 0.2 },
+      { shape: 'triangle', offsetX: 0, offsetY: -26, size: 8, color: '#311b92', alpha: 0.9 },
+    ], glow: { radius: 22, color: '#7c4dff', alpha: 0.15 }, passiveVisual: { type: 'bat_plus', description: 'bat swarm +1 (4->5)' } },
+    { level: 4, scaleMultiplier: 1.26, extraParts: [
+      { shape: 'triangle', offsetX: -9, offsetY: -10, size: 16, color: '#7b1fa2', alpha: 0.85, rotation: -0.3 },
+      { shape: 'triangle', offsetX: 9, offsetY: -10, size: 16, color: '#7b1fa2', alpha: 0.85, rotation: 0.3 },
+      { shape: 'triangle', offsetX: 0, offsetY: 8, size: 14, color: '#7b1fa2', alpha: 0.7 },
+      { shape: 'triangle', offsetX: 0, offsetY: -28, size: 10, color: '#311b92', alpha: 0.9 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 36, color: '#311b92', alpha: 0.3, stroke: '#311b92', strokeWidth: 1 },
+    ], glow: { radius: 26, color: '#7c4dff', alpha: 0.25 } },
+    { level: 5, scaleMultiplier: 1.38, extraParts: [
+      { shape: 'triangle', offsetX: -10, offsetY: -10, size: 18, color: '#9c27b0', alpha: 0.9, rotation: -0.3 },
+      { shape: 'triangle', offsetX: 10, offsetY: -10, size: 18, color: '#9c27b0', alpha: 0.9, rotation: 0.3 },
+      { shape: 'triangle', offsetX: 0, offsetY: 10, size: 16, color: '#9c27b0', alpha: 0.8 },
+      { shape: 'triangle', offsetX: -10, offsetY: 18, size: 14, color: '#9c27b0', alpha: 0.6, rotation: 0.5 },
+      { shape: 'triangle', offsetX: 10, offsetY: 18, size: 14, color: '#9c27b0', alpha: 0.6, rotation: -0.5 },
+      { shape: 'triangle', offsetX: 0, offsetY: -30, size: 12, color: '#311b92', alpha: 1 },
+      { shape: 'circle', offsetX: 0, offsetY: -33, size: 8, color: '#e53935', alpha: 0.8 },
+    ], glow: { radius: 40, color: '#7c4dff', alpha: 0.4, pulseAmplitude: 0.12 } },
+  ],
 };
 
 // ---- Enemy Configs ----

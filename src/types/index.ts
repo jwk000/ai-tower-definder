@@ -425,6 +425,45 @@ export interface ProjectileConfig {
   size: number;
 }
 
+// ---- Upgrade Visuals ----
+
+/** Composite geometry part — a single visual element in a unit's multi-part rendering */
+export interface CompositePart {
+  shape: ShapeType;
+  offsetX: number;   // relative to entity center
+  offsetY: number;   // relative to entity center
+  size: number;
+  color: string;
+  alpha?: number;
+  stroke?: string;
+  strokeWidth?: number;
+  rotation?: number;
+}
+
+/** Per-level upgrade visual configuration */
+export interface UpgradeVisualConfig {
+  level: number;
+  /** Scale multiplier relative to base size (L1 = 1.0) */
+  scaleMultiplier: number;
+  /** Extra composite parts added at this level (beyond the base shape) */
+  extraParts: CompositePart[];
+  /** Glow config (L3-L5) */
+  glow?: {
+    radius: number;
+    color: string;
+    alpha: number;
+    pulseAmplitude?: number; // default 0.05
+  };
+  /** Passive visual unlock at L3 */
+  passiveVisual?: {
+    type: 'crit_flash' | 'aoe_ring' | 'shatter_effect' | 'arc_upgrade' | 'beam_widen' | 'bat_plus';
+    description: string;
+  };
+}
+
+/** Upgrade visual registry — maps tower ID to per-level configs */
+export type UpgradeVisualRegistry = Record<string, UpgradeVisualConfig[]>;
+
 // ---- Component Types (ECS data) ----
 
 export const CType = {
