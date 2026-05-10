@@ -30,9 +30,12 @@ import {
   Frozen,
   Stunned,
   Production,
+  Layer,
+  LayerVal,
 } from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
 import { UNIT_CONFIGS, UPGRADE_VISUALS } from '../data/gameData.js';
+import { formatNumber } from '../utils/formatNumber.js';
 
 // ---- TowerType numeric ID → enum mapping ----
 const TOWER_TYPE_BY_ID: TowerType[] = [
@@ -74,6 +77,16 @@ export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: num
 
   return { offsetX, offsetY, cols: map.cols, rows: map.rows, tileSize: map.tileSize, mapPixelW, mapPixelH };
 }
+
+// ---- Layer → render z-index mapping ----
+const LAYER_TO_Z: Record<number, number> = {
+  0: 3,  // Abyss → below ground, above decorations
+  1: 3,  // BelowGrid
+  2: 4,  // AboveGrid (traps) → above ground but below entities
+  3: 5,  // Ground → default z
+  4: 6,  // LowAir → above ground entities
+  5: 7,  // Space → top
+};
 
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
@@ -141,7 +154,7 @@ export class RenderSystem implements System {
             break;
         }
 
-        this.renderer.push({ shape: 'rect', x, y, size: ts - 2, color, alpha: 1 });
+        this.renderer.push({ shape: 'rect', x, y, size: ts - 2, color, alpha: 1, z: 0 });
 
         if (tile === TileType.Empty && isAdjacentToPath(r, c, map) && !tc[TileType.Empty]) {
           this.renderer.push({
@@ -150,6 +163,7 @@ export class RenderSystem implements System {
             alpha: 0.3,
             stroke: '#81c784',
             strokeWidth: 1,
+            z: 0,
           });
         }
       }
@@ -164,22 +178,22 @@ export class RenderSystem implements System {
         const sx = c * ts + ts / 2 + ox;
         const sy = r * ts + ts / 2 + oy;
         // Flag pole
-        this.renderer.push({ shape: 'rect', x: sx, y: sy - 6, size: 2, h: 22, color: '#e0e0e0', alpha: 0.9 });
+        this.renderer.push({ shape: 'rect', x: sx, y: sy - 6, size: 2, h: 22, color: '#e0e0e0', alpha: 0.9, z: 0 });
         // Flag banner (small red rect)
-        this.renderer.push({ shape: 'rect', x: sx + 7, y: sy - 12, size: 14, h: 8, color: '#ff1744', alpha: 0.95 });
+        this.renderer.push({ shape: 'rect', x: sx + 7, y: sy - 12, size: 14, h: 8, color: '#ff1744', alpha: 0.95, z: 0 });
       }
     }
 
     // Scene border (4 thin rects — top, bottom, left, right)
     const borderW = 3;
     // Top
-    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy - borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1 });
+    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy - borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1, z: 0 });
     // Bottom
-    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy + mapH + borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1 });
+    this.renderer.push({ shape: 'rect', x: ox + mapW / 2, y: oy + mapH + borderW / 2, size: mapW + borderW * 2, h: borderW, color: '#111111', alpha: 1, z: 0 });
     // Left
-    this.renderer.push({ shape: 'rect', x: ox - borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1 });
+    this.renderer.push({ shape: 'rect', x: ox - borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1, z: 0 });
     // Right
-    this.renderer.push({ shape: 'rect', x: ox + mapW + borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1 });
+    this.renderer.push({ shape: 'rect', x: ox + mapW + borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1, z: 0 });
   }
 
   private drawEntities(world: TowerWorld): void {
@@ -367,6 +381,7 @@ export class RenderSystem implements System {
           strokeWidth: strokeW,
           targetX,
           targetY,
+          z: renderZ,
           ...extras,
         });
       };
@@ -389,6 +404,12 @@ export class RenderSystem implements System {
       }
 
       // ========================================
+      // Layer → render z-index
+      // ========================================
+      const layerVal = Layer.value[eid] ?? LayerVal.Ground;
+      const renderZ = LAYER_TO_Z[layerVal] ?? 5;
+
+      // ========================================
       // Glow rendering (L3+ towers)
       // ========================================
       if (upgradeVisual?.glow) {
@@ -402,6 +423,7 @@ export class RenderSystem implements System {
           size: glowRadius * 2,
           color: g.color,
           alpha: g.alpha * 0.5,
+          z: renderZ,
         });
         // Second glow layer (larger, more transparent)
         if (towerLevel >= 4) {
@@ -412,6 +434,7 @@ export class RenderSystem implements System {
             size: glowRadius * 3,
             color: g.color,
             alpha: g.alpha * 0.2,
+            z: renderZ,
           });
         }
       }
@@ -436,6 +459,7 @@ export class RenderSystem implements System {
             stroke: part.stroke,
             strokeWidth: part.strokeWidth,
             rotation: part.rotation,
+            z: renderZ,
           });
         }
       }
@@ -452,6 +476,7 @@ export class RenderSystem implements System {
           size: crownSize,
           color: '#ffd700',
           alpha: 0.95,
+          z: renderZ,
         });
       }
 
@@ -467,7 +492,7 @@ export class RenderSystem implements System {
         const hpMax = Health.max[eid]!;
         const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
         const barW = Math.max(drawSize * 1.2, 28);
-        this.drawHealthBar(posX, healthBarY, barW, ratio);
+        this.drawHealthBar(posX, healthBarY, barW, ratio, renderZ);
       }
 
       // ========================================
@@ -487,6 +512,7 @@ export class RenderSystem implements System {
           label: displayName,
           labelColor: '#ffffff',
           labelSize: 12,
+          z: renderZ,
         });
       }
 
@@ -514,6 +540,7 @@ export class RenderSystem implements System {
             size: diamondSize,
             color: '#ffd700',
             alpha: 0.95,
+            z: renderZ,
           });
         }
       }
@@ -541,6 +568,7 @@ export class RenderSystem implements System {
             alpha: 0.85,
             stroke: '#555555',
             strokeWidth: 1,
+            z: renderZ,
           });
           this.renderer.push({
             shape: 'rect',
@@ -553,6 +581,7 @@ export class RenderSystem implements System {
             label: unitName,
             labelColor: '#ffffff',
             labelSize: 14,
+            z: renderZ,
           });
           this.renderer.push({
             shape: 'rect',
@@ -565,6 +594,7 @@ export class RenderSystem implements System {
             label: `HP:${hpCurrent}/${hpMax}`,
             labelColor: '#4caf50',
             labelSize: 12,
+            z: renderZ,
           });
           this.renderer.push({
             shape: 'rect',
@@ -574,9 +604,10 @@ export class RenderSystem implements System {
             h: 0.1,
             color: '#ffffff',
             alpha: 1,
-            label: `ATK:${atkDmg} SPD:${atkSpd.toFixed(1)}`,
+            label: `ATK:${formatNumber(atkDmg)} SPD:${formatNumber(atkSpd)}`,
             labelColor: '#ff9800',
             labelSize: 12,
+            z: renderZ,
           });
         }
       }
@@ -600,6 +631,7 @@ export class RenderSystem implements System {
               size: 4 + (i % 2) * 2,
               color: hasFrozen ? '#e0f7fa' : '#b3e5fc',
               alpha: 0.7 + (i % 3) * 0.1,
+              z: renderZ,
             });
           }
         }
@@ -612,6 +644,7 @@ export class RenderSystem implements System {
   // ============================================
   private drawHealthBar(
     x: number, y: number, width: number, ratio: number,
+    z: number = 5,
   ): void {
     const barH = 6;
     const barW = width;
@@ -620,6 +653,7 @@ export class RenderSystem implements System {
     this.renderer.push({
       shape: 'rect', x, y: y, size: barW, h: barH,
       color: '#222222', alpha: 0.8,
+      z,
     });
 
     let fillColor: string;
@@ -641,6 +675,7 @@ export class RenderSystem implements System {
         h: barH,
         color: fillColor,
         alpha: 0.95,
+        z,
       });
     }
   }

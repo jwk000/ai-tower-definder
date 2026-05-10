@@ -479,6 +479,7 @@ export class DecorationSystem implements System {
             h: part.h,
             color: part.color,
             alpha: part.alpha ?? 1,
+            z: 1,  // decoration layer
           });
         }
         continue;
@@ -500,6 +501,7 @@ export class DecorationSystem implements System {
             h: part.h,
             color: part.color,
             alpha,
+            z: 1,  // decoration layer
           });
         }
         continue;
@@ -515,6 +517,7 @@ export class DecorationSystem implements System {
           h: part.h,
           color: part.color,
           alpha: part.alpha ?? 1,
+          z: 1,  // decoration layer
         });
       }
     }

@@ -393,6 +393,7 @@ export class BatSwarmSystem implements System {
       targetId: 0,
       targetSelection: TargetSelectionVal.Nearest,
       attackMode: AttackModeVal.SingleTarget,
+      isRanged: 0,  // bats are flying melee (LowAir can attack all ≤ LowAir anyway)
       splashRadius: 0,
       chainCount: 0,
       chainRange: 0,
@@ -466,7 +467,7 @@ export class BatSwarmSystem implements System {
 
     const r = this.renderer!;
 
-    // Body (small circle)
+    // Body (small circle) — LowAir layer
     r.push({
       shape: 'circle',
       x,
@@ -474,6 +475,7 @@ export class BatSwarmSystem implements System {
       size: size * 0.6,
       color: '#2d2d2d',
       alpha: 0.85,
+      z: 6,  // LowAir
     });
 
     // Left wing (triangle)
@@ -484,6 +486,7 @@ export class BatSwarmSystem implements System {
       size: size * 0.7,
       color: '#2d2d2d',
       alpha: 0.7,
+      z: 6,  // LowAir
     });
 
     // Right wing (triangle)
@@ -494,6 +497,7 @@ export class BatSwarmSystem implements System {
       size: size * 0.7,
       color: '#2d2d2d',
       alpha: 0.7,
+      z: 6,  // LowAir
     });
   }
 

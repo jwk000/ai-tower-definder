@@ -162,6 +162,7 @@ export enum TowerType {
   Lightning = 'lightning',
   Laser = 'laser',
   Bat = 'bat',
+  Missile = 'missile',
 }
 
 export interface TowerConfig {
@@ -413,6 +414,8 @@ export interface RenderCommand {
   targetX?: number;
   targetY?: number;
   h?: number;           // height for rect (defaults to size = square)
+  /** 渲染层级 (z-index)，值越大越靠前。默认 5 (Ground 层) */
+  z?: number;
 }
 
 // ---- Projectile ----

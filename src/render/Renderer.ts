@@ -53,7 +53,10 @@ export class Renderer {
   }
 
   endFrame(): void {
-    for (const cmd of this.commands) {
+    // Sort by z-index (ascending = back-to-front). Default z=5 (Ground).
+    // Stable sort: same z preserves push order (= Y-sort within layer).
+    const sorted = [...this.commands].sort((a, b) => (a.z ?? 5) - (b.z ?? 5));
+    for (const cmd of sorted) {
       this.drawCommand(cmd);
     }
   }

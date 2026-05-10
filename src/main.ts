@@ -760,6 +760,7 @@ class TowerDefenderGame extends Game {
       targetId: 0,
       targetSelection: TargetSelectionVal.Nearest,
       attackMode: AttackModeVal.SingleTarget,
+      isRanged: 0,  // ShieldGuard/Swordsman are melee
       splashRadius: 0,
       chainCount: 0,
       chainRange: 0,

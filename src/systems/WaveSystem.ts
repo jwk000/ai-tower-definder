@@ -290,6 +290,7 @@ export class WaveSystem implements System {
         attackSpeed: config.attackSpeed,
         range: config.attackRange,
         damageType: DamageTypeVal.Physical,
+        isRanged: 0,  // default enemies are melee (ranged enemies TBD via config)
       });
     }
 

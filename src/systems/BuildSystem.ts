@@ -57,6 +57,7 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Lightning]: 3,
   [TowerType.Laser]: 4,
   [TowerType.Bat]: 5,
+  [TowerType.Missile]: 6,
 };
 
 /** AI config 字符串 → bitecs AI.configId (ui16) */
@@ -70,6 +71,7 @@ const AI_CONFIG_ID: Record<string, number> = {
   soldier_tank: 6,
   soldier_dps: 7,
   soldier_basic: 8,
+  tower_missile: 9,
 };
 
 /** ProductionType 枚举 → 索引 (用于内部标识) */
@@ -390,6 +392,7 @@ export class BuildSystem implements System {
         targetId: 0,
         targetSelection: TargetSelectionVal.Nearest,
         attackMode: AttackModeVal.SingleTarget,
+        isRanged: 1,  // all towers are ranged
         splashRadius: config.splashRadius ?? 0,
         chainCount: 0,
         chainRange: 0,
@@ -424,6 +427,7 @@ export class BuildSystem implements System {
 
     // Category
     world.addComponent(eid, Category, { value: CategoryVal.Tower });
+    world.addComponent(eid, Layer, { value: LayerVal.Ground });
 
     // Display name for overhead HUD
     world.setDisplayName(eid, config.name);
@@ -520,6 +524,7 @@ export class BuildSystem implements System {
 
     world.addComponent(eid, PlayerOwned);
     world.addComponent(eid, Category, { value: CategoryVal.Building });
+    world.addComponent(eid, Layer, { value: LayerVal.Ground });
 
     // Display name for overhead HUD
     world.setDisplayName(eid, config.name);
@@ -539,6 +544,7 @@ export class BuildSystem implements System {
       case TowerType.Lightning: return 'tower_lightning';
       case TowerType.Laser:     return 'tower_laser';
       case TowerType.Bat:       return 'tower_bat';
+      case TowerType.Missile:   return 'tower_missile';
       default:                  return 'tower_basic';
     }
   }

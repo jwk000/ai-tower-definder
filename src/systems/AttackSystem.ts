@@ -10,6 +10,8 @@ import {
   LaserBeam,
   UnitTag,
   ShapeVal,
+  Layer,
+  LayerVal,
 } from '../core/components.js';
 import { TowerType } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
@@ -112,10 +114,16 @@ export class AttackSystem implements System {
       const tx = Position.x[eid]!;
       const ty = Position.y[eid]!;
       const range = Attack.range[eid]!;
+      const attackerLayer = Layer.value[eid] ?? LayerVal.Ground;
+      const attackerIsRanged = Attack.isRanged[eid] === 1;
       let nearestId = 0;
       let nearestDist = Infinity;
 
       for (const enemyId of enemyList) {
+        // Layer reachability check
+        const targetLayer = Layer.value[enemyId] ?? LayerVal.Ground;
+        if (!this.canAttackLayer(attackerLayer, targetLayer, attackerIsRanged)) continue;
+
         const ex = Position.x[enemyId]!;
         const ey = Position.y[enemyId]!;
         const dx = ex - tx;
@@ -216,12 +224,40 @@ export class AttackSystem implements System {
       size: visual.size,
       alpha: 1,
     });
+
+    // Inherit layer from source entity for render z-ordering (方案 B: 弹道随来源层级)
+    const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
+    world.addComponent(pid, Layer, { value: sourceLayer });
   }
 
   // ---- Damage ----
 
   private getDamage(eid: number): number {
     return Attack.damage[eid]!;
+  }
+
+  // ---- Layer reachability ----
+
+  /**
+   * Check whether an attacker at `attackerLayer` can target a unit at `targetLayer`.
+   * - 近战 (isRanged=false): only AboveGrid + Ground
+   * - 远程 (isRanged=true): AboveGrid + Ground + LowAir
+   * - LowAir attackers: can attack all ≤ LowAir
+   */
+  private canAttackLayer(attackerLayer: number, targetLayer: number, isRanged: boolean): boolean {
+    // Ground-attached attacker (towers, soldiers)
+    if (attackerLayer === LayerVal.Ground || attackerLayer === LayerVal.AboveGrid) {
+      if (isRanged) {
+        return targetLayer <= LayerVal.LowAir;
+      }
+      return targetLayer <= LayerVal.AboveGrid;
+    }
+    // LowAir attacker (bats, flying enemies)
+    if (attackerLayer === LayerVal.LowAir) {
+      return targetLayer <= LayerVal.LowAir;
+    }
+    // Unknown layer — allow by default
+    return true;
   }
 
   // ---- Lightning Chain ----
