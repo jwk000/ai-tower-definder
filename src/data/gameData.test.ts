@@ -41,7 +41,7 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
   it('箭塔 — 数值锚点', () => {
     const cfg = TOWER_CONFIGS[TowerType.Arrow];
     expect(cfg.cost).toBe(50);
-    expect(cfg.atk).toBe(10);
+    expect(cfg.atk).toBe(11);
     expect(cfg.attackSpeed).toBe(1.0);
     expect(cfg.range).toBeGreaterThanOrEqual(170);
     expect(cfg.damageType).toBe('physical');
@@ -55,8 +55,8 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
 
   it('冰塔 — 减速+冰冻', () => {
     const cfg = TOWER_CONFIGS[TowerType.Ice];
-    expect(cfg.slowPercent).toBe(20);
-    expect(cfg.slowMaxStacks).toBe(5);
+    expect(cfg.slowPercent).toBe(25);
+    expect(cfg.slowMaxStacks).toBe(4);
     expect(cfg.freezeDuration).toBe(1.0);
     expect(cfg.damageType).toBe('magic');
   });
@@ -64,14 +64,14 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
   it('电塔 — 链击', () => {
     const cfg = TOWER_CONFIGS[TowerType.Lightning];
     expect(cfg.chainCount).toBe(3);
-    expect(cfg.chainDecay).toBe(0.2);
+    expect(cfg.chainDecay).toBe(0.22);
     expect(cfg.damageType).toBe('magic');
   });
 
   it('激光塔 — 贯穿', () => {
     const cfg = TOWER_CONFIGS[TowerType.Laser];
     expect(cfg.damageType).toBe('magic');
-    expect(cfg.range).toBe(250); // 最远射程
+    expect(cfg.range).toBe(260); // 最远射程
   });
 });
 
@@ -105,14 +105,14 @@ describe('敌人配置 (ENEMY_CONFIGS)', () => {
 
     const beast = ENEMY_CONFIGS[EnemyType.BossBeast];
     expect(beast.isBoss).toBe(true);
-    expect(beast.hp).toBe(1000);
-    expect(beast.defense).toBe(80);
+    expect(beast.hp).toBe(1100);
+    expect(beast.defense).toBe(75);
   });
 
   it('自爆虫有死亡效果', () => {
     const cfg = ENEMY_CONFIGS[EnemyType.Exploder];
     expect(cfg.specialOnDeath).toBe('explode');
-    expect(cfg.deathDamage).toBe(50);
+    expect(cfg.deathDamage).toBe(55);
     expect(cfg.deathRadius).toBe(100);
   });
 
@@ -140,14 +140,14 @@ describe('单位配置 (UNIT_CONFIGS)', () => {
 
   it('盾卫 — 高HP + 嘲讽', () => {
     const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
-    expect(cfg.hp).toBe(300);
-    expect(cfg.defense).toBe(40);
+    expect(cfg.hp).toBe(350);
+    expect(cfg.defense).toBe(50);
     expect(cfg.skillId).toBe('taunt');
   });
 
   it('剑士 — 高ATK + 旋风斩', () => {
     const cfg = UNIT_CONFIGS[UnitType.Swordsman];
-    expect(cfg.atk).toBe(15);
+    expect(cfg.atk).toBe(18);
     expect(cfg.skillId).toBe('whirlwind');
   });
 });
@@ -163,14 +163,14 @@ describe('生产建筑配置 (PRODUCTION_CONFIGS)', () => {
   it('金矿产出金币', () => {
     const cfg = PRODUCTION_CONFIGS[ProductionType.GoldMine];
     expect(cfg.resourceType).toBe('gold');
-    expect(cfg.baseRate).toBe(2);
+    expect(cfg.baseRate).toBe(2.5);
     expect(cfg.maxLevel).toBe(3);
   });
 
   it('能量塔产出能量', () => {
     const cfg = PRODUCTION_CONFIGS[ProductionType.EnergyTower];
     expect(cfg.resourceType).toBe('energy');
-    expect(cfg.baseRate).toBe(1);
+    expect(cfg.baseRate).toBe(1.5);
     expect(cfg.maxLevel).toBe(3);
   });
 });
