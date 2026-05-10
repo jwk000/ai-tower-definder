@@ -272,36 +272,36 @@ describe('Buff叠加', () => {
 });
 
 describe('波次难度曲线 — HP倍率', () => {
-  it('波次1: 0.6x', () => {
-    expect(waveHpMultiplier(1)).toBeCloseTo(0.6);
+  it('波次1: 0.7x', () => {
+    expect(waveHpMultiplier(1)).toBeCloseTo(0.7);
   });
 
-  it('波次3: 0.8x', () => {
-    expect(waveHpMultiplier(3)).toBeCloseTo(0.8);
+  it('波次3: 0.9x', () => {
+    expect(waveHpMultiplier(3)).toBeCloseTo(0.9);
   });
 
   it('波次4: 1.0x', () => {
     expect(waveHpMultiplier(4)).toBeCloseTo(1.0);
   });
 
-  it('波次8: ≈1.24x (设计文档区间 1.0-1.3x)', () => {
-    // 公式: 1.0 + (8-4) * 0.06 = 1.24
-    expect(waveHpMultiplier(8)).toBeCloseTo(1.24);
+  it('波次8: 1.4x', () => {
+    // 公式: 1.0 + (8-4) * 0.1 = 1.4
+    expect(waveHpMultiplier(8)).toBeCloseTo(1.4);
   });
 
-  it('波次15: 1.8x', () => {
-    expect(waveHpMultiplier(15)).toBeCloseTo(1.74, 1);
+  it('波次15: 2.0x', () => {
+    expect(waveHpMultiplier(15)).toBeCloseTo(2.0, 1);
   });
 
-  it('波次20: 2.5x', () => {
-    expect(waveHpMultiplier(20)).toBeCloseTo(2.38, 1);
+  it('波次20: 2.8x', () => {
+    expect(waveHpMultiplier(20)).toBeCloseTo(2.8, 1);
   });
 
-  it('波次25: >20波后每波+15%', () => {
+  it('波次25: >20波后每波+12%', () => {
     const base20 = waveHpMultiplier(20);
-    // 25 = 20 + 5波, 1.15^5 ≈ 2.01
+    // 25 = 20 + 5波, 1.12^5 ≈ 1.76
     const multiplier = waveHpMultiplier(25);
-    const expected = base20 * Math.pow(1.15, 5);
+    const expected = base20 * Math.pow(1.12, 5);
     expect(multiplier).toBeCloseTo(expected, 1);
   });
 
@@ -316,17 +316,23 @@ describe('波次难度曲线 — HP倍率', () => {
 });
 
 describe('波次难度曲线 — 速度倍率', () => {
-  it('波次1-9: 1.0x', () => {
+  it('波次1-8: 1.0x', () => {
     expect(waveSpeedMultiplier(1)).toBe(1.0);
-    expect(waveSpeedMultiplier(9)).toBe(1.0);
+    expect(waveSpeedMultiplier(8)).toBe(1.0);
   });
 
-  it('波次10+: 递增3%/波', () => {
-    expect(waveSpeedMultiplier(10)).toBeCloseTo(1.03);
-    expect(waveSpeedMultiplier(20)).toBeCloseTo(1.33, 1);
+  it('波次9-15: 1.05x', () => {
+    expect(waveSpeedMultiplier(10)).toBeCloseTo(1.05);
+    expect(waveSpeedMultiplier(15)).toBeCloseTo(1.05);
   });
 
-  it('速度上限 200%', () => {
+  it('波次16-20: 1.1x', () => {
+    expect(waveSpeedMultiplier(20)).toBeCloseTo(1.1);
+  });
+
+  it('波次20+: 每波+2.5%, 上限200%', () => {
+    expect(waveSpeedMultiplier(21)).toBeCloseTo(1.125);
+    expect(waveSpeedMultiplier(30)).toBeCloseTo(1.35, 1);
     expect(waveSpeedMultiplier(999)).toBe(2.0);
   });
 });
@@ -337,50 +343,50 @@ describe('波次难度曲线 — 护甲/魔抗递增', () => {
     expect(waveArmorBonus(3)).toBe(0);
   });
 
-  it('波次4-8: 护甲+3', () => {
-    expect(waveArmorBonus(4)).toBe(3);
+  it('波次4-8: 护甲+2', () => {
+    expect(waveArmorBonus(4)).toBe(2);
   });
 
-  it('波次9-15: 护甲+6', () => {
-    expect(waveArmorBonus(10)).toBe(6);
+  it('波次9-15: 护甲+5', () => {
+    expect(waveArmorBonus(10)).toBe(5);
   });
 
-  it('波次16-20: 护甲+13', () => {
-    expect(waveArmorBonus(18)).toBe(13);
+  it('波次16-20: 护甲+10', () => {
+    expect(waveArmorBonus(18)).toBe(10);
   });
 
-  it('波次20+: 每波+1.5护甲', () => {
+  it('波次20+: 每波+1.2护甲', () => {
     const armor21 = waveArmorBonus(21);
-    expect(armor21).toBe(14.5);
+    expect(armor21).toBe(11.2);
     const armor22 = waveArmorBonus(22);
-    expect(armor22).toBe(16);
+    expect(armor22).toBe(12.4);
   });
 
   it('魔抗与护甲独立递增', () => {
-    expect(waveMrBonus(5)).toBe(2);
-    expect(waveArmorBonus(5)).toBe(3);
-    expect(waveMrBonus(20)).toBe(9);
-    expect(waveArmorBonus(20)).toBe(13);
+    expect(waveMrBonus(5)).toBe(1);
+    expect(waveArmorBonus(5)).toBe(2);
+    expect(waveMrBonus(20)).toBe(7);
+    expect(waveArmorBonus(20)).toBe(10);
   });
 });
 
 describe('设计文档对照 — 具体数值验证', () => {
   // 参考: design/03-unit-data.md §1.1 箭塔 + §3.1 小兵
-  it('箭塔(10ATK物理)打小兵(0护甲) = 10', () => {
-    expect(calcPhysicalDamage(10, 0)).toBe(10);
+  it('箭塔(11ATK物理)打小兵(0护甲) = 11', () => {
+    expect(calcPhysicalDamage(11, 0)).toBe(11);
   });
 
   // 参考: design/05-combat-system.md §4 数值锚点
-  it('箭塔L1 ATK=10 打 重装兵(80护甲) ≈ 5.56', () => {
-    expect(calcPhysicalDamage(10, 80)).toBeCloseTo(5.56, 1);
+  it('箭塔L1 ATK=11 打 重装兵(80护甲) ≈ 6.11', () => {
+    expect(calcPhysicalDamage(11, 80)).toBeCloseTo(6.11, 1);
   });
 
-  it('冰塔L1 ATK=5魔法 打 法师(60魔抗) ≈ 3.13', () => {
-    expect(calcMagicDamage(5, 60)).toBeCloseTo(3.125, 1);
+  it('冰塔L1 ATK=8魔法 打 法师(60魔抗) ≈ 5.0', () => {
+    expect(calcMagicDamage(8, 60)).toBeCloseTo(5.0, 1);
   });
 
-  it('炮塔ATK=25 打重装兵(80护甲) ≈ 13.89', () => {
-    expect(calcPhysicalDamage(25, 80)).toBeCloseTo(13.89, 1);
+  it('炮塔ATK=24 打重装兵(80护甲) ≈ 13.33', () => {
+    expect(calcPhysicalDamage(24, 80)).toBeCloseTo(13.33, 1);
   });
 
   // 攻速锚点
