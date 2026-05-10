@@ -51,7 +51,7 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-const ARROW_COLOR    = hexToRgb('#81d4fa');
+const ARROW_COLOR    = hexToRgb('#ff3333');
 const CANNON_COLOR   = hexToRgb('#222222');
 const ICE_COLOR      = hexToRgb('#81d4fa');
 const LIGHTNING_COLOR = hexToRgb('#fff176');

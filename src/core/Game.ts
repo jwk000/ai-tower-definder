@@ -40,33 +40,54 @@ export class Game {
   private loop = (now: number): void => {
     if (!this.running) return;
 
-    const rawDt = Math.min((now - this.lastTime) / 1000, 0.05);
-    this.lastTime = now;
+    try {
+      const rawDt = Math.min((now - this.lastTime) / 1000, 0.05);
+      this.lastTime = now;
 
-    // 1. Begin frame
-    this.renderer.beginFrame();
+      // 1. Begin frame
+      this.renderer.beginFrame();
 
-    // 2. Input (always processed for pause menu etc.)
-    this.input.flush();
+      // 2. Input (always processed for pause menu etc.)
+      this.input.flush();
 
-    // 3. Logic update — skip if paused, but still tick world for UI rendering
-    if (!this.paused) {
-      const dt = rawDt * this.gameSpeed;
-      if (this.onUpdate) {
-        this.onUpdate(dt);
+      // 3. Logic update — skip if paused, but still tick world for UI rendering
+      if (!this.paused) {
+        const dt = rawDt * this.gameSpeed;
+        if (this.onUpdate) {
+          this.onUpdate(dt);
+        } else {
+          for (const sys of this.world.systems) {
+            try {
+              sys.update(this.world, dt);
+            } catch (sysErr) {
+              throw new Error(`System "${sys.name}" crashed: ${String(sysErr)}`);
+            }
+          }
+          this.world.cleanupDeadEntities();
+        }
+        this.onAfterUpdate?.();
       } else {
-        this.world.update(dt);
+        this.world.update(0);
       }
-      this.onAfterUpdate?.();
-    } else {
-      this.world.update(0);
+
+      // 4. Render
+      this.renderer.endFrame();
+
+      // 5. UI overlay
+      this.onPostRender?.();
+    } catch (e) {
+      console.error('[Game] Fatal:', String(e));
+      const ctx = this.renderer.context;
+      ctx.fillStyle = '#c62828';
+      ctx.fillRect(0, 0, 1920, 60);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`${String(e)}`, 16, 16);
+      this.running = false;
+      return;
     }
-
-    // 4. Render
-    this.renderer.endFrame();
-
-    // 5. UI overlay
-    this.onPostRender?.();
 
     this.rafId = requestAnimationFrame(this.loop);
   };

@@ -11,8 +11,8 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
 import {
   Position, Projectile, Health, Visual,
-  Stunned, ExplosionEffect,
-  UnitTag, Boss,
+  Stunned, ExplosionEffect, BloodParticle, FadingMark,
+  UnitTag, Boss, ShapeVal,
 } from '../core/components.js';
 import { addBuff } from './BuffSystem.js';
 import type { BuffData } from './BuffSystem.js';
@@ -158,6 +158,18 @@ export class ProjectileSystem implements System {
     // -- Visual: explosion ring --
     const visRadius = splashRadius > 0 ? splashRadius : 30;
     this.spawnExplosion(world, hitX, hitY, visRadius);
+
+    // -- Arrow: red blood splash particles --
+    const projShape = Projectile.shape[eid]!;
+    if (projShape === ShapeVal.Arrow) {
+      this.spawnBloodSplash(world, hitX, hitY);
+    }
+
+    // -- Cannon: smoke puff + persistent ground mark --
+    if (splashRadius > 0) {
+      this.spawnSmokeExplosion(world, hitX, hitY, splashRadius);
+      this.spawnGroundMark(world, hitX, hitY, splashRadius);
+    }
   }
 
   // ---- Cannon: AOE splash damage + stun ----
@@ -309,6 +321,110 @@ export class ProjectileSystem implements System {
       outline: 0,
       hitFlashTimer: 0,
       idlePhase: 0,
+    });
+  }
+
+  // ---- Visual: blood splash particles (Arrow hit) ----
+
+  private spawnBloodSplash(world: TowerWorld, hitX: number, hitY: number): void {
+    const PARTICLE_COUNT = 8;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const angle = (Math.PI * 2 / PARTICLE_COUNT) * i + (Math.random() - 0.5) * 0.6;
+      const speed = 50 + Math.random() * 80;
+      const pid = world.createEntity();
+      world.addComponent(pid, Position, { x: hitX, y: hitY });
+      world.addComponent(pid, Visual, {
+        shape: ShapeVal.Circle,
+        colorR: 0xff,
+        colorG: 0x33,
+        colorB: 0x33,
+        size: 3 + Math.random() * 4,
+        alpha: 0.9,
+        outline: 0,
+        hitFlashTimer: 0,
+        idlePhase: 0,
+      });
+      world.addComponent(pid, BloodParticle, {
+        velocityX: Math.cos(angle) * speed,
+        velocityY: Math.sin(angle) * speed - 30, // slight upward bias
+        elapsed: 0,
+        lifetime: 0.3 + Math.random() * 0.25,
+      });
+    }
+  }
+
+  // ---- Visual: smoke puff (Cannon hit) ----
+
+  private spawnSmokeExplosion(world: TowerWorld, hitX: number, hitY: number, splashRadius: number): void {
+    // Smoke ring — expands slower, grayish
+    const sid = world.createEntity();
+    world.addComponent(sid, Position, { x: hitX, y: hitY });
+    world.addComponent(sid, ExplosionEffect, {
+      duration: 0.6,
+      elapsed: 0,
+      radius: 8,
+      maxRadius: splashRadius * 0.6,
+      colorR: 0x99,
+      colorG: 0x99,
+      colorB: 0x99,
+    });
+    world.addComponent(sid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: 0x99,
+      colorG: 0x99,
+      colorB: 0x99,
+      size: 8,
+      alpha: 0.45,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    // Central smoke puff — stays near center, fades faster
+    const pid = world.createEntity();
+    world.addComponent(pid, Position, { x: hitX, y: hitY });
+    world.addComponent(pid, ExplosionEffect, {
+      duration: 0.5,
+      elapsed: 0,
+      radius: 6,
+      maxRadius: splashRadius * 0.35,
+      colorR: 0x77,
+      colorG: 0x77,
+      colorB: 0x77,
+    });
+    world.addComponent(pid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: 0x77,
+      colorG: 0x77,
+      colorB: 0x77,
+      size: 6,
+      alpha: 0.6,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+  }
+
+  // ---- Visual: persistent ground mark (Cannon hit) ----
+
+  private spawnGroundMark(world: TowerWorld, hitX: number, hitY: number, splashRadius: number): void {
+    const gid = world.createEntity();
+    world.addComponent(gid, Position, { x: hitX, y: hitY });
+    world.addComponent(gid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: 0x33,
+      colorG: 0x33,
+      colorB: 0x33,
+      size: 40 + splashRadius * 0.4,
+      alpha: 0.3,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+    world.addComponent(gid, FadingMark, {
+      duration: 3.0,
+      elapsed: 0,
+      maxAlpha: 0.3,
     });
   }
 }

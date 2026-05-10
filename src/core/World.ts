@@ -18,7 +18,9 @@ import {
   removeComponent,
   removeEntity,
   hasComponent,
+  entityExists,
   defineQuery,
+  getAllEntities,
   type World as BitecsWorld,
   type IWorld,
 } from 'bitecs';
@@ -82,7 +84,7 @@ export class TowerWorld {
    * @param store     Optional initial data to assign to the component's fields
    */
   addComponent(eid: number, component: object, store: object = {}): void {
-    addComponent(this.world, eid, component);
+    addComponent(this.world, component, eid);
 
     const keys = Object.keys(store);
     if (keys.length > 0) {
@@ -113,8 +115,11 @@ export class TowerWorld {
     for (let i = 0; i < this.systems.length; i++) {
       this.systems[i]!.update(this, dt);
     }
+    this.cleanupDeadEntities();
+  }
 
-    // Deferred cleanup — remove dead entities after all systems run
+  /** Clean up entities marked for deferred removal */
+  cleanupDeadEntities(): void {
     if (this.deadEntities.size > 0) {
       for (const eid of this.deadEntities) {
         removeEntity(this.world, eid);
@@ -127,6 +132,11 @@ export class TowerWorld {
   reset(): void {
     this.deadEntities.clear();
     this.systems.length = 0;
+    // Remove all existing entities from current world before creating a new one
+    const allEntities = getAllEntities(this.world);
+    for (const eid of allEntities) {
+      removeEntity(this.world, eid);
+    }
     this.world = createWorld();
   }
 
@@ -182,6 +192,7 @@ export {
   addComponent,
   removeComponent,
   hasComponent,
+  entityExists,
   defineQuery,
 };
 

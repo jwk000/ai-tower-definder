@@ -292,6 +292,21 @@ export const ExplosionEffect = defineComponent({
   colorB: Types.ui8,
 });
 
+/** 血液溅射粒子 */
+export const BloodParticle = defineComponent({
+  velocityX: Types.f32,
+  velocityY: Types.f32,
+  elapsed: Types.f32,
+  lifetime: Types.f32,
+});
+
+/** 渐消地面标记（用于弹坑、焦痕等持久效果） */
+export const FadingMark = defineComponent({
+  duration: Types.f32,
+  elapsed: Types.f32,
+  maxAlpha: Types.f32,
+});
+
 // ============================================================
 // AI组件
 // ============================================================
@@ -434,6 +449,48 @@ export const UnitTag = defineComponent({
   rewardEnergy: Types.f32,    // 击杀奖励能量
   popCost: Types.ui8,         // 人口占用
   cost: Types.f32,            // 造价
+});
+
+// ============================================================
+// 场景装饰 — 动态环境生物 + 微动动画
+// ============================================================
+
+/** 环境生物类型（bitecs 数值形式） */
+export const AmbientCreatureVal = {
+  Bird: 0,
+  Butterfly: 1,
+  Squirrel: 2,
+  Lizard: 3,
+  Penguin: 4,
+  Firefly: 5,
+  Rat: 6,
+  GrassBlade: 10,
+  FloatingDust: 11,
+} as const;
+export type AmbientCreatureVal = (typeof AmbientCreatureVal)[keyof typeof AmbientCreatureVal];
+
+/** 动态环境生物（飞鸟/地面动物/草丛 — 纯视觉，不参与游戏逻辑） */
+export const AmbientCreature = defineComponent({
+  creatureType: Types.ui8,      // AmbientCreatureVal
+  animPhase: Types.f32,         // 动画相位 0-1
+  animSpeed: Types.f32,         // 动画速度倍率
+  pathIndex: Types.ui8,         // 当前路径点索引
+  pathProgress: Types.f32,      // 路径进度 0-1
+  state: Types.ui8,             // 状态: 0=idle, 1=walking, 2=flying
+  nextWaypointX: Types.f32,     // 下一个目标路径点 X
+  nextWaypointY: Types.f32,     // 下一个目标路径点 Y
+});
+
+/** 微动动画参数（植物摇摆等） */
+export const SwayAnimation = defineComponent({
+  amplitudeX: Types.f32,        // 水平摆动幅度 (px)
+  amplitudeY: Types.f32,        // 垂直摆动幅度 (px)
+  frequency: Types.f32,         // 摆动频率 (Hz)
+  phaseOffset: Types.f32,       // 相位偏移（随机避免整齐划一）
+  windMultiplier: Types.f32,    // 风天振幅倍率
+  lastTime: Types.f32,          // 上次更新时间
+  offsetX: Types.f32,           // 当前 X 偏移
+  offsetY: Types.f32,           // 当前 Y 偏移
 });
 
 // ============================================================

@@ -131,30 +131,33 @@ export class Renderer {
         ctx.fill();
         break;
       case 'arrow': {
-        // Arrow: triangle head + line shaft, pointing toward (targetX,targetY)
+        // Arrow: triangle head + rectangular shaft, rotated toward (targetX,targetY)
         const tx = cmd.targetX ?? cx + s;
         const ty = cmd.targetY ?? cy;
         const angle = Math.atan2(ty - cy, tx - cx);
         const headLen = s * 0.55;
+        const headWidth = headLen * 0.4;
         const shaftW = s * 0.18;
+        const tipX = s * 0.7;          // head tip — extends forward
+        const shaftStart = -s * 0.4;   // shaft tail — extends backward
 
-        // Shaft
+        // Arrow shaft
         ctx.fillStyle = cmd.color;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(angle);
-        ctx.fillRect(-s * 0.05, -shaftW / 2, s - headLen * 0.7, shaftW);
+        ctx.fillRect(shaftStart, -shaftW / 2, tipX - shaftStart, shaftW);
         ctx.restore();
 
-        // Head (triangle)
+        // Arrow head (triangle)
         ctx.fillStyle = cmd.color;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(angle);
         ctx.beginPath();
-        ctx.moveTo(s / 2, 0);
-        ctx.lineTo(s / 2 - headLen, -headLen * 0.4);
-        ctx.lineTo(s / 2 - headLen, headLen * 0.4);
+        ctx.moveTo(tipX, 0);
+        ctx.lineTo(tipX - headLen, -headWidth);
+        ctx.lineTo(tipX - headLen, headWidth);
         ctx.closePath();
         ctx.fill();
         ctx.restore();

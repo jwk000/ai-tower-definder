@@ -9,7 +9,7 @@
 // components so other systems can query them directly.
 // ============================================================
 
-import { TowerWorld, type System, hasComponent } from '../core/World.js';
+import { TowerWorld, type System, hasComponent, entityExists } from '../core/World.js';
 import { Slowed, Frozen, Stunned, defineQuery } from '../core/components.js';
 
 // ============================================================
@@ -60,6 +60,12 @@ export class BuffSystem implements System {
 
     // ---- 1. Tick buff durations from side-channel Map ----
     for (const [eid, buffs] of buffMap) {
+      // Entity may have been destroyed by HealthSystem — clean up silently
+      if (!entityExists(w, eid)) {
+        buffMap.delete(eid);
+        continue;
+      }
+
       const expired: string[] = [];
 
       for (const [buffId, buff] of buffs) {

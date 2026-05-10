@@ -21,6 +21,8 @@ import { TrapSystem } from './systems/TrapSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
+import { BloodParticleSystem } from './systems/BloodParticleSystem.js';
+import { FadingMarkSystem } from './systems/FadingMarkSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { Container } from 'pixi.js';
 import { SaveManager } from './utils/SaveManager.js';
@@ -376,6 +378,8 @@ class TowerDefenderGame extends Game {
     const healingSystem = new HealingSystem();
     const deathEffectSystem = new DeathEffectSystem();
     const explosionEffectSystem = new ExplosionEffectSystem();
+    const bloodParticleSystem = new BloodParticleSystem();
+    const fadingMarkSystem = new FadingMarkSystem();
     const lightningBoltSystem = new LightningBoltSystem(this.effectContainer);
     this.laserBeamSystem = new LaserBeamSystem(this.effectContainer);
 
@@ -516,6 +520,8 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(healingSystem);
     this.world.registerSystem(deathEffectSystem);
     this.world.registerSystem(explosionEffectSystem);
+    this.world.registerSystem(bloodParticleSystem);
+    this.world.registerSystem(fadingMarkSystem);
     this.world.registerSystem(this.healthSystem);
     this.world.registerSystem(this.economy);
     this.world.registerSystem(this.buildSystem);

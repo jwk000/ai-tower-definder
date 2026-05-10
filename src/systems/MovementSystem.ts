@@ -1,6 +1,6 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
 import {
-  Position, Movement, Health, UnitTag, Stunned, MoveModeVal,
+  Position, Movement, Health, UnitTag, Stunned, Frozen, Slowed, MoveModeVal,
   Visual, Attack, Projectile, DeathEffect, Trap,
 } from '../core/components.js';
 import type { MapConfig } from '../types/index.js';
@@ -43,6 +43,9 @@ export class MovementSystem implements System {
       // Skip stunned entities
       if (Stunned.timer[eid]! > 0) continue;
 
+      // Skip frozen entities — completely immobilized
+      if (hasComponent(world.world, eid, Frozen)) continue;
+
       // Skip if not in follow-path mode (e.g. hold-position)
       if (Movement.moveMode[eid] !== MoveModeVal.FollowPath) continue;
 
@@ -69,7 +72,11 @@ export class MovementSystem implements System {
 
       if (segmentLen <= 0) continue;
 
-      const speed = Movement.speed[eid]!;
+      const baseSpeed = Movement.speed[eid]!;
+      const slowFactor = hasComponent(world.world, eid, Slowed)
+        ? Math.max(0.05, 1 - Slowed.percent[eid]! / 100)
+        : 1;
+      const speed = baseSpeed * slowFactor;
       const dist = speed * dt;
 
       let progress = Movement.progress[eid]!;
