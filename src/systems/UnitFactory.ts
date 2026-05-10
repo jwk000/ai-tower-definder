@@ -1,4 +1,4 @@
-import type { World } from '../core/World.js';
+import type { TowerWorld } from '../core/World.js';
 import type { EntityId, UnitTypeConfig, UnitCategory } from '../types/index.js';
 import { CType } from '../types/index.js';
 import { Position, GridOccupant } from '../components/Position.js';
@@ -18,9 +18,9 @@ import { getUnitConfig } from '../data/units/unitConfigs.js';
  * 单位工厂 - 根据配置创建单位实体
  */
 export class UnitFactory {
-  private world: World;
+  private world: TowerWorld;
 
-  constructor(world: World) {
+  constructor(world: TowerWorld) {
     this.world = world;
   }
 

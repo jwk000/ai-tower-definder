@@ -69,8 +69,8 @@ export abstract class BTNode {
       case 'hp': return Health.current[eid];
       case 'max_hp': return Health.max[eid];
       case 'hp_ratio': {
-        const max = Health.max[eid];
-        return max > 0 ? Health.current[eid] / max : 0;
+        const max = Health.max[eid]!;
+        return max > 0 ? Health.current[eid]! / max : 0;
       }
       case 'atk': return Attack.damage[eid] ?? 0;
       case 'defense': return Health.armor[eid] ?? 0;
@@ -179,8 +179,8 @@ export class CheckHPNode extends ConditionNode {
     const op = this.getParam<string>('op', context, '<');
     const value = this.getParam<number>('value', context, 0.5);
     const eid = context.entityId;
-    const max = Health.max[eid];
-    const ratio = max > 0 ? Health.current[eid] / max : 0;
+    const max = Health.max[eid]!;
+    const ratio = max > 0 ? Health.current[eid]! / max : 0;
 
     switch (op) {
       case '<': return ratio < value ? NodeStatus.Success : NodeStatus.Failure;
@@ -213,8 +213,8 @@ export class CheckEnemyInRangeNode extends ConditionNode {
 
   private findTargetsInRange(context: AIContext, range: number, targetType: string): number[] {
     const { world, entityId } = context;
-    const px = Position.x[entityId];
-    const py = Position.y[entityId];
+    const px = Position.x[entityId]!;
+    const py = Position.y[entityId]!;
     const results: number[] = [];
 
     let candidateIds: readonly number[];
@@ -228,7 +228,7 @@ export class CheckEnemyInRangeNode extends ConditionNode {
 
     for (const id of candidateIds) {
       if (id === entityId) continue;
-      if (Health.current[id] <= 0) continue;
+      if (Health.current[id]! <= 0) continue;
 
       // Filter by type if needed
       if (targetType === 'tower') {
@@ -241,8 +241,8 @@ export class CheckEnemyInRangeNode extends ConditionNode {
         if (UnitTag.isEnemy[id] !== 1) continue;
       }
 
-      const tx = Position.x[id];
-      const ty = Position.y[id];
+      const tx = Position.x[id]!;
+      const ty = Position.y[id]!;
       const dx = tx - px;
       const dy = ty - py;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -288,24 +288,24 @@ export class AttackNode extends ActionNode {
     const targetY = Position.y[targetId];
     const targetHp = Health.current[targetId];
 
-    if (targetX === undefined || targetHp <= 0) {
+    if (targetX === undefined || targetHp! <= 0) {
       return NodeStatus.Failure;
     }
 
     // Check range
-    const dx = targetX - Position.x[eid];
-    const dy = targetY - Position.y[eid];
+    const dx = targetX - Position.x[eid]!;
+    const dy = targetY! - Position.y[eid]!;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > attackRange) {
+    if (dist > attackRange!) {
       return NodeStatus.Failure;
     }
 
     // Check cooldown
-    const cooldown = Attack.cooldownTimer[eid];
+    const cooldown = Attack.cooldownTimer[eid]!;
     if (cooldown <= 0) {
       // Reset cooldown
-      Attack.cooldownTimer[eid] = 1 / atkSpeed;
+      Attack.cooldownTimer[eid] = 1 / atkSpeed!;
       // Deal damage
       Health.current[targetId] -= attackDmg;
 
@@ -336,8 +336,8 @@ export class AttackNode extends ActionNode {
 
   private findNearestEnemy(context: AIContext): number {
     const { world, entityId } = context;
-    const px = Position.x[entityId];
-    const py = Position.y[entityId];
+    const px = Position.x[entityId]!;
+    const py = Position.y[entityId]!;
     const candidates = enemyTargetQuery(world.world);
 
     let nearestId = 0;
@@ -346,10 +346,10 @@ export class AttackNode extends ActionNode {
     for (const id of candidates) {
       if (id === entityId) continue;
       if (UnitTag.isEnemy[id] !== 1) continue;
-      if (Health.current[id] <= 0) continue;
+      if (Health.current[id]! <= 0) continue;
 
-      const tx = Position.x[id];
-      const ty = Position.y[id];
+      const tx = Position.x[id]!;
+      const ty = Position.y[id]!;
       const dx = tx - px;
       const dy = ty - py;
       const dist = Math.sqrt(dx * dx + dy * dy);

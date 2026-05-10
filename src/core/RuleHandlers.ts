@@ -8,7 +8,7 @@
 // 设计文档: design/02-unit-system.md (Section 3.1)
 // ============================================================
 
-import type { IWorld } from 'bitecs';
+import type { World } from 'bitecs';
 import type { RuleHandlerFn } from '../core/RuleEngine.js';
 import { Health, Position, FactionVal, Faction, Visual } from '../core/components.js';
 
@@ -216,7 +216,6 @@ export const leaveRuins: RuleHandlerFn = (world, entityId, params, context) => {
 // 所有预定义处理器的注册表
 // ============================================================
 
-import type { RuleHandlerFn } from '../core/RuleEngine.js';
 
 /** 预定义处理器映射表 */
 export const BUILTIN_HANDLERS: Record<string, RuleHandlerFn> = {

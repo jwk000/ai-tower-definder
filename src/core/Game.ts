@@ -1,9 +1,9 @@
-import { World } from './World.js';
+import { TowerWorld } from './World.js';
 import { InputManager } from '../input/InputManager.js';
 import { Renderer } from '../render/Renderer.js';
 
 export class Game {
-  world: World;
+  world: TowerWorld;
   input: InputManager;
   renderer: Renderer;
   onPostRender: (() => void) | null = null;
@@ -20,7 +20,7 @@ export class Game {
   private rafId: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.world = new World();
+    this.world = new TowerWorld();
     this.input = new InputManager(canvas);
     this.renderer = new Renderer(canvas);
   }

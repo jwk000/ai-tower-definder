@@ -11,9 +11,9 @@
 // 设计文档: design/02-unit-system.md (Section 7)
 // ============================================================
 
-import type { IWorld } from 'bitecs';
+import type { World } from 'bitecs';
 import { Position, Health, Faction, FactionVal, Category, UnitRef } from './components.js';
-import type { UnitConfig, LifecycleRule, BehaviorRule, RuleHandler } from '../config/registry.js';
+import type { LifecycleRule } from '../config/registry.js';
 
 // ============================================================
 // 类型定义
@@ -43,7 +43,7 @@ export interface EventContext {
 
 /** 规则处理器函数类型 */
 export type RuleHandlerFn = (
-  world: IWorld,
+  world: World,
   entityId: number,
   params: Record<string, unknown>,
   context: EventContext,
@@ -51,9 +51,9 @@ export type RuleHandlerFn = (
 
 /** 行为规则提供者 */
 export interface BehaviorRuleProvider {
-  targetSelection: (world: IWorld, entityId: number, candidates: number[]) => number | null;
-  attackMode: (world: IWorld, entityId: number, targetId: number, dt: number) => void;
-  movementMode: (world: IWorld, entityId: number, dt: number) => void;
+  targetSelection: (world: World, entityId: number, candidates: number[]) => number | null;
+  attackMode: (world: World, entityId: number, targetId: number, dt: number) => void;
+  movementMode: (world: World, entityId: number, dt: number) => void;
 }
 
 // ============================================================
@@ -117,7 +117,7 @@ export class RuleEngine {
    * @returns 是否找到并执行了规则
    */
   dispatch(
-    world: IWorld,
+    world: World,
     entityId: number,
     event: LifecycleEvent,
     context: EventContext = { time: 0 },
@@ -151,7 +151,7 @@ export class RuleEngine {
       // 查找并执行处理器
       const handler = this.handlers.get(rule.type);
       if (handler) {
-        handler(world, entityId, rule.params ?? {}, context);
+        handler(world, entityId, (rule.params ?? {}) as Record<string, unknown>, context);
         handled = true;
       } else {
         console.warn(`[RuleEngine] Unknown handler: ${rule.type}`);
@@ -173,7 +173,7 @@ export class RuleEngine {
   /**
    * 获取实体的行为规则提供者（通过实体ID查找配置）
    */
-  getBehaviorProviderForEntity(world: IWorld, entityId: number): BehaviorRuleProvider | undefined {
+  getBehaviorProviderForEntity(world: World, entityId: number): BehaviorRuleProvider | undefined {
     const unitRef = UnitRef.configId[entityId];
     if (unitRef === undefined) return undefined;
 
@@ -186,7 +186,7 @@ export class RuleEngine {
    * 获取指定半径内的所有实体
    */
   getEntitiesInRadius(
-    world: IWorld,
+    world: World,
     centerX: number,
     centerY: number,
     radius: number,

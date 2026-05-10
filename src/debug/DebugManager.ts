@@ -1,7 +1,7 @@
 import { DebugPanel } from './DebugPanel.js';
 import type { LogEntry, BehaviorTreeDebugState, BTNodeDebugInfo } from './types.js';
 import { LogLevel } from './types.js';
-import type { World } from '../core/World.js';
+import type { TowerWorld } from '../core/World.js';
 import type { EntityId } from '../types/index.js';
 import { CType } from '../types/index.js';
 import type { AI } from '../components/AI.js';
@@ -23,7 +23,7 @@ import type { BehaviorTreeConfig, BTNodeConfig } from '../types/index.js';
  * - 单位选择集成
  */
 export class DebugManager {
-  private world: World;
+  private world: TowerWorld;
   
   // 调试面板
   private debugPanel: DebugPanel;
@@ -46,7 +46,7 @@ export class DebugManager {
     debug: console.debug,
   };
 
-  constructor(world: World) {
+  constructor(world: TowerWorld) {
     this.world = world;
     
     // 创建调试面板

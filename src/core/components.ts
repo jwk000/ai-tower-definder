@@ -253,7 +253,6 @@ export const Skill = defineComponent({
 
 /** Buff容器 */
 export const BuffContainer = defineComponent({
-  buffIds: [Types.ui8, 8], // 固定大小数组(最多8个buff引用)
   buffCount: Types.ui8,    // 当前buff数量
 });
 

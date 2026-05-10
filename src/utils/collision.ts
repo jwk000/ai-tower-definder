@@ -1,5 +1,5 @@
 import { CType } from '../types/index.js';
-import type { World } from '../core/World.js';
+import type { TowerWorld } from '../core/World.js';
 import type { Position } from '../components/Position.js';
 import type { Render } from '../components/Render.js';
 import type { MapConfig } from '../types/index.js';
@@ -12,7 +12,7 @@ export interface CollisionResult {
   pushY: number;
 }
 
-export function getEntityRadius(world: World, entityId: number): number {
+export function getEntityRadius(world: TowerWorld, entityId: number): number {
   const render = world.getComponent<Render>(entityId, CType.Render);
   if (render) {
     return render.size / 2;
@@ -63,7 +63,7 @@ export function checkTileCollision(
 }
 
 export function checkEntityCollision(
-  world: World,
+  world: TowerWorld,
   entityId: number,
   x: number,
   y: number,
@@ -112,7 +112,7 @@ export function checkEntityCollision(
 }
 
 export function findAvoidanceTarget(
-  world: World,
+  world: TowerWorld,
   entityId: number,
   x: number,
   y: number,
