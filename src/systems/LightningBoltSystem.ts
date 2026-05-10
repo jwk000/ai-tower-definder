@@ -1,68 +1,59 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
+import { TowerWorld, type System } from '../core/World.js';
+import { LightningBolt, Position, defineQuery } from '../core/components.js';
 import { Renderer } from '../render/Renderer.js';
-import { LightningBolt } from '../components/LightningBolt.js';
-import { LightningAura } from '../components/LightningAura.js';
-import { Render } from '../components/Render.js';
 
 const SEGMENTS = 8;
+const lightningQuery = defineQuery([LightningBolt]);
 
-/** Renders lightning bolt visual effects with glow, and ticks aura timers */
+/** Renders lightning bolt visual effects with glow */
 export class LightningBoltSystem implements System {
   readonly name = 'LightningBoltSystem';
-  readonly requiredComponents = ['LightningBolt'] as const;
 
   constructor(
-    private world: World,
     private renderer: Renderer,
   ) {}
 
-  update(entities: number[], dt: number): void {
-    // Tick lightning bolt timers
-    for (const id of entities) {
-      const bolt = this.world.getComponent<LightningBolt>(id, 'LightningBolt')!;
-      bolt.timer -= dt;
-      if (bolt.timer <= 0) {
-        this.world.destroyEntity(id);
-      }
-    }
-
-    // Tick lightning aura timers (white rings on hit enemies)
-    const auras = this.world.query('LightningAura');
-    for (const id of auras) {
-      const aura = this.world.getComponent<LightningAura>(id, 'LightningAura');
-      if (!aura) continue;
-      aura.timer -= dt;
-      const render = this.world.getComponent<Render>(id, CType.Render);
-      if (aura.timer <= 0) {
-        this.world.destroyEntity(id);
-      } else if (render) {
-        render.alpha = Math.max(0, aura.timer / 0.5) * 0.6;
-        render.size = 30 + (1 - aura.timer / 0.5) * 10;
+  update(world: TowerWorld, dt: number): void {
+    const entities = lightningQuery(world.world);
+    for (const eid of entities) {
+      LightningBolt.elapsed[eid] += dt;
+      const elapsed = LightningBolt.elapsed[eid];
+      const duration = LightningBolt.duration[eid];
+      if (elapsed >= duration) {
+        world.destroyEntity(eid);
       }
     }
   }
 
   /** Draw all active bolts — called from onPostRender after endFrame */
-  renderBolts(): void {
-    const entities = this.world.query('LightningBolt');
-    for (const id of entities) {
-      const bolt = this.world.getComponent<LightningBolt>(id, 'LightningBolt');
-      if (bolt && bolt.timer > 0) {
-        this.drawBolt(bolt);
+  renderBolts(world: TowerWorld): void {
+    const entities = lightningQuery(world.world);
+    for (const eid of entities) {
+      const elapsed = LightningBolt.elapsed[eid];
+      const duration = LightningBolt.duration[eid];
+      if (elapsed < duration) {
+        this.drawBolt(eid);
       }
     }
   }
 
-  private drawBolt(bolt: LightningBolt): void {
+  private drawBolt(eid: number): void {
     const ctx = this.renderer.context;
-    const alpha = bolt.alpha;
+    const elapsed = LightningBolt.elapsed[eid];
+    const duration = LightningBolt.duration[eid];
+    const alpha = Math.max(0, 1 - elapsed / duration);
+
+    const srcId = LightningBolt.sourceId[eid];
+    const tgtId = LightningBolt.targetId[eid];
+    const fromX = Position.x[srcId] ?? 0;
+    const fromY = Position.y[srcId] ?? 0;
+    const toX = Position.x[tgtId] ?? 0;
+    const toY = Position.y[tgtId] ?? 0;
 
     // Generate jagged points
     const points: { x: number; y: number }[] = [];
-    const dx = bolt.toX - bolt.fromX;
-    const dy = bolt.toY - bolt.fromY;
+    const dx = toX - fromX;
+    const dy = toY - fromY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const perpX = -dy / dist;
     const perpY = dx / dist;
@@ -71,8 +62,8 @@ export class LightningBoltSystem implements System {
 
     for (let i = 0; i <= SEGMENTS; i++) {
       const t = i / SEGMENTS;
-      const baseX = bolt.fromX + dx * t;
-      const baseY = bolt.fromY + dy * t;
+      const baseX = fromX + dx * t;
+      const baseY = fromY + dy * t;
       const offset = (i === 0 || i === SEGMENTS) ? 0 : (Math.random() - 0.5) * jitter;
       points.push({
         x: baseX + perpX * offset,
