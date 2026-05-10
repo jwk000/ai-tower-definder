@@ -1,0 +1,188 @@
+# ============================================================
+# Tower Defender — Level 04: 火山 (Volcano)
+# ============================================================
+# Source: src/data/levels/level-04.ts
+# Tile types: empty, path, blocked, spawn, base
+
+id: L4_volcano
+name: 火山
+theme: volcano
+description: 熔岩地形限制了建造空间，敌人拥有火焰抗性
+sceneDescription: 活火山的斜坡上，岩浆河从裂缝中涌出，将黑曜石般的大地切割成支离破碎的岛屿。烧焦的树干像炭化的骨骼指向天空，火山砾石铺满了所有可以立足的地方。火山灰如黑雪般飘落，空气中弥漫着硫磺的气味。敌人在这种极端环境中如鱼得水。
+
+map:
+  name: 火山
+  cols: 21
+  rows: 9
+  tileSize: 64
+
+  tiles:
+    # row 0
+    - [empty, spawn, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 1
+    - [empty, path, blocked, empty, empty, blocked, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 2
+    - [empty, path, blocked, path, empty, blocked, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 3
+    - [blocked, empty, path, blocked, blocked, empty, path, path, path, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 4
+    - [blocked, empty, path, blocked, blocked, path, empty, path, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 5
+    - [empty, path, path, path, path, blocked, path, blocked, path, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 6
+    - [empty, path, blocked, empty, path, path, path, blocked, path, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 7
+    - [empty, path, path, blocked, path, path, blocked, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    # row 8
+    - [blocked, empty, blocked, empty, path, path, path, path, path, path, path, path, path, path, path, path, path, path, path, path, base]
+
+  enemyPath:
+    - {row: 0, col: 1}
+    - {row: 2, col: 1}
+    - {row: 2, col: 3}
+    - {row: 5, col: 3}
+    - {row: 5, col: 1}
+    - {row: 7, col: 1}
+    - {row: 7, col: 4}
+    - {row: 5, col: 4}
+    - {row: 5, col: 6}
+    - {row: 3, col: 6}
+    - {row: 3, col: 8}
+    - {row: 6, col: 8}
+    - {row: 6, col: 5}
+    - {row: 8, col: 5}
+    - {row: 8, col: 20}
+
+  tileColors:
+    empty: '#4e342e'
+    path: '#8d6e63'
+    blocked: '#d32f2f'
+    spawn: '#ff5722'
+    base: '#1e88e5'
+
+  sceneDescription: 活火山的斜坡上，岩浆河从裂缝中涌出，将黑曜石般的大地切割成支离破碎的岛屿。烧焦的树干像炭化的骨骼指向天空，火山砾石铺满了所有可以立足的地方。火山灰如黑雪般飘落，空气中弥漫着硫磺的气味。敌人在这种极端环境中如鱼得水。
+
+  obstaclePlacements:
+    - {type: lava_vent, row: 0, col: 13}
+    - {type: lava_vent, row: 0, col: 18}
+    - {type: lava_vent, row: 2, col: 14}
+    - {type: lava_vent, row: 6, col: 15}
+    - {type: scorched_tree, row: 1, col: 8}
+    - {type: scorched_tree, row: 3, col: 16}
+    - {type: scorched_tree, row: 4, col: 10}
+    - {type: scorched_tree, row: 7, col: 0}
+    - {type: volcanic_rock, row: 1, col: 16}
+    - {type: volcanic_rock, row: 2, col: 9}
+    - {type: volcanic_rock, row: 4, col: 18}
+    - {type: volcanic_rock, row: 5, col: 14}
+    - {type: volcanic_rock, row: 6, col: 19}
+    - {type: volcanic_rock, row: 7, col: 16}
+
+waves:
+  - waveNumber: 1
+    enemies:
+      - {enemyType: grunt, count: 8, spawnInterval: 1.2}
+    spawnDelay: 2
+
+  - waveNumber: 2
+    enemies:
+      - {enemyType: grunt, count: 10, spawnInterval: 1.0}
+    spawnDelay: 2
+
+  - waveNumber: 3
+    enemies:
+      - {enemyType: grunt, count: 6, spawnInterval: 1.0}
+      - {enemyType: runner, count: 4, spawnInterval: 0.6}
+    spawnDelay: 2
+
+  - waveNumber: 4
+    enemies:
+      - {enemyType: heavy, count: 5, spawnInterval: 1.8}
+    spawnDelay: 2
+
+  - waveNumber: 5
+    enemies:
+      - {enemyType: heavy, count: 3, spawnInterval: 2.0}
+      - {enemyType: grunt, count: 4, spawnInterval: 1.0}
+    spawnDelay: 3
+
+  - waveNumber: 6
+    enemies:
+      - {enemyType: runner, count: 8, spawnInterval: 0.5}
+      - {enemyType: mage, count: 3, spawnInterval: 1.5}
+    spawnDelay: 2
+
+  - waveNumber: 7
+    enemies:
+      - {enemyType: heavy, count: 6, spawnInterval: 1.6}
+    spawnDelay: 2
+
+  - waveNumber: 8
+    enemies:
+      - {enemyType: mage, count: 4, spawnInterval: 1.5}
+      - {enemyType: exploder, count: 4, spawnInterval: 1.2}
+    spawnDelay: 2
+
+  - waveNumber: 9
+    enemies:
+      - {enemyType: heavy, count: 5, spawnInterval: 1.8}
+      - {enemyType: runner, count: 4, spawnInterval: 0.6}
+    spawnDelay: 2
+
+  - waveNumber: 10
+    enemies:
+      - {enemyType: boss_commander, count: 1, spawnInterval: 0}
+      - {enemyType: heavy, count: 4, spawnInterval: 1.8}
+    spawnDelay: 3
+    isBossWave: true
+
+  - waveNumber: 11
+    enemies:
+      - {enemyType: mage, count: 5, spawnInterval: 1.5}
+      - {enemyType: exploder, count: 5, spawnInterval: 1.0}
+    spawnDelay: 2
+
+  - waveNumber: 12
+    enemies:
+      - {enemyType: heavy, count: 4, spawnInterval: 1.8}
+      - {enemyType: mage, count: 4, spawnInterval: 1.5}
+    spawnDelay: 3
+
+  - waveNumber: 13
+    enemies:
+      - {enemyType: heavy, count: 6, spawnInterval: 1.6}
+      - {enemyType: runner, count: 4, spawnInterval: 0.5}
+    spawnDelay: 2
+
+  - waveNumber: 14
+    enemies:
+      - {enemyType: heavy, count: 5, spawnInterval: 1.8}
+      - {enemyType: mage, count: 4, spawnInterval: 1.5}
+      - {enemyType: exploder, count: 3, spawnInterval: 1.2}
+    spawnDelay: 3
+
+  - waveNumber: 15
+    enemies:
+      - {enemyType: boss_beast, count: 1, spawnInterval: 0}
+      - {enemyType: heavy, count: 3, spawnInterval: 1.8}
+      - {enemyType: runner, count: 4, spawnInterval: 0.5}
+    spawnDelay: 4
+    isBossWave: true
+
+startingGold: 350
+
+availableTowers:
+  - arrow
+  - cannon
+  - lightning
+  - laser
+
+availableUnits: []
+
+unlockStarsRequired: 0
+unlockPrevLevelId: L3_tundra
+
+weatherPool:
+  - sunny
+  - rain
+  - fog

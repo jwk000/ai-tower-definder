@@ -1,0 +1,201 @@
+# ============================================================
+# Tower Defender — 关卡配置: 冰原 (L3 Tundra)
+# ============================================================
+# 设计文档: design/07-map-level-system.md
+# 源文件: src/data/levels/level-03.ts
+# ============================================================
+
+# ---- 基本信息 ----
+id: L3_tundra
+name: 冰原
+theme: tundra
+description: 双路线冰原地形，路径上的敌人会被减速
+sceneDescription: 永冻之地的冰原战场。冰原斥候和冰面滑行者从两条路线同时进攻。第5波、第13波冰霜将领指挥作战，第15波冰原猛犸与将领联手。冰晶和冰封的树木散落在雪地中。
+
+# ---- 地图配置 ----
+map:
+  name: 冰原
+  cols: 21
+  rows: 9
+  tileSize: 64
+
+  # Tile grid: 0=empty 1=path 2=blocked 3=spawn 4=base
+  tiles:
+    - [0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 0: spawn at col1, col6
+    - [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 1: path vertical
+    - [0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 2: path branches
+    - [0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 3: path goes right
+    - [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 4: path vertical
+    - [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 5: path vertical
+    - [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 6: path goes right
+    - [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # row 7: path vertical
+    - [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4]  # row 8: path straight to base
+
+  # Enemy path waypoints (row, col)
+  enemyPath:
+    - { row: 0, col: 1 }
+    - { row: 3, col: 1 }
+    - { row: 3, col: 4 }
+    - { row: 6, col: 4 }
+    - { row: 6, col: 7 }
+    - { row: 8, col: 7 }
+    - { row: 8, col: 20 }
+
+  # Alternative spawn points (secondary entrance)
+  altSpawnPoints:
+    - { row: 0, col: 6 }
+
+  # Tile color theme
+  tileColors:
+    empty: '#cfd8dc'
+    path: '#90a4ae'
+    spawn: '#4dd0e1'
+    base: '#42a5f5'
+
+  # Scene decorations (obstacles, visual only)
+  obstacles:
+    - { type: ice_crystal,  row: 0, col: 3 }
+    - { type: ice_crystal,  row: 0, col: 10 }
+    - { type: ice_crystal,  row: 2, col: 15 }
+    - { type: ice_crystal,  row: 5, col: 10 }
+    - { type: ice_crystal,  row: 7, col: 2 }
+    - { type: snow_tree,    row: 1, col: 10 }
+    - { type: snow_tree,    row: 4, col: 16 }
+    - { type: snow_tree,    row: 6, col: 14 }
+    - { type: frozen_rock,  row: 0, col: 17 }
+    - { type: frozen_rock,  row: 2, col: 10 }
+    - { type: frozen_rock,  row: 5, col: 17 }
+    - { type: frozen_rock,  row: 7, col: 12 }
+    - { type: frozen_rock,  row: 8, col: 0 }
+
+# ---- 波次配置 ----
+waves:
+  # Wave 1 — 6 个步兵
+  - waveNumber: 1
+    enemies:
+      - { enemyType: grunt, count: 6, spawnInterval: 1.3 }
+    spawnDelay: 2
+
+  # Wave 2 — 8 个步兵
+  - waveNumber: 2
+    enemies:
+      - { enemyType: grunt, count: 8, spawnInterval: 1.1 }
+    spawnDelay: 2
+
+  # Wave 3 — 5 步兵 + 3 快速兵
+  - waveNumber: 3
+    enemies:
+      - { enemyType: grunt, count: 5, spawnInterval: 1.0 }
+      - { enemyType: runner, count: 3, spawnInterval: 0.7 }
+    spawnDelay: 2
+
+  # Wave 4 — 10 个步兵
+  - waveNumber: 4
+    enemies:
+      - { enemyType: grunt, count: 10, spawnInterval: 1.0 }
+    spawnDelay: 2
+
+  # Wave 5 — BOSS: 3 步兵 + 1 指挥官
+  - waveNumber: 5
+    enemies:
+      - { enemyType: grunt, count: 3, spawnInterval: 1.0 }
+      - { enemyType: boss_commander, count: 1, spawnInterval: 0 }
+    spawnDelay: 3
+    isBossWave: true
+
+  # Wave 6 — 7 快速兵 + 3 法师 (spawn alt)
+  - waveNumber: 6
+    enemies:
+      - { enemyType: runner, count: 7, spawnInterval: 0.6 }
+      - { enemyType: mage, count: 3, spawnInterval: 1.5 }
+    spawnDelay: 2
+    spawnPointIndex: 1
+
+  # Wave 7 — 8 快速兵
+  - waveNumber: 7
+    enemies:
+      - { enemyType: runner, count: 8, spawnInterval: 0.5 }
+    spawnDelay: 2
+
+  # Wave 8 — 5 重型兵 (spawn primary)
+  - waveNumber: 8
+    enemies:
+      - { enemyType: heavy, count: 5, spawnInterval: 1.8 }
+    spawnDelay: 2
+    spawnPointIndex: 0
+
+  # Wave 9 — 6 步兵 + 4 自爆兵 (spawn alt)
+  - waveNumber: 9
+    enemies:
+      - { enemyType: grunt, count: 6, spawnInterval: 1.0 }
+      - { enemyType: exploder, count: 4, spawnInterval: 1.2 }
+    spawnDelay: 2
+    spawnPointIndex: 1
+
+  # Wave 10 — 4 重型 + 4 法师 (spawn primary)
+  - waveNumber: 10
+    enemies:
+      - { enemyType: heavy, count: 4, spawnInterval: 1.8 }
+      - { enemyType: mage, count: 4, spawnInterval: 1.5 }
+    spawnDelay: 3
+    spawnPointIndex: 0
+
+  # Wave 11 — 6 快速兵 + 3 重型 (spawn alt)
+  - waveNumber: 11
+    enemies:
+      - { enemyType: runner, count: 6, spawnInterval: 0.5 }
+      - { enemyType: heavy, count: 3, spawnInterval: 2.0 }
+    spawnDelay: 2
+    spawnPointIndex: 1
+
+  # Wave 12 — 5 重型 + 5 自爆兵 (spawn primary)
+  - waveNumber: 12
+    enemies:
+      - { enemyType: heavy, count: 5, spawnInterval: 1.8 }
+      - { enemyType: exploder, count: 5, spawnInterval: 1.0 }
+    spawnDelay: 3
+    spawnPointIndex: 0
+
+  # Wave 13 — BOSS: 1 指挥官 + 4 快速兵 (spawn primary)
+  - waveNumber: 13
+    enemies:
+      - { enemyType: boss_commander, count: 1, spawnInterval: 0 }
+      - { enemyType: runner, count: 4, spawnInterval: 0.6 }
+    spawnDelay: 3
+    isBossWave: true
+    spawnPointIndex: 0
+
+  # Wave 14 — 4 法师 + 4 重型 + 3 自爆兵 (spawn alt)
+  - waveNumber: 14
+    enemies:
+      - { enemyType: mage, count: 4, spawnInterval: 1.5 }
+      - { enemyType: heavy, count: 4, spawnInterval: 1.8 }
+      - { enemyType: exploder, count: 3, spawnInterval: 1.2 }
+    spawnDelay: 2
+    spawnPointIndex: 1
+
+  # Wave 15 — FINAL BOSS: 1 指挥官 + 1 猛犸 + 2 重型 (spawn primary)
+  - waveNumber: 15
+    enemies:
+      - { enemyType: boss_commander, count: 1, spawnInterval: 0 }
+      - { enemyType: boss_beast, count: 1, spawnInterval: 2.0 }
+      - { enemyType: heavy, count: 2, spawnInterval: 1.8 }
+    spawnDelay: 4
+    isBossWave: true
+    spawnPointIndex: 0
+
+# ---- 起始资源 ----
+startingGold: 300
+
+# ---- 可用单位 ----
+availableTowers: [arrow, ice, bat]
+availableUnits: []
+
+# ---- 解锁条件 ----
+unlockStarsRequired: 0
+unlockPrevLevelId: L2_desert
+
+# ---- 随机池 ----
+weatherPool: [snow, fog, night]
+banPool: []
+neutralPool: []

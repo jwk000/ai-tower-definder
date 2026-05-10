@@ -1,0 +1,122 @@
+id: level_01
+name: "平原"
+description: "青翠的草原上点缀着野花和灌木丛。一条土路从村庄延伸而来，蜿蜒穿过田野。这里是哥布林侦察兵经常出没的地方，村民们已经加固了道路尽头的基地。微风吹过，草浪起伏，看似平静的表面下暗藏杀机。"
+sceneDescription: "村庄郊外的草原。哥布林步兵、侦察兵和萨满从这条路发起进攻。第5波会出现哥布林指挥官，第10波巨兽将亲自出马。"
+theme: plains
+
+map:
+  cols: 21
+  rows: 9
+  tileSize: 64
+  tiles:
+    - [empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [spawn, path,  path,  path,  path,  empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, empty, empty, empty, path,  empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, empty, empty, empty, path,  empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, path,  path,  path,  path,  path,  path,  path,  path,  empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, path,  empty, empty, empty, path,  empty, empty, path,  empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, path,  path,  path,  path,  path,  empty, empty, path,  path,  path,  path,  path,  path,  path,  path,  path,  path,  path,  path,  base]
+    - [empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+    - [empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty, empty]
+  enemyPath:
+    - { row: 1, col: 0 }
+    - { row: 1, col: 4 }
+    - { row: 4, col: 4 }
+    - { row: 4, col: 1 }
+    - { row: 6, col: 1 }
+    - { row: 6, col: 5 }
+    - { row: 4, col: 5 }
+    - { row: 4, col: 8 }
+    - { row: 6, col: 8 }
+    - { row: 6, col: 20 }
+  tileColors:
+    empty: "#3a7d44"
+    path: "#a1887f"
+    blocked: "#546e7a"
+    spawn: "#ff8f00"
+    base: "#1e88e5"
+  obstacles:
+    - { type: tree,   row: 0, col: 3 }
+    - { type: tree,   row: 0, col: 17 }
+    - { type: tree,   row: 3, col: 18 }
+    - { type: tree,   row: 7, col: 20 }
+    - { type: tree,   row: 8, col: 2 }
+    - { type: bush,   row: 1, col: 8 }
+    - { type: bush,   row: 2, col: 9 }
+    - { type: bush,   row: 3, col: 10 }
+    - { type: bush,   row: 4, col: 12 }
+    - { type: bush,   row: 7, col: 8 }
+    - { type: bush,   row: 8, col: 15 }
+    - { type: flower, row: 0, col: 10 }
+    - { type: flower, row: 1, col: 16 }
+    - { type: flower, row: 2, col: 1 }
+    - { type: flower, row: 3, col: 14 }
+    - { type: flower, row: 8, col: 11 }
+
+waves:
+  - waveNumber: 1
+    spawnDelay: 2
+    enemies:
+      - { enemyType: grunt, count: 5, spawnInterval: 1.5 }
+  - waveNumber: 2
+    spawnDelay: 2
+    enemies:
+      - { enemyType: grunt, count: 8, spawnInterval: 1.2 }
+  - waveNumber: 3
+    spawnDelay: 2
+    enemies:
+      - { enemyType: grunt,  count: 6, spawnInterval: 1.0 }
+      - { enemyType: runner, count: 3, spawnInterval: 0.6 }
+  - waveNumber: 4
+    spawnDelay: 2
+    enemies:
+      - { enemyType: grunt, count: 10, spawnInterval: 1.0 }
+  - waveNumber: 5
+    spawnDelay: 3
+    isBossWave: true
+    enemies:
+      - { enemyType: grunt,          count: 4, spawnInterval: 1.2 }
+      - { enemyType: boss_commander, count: 1, spawnInterval: 0 }
+  - waveNumber: 6
+    spawnDelay: 2
+    enemies:
+      - { enemyType: runner, count: 6, spawnInterval: 0.6 }
+      - { enemyType: grunt,  count: 4, spawnInterval: 1.0 }
+  - waveNumber: 7
+    spawnDelay: 2
+    enemies:
+      - { enemyType: heavy, count: 4, spawnInterval: 1.8 }
+  - waveNumber: 8
+    spawnDelay: 3
+    enemies:
+      - { enemyType: heavy,    count: 2, spawnInterval: 2.0 }
+      - { enemyType: runner,   count: 5, spawnInterval: 0.5 }
+      - { enemyType: exploder, count: 2, spawnInterval: 1.5 }
+  - waveNumber: 9
+    spawnDelay: 2
+    enemies:
+      - { enemyType: mage,  count: 4, spawnInterval: 1.5 }
+      - { enemyType: heavy, count: 3, spawnInterval: 2.0 }
+  - waveNumber: 10
+    spawnDelay: 4
+    isBossWave: true
+    enemies:
+      - { enemyType: boss_beast, count: 1, spawnInterval: 0 }
+      - { enemyType: grunt,      count: 4, spawnInterval: 0.8 }
+      - { enemyType: exploder,   count: 2, spawnInterval: 1.2 }
+
+starting:
+  gold: 200
+  energy: 50
+  maxPopulation: 6
+
+available:
+  towers: [arrow, cannon]
+  units: []
+
+weather:
+  pool: [sunny, rain, fog]
+  initial: random_from_pool
+
+banPool: []
+neutralPool: []
