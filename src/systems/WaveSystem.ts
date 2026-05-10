@@ -308,6 +308,9 @@ export class WaveSystem implements System {
       active: 1,
       updateInterval: 0.1,
     });
+
+    // Display name for overhead HUD
+    this.world.setDisplayName(eid, config.name);
   }
 
   private getEnemyAIConfig(enemyType: EnemyType): string {

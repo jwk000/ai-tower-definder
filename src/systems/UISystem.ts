@@ -90,9 +90,15 @@ export class UISystem implements System {
   // requiredComponents removed — no entity iteration; queries run inline
 
   static readonly TOP_H = 36;
-  static readonly BTN_W = 120;
+  static readonly BTN_W = 80;
   static readonly BTN_H = 80;
   static readonly BTN_GAP = 8;
+
+  /** Bottom panel layout constants */
+  static readonly PANEL_W = 1344;   // matches map width (21×64=1344)
+  static readonly PANEL_H = 100;    // compact, holds single row of 80×80 buttons
+  static readonly PANEL_LEFT = (1920 - 1344) / 2; // 288 — centered horizontally
+  static readonly PANEL_BTN_START_X = UISystem.PANEL_LEFT + 20; // 308 — inner margin
 
   private buttons: UIButton[] = [];
   private infos: UIInfo[] = [];
@@ -502,27 +508,34 @@ export class UISystem implements System {
   private buildBottomPanel(phase: GamePhase): void {
     const sceneBottom = this.getSceneBottom();
     const panelY = sceneBottom + 8;
-    const panelH = 160;
+    const panelH = UISystem.PANEL_H;   // 100
+    const panelCenterX = 1920 / 2;     // 960
+    const panelW = UISystem.PANEL_W;   // 1344
     const available = phase !== GamePhase.Victory && phase !== GamePhase.Defeat;
 
     if (panelY + panelH > 1080) return;
 
+    // Panel background — centered, narrower than full width
     this.renderer.push({
       shape: 'rect',
-      x: 960, y: panelY + panelH / 2,
-      size: 1920, h: panelH,
+      x: panelCenterX, y: panelY + panelH / 2,
+      size: panelW, h: panelH,
       color: '#0d1b2a',
       alpha: 0.9,
     });
 
-    const btnY = panelY + 18;
-    const bw = UISystem.BTN_W;
-    const bh = UISystem.BTN_H;
+    const btnY = panelY + 10;
+    const bw = UISystem.BTN_W;   // 80
+    const bh = UISystem.BTN_H;   // 80
+    const gap = UISystem.BTN_GAP; // 8
+    const step = bw + gap;       // 88
+    const btnStartX = UISystem.PANEL_BTN_START_X; // 308
 
     // ---- Tower buttons (6) ----
-    this.infos.push({ x: 210, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
-
     const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat];
+    const towerLabelX = btnStartX + towerTypes.length * step / 2 - step / 2;
+    this.infos.push({ x: towerLabelX, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
+
     const selected = this.getSelectedTower();
 
     for (let i = 0; i < towerTypes.length; i++) {
@@ -530,7 +543,7 @@ export class UISystem implements System {
       const config = TOWER_CONFIGS[type];
       if (!config) continue;
 
-      const cx = 160 + i * (bw + UISystem.BTN_GAP) + bw / 2;
+      const cx = btnStartX + i * step + bw / 2;
       const canAfford = this.getGold() >= config.cost;
       const isSel = selected === type;
 
@@ -559,7 +572,7 @@ export class UISystem implements System {
     }
 
     // ---- Divider ----
-    const divX1 = 160 + towerTypes.length * (bw + UISystem.BTN_GAP);
+    const divX1 = btnStartX + towerTypes.length * step;
     this.renderer.push({
       shape: 'rect',
       x: divX1, y: btnY + bh / 2,
@@ -579,7 +592,7 @@ export class UISystem implements System {
       const uconfig = UNIT_CONFIGS[utype];
       if (!uconfig) continue;
 
-      const cx = unitStartX + i * (bw + UISystem.BTN_GAP) + bw / 2;
+      const cx = unitStartX + i * step + bw / 2;
       const canAffordGold = this.getGold() >= uconfig.cost;
       const hasPop = this.getPopulation() + uconfig.popCost <= this.getMaxPopulation();
       const canAfford = canAffordGold && hasPop;
@@ -610,7 +623,7 @@ export class UISystem implements System {
     // Trap button
     const trapCost = 40;
     const trapAffordable = this.getGold() >= trapCost;
-    const trapX = unitStartX + 2 * (bw + UISystem.BTN_GAP) + bw / 2;
+    const trapX = unitStartX + 2 * step + bw / 2;
 
     this.renderer.push({
       shape: 'rect',
@@ -635,7 +648,7 @@ export class UISystem implements System {
     });
 
     // ---- Divider ----
-    const divX2 = unitStartX + 3 * (bw + UISystem.BTN_GAP) - UISystem.BTN_GAP + 10;
+    const divX2 = unitStartX + 3 * step - gap + 10;
     this.renderer.push({
       shape: 'rect',
       x: divX2, y: btnY + bh / 2,
@@ -655,7 +668,7 @@ export class UISystem implements System {
       const pconfig = PRODUCTION_CONFIGS[ptype];
       if (!pconfig) continue;
 
-      const cx = prodStartX + i * (bw + UISystem.BTN_GAP) + bw / 2;
+      const cx = prodStartX + i * step + bw / 2;
       const canAfford = this.getGold() >= pconfig.cost;
 
       this.renderer.push({
@@ -682,7 +695,7 @@ export class UISystem implements System {
     }
 
     // ---- Divider ----
-    const divX3 = prodStartX + 2 * (bw + UISystem.BTN_GAP) - UISystem.BTN_GAP + 10;
+    const divX3 = prodStartX + 2 * step - gap + 10;
     this.renderer.push({
       shape: 'rect',
       x: divX3, y: btnY + bh / 2,
@@ -735,28 +748,17 @@ export class UISystem implements System {
         const atkDamage = Attack.damage[id];
         const unitCost = UnitTag.cost[id];
 
-        // Use available bitecs data — unitType config lookup not available in bitecs
-        if (unitCost !== undefined) {
-          // Try to identify unit type by config lookup (reverse lookup from cost)
-          let unitName = '单位';
-          let cfgHp = 150;
-          let cfgAtk = 15;
+        // Use TowerWorld display name (set at entity creation)
+        const unitName = this._world?.getDisplayName(id) || '单位';
+        const defaultHp = 150;
+        const defaultAtk = 15;
 
-          for (const utype of unitTypes) {
-            const uc = UNIT_CONFIGS[utype];
-            if (uc && Math.abs(uc.cost - unitCost) < 1) {
-              unitName = uc.name;
-              cfgHp = uc.hp;
-              cfgAtk = uc.atk;
-              break;
-            }
-          }
-
+        if (unitCost !== undefined || unitName !== '单位') {
           this.infos.push({ x: infoX, y: btnY + 26, text: unitName, color: '#ffffff', size: 20 });
 
-          const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : cfgHp;
-          const displayMax = hpMax !== undefined ? hpMax : cfgHp;
-          const displayAtk = atkDamage !== undefined ? atkDamage : cfgAtk;
+          const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : defaultHp;
+          const displayMax = hpMax !== undefined ? hpMax : defaultHp;
+          const displayAtk = atkDamage !== undefined ? atkDamage : defaultAtk;
           this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax} ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
         }
       } else if (this.selectedEntityType === 'trap') {
@@ -895,21 +897,11 @@ export class UISystem implements System {
       const atkDamage = Attack.damage[id];
       const unitCost = UnitTag.cost[id];
 
-      if (unitCost !== undefined) {
-        let unitName = '单位';
-        let cfgHp = 150;
-        let cfgAtk = 15;
+      const unitName = this._world?.getDisplayName(id) || '单位';
+      const defaultHp = 150;
+      const defaultAtk = 15;
 
-        for (const utype of [UnitType.ShieldGuard, UnitType.Swordsman]) {
-          const uc = UNIT_CONFIGS[utype];
-          if (uc && Math.abs(uc.cost - unitCost) < 1) {
-            unitName = uc.name;
-            cfgHp = uc.hp;
-            cfgAtk = uc.atk;
-            break;
-          }
-        }
-
+      if (unitCost !== undefined || unitName !== '单位') {
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
           text: unitName,
@@ -917,12 +909,12 @@ export class UISystem implements System {
         });
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${cfgHp}/${cfgHp}`}  ATK: ${atkDamage !== undefined ? atkDamage : cfgAtk}`,
+          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${defaultHp}/${defaultHp}`}  ATK: ${atkDamage !== undefined ? atkDamage : defaultAtk}`,
           color: '#ffffff', size: 16,
         });
 
         // Recycle button
-        const refund = Math.floor(unitCost * 0.5);
+        const refund = Math.floor((unitCost ?? 100) * 0.5);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;

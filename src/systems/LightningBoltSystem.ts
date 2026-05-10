@@ -1,17 +1,16 @@
 import { TowerWorld, type System } from '../core/World.js';
 import { LightningBolt, Position, defineQuery } from '../core/components.js';
-import { Container, Graphics } from 'pixi.js';
+import type { Renderer } from '../render/Renderer.js';
 
 const SEGMENTS = 8;
 const lightningQuery = defineQuery([LightningBolt]);
 
-/** Renders lightning bolt visual effects with glow */
+/** Renders lightning bolt visual effects with glow using Canvas 2D */
 export class LightningBoltSystem implements System {
   readonly name = 'LightningBoltSystem';
-  private prevGraphics: Graphics[] = [];
 
   constructor(
-    private container: Container,
+    private renderer: Renderer,
   ) {}
 
   update(world: TowerWorld, dt: number): void {
@@ -28,25 +27,19 @@ export class LightningBoltSystem implements System {
 
   /** Draw all active bolts — called from onPostRender after endFrame */
   renderBolts(world: TowerWorld): void {
-    // Remove previous frame's graphics
-    for (const g of this.prevGraphics) {
-      this.container.removeChild(g);
-      g.destroy();
-    }
-    this.prevGraphics = [];
+    const ctx = this.renderer.context;
 
     const entities = lightningQuery(world.world);
     for (const eid of entities) {
       const elapsed = LightningBolt.elapsed[eid]!;
       const duration = LightningBolt.duration[eid]!;
       if (elapsed < duration) {
-        this.drawBolt(eid);
+        this.drawBolt(ctx, eid);
       }
     }
   }
 
-  private drawBolt(eid: number): void {
-    const g = new Graphics();
+  private drawBolt(ctx: CanvasRenderingContext2D, eid: number): void {
     const elapsed = LightningBolt.elapsed[eid]!;
     const duration = LightningBolt.duration[eid]!;
     const alpha = Math.max(0, 1 - elapsed / duration);
@@ -79,46 +72,59 @@ export class LightningBoltSystem implements System {
       });
     }
 
-    // Draw glow layers (shader-like effect)
-    this.drawGlow(g, points, alpha);
+    // Draw glow layers
+    this.drawGlow(ctx, points, alpha);
 
     // Draw core line
-    g.moveTo(points[0]!.x, points[0]!.y);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(points[0]!.x, points[0]!.y);
     for (let i = 1; i < points.length; i++) {
-      g.lineTo(points[i]!.x, points[i]!.y);
+      ctx.lineTo(points[i]!.x, points[i]!.y);
     }
-    g.stroke({ color: '#ffffff', width: 2, alpha, cap: 'round', join: 'round' });
+    ctx.stroke();
+    ctx.restore();
 
     // Draw spark particles at junctions
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
     for (let i = 1; i < points.length - 1; i += 2) {
       const p = points[i]!;
-      g.circle(p.x, p.y, 3).fill({ color: '#ffffff', alpha: alpha * 0.8 });
+      ctx.globalAlpha = alpha * 0.8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
-
-    this.container.addChild(g);
-    this.prevGraphics.push(g);
+    ctx.restore();
   }
 
-  private drawGlow(g: Graphics, points: { x: number; y: number }[], alpha: number): void {
+  private drawGlow(ctx: CanvasRenderingContext2D, points: { x: number; y: number }[], alpha: number): void {
+    const drawLine = (color: string, width: number, a: number) => {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0]!.x, points[0]!.y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i]!.x, points[i]!.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    };
+
     // Outer glow (yellow, wide)
-    g.moveTo(points[0]!.x, points[0]!.y);
-    for (let i = 1; i < points.length; i++) {
-      g.lineTo(points[i]!.x, points[i]!.y);
-    }
-    g.stroke({ color: '#ffeb3b', width: 8, alpha: alpha * 0.3, cap: 'round', join: 'round' });
-
+    drawLine('#ffeb3b', 8, alpha * 0.3);
     // Mid glow (amber, medium)
-    g.moveTo(points[0]!.x, points[0]!.y);
-    for (let i = 1; i < points.length; i++) {
-      g.lineTo(points[i]!.x, points[i]!.y);
-    }
-    g.stroke({ color: '#ff9800', width: 5, alpha: alpha * 0.5, cap: 'round', join: 'round' });
-
+    drawLine('#ff9800', 5, alpha * 0.5);
     // Inner glow (white, thin)
-    g.moveTo(points[0]!.x, points[0]!.y);
-    for (let i = 1; i < points.length; i++) {
-      g.lineTo(points[i]!.x, points[i]!.y);
-    }
-    g.stroke({ color: '#ffffff', width: 2, alpha: alpha * 0.7, cap: 'round', join: 'round' });
+    drawLine('#ffffff', 2, alpha * 0.7);
   }
 }

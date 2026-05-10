@@ -1,6 +1,6 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { LaserBeam, Position, Health, Visual } from '../core/components.js';
-import { Container, Graphics } from 'pixi.js';
+import type { Renderer } from '../render/Renderer.js';
 
 const GLOW_COLOR = '#e040fb';
 const CORE_COLOR = '#ffffff';
@@ -8,14 +8,13 @@ const DAMAGE_INTERVAL = 0.1;
 
 const beamQuery = defineQuery([LaserBeam]);
 
-/** 激光束 — 持续性伤害 + PixiJS Graphics 渲染 */
+/** Laser beam — continuous damage + Canvas 2D rendering */
 export class LaserBeamSystem implements System {
   readonly name = 'LaserBeamSystem';
 
   private damageTimers = new Map<number, number>();
-  private beamGfx: Graphics | null = null;
 
-  constructor(private container: Container) {}
+  constructor(private renderer: Renderer) {}
 
   update(world: TowerWorld, dt: number): void {
     const entities = beamQuery(world.world);
@@ -41,17 +40,9 @@ export class LaserBeamSystem implements System {
   }
 
   renderBeams(world: TowerWorld): void {
-    // Remove previous frame's graphics
-    if (this.beamGfx) {
-      this.container.removeChild(this.beamGfx);
-      this.beamGfx.destroy();
-      this.beamGfx = null;
-    }
+    const ctx = this.renderer.context;
 
     const entities = beamQuery(world.world);
-    if (entities.length === 0) return;
-
-    this.beamGfx = new Graphics();
     for (const eid of entities) {
       const elapsed = LaserBeam.elapsed[eid]!;
       const duration = LaserBeam.duration[eid]!;
@@ -69,9 +60,8 @@ export class LaserBeamSystem implements System {
           toX === undefined || toY === undefined) continue;
 
       const alpha = Math.max(0, 1 - elapsed / duration);
-      this.drawBeam(this.beamGfx, fromX, fromY, toX, toY, alpha);
+      this.drawBeam(ctx, fromX, fromY, toX, toY, alpha);
     }
-    this.container.addChild(this.beamGfx);
   }
 
   private applyDamage(eid: number): void {
@@ -82,21 +72,29 @@ export class LaserBeamSystem implements System {
   }
 
   private drawBeam(
-    g: Graphics,
+    ctx: CanvasRenderingContext2D,
     fromX: number, fromY: number,
     toX: number, toY: number,
     alpha: number,
   ): void {
+    const drawLine = (color: string, width: number, a: number) => {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.restore();
+    };
+
     // Outer glow (width 10, alpha 0.3)
-    g.moveTo(fromX, fromY).lineTo(toX, toY);
-    g.stroke({ color: GLOW_COLOR, width: 10, alpha: alpha * 0.3, cap: 'round' });
-
+    drawLine(GLOW_COLOR, 10, alpha * 0.3);
     // Mid glow (width 5, alpha 0.6)
-    g.moveTo(fromX, fromY).lineTo(toX, toY);
-    g.stroke({ color: '#9c27b0', width: 5, alpha: alpha * 0.6, cap: 'round' });
-
+    drawLine('#9c27b0', 5, alpha * 0.6);
     // Core beam (width 2, alpha 1.0)
-    g.moveTo(fromX, fromY).lineTo(toX, toY);
-    g.stroke({ color: CORE_COLOR, width: 2, alpha, cap: 'round' });
+    drawLine(CORE_COLOR, 2, alpha);
   }
 }

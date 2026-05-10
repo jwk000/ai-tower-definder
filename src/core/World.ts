@@ -62,6 +62,9 @@ export class TowerWorld {
   /** Entity IDs marked for deferred cleanup (removed at end of update) */
   private deadEntities = new Set<number>();
 
+  /** Entity display names (eid → name string) — used by RenderSystem for overhead HUD */
+  private displayNames = new Map<number, string>();
+
   // ---- Entity Lifecycle ----
 
   /** Create a new entity and return its ID */
@@ -100,7 +103,7 @@ export class TowerWorld {
 
   /** Remove a component from an entity */
   removeComponent(eid: number, component: object): void {
-    removeComponent(this.world, eid, component);
+    removeComponent(this.world, component, eid);
   }
 
   // ---- Systems ----
@@ -118,11 +121,22 @@ export class TowerWorld {
     this.cleanupDeadEntities();
   }
 
+  /** Set the display name for an entity (used by overhead HUD rendering) */
+  setDisplayName(eid: number, name: string): void {
+    this.displayNames.set(eid, name);
+  }
+
+  /** Get the display name for an entity, or undefined if not set */
+  getDisplayName(eid: number): string | undefined {
+    return this.displayNames.get(eid);
+  }
+
   /** Clean up entities marked for deferred removal */
   cleanupDeadEntities(): void {
     if (this.deadEntities.size > 0) {
       for (const eid of this.deadEntities) {
         removeEntity(this.world, eid);
+        this.displayNames.delete(eid);
       }
       this.deadEntities.clear();
     }
@@ -131,6 +145,7 @@ export class TowerWorld {
   /** Reset the world to a clean state (clears entities, systems, etc.) */
   reset(): void {
     this.deadEntities.clear();
+    this.displayNames.clear();
     this.systems.length = 0;
     // Remove all existing entities from current world before creating a new one
     const allEntities = getAllEntities(this.world);

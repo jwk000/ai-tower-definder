@@ -29,6 +29,7 @@ import {
   Slowed,
   Frozen,
   Stunned,
+  Production,
 } from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
 import { UNIT_CONFIGS } from '../data/gameData.js';
@@ -53,7 +54,14 @@ export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: num
   const mapPixelW = map.cols * map.tileSize;
   const mapPixelH = map.rows * map.tileSize;
   const offsetX = (canvasW - mapPixelW) / 2;
-  const offsetY = 50;
+
+  // Vertical centering: map centered between HUD bottom and bottom panel top
+  const topHUD = 36;       // UISystem.TOP_H — must match
+  const panelH = 100;      // bottom panel height — must match UISystem
+  const mapPanelGap = 8;   // gap between map bottom edge and panel top
+  const availableV = canvasH - topHUD - panelH - mapPanelGap;
+  const offsetY = topHUD + (availableV - mapPixelH) / 2;
+
   return { offsetX, offsetY, cols: map.cols, rows: map.rows, tileSize: map.tileSize, mapPixelW, mapPixelH };
 }
 
@@ -186,6 +194,7 @@ export class RenderSystem implements System {
       const isTower = hasComponent(world.world, eid, Tower);
       const isTrap = hasComponent(world.world, eid, Trap);
       const isUnit = hasComponent(world.world, eid, Category) && Category.value[eid] === CategoryVal.Soldier;
+      const isProduction = hasComponent(world.world, eid, Production);
 
       // ---- Buff/status flags (computed once) ----
       const hasFrozen = hasComponent(world.world, eid, Frozen);
@@ -366,58 +375,86 @@ export class RenderSystem implements System {
       };
 
       // ========================================
-      // Health bar (below entity)
+      // 1. Entity body (bottom layer — drawn first)
       // ========================================
-      const hasHealth = hasComponent(world.world, eid, Health);
-      if (hasHealth && !isProjectile) {
-        const hpCurrent = Health.current[eid]!;
-        const hpMax = Health.max[eid]!;
-        const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
-        if (ratio < 1) {
-          const barW = Math.max(Visual.size[eid]! * 1.2, 28);
-          this.drawHealthBar(posX, posY - Visual.size[eid]! / 2 - 16, barW, ratio);
-        }
-      }
-
       pushCmd();
 
       // ========================================
-      // Tower level diamonds
+      // 2. Health bar (always visible above entity)
       // ========================================
+      const entityTop = posY - drawSize / 2;
+      const healthBarY = entityTop - 8;  // bar center, 6px height
+
+      const hasHealth = hasComponent(world.world, eid, Health);
+      if (hasHealth && !isProjectile && drawSize > 0 && isFinite(entityTop)) {
+        const hpCurrent = Health.current[eid]!;
+        const hpMax = Health.max[eid]!;
+        const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
+        const barW = Math.max(drawSize * 1.2, 28);
+        this.drawHealthBar(posX, healthBarY, barW, ratio);
+      }
+
+      // ========================================
+      // 3. Display name (above health bar)
+      // ========================================
+      const displayName = world.getDisplayName(eid);
+      if (displayName && isFinite(healthBarY)) {
+        const nameY = healthBarY - 10;  // above health bar
+        this.renderer.push({
+          shape: 'rect',
+          x: posX,
+          y: nameY,
+          size: 0.1,
+          h: 0.1,
+          color: '#ffffff',
+          alpha: 1,
+          label: displayName,
+          labelColor: '#ffffff',
+          labelSize: 12,
+        });
+      }
+
+      // ========================================
+      // 4. Level diamonds (above name, for towers & production buildings)
+      // ========================================
+      let levelToShow = 0;
       if (isTower) {
-        const towerLevel = Tower.level[eid]!;
-        if (towerLevel > 0) {
-          const diamondSize = 6;
-          const gap = 2;
-          const totalW = towerLevel * diamondSize * 2 + (towerLevel - 1) * gap;
-          const startX = posX - totalW / 2 + diamondSize;
-          const diamondY = posY - drawSize / 2 - 8;
-          for (let i = 0; i < towerLevel; i++) {
-            this.renderer.push({
-              shape: 'diamond',
-              x: startX + i * (diamondSize * 2 + gap),
-              y: diamondY,
-              size: diamondSize,
-              color: '#ffd700',
-              alpha: 0.95,
-            });
-          }
+        levelToShow = Tower.level[eid]!;
+      } else if (isProduction) {
+        levelToShow = Production.level[eid]!;
+      }
+
+      if (levelToShow > 1 && isFinite(entityTop)) {
+        const diamondSize = 6;
+        const gap = 2;
+        const totalW = levelToShow * diamondSize * 2 + (levelToShow - 1) * gap;
+        const startX = posX - totalW / 2 + diamondSize;
+        const diamondY = entityTop - 30;
+        for (let i = 0; i < levelToShow; i++) {
+          this.renderer.push({
+            shape: 'diamond',
+            x: startX + i * (diamondSize * 2 + gap),
+            y: diamondY,
+            size: diamondSize,
+            color: '#ffd700',
+            alpha: 0.95,
+          });
         }
       }
 
       // ========================================
-      // Unit info panel (when selected)
+      // 5. Unit info panel (when selected — detailed stats)
       // ========================================
       if (isUnit && selectedUnitId === eid) {
-        const hasAttack = hasComponent(world.world, eid, Attack);
-        if (hasHealth && hasAttack) {
+        const hasAttackComp = hasComponent(world.world, eid, Attack);
+        if (hasHealth && hasAttackComp) {
           const hpCurrent = Math.ceil(Health.current[eid]!);
           const hpMax = Health.max[eid]!;
           const atkDmg = Attack.damage[eid]!;
           const atkSpd = Attack.attackSpeed[eid]!;
-          const entitySize = Visual.size[eid]!;
 
-          const infoY = posY - entitySize / 2 - 30;
+          const infoY = posY - drawSize / 2 - 30;
+          const unitName = displayName || '士兵';
           this.renderer.push({
             shape: 'rect',
             x: posX,
@@ -437,7 +474,7 @@ export class RenderSystem implements System {
             h: 0.1,
             color: '#ffffff',
             alpha: 1,
-            label: '士兵',
+            label: unitName,
             labelColor: '#ffffff',
             labelSize: 14,
           });

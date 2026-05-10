@@ -425,6 +425,9 @@ export class BuildSystem implements System {
     // Category
     world.addComponent(eid, Category, { value: CategoryVal.Tower });
 
+    // Display name for overhead HUD
+    world.setDisplayName(eid, config.name);
+
     return eid;
   }
 
@@ -465,6 +468,9 @@ export class BuildSystem implements System {
     world.addComponent(eid, PlayerOwned);
     world.addComponent(eid, Category, { value: CategoryVal.Trap });
     world.addComponent(eid, Layer, { value: LayerVal.AboveGrid });
+
+    // Display name for overhead HUD
+    world.setDisplayName(eid, '地刺');
 
     return eid;
   }
@@ -514,6 +520,9 @@ export class BuildSystem implements System {
 
     world.addComponent(eid, PlayerOwned);
     world.addComponent(eid, Category, { value: CategoryVal.Building });
+
+    // Display name for overhead HUD
+    world.setDisplayName(eid, config.name);
 
     return eid;
   }

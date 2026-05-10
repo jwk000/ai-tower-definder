@@ -1,6 +1,15 @@
 # AGENTS.md — Tower Defender
 
-> 设计文档: `design/README.md` | 重构方案: `design/17-refactoring-plan.md`
+> 设计文档: `design/README.md` | 重构方案: `design/15-refactoring-plan.md`
+
+## ⛔ 核心铁律：每完成一个任务立即提交代码
+
+> **这是最重要的规范，优先级高于一切。违反此规则视为任务未完成。**
+
+- **触发时机**: 每完成一个逻辑任务单元（功能实现/修复/重构完成），不等用户提醒，立即执行 `git add` + `git commit`
+- **提交信息**: 使用任务描述作为 commit message，格式：`feat/fix/refactor: <简短描述>`
+- **绝不**: 累积多个任务的改动后一并提交
+- **绝不**: 等待用户提醒才提交
 
 ## Build & Run
 
@@ -17,7 +26,7 @@ Build pipeline enforces: `typecheck → clean → build`. Broken types = no buil
 
 ## Architecture
 
-Custom ECS (Entity-Component-System) with pure Canvas 2D — no game frameworks.
+Custom ECS (Entity-Component-System) with PixiJS WebGL rendering — 100% procedural geometry, composite shape units.
 
 ```
 src/

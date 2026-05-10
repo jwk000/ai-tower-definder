@@ -26,7 +26,6 @@ import { FadingMarkSystem } from './systems/FadingMarkSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
-import { Container } from 'pixi.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { Sound } from './utils/Sound.js';
 import { LEVELS } from './data/levels/index.js';
@@ -105,7 +104,6 @@ class TowerDefenderGame extends Game {
   private baseEntityId: number | null = null;
   private batSwarmSystem!: BatSwarmSystem;
   private laserBeamSystem!: LaserBeamSystem;
-  private effectContainer: Container;
 
   // ---- Scene decoration ----
   private decorationSystem!: DecorationSystem;
@@ -126,7 +124,6 @@ class TowerDefenderGame extends Game {
     super(canvas);
 
     Sound.preload();
-    this.effectContainer = new Container();
 
     this.levelSelectUI = new LevelSelectUI(
       this.renderer,
@@ -377,7 +374,7 @@ class TowerDefenderGame extends Game {
     const movementSystem = new MovementSystem(map);
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
-    this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem);
+    this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);
     const projectileSystem = new ProjectileSystem();
 
@@ -394,8 +391,8 @@ class TowerDefenderGame extends Game {
     const explosionEffectSystem = new ExplosionEffectSystem();
     const bloodParticleSystem = new BloodParticleSystem();
     const fadingMarkSystem = new FadingMarkSystem();
-    const lightningBoltSystem = new LightningBoltSystem(this.effectContainer);
-    this.laserBeamSystem = new LaserBeamSystem(this.effectContainer);
+    const lightningBoltSystem = new LightningBoltSystem(this.renderer);
+    this.laserBeamSystem = new LaserBeamSystem(this.renderer);
 
     // ---- New unit system ----
     this.aiSystem = new AISystem();
@@ -841,6 +838,9 @@ class TowerDefenderGame extends Game {
 
     // Faction: Player
     this.world.addComponent(id, Faction, { value: FactionVal.Player });
+
+    // Display name for overhead HUD
+    this.world.setDisplayName(id, config.name);
   }
 
   // ================================================================
