@@ -1,5 +1,7 @@
 # AGENTS.md — Tower Defender
 
+> 设计文档: `design/README.md` | 重构方案: `design/17-refactoring-plan.md`
+
 ## Build & Run
 
 ```bash
@@ -65,3 +67,12 @@ src/
 - Towers: add to `TowerType` enum → `TOWER_CONFIGS` record → `BuildSystem` UI.
 - Enemies: add to `EnemyType` enum → `ENEMY_CONFIGS` record → `WaveSystem` spawning.
 - New component: add `CType` key → create component file → add to relevant system's `requiredComponents`.
+
+## Development Workflow
+
+1. **Design first, code second.** Every feature starts with a design document. Code must match the document — document is the source of truth.
+2. **Code review against docs.** After writing code, a review agent validates code and document consistency. Document always takes precedence; code must be fixed to match.
+3. **Atomic tasks, atomic commits.** Break down all development work into single-purpose tasks. Each task does exactly one thing. Commit immediately after completing a task, with the commit message being the task description.
+4. **Change requests go to docs first.** Any acceptance issue or requirement change must be recorded in the document before modifying code.
+5. **Always reply in Chinese.** All communication in this project must be in Chinese.
+6. **Development log.** An agent must write a development log at the end of each conversation. Logs are kept with full history, organized by date (one file per day).

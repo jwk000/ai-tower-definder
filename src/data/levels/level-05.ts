@@ -3,6 +3,8 @@ import {
   TowerType,
   EnemyType,
   LevelTheme,
+  ObstacleType,
+  WeatherType,
   type LevelConfig,
   type MapConfig,
   type WaveConfig,
@@ -26,56 +28,24 @@ const WAYPOINTS: GridPos[] = [
   { row: 5, col: 20 },
 ];
 
-const WALL_TILES = new Set([
-  '0,1', '0,3', '1,1', '1,3',
-  '2,1', '2,5', '3,1', '3,5',
-  '4,2', '4,5', '5,2', '5,3',
-  '6,2', '6,4', '7,2', '7,4',
-  '8,1', '8,4', '8,6',
-  '0,5', '0,7', '1,5', '1,7',
-  '2,8', '3,6', '4,7', '6,7',
-  '7,7', '8,7',
-]);
-
-function isOnPath(row: number, col: number): boolean {
-  for (let i = 0; i < WAYPOINTS.length - 1; i++) {
-    const a = WAYPOINTS[i]!;
-    const b = WAYPOINTS[i + 1]!;
-    if (a.row === b.row) {
-      const minCol = Math.min(a.col, b.col);
-      const maxCol = Math.max(a.col, b.col);
-      if (row === a.row && col >= minCol && col <= maxCol) return true;
-    } else if (a.col === b.col) {
-      const minRow = Math.min(a.row, b.row);
-      const maxRow = Math.max(a.row, b.row);
-      if (col === a.col && row >= minRow && row <= maxRow) return true;
-    }
-  }
-  return false;
-}
-
-function buildTiles(): TileType[][] {
-  const tiles: TileType[][] = [];
-  for (let row = 0; row < 9; row++) {
-    const line: TileType[] = [];
-    for (let col = 0; col < 21; col++) {
-      if (col === 0 && row === 1) line.push(TileType.Spawn);
-      else if (col === 20 && row === 5) line.push(TileType.Base);
-      else if (isOnPath(row, col)) line.push(TileType.Path);
-      else if (WALL_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
-      else line.push(TileType.Empty);
-    }
-    tiles.push(line);
-  }
-  return tiles;
-}
+const TILES: TileType[][] = [
+  [TileType.Blocked,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Spawn,TileType.Blocked,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Blocked,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Blocked,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Path,TileType.Blocked,TileType.Path,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+];
 
 const MAP: MapConfig = {
   name: '城堡',
   cols: 21,
   rows: 9,
   tileSize: 64,
-  tiles: buildTiles(),
+  tiles: TILES,
   enemyPath: WAYPOINTS,
   tileColors: {
     [TileType.Empty]: '#37474f',
@@ -84,6 +54,26 @@ const MAP: MapConfig = {
     [TileType.Spawn]: '#fff176',
     [TileType.Base]: '#42a5f5',
   },
+  sceneDescription: '一座被遗忘的远古要塞内部。厚重的石墙和巨大的石柱构成了迷宫般的走廊，墙壁上的火炬是唯一的光源，投下摇曳的阴影。地面上散落着坍塌的碎石，敌人的主力部队已经占领了这座要塞，准备以此为据点发动最终进攻。这是最后的防线，退无可退。',
+  obstaclePlacements: [
+    { type: ObstacleType.Brazier, row: 0, col: 8 },
+    { type: ObstacleType.Brazier, row: 2, col: 19 },
+    { type: ObstacleType.Brazier, row: 4, col: 14 },
+    { type: ObstacleType.Brazier, row: 7, col: 19 },
+    { type: ObstacleType.Brazier, row: 6, col: 1 },
+    { type: ObstacleType.Rubble, row: 0, col: 14 },
+    { type: ObstacleType.Rubble, row: 2, col: 11 },
+    { type: ObstacleType.Rubble, row: 3, col: 14 },
+    { type: ObstacleType.Rubble, row: 4, col: 10 },
+    { type: ObstacleType.Rubble, row: 6, col: 16 },
+    { type: ObstacleType.Rubble, row: 7, col: 0 },
+    { type: ObstacleType.Rubble, row: 8, col: 14 },
+    { type: ObstacleType.Pillar, row: 0, col: 4 },
+    { type: ObstacleType.Pillar, row: 2, col: 4 },
+    { type: ObstacleType.Pillar, row: 6, col: 9 },
+    { type: ObstacleType.Pillar, row: 8, col: 5 },
+    { type: ObstacleType.Pillar, row: 8, col: 18 },
+  ],
 };
 
 const WAVES: WaveConfig[] = [
@@ -213,11 +203,13 @@ export const LEVEL_05: LevelConfig = {
   name: '城堡',
   theme: LevelTheme.Castle,
   description: '迷宫般的城堡路径，考验你的全部防御能力',
+  sceneDescription: '远古要塞的深处，敌人的主力部队已全面占领此地。石墙与石柱形成迷宫走廊，所有敌人类型全部登场。第10波和第15波指挥官亲自率队冲锋。五路精英混编，是对防御体系的终极考验。',
   map: MAP,
   waves: WAVES,
   startingGold: 400,
-  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning],
+  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L4_volcano',
+  weatherPool: [WeatherType.Rain, WeatherType.Night, WeatherType.Fog],
 };

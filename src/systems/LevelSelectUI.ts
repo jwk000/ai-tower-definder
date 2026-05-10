@@ -153,6 +153,16 @@ export class LevelSelectUI {
       label: `主题: ${themeNames[config.theme]}`, labelSize: 12, labelColor: '#8899aa', h: 20,
     });
 
+    const descText = config.sceneDescription ?? config.description;
+    if (descText && descText.length > 0) {
+      const clipped = descText.length > 36 ? descText.slice(0, 36) + '...' : descText;
+      this.renderer.push({
+        shape: 'rect', x: cx, y: card.y + 128,
+        size: card.w - 40, color: 'transparent',
+        label: clipped, labelSize: 10, labelColor: '#778899', h: 20,
+      });
+    }
+
     if (!unlocked) {
       this.renderer.push({
         shape: 'rect', x: cx, y: card.y + 155,

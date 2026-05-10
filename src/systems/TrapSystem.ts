@@ -2,7 +2,6 @@ import { System, CType } from '../types/index.js';
 import { World } from '../core/World.js';
 import { Position, GridOccupant } from '../components/Position.js';
 import { Health } from '../components/Health.js';
-import { Render } from '../components/Render.js';
 import { Trap } from '../components/Trap.js';
 import { RenderSystem } from './RenderSystem.js';
 
@@ -25,6 +24,10 @@ export class TrapSystem implements System {
       const grid = this.world.getComponent<GridOccupant>(trapId, CType.GridOccupant);
       if (!grid) continue;
 
+      if (trap.spikeAnimTimer > 0) {
+        trap.spikeAnimTimer = Math.max(0, trap.spikeAnimTimer - dt);
+      }
+
       let damaging = false;
 
       for (const enemyId of enemies) {
@@ -41,10 +44,7 @@ export class TrapSystem implements System {
       }
 
       if (damaging) {
-        const trapRender = this.world.getComponent<Render>(trapId, CType.Render);
-        if (trapRender) {
-          trapRender.hitFlashTimer = 0.1;
-        }
+        trap.spikeAnimTimer = trap.spikeAnimDuration;
       }
     }
   }

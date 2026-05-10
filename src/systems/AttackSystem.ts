@@ -9,15 +9,19 @@ import { Render } from '../components/Render.js';
 import { Health } from '../components/Health.js';
 import { LightningBolt } from '../components/LightningBolt.js';
 import { LightningAura } from '../components/LightningAura.js';
+import { LaserBeam } from '../components/LaserBeam.js';
 import { Renderer } from '../render/Renderer.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { Sound } from '../utils/Sound.js';
+import type { WeatherSystem } from './WeatherSystem.js';
 
 const PROJECTILE_CFG: Record<TowerType, { speed: number; shape: ShapeType; color: string; size: number }> = {
   [TowerType.Arrow]:     { speed: 420, shape: 'arrow',    color: '#81d4fa', size: 24 },
   [TowerType.Cannon]:    { speed: 280, shape: 'circle',   color: '#222222', size: 16 },
   [TowerType.Ice]:       { speed: 350, shape: 'diamond',  color: '#81d4fa', size: 12 },
   [TowerType.Lightning]: { speed: 600, shape: 'triangle', color: '#fff176', size: 10 },
+  [TowerType.Laser]:     { speed: 500, shape: 'circle',   color: '#e040fb', size: 8 },
+  [TowerType.Bat]:       { speed: 350, shape: 'triangle', color: '#7c4dff', size: 10 },
 };
 
 /** Towers attack nearest enemy in range by spawning projectiles */
@@ -25,10 +29,14 @@ export class AttackSystem implements System {
   readonly name = 'AttackSystem';
   readonly requiredComponents = [CType.Position, CType.Attack, CType.Tower] as const;
 
-  constructor(private world: World) {}
+  constructor(
+    private world: World,
+    private weatherSystem?: WeatherSystem,
+  ) {}
 
   update(entities: number[], dt: number): void {
     const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
+    const enemyEntities: Array<{ id: number; dist: number }> = [];
 
     for (const towerId of entities) {
       const pos = this.world.getComponent<Position>(towerId, CType.Position)!;
@@ -38,29 +46,39 @@ export class AttackSystem implements System {
       atk.tickCooldown(dt);
       if (!atk.canAttack) continue;
 
-      let nearestId: number | null = null;
-      let nearestDist = Infinity;
+      // Bat tower only attacks in Night/Fog
+      if (tower.towerType === TowerType.Bat && this.weatherSystem && !this.weatherSystem.canAttackBat()) {
+        continue;
+      }
 
+      // Collect enemies in range
+      enemyEntities.length = 0;
       for (const enemyId of enemies) {
         const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
         if (!ePos) continue;
         const dx = ePos.x - pos.x;
         const dy = ePos.y - pos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= atk.range && dist < nearestDist) {
-          nearestDist = dist;
-          nearestId = enemyId;
+        if (dist <= atk.range) {
+          enemyEntities.push({ id: enemyId, dist });
         }
       }
 
-      if (nearestId !== null) {
-        atk.resetCooldown();
-        Sound.play('tower_shoot');
-        if (tower.towerType === TowerType.Lightning) {
-          this.doLightningAttack(towerId, nearestId, pos.x, pos.y, tower.level);
-        } else {
-          this.spawnProjectile(tower.towerType, towerId, nearestId, pos.x, pos.y);
-        }
+      if (enemyEntities.length === 0) continue;
+
+      // Sort by distance
+      enemyEntities.sort((a, b) => a.dist - b.dist);
+
+      const nearestId = enemyEntities[0]!.id;
+      atk.resetCooldown();
+      Sound.play('tower_shoot');
+
+      if (tower.towerType === TowerType.Lightning) {
+        this.doLightningAttack(towerId, nearestId, pos.x, pos.y, tower.level);
+      } else if (tower.towerType === TowerType.Laser) {
+        this.doLaserAttack(towerId, pos.x, pos.y, tower.level, enemyEntities);
+      } else {
+        this.spawnProjectile(tower.towerType, towerId, nearestId, pos.x, pos.y);
       }
     }
   }
@@ -180,5 +198,37 @@ export class AttackSystem implements System {
     this.world.addComponent(id, new Position(pos.x, pos.y));
     this.world.addComponent(id, new Render('circle', '#ffffff', 30));
     this.world.addComponent(id, new LightningAura(0.5));
+  }
+
+  private getBeamCount(level: number): number {
+    if (level >= 5) return 3;
+    if (level >= 3) return 2;
+    return 1;
+  }
+
+  private doLaserAttack(
+    towerId: number, fromX: number, fromY: number, level: number,
+    enemiesInRange: Array<{ id: number; dist: number }>,
+  ): void {
+    const beamCount = Math.min(this.getBeamCount(level), enemiesInRange.length);
+    const damage = this.getDamage(towerId);
+    const beamDuration = 1.0;
+    const damageInterval = 0.25;
+
+    for (let i = 0; i < beamCount; i++) {
+      const targetId = enemiesInRange[i]!.id;
+      const targetPos = this.world.getComponent<Position>(targetId, CType.Position);
+      if (!targetPos) continue;
+
+      const beamId = this.world.createEntity();
+      this.world.addComponent(beamId, new LaserBeam(
+        towerId, targetId,
+        fromX, fromY,
+        targetPos.x, targetPos.y,
+        beamDuration,
+        damage,
+        damageInterval,
+      ));
+    }
   }
 }

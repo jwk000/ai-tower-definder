@@ -3,6 +3,8 @@ import {
   TowerType,
   EnemyType,
   LevelTheme,
+  ObstacleType,
+  WeatherType,
   type LevelConfig,
   type MapConfig,
   type WaveConfig,
@@ -19,55 +21,24 @@ const PRIMARY_WAYPOINTS: GridPos[] = [
   { row: 8, col: 20 },
 ];
 
-const SECONDARY_WAYPOINTS: GridPos[] = [
-  { row: 0, col: 6 },
-  { row: 2, col: 6 },
-  { row: 2, col: 4 },
-  { row: 3, col: 4 },
+const TILES: TileType[][] = [
+  [TileType.Empty,TileType.Spawn,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Spawn,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
 ];
-
-function isOnPath(row: number, col: number, waypoints: GridPos[]): boolean {
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const a = waypoints[i]!;
-    const b = waypoints[i + 1]!;
-    if (a.row === b.row) {
-      const minCol = Math.min(a.col, b.col);
-      const maxCol = Math.max(a.col, b.col);
-      if (row === a.row && col >= minCol && col <= maxCol) return true;
-    } else if (a.col === b.col) {
-      const minRow = Math.min(a.row, b.row);
-      const maxRow = Math.max(a.row, b.row);
-      if (col === a.col && row >= minRow && row <= maxRow) return true;
-    }
-  }
-  return false;
-}
-
-function isOnAnyPath(row: number, col: number): boolean {
-  return isOnPath(row, col, PRIMARY_WAYPOINTS) || isOnPath(row, col, SECONDARY_WAYPOINTS);
-}
-
-function buildTiles(): TileType[][] {
-  const tiles: TileType[][] = [];
-  for (let row = 0; row < 9; row++) {
-    const line: TileType[] = [];
-    for (let col = 0; col < 21; col++) {
-      if ((col === 1 || col === 6) && row === 0) line.push(TileType.Spawn);
-      else if (col === 20 && row === 8) line.push(TileType.Base);
-      else if (isOnAnyPath(row, col)) line.push(TileType.Path);
-      else line.push(TileType.Empty);
-    }
-    tiles.push(line);
-  }
-  return tiles;
-}
 
 const MAP: MapConfig = {
   name: '冰原',
   cols: 21,
   rows: 9,
   tileSize: 64,
-  tiles: buildTiles(),
+  tiles: TILES,
   enemyPath: PRIMARY_WAYPOINTS,
   altSpawnPoints: [{ row: 0, col: 6 }],
   tileColors: {
@@ -76,6 +47,22 @@ const MAP: MapConfig = {
     [TileType.Spawn]: '#4dd0e1',
     [TileType.Base]: '#42a5f5',
   },
+  sceneDescription: '永恒的冬天笼罩着这片冰原。地面覆盖着厚厚的积雪，尖锐的冰晶从地表刺出，被冰封的古树如同幽灵般伫立。两条道路从不同的方向汇聚——敌人在此地建立了双线进攻的据点。寒风呼啸，连呼吸都会在空气中凝结成冰雾。',
+  obstaclePlacements: [
+    { type: ObstacleType.IceCrystal, row: 0, col: 3 },
+    { type: ObstacleType.IceCrystal, row: 0, col: 10 },
+    { type: ObstacleType.IceCrystal, row: 2, col: 15 },
+    { type: ObstacleType.IceCrystal, row: 5, col: 10 },
+    { type: ObstacleType.IceCrystal, row: 7, col: 2 },
+    { type: ObstacleType.SnowTree, row: 1, col: 10 },
+    { type: ObstacleType.SnowTree, row: 4, col: 16 },
+    { type: ObstacleType.SnowTree, row: 6, col: 14 },
+    { type: ObstacleType.FrozenRock, row: 0, col: 17 },
+    { type: ObstacleType.FrozenRock, row: 2, col: 10 },
+    { type: ObstacleType.FrozenRock, row: 5, col: 17 },
+    { type: ObstacleType.FrozenRock, row: 7, col: 12 },
+    { type: ObstacleType.FrozenRock, row: 8, col: 0 },
+  ],
 };
 
 const WAVES: WaveConfig[] = [
@@ -205,11 +192,13 @@ export const LEVEL_03: LevelConfig = {
   name: '冰原',
   theme: LevelTheme.Tundra,
   description: '双路线冰原地形，路径上的敌人会被减速',
+  sceneDescription: '永冻之地的冰原战场。冰原斥候和冰面滑行者从两条路线同时进攻。第5波、第13波冰霜将领指挥作战，第15波冰原猛犸与将领联手。冰晶和冰封的树木散落在雪地中。',
   map: MAP,
   waves: WAVES,
   startingGold: 300,
-  availableTowers: [TowerType.Arrow, TowerType.Ice],
+  availableTowers: [TowerType.Arrow, TowerType.Ice, TowerType.Bat],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L2_desert',
+  weatherPool: [WeatherType.Snow, WeatherType.Fog, WeatherType.Night],
 };

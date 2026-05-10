@@ -47,6 +47,35 @@ export interface SceneLayout {
   mapPixelH: number;
 }
 
+export enum ObstacleType {
+  // Plains
+  Tree = 'tree',
+  Bush = 'bush',
+  Flower = 'flower',
+  // Desert
+  Rock = 'rock',
+  Cactus = 'cactus',
+  Bones = 'bones',
+  // Tundra
+  IceCrystal = 'ice_crystal',
+  SnowTree = 'snow_tree',
+  FrozenRock = 'frozen_rock',
+  // Volcano
+  LavaVent = 'lava_vent',
+  ScorchedTree = 'scorched_tree',
+  VolcanicRock = 'volcanic_rock',
+  // Castle
+  Pillar = 'pillar',
+  Brazier = 'brazier',
+  Rubble = 'rubble',
+}
+
+export interface ObstaclePlacement {
+  row: number;
+  col: number;
+  type: ObstacleType;
+}
+
 export interface MapConfig {
   name: string;
   cols: number;
@@ -56,6 +85,8 @@ export interface MapConfig {
   enemyPath: GridPos[];
   tileColors?: Partial<Record<TileType, string>>;
   altSpawnPoints?: GridPos[];
+  sceneDescription?: string;
+  obstaclePlacements?: ObstaclePlacement[];
   neutralUnits?: Array<{
     type: 'trap' | 'spring' | 'chest';
     row: number; col: number;
@@ -75,6 +106,8 @@ export enum TowerType {
   Cannon = 'cannon',
   Ice = 'ice',
   Lightning = 'lightning',
+  Laser = 'laser',
+  Bat = 'bat',
 }
 
 export interface TowerConfig {
@@ -98,6 +131,14 @@ export interface TowerConfig {
   chainCount?: number;
   chainDecay?: number;
   chainRange?: number;
+  // Bat tower specific
+  batCount?: number;
+  batReplenishCD?: number;
+  batHP?: number;
+  batDamage?: number;
+  batAttackRange?: number;
+  batAttackSpeed?: number;
+  batSpeed?: number;
 }
 
 // ---- Enemy ----
@@ -187,6 +228,31 @@ export enum BuffAttribute {
   Defense = 'defense',
   Range = 'range',
   AttackSpeed = 'attack_speed',
+}
+
+// ---- Weather ----
+
+export enum WeatherType {
+  Sunny = 'sunny',
+  Rain = 'rain',
+  Snow = 'snow',
+  Fog = 'fog',
+  Night = 'night',
+}
+
+export interface WeatherModifier {
+  targetType: string;
+  attribute: BuffAttribute;
+  value: number;
+  isPercent: boolean;
+}
+
+export interface WeatherConfig {
+  type: WeatherType;
+  name: string;
+  modifiers: WeatherModifier[];
+  screenTint: string;
+  screenAlpha: number;
 }
 
 export interface BuffInstance {
@@ -334,6 +400,9 @@ export const CType = {
   UnitTag: 'UnitTag',
   AI: 'AI',
   Lifecycle: 'Lifecycle',
+  BatSwarmMember: 'BatSwarmMember',
+  BatTower: 'BatTower',
+  LaserBeam: 'LaserBeam',
 } as const;
 
 export type ComponentType = (typeof CType)[keyof typeof CType];
@@ -360,6 +429,7 @@ export interface LevelConfig {
   name: string;
   theme: LevelTheme;
   description: string;
+  sceneDescription?: string;
   map: MapConfig;
   waves: WaveConfig[];
   startingGold: number;
@@ -367,6 +437,9 @@ export interface LevelConfig {
   availableUnits: UnitType[];
   unlockStarsRequired: number;
   unlockPrevLevelId: string | null;
+  weatherPool?: WeatherType[];
+  weatherFixed?: WeatherType;
+  weatherChangeInterval?: number;
 }
 
 // ============================================================

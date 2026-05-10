@@ -10,6 +10,7 @@ import { Health } from '../components/Health.js';
 import { Enemy } from '../components/Enemy.js';
 import { Unit } from '../components/Unit.js';
 import { Production } from '../components/Production.js';
+import { Trap } from '../components/Trap.js';
 import { FONTS, getFont } from '../config/fonts.js';
 
 interface UIButton {
@@ -57,7 +58,7 @@ export class UISystem implements System {
   private overlay: UIOverlay | null = null;
 
   public selectedEntityId: number | null = null;
-  public selectedEntityType: 'tower' | 'unit' | null = null;
+  public selectedEntityType: 'tower' | 'unit' | 'trap' | null = null;
 
   public enemyEntityId: number | null = null;
   private enemySelectTimer: number = 0;
@@ -100,6 +101,7 @@ export class UISystem implements System {
     private isPaused: (() => boolean) | null = null,
     private getTotalSpawned: (() => number) | null = null,
     private onRecycleEntity: ((entityId: number) => void) | null = null,
+    private getWeatherName: (() => string) | null = null,
   ) {}
 
   get selectedTowerEntityId(): number | null {
@@ -116,6 +118,14 @@ export class UISystem implements System {
   set selectedUnitEntityId(id: number | null) {
     this.selectedEntityId = id;
     this.selectedEntityType = id !== null ? 'unit' : null;
+  }
+
+  get selectedTrapEntityId(): number | null {
+    return this.selectedEntityType === 'trap' ? this.selectedEntityId : null;
+  }
+  set selectedTrapEntityId(id: number | null) {
+    this.selectedEntityId = id;
+    this.selectedEntityType = id !== null ? 'trap' : null;
   }
 
   update(_entities: number[], dt: number): void {
@@ -158,16 +168,29 @@ export class UISystem implements System {
 
   private drawRangePreview(): void {
     const id = this.selectedEntityId;
-    if (id === null || this.selectedEntityType !== 'tower') return;
+    if (id === null) return;
 
     const pos = this.world.getComponent<Position>(id, CType.Position);
-    const atk = this.world.getComponent<Attack>(id, CType.Attack);
-    const tower = this.world.getComponent<Tower>(id, CType.Tower);
-    if (!pos || !atk || !tower) return;
+    if (!pos) return;
 
-    const config = TOWER_CONFIGS[tower.towerType];
-    const color = config?.color ?? '#ffffff';
-    const diameter = atk.range * 2;
+    let diameter = 0;
+    let color = '#ffffff';
+
+    if (this.selectedEntityType === 'tower') {
+      const atk = this.world.getComponent<Attack>(id, CType.Attack);
+      const tower = this.world.getComponent<Tower>(id, CType.Tower);
+      if (!atk || !tower) return;
+      const config = TOWER_CONFIGS[tower.towerType];
+      diameter = atk.range * 2;
+      color = config?.color ?? '#ffffff';
+    } else if (this.selectedEntityType === 'trap') {
+      const trap = this.world.getComponent<Trap>(id, CType.Trap);
+      if (!trap) return;
+      diameter = trap.radius * 2;
+      color = '#e53935';
+    } else {
+      return;
+    }
 
     this.renderer.push({
       shape: 'circle',
@@ -264,6 +287,7 @@ export class UISystem implements System {
     if (phase === GamePhase.Battle) {
       const alive = this.world.query(CType.Enemy).length;
       const totalSpawned = this.getTotalSpawned?.() ?? 0;
+      const weatherName = this.getWeatherName?.() ?? '';
       this.infos.push({
         x: 800, y: UISystem.TOP_H / 2,
         text: `波次 ${wave}/${total > 0 ? total : '∞'}`,
@@ -274,7 +298,15 @@ export class UISystem implements System {
         text: `敌军:${alive}/${totalSpawned}`,
         color: '#ef5350', size: 20,
       });
+      if (weatherName) {
+        this.infos.push({
+          x: 1200, y: UISystem.TOP_H / 2,
+          text: `🌤${weatherName}`,
+          color: '#ffcc80', size: 18,
+        });
+      }
     } else {
+      const weatherName = this.getWeatherName?.() ?? '';
       this.infos.push({
         x: 800, y: UISystem.TOP_H / 2,
         text: `波次 ${wave}/${total > 0 ? total : '∞'}`,
@@ -285,6 +317,13 @@ export class UISystem implements System {
         text: '敌军:0/0',
         color: '#aaaaaa', size: 20,
       });
+      if (weatherName) {
+        this.infos.push({
+          x: 1200, y: UISystem.TOP_H / 2,
+          text: `🌤${weatherName}`,
+          color: '#ffcc80', size: 18,
+        });
+      }
     }
 
     const currentlyPaused = this.isPaused?.() ?? false;
@@ -403,10 +442,10 @@ export class UISystem implements System {
     const bw = UISystem.BTN_W;
     const bh = UISystem.BTN_H;
 
-    // ---- Tower buttons (4) ----
+    // ---- Tower buttons (6) ----
     this.infos.push({ x: 210, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
 
-    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning];
+    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat];
     const selected = this.getSelectedTower();
 
     for (let i = 0; i < towerTypes.length; i++) {
@@ -443,7 +482,7 @@ export class UISystem implements System {
     }
 
     // ---- Divider ----
-    const divX1 = 160 + 4 * (bw + UISystem.BTN_GAP);
+    const divX1 = 160 + towerTypes.length * (bw + UISystem.BTN_GAP);
     this.renderer.push({
       shape: 'rect',
       x: divX1, y: btnY + bh / 2,
@@ -507,7 +546,7 @@ export class UISystem implements System {
 
     this.buttons.push({
       x: trapX - bw / 2, y: btnY, w: bw, h: bh,
-      label: `尖刺陷阱\n${trapCost}G`,
+      label: `地刺\n${trapCost}G`,
       color: '#4a0000',
       textColor: trapAffordable ? '#ffffff' : '#888888',
       enabled: available && trapAffordable,
@@ -590,8 +629,9 @@ export class UISystem implements System {
             this.infos.push({ x: infoX, y: btnY + 26, text: `${cfg.name} Lv.${tower.level}`, color: '#ffffff', size: 20 });
             this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${cfg.hp}/${cfg.hp}`} ATK: ${atk ? atk.atk : cfg.atk}`, color: '#ffffff', size: 16 });
             if (health) {
-              this.renderer.push({ shape: 'rect', x: infoX + 60, y: btnY + 68, size: 120, h: 8, color: '#222222', alpha: 0.9 });
-              const fillW = Math.max(120 * health.ratio, 0);
+              const barW2 = 160;
+              this.renderer.push({ shape: 'rect', x: infoX + barW2 / 2, y: btnY + 68, size: barW2, h: 8, color: '#222222', alpha: 0.9 });
+              const fillW = Math.max(barW2 * health.ratio, 0);
               const barColor = health.ratio > 0.6 ? '#4caf50' : health.ratio > 0.3 ? '#ffc107' : '#f44336';
               if (fillW > 0) {
                 this.renderer.push({ shape: 'rect', x: infoX + fillW / 2, y: btnY + 68, size: fillW, h: 8, color: barColor, alpha: 0.95 });
@@ -609,6 +649,12 @@ export class UISystem implements System {
             this.infos.push({ x: infoX, y: btnY + 26, text: cfg.name, color: '#ffffff', size: 20 });
             this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${health ? `${Math.ceil(health.current)}/${health.max}` : `${cfg.hp}/${cfg.hp}`} ATK: ${atk ? atk.atk : cfg.atk}`, color: '#ffffff', size: 16 });
           }
+        }
+      } else if (this.selectedEntityType === 'trap') {
+        const trap = this.world.getComponent<Trap>(this.selectedEntityId, CType.Trap);
+        if (trap) {
+          this.infos.push({ x: infoX, y: btnY + 26, text: '地刺', color: '#ffffff', size: 20 });
+          this.infos.push({ x: infoX, y: btnY + 50, text: `DPS: ${trap.damagePerSecond}  范围: ${trap.radius}px`, color: '#ffffff', size: 16 });
         }
       }
     }
@@ -711,11 +757,13 @@ export class UISystem implements System {
 
           // HP bar
           if (health) {
-            this.renderer.push({ shape: 'rect', x: tx - tw / 2 + 10 + 40, y: ty + th / 2 - 12, size: 100, h: 6, color: '#222222', alpha: 0.9 });
-            const fillW = Math.max(100 * health.ratio, 0);
+            const barX = tx - tw / 2 + 10;
+            const barW = 120;
+            this.renderer.push({ shape: 'rect', x: barX + barW / 2, y: ty + th / 2 - 12, size: barW, h: 6, color: '#222222', alpha: 0.9 });
+            const fillW = Math.max(barW * health.ratio, 0);
             if (fillW > 0) {
               const barColor = health.ratio > 0.6 ? '#4caf50' : health.ratio > 0.3 ? '#ffc107' : '#f44336';
-              this.renderer.push({ shape: 'rect', x: tx - tw / 2 + 10 + fillW / 2, y: ty + th / 2 - 12, size: fillW, h: 6, color: barColor, alpha: 0.95 });
+              this.renderer.push({ shape: 'rect', x: barX + fillW / 2, y: ty + th / 2 - 12, size: fillW, h: 6, color: barColor, alpha: 0.95 });
             }
           }
         }
@@ -761,6 +809,42 @@ export class UISystem implements System {
             onClick: () => { this.onRecycleEntity?.(id); },
           });
         }
+      }
+    } else if (this.selectedEntityType === 'trap') {
+      const trap = this.world.getComponent<Trap>(id, CType.Trap);
+      if (trap) {
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
+          text: '地刺',
+          color: '#ffffff', size: 18,
+        });
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
+          text: `DPS: ${trap.damagePerSecond}  范围: ${trap.radius}px`,
+          color: '#ffffff', size: 16,
+        });
+
+        const refund = 20;
+        const rbw = 65;
+        const rbh = 20;
+        const rbx = tx - tw / 2 + 10;
+        const rby = ty - th / 2 + 52;
+        this.renderer.push({
+          shape: 'rect',
+          x: rbx + rbw / 2, y: rby + rbh / 2,
+          size: rbw, h: rbh,
+          color: '#c62828',
+          alpha: 0.9,
+          stroke: '#ffffff', strokeWidth: 1,
+        });
+        this.buttons.push({
+          x: rbx, y: rby, w: rbw, h: rbh,
+          label: `回收${refund}G`,
+          color: '#c62828',
+          textColor: '#ffffff',
+          enabled: true,
+          onClick: () => { this.onRecycleEntity?.(id); },
+        });
       }
     }
   }

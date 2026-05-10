@@ -108,6 +108,57 @@ export const TOWER_LIGHTNING_AI: BehaviorTreeConfig = {
   }
 };
 
+/** 激光塔AI - 穿透攻击 */
+export const TOWER_LASER_AI: BehaviorTreeConfig = {
+  id: 'tower_laser',
+  name: '激光塔AI',
+  description: '攻击范围内敌人，光束穿透路径上所有敌人',
+  version: '1.0',
+  root: {
+    type: 'selector',
+    children: [
+      {
+        type: 'sequence',
+        name: '攻击流程',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'attack', params: { target: 'nearest_enemy', pierce: true } }
+        ]
+      },
+      {
+        type: 'wait',
+        params: { duration: 0.1 }
+      }
+    ]
+  }
+};
+
+/** 蝙蝠塔AI - 暗夜攻击 + 生命偷取 */
+export const TOWER_BAT_AI: BehaviorTreeConfig = {
+  id: 'tower_bat',
+  name: '蝙蝠塔AI',
+  description: '仅在夜晚/雾天攻击，附带生命偷取',
+  version: '1.0',
+  root: {
+    type: 'selector',
+    children: [
+      {
+        type: 'sequence',
+        name: '攻击流程',
+        children: [
+          { type: 'check_weather', params: { allowed: ['night', 'fog'] } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'attack', params: { target: 'nearest_enemy', lifeSteal: 0.3 } }
+        ]
+      },
+      {
+        type: 'wait',
+        params: { duration: 0.1 }
+      }
+    ]
+  }
+};
+
 // ==================== 敌人类AI ====================
 
 /** 基础敌人AI - 沿路径移动 */
@@ -378,6 +429,8 @@ export const ALL_AI_CONFIGS: BehaviorTreeConfig[] = [
   TOWER_CANNON_AI,
   TOWER_ICE_AI,
   TOWER_LIGHTNING_AI,
+  TOWER_LASER_AI,
+  TOWER_BAT_AI,
   
   // Enemy AIs
   ENEMY_BASIC_AI,

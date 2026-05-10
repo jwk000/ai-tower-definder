@@ -3,6 +3,8 @@ import {
   TowerType,
   EnemyType,
   LevelTheme,
+  ObstacleType,
+  WeatherType,
   type LevelConfig,
   type MapConfig,
   type WaveConfig,
@@ -27,59 +29,49 @@ const WAYPOINTS: GridPos[] = [
   { row: 8, col: 20 },
 ];
 
-const LAVA_TILES = new Set([
-  '1,2', '1,5', '2,2', '2,5',
-  '3,1', '3,4', '4,1', '4,4',
-  '5,5', '5,7', '6,2', '6,7',
-  '7,3', '7,6', '8,1', '8,3',
-]);
-
-function isOnPath(row: number, col: number): boolean {
-  for (let i = 0; i < WAYPOINTS.length - 1; i++) {
-    const a = WAYPOINTS[i]!;
-    const b = WAYPOINTS[i + 1]!;
-    if (a.row === b.row) {
-      const minCol = Math.min(a.col, b.col);
-      const maxCol = Math.max(a.col, b.col);
-      if (row === a.row && col >= minCol && col <= maxCol) return true;
-    } else if (a.col === b.col) {
-      const minRow = Math.min(a.row, b.row);
-      const maxRow = Math.max(a.row, b.row);
-      if (col === a.col && row >= minRow && row <= maxRow) return true;
-    }
-  }
-  return false;
-}
-
-function buildTiles(): TileType[][] {
-  const tiles: TileType[][] = [];
-  for (let row = 0; row < 9; row++) {
-    const line: TileType[] = [];
-    for (let col = 0; col < 21; col++) {
-      if (col === 1 && row === 0) line.push(TileType.Spawn);
-      else if (col === 20 && row === 8) line.push(TileType.Base);
-      else if (isOnPath(row, col)) line.push(TileType.Path);
-      else if (LAVA_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
-      else line.push(TileType.Empty);
-    }
-    tiles.push(line);
-  }
-  return tiles;
-}
+const TILES: TileType[][] = [
+  [TileType.Empty,TileType.Spawn,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Path,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Path,TileType.Blocked,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Path,TileType.Blocked,TileType.Blocked,TileType.Path,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Blocked,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
+];
 
 const MAP: MapConfig = {
   name: '火山',
   cols: 21,
   rows: 9,
   tileSize: 64,
-  tiles: buildTiles(),
+  tiles: TILES,
   enemyPath: WAYPOINTS,
   tileColors: {
     [TileType.Empty]: '#4e342e',
     [TileType.Path]: '#8d6e63',
     [TileType.Blocked]: '#d32f2f',
     [TileType.Spawn]: '#ff5722',
+    [TileType.Base]: '#1e88e5',
   },
+  sceneDescription: '活火山的斜坡上，岩浆河从裂缝中涌出，将黑曜石般的大地切割成支离破碎的岛屿。烧焦的树干像炭化的骨骼指向天空，火山砾石铺满了所有可以立足的地方。火山灰如黑雪般飘落，空气中弥漫着硫磺的气味。敌人在这种极端环境中如鱼得水。',
+  obstaclePlacements: [
+    { type: ObstacleType.LavaVent, row: 0, col: 13 },
+    { type: ObstacleType.LavaVent, row: 0, col: 18 },
+    { type: ObstacleType.LavaVent, row: 2, col: 14 },
+    { type: ObstacleType.LavaVent, row: 6, col: 15 },
+    { type: ObstacleType.ScorchedTree, row: 1, col: 8 },
+    { type: ObstacleType.ScorchedTree, row: 3, col: 16 },
+    { type: ObstacleType.ScorchedTree, row: 4, col: 10 },
+    { type: ObstacleType.ScorchedTree, row: 7, col: 0 },
+    { type: ObstacleType.VolcanicRock, row: 1, col: 16 },
+    { type: ObstacleType.VolcanicRock, row: 2, col: 9 },
+    { type: ObstacleType.VolcanicRock, row: 4, col: 18 },
+    { type: ObstacleType.VolcanicRock, row: 5, col: 14 },
+    { type: ObstacleType.VolcanicRock, row: 6, col: 19 },
+    { type: ObstacleType.VolcanicRock, row: 7, col: 16 },
+  ],
 };
 
 const WAVES: WaveConfig[] = [
@@ -202,11 +194,13 @@ export const LEVEL_04: LevelConfig = {
   name: '火山',
   theme: LevelTheme.Volcano,
   description: '熔岩地形限制了建造空间，敌人拥有火焰抗性',
+  sceneDescription: '活火山脚下的炼狱之地。熔岩河将大地割裂，火元素步兵和熔岩巨像在灼热的道路上推进。第10波炎魔将领现身，第15波熔核巨兽是最终考验。熔岩裂缝不可建造。',
   map: MAP,
   waves: WAVES,
   startingGold: 350,
-  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Lightning],
+  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Lightning, TowerType.Laser],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L3_tundra',
+  weatherPool: [WeatherType.Sunny, WeatherType.Rain, WeatherType.Fog],
 };

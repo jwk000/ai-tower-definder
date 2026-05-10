@@ -3,6 +3,8 @@ import {
   TowerType,
   EnemyType,
   LevelTheme,
+  ObstacleType,
+  WeatherType,
   type LevelConfig,
   type MapConfig,
   type WaveConfig,
@@ -25,57 +27,50 @@ const WAYPOINTS: GridPos[] = [
   { row: 4, col: 20 },
 ];
 
-const BLOCKED_TILES = new Set([
-  '1,4', '1,7', '2,1', '2,6',
-  '4,1', '4,6', '5,4', '6,3',
-  '7,1', '7,5', '7,7', '8,4',
-]);
-
-function isOnPath(row: number, col: number): boolean {
-  for (let i = 0; i < WAYPOINTS.length - 1; i++) {
-    const a = WAYPOINTS[i]!;
-    const b = WAYPOINTS[i + 1]!;
-    if (a.row === b.row) {
-      const minCol = Math.min(a.col, b.col);
-      const maxCol = Math.max(a.col, b.col);
-      if (row === a.row && col >= minCol && col <= maxCol) return true;
-    } else if (a.col === b.col) {
-      const minRow = Math.min(a.row, b.row);
-      const maxRow = Math.max(a.row, b.row);
-      if (col === a.col && row >= minRow && row <= maxRow) return true;
-    }
-  }
-  return false;
-}
-
-function buildTiles(): TileType[][] {
-  const tiles: TileType[][] = [];
-  for (let row = 0; row < 9; row++) {
-    const line: TileType[] = [];
-    for (let col = 0; col < 21; col++) {
-      if (col === 2 && row === 0) line.push(TileType.Spawn);
-      else if (col === 20 && row === 4) line.push(TileType.Base);
-      else if (isOnPath(row, col)) line.push(TileType.Path);
-      else if (BLOCKED_TILES.has(`${row},${col}`)) line.push(TileType.Blocked);
-      else line.push(TileType.Empty);
-    }
-    tiles.push(line);
-  }
-  return tiles;
-}
+const TILES: TileType[][] = [
+  [TileType.Empty,TileType.Empty,TileType.Spawn,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Path,TileType.Empty,TileType.Path,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
+  [TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Blocked,TileType.Path,TileType.Blocked,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  [TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+];
 
 const MAP: MapConfig = {
   name: '沙漠',
   cols: 21,
   rows: 9,
   tileSize: 64,
-  tiles: buildTiles(),
+  tiles: TILES,
   enemyPath: WAYPOINTS,
   tileColors: {
     [TileType.Empty]: '#c9a96e',
     [TileType.Path]: '#8b7355',
     [TileType.Blocked]: '#795548',
+    [TileType.Spawn]: '#e6c44d',
+    [TileType.Base]: '#1e88e5',
   },
+  sceneDescription: '曾经繁荣的古代商路如今被黄沙半掩。巨大的砂岩和枯骨散落在道路两旁，仙人掌在烈日下顽强生长。沙漠强盗占据了这片区域，在岩石后方设伏，等待过往的商队。热浪扭曲了地平线，每一步都像是在火炉中行走。',
+  obstaclePlacements: [
+    { type: ObstacleType.Rock, row: 0, col: 6 },
+    { type: ObstacleType.Rock, row: 0, col: 14 },
+    { type: ObstacleType.Rock, row: 3, col: 15 },
+    { type: ObstacleType.Rock, row: 7, col: 18 },
+    { type: ObstacleType.Rock, row: 6, col: 13 },
+    { type: ObstacleType.Cactus, row: 1, col: 10 },
+    { type: ObstacleType.Cactus, row: 2, col: 18 },
+    { type: ObstacleType.Cactus, row: 5, col: 16 },
+    { type: ObstacleType.Cactus, row: 7, col: 3 },
+    { type: ObstacleType.Cactus, row: 8, col: 9 },
+    { type: ObstacleType.Bones, row: 1, col: 14 },
+    { type: ObstacleType.Bones, row: 3, col: 10 },
+    { type: ObstacleType.Bones, row: 5, col: 19 },
+    { type: ObstacleType.Bones, row: 7, col: 0 },
+    { type: ObstacleType.Bones, row: 8, col: 16 },
+  ],
 };
 
 const WAVES: WaveConfig[] = [
@@ -174,11 +169,13 @@ export const LEVEL_02: LevelConfig = {
   name: '沙漠',
   theme: LevelTheme.Desert,
   description: '蜿蜒的沙漠路径，岩石阻碍了建造空间',
+  sceneDescription: '古代商路的沙漠遗迹。沙漠掠夺者、沙岩铠甲兵和沙漠术士据守此地。第6波强盗头目现身，第12波沙虫巨兽压阵。岩石限制了防御塔的布置。',
   map: MAP,
   waves: WAVES,
   startingGold: 250,
-  availableTowers: [TowerType.Arrow, TowerType.Cannon],
+  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Laser],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L1_plains',
+  weatherPool: [WeatherType.Sunny, WeatherType.Fog, WeatherType.Night],
 };

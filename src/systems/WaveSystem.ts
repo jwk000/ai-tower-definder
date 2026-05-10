@@ -40,6 +40,7 @@ export class WaveSystem implements System {
     waves: WaveConfig[],
     private getPhase: () => GamePhase,
     private setPhase: (phase: GamePhase) => void,
+    private onWaveComplete?: () => void,
   ) {
     this.waves = waves;
   }
@@ -174,11 +175,13 @@ export class WaveSystem implements System {
         this.currentWaveIndex++;
 
         if (this.isEndless) {
+          this.onWaveComplete?.();
           this.setPhase(GamePhase.WaveBreak);
           this.startAutoCountdown(3); // 3s between endless waves
         } else if (this.currentWaveIndex >= this.waves.length) {
           this.setPhase(GamePhase.Victory);
         } else {
+          this.onWaveComplete?.();
           this.setPhase(GamePhase.WaveBreak);
           this.startAutoCountdown(3); // 3s between waves
         }

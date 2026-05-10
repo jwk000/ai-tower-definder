@@ -53,8 +53,8 @@ export class EnemyAttackSystem implements System {
             enemy.movementPaused = false;
             mov.speed = enemy.originalSpeed;
           } else if (attacker.cooldown <= 0) {
-            // 远程敌人攻击建筑时发射子弹
-            if (canAttackBuildings && this.world.hasComponent(attacker.targetId, CType.Tower)) {
+            // 远程敌人攻击建筑或蝙蝠时发射子弹
+            if (canAttackBuildings && (this.world.hasComponent(attacker.targetId, CType.Tower) || this.world.hasComponent(attacker.targetId, CType.BatSwarmMember))) {
               this.spawnEnemyProjectile(id, pos, attacker.targetId, attacker.attackDamage);
             } else {
               // 近战攻击（对单位）直接造成伤害
@@ -70,10 +70,28 @@ export class EnemyAttackSystem implements System {
         let closestId: number | null = null;
         let closestDist = Infinity;
 
-        // 远程敌人优先攻击建筑
+        // 远程敌人优先攻击建筑和蝙蝠
         if (canAttackBuildings) {
           const towers = this.world.query(CType.Health, CType.Position, CType.Tower);
           for (const cid of towers) {
+            if (cid === id) continue;
+            const cpos = this.world.getComponent<Position>(cid, CType.Position);
+            const chealth = this.world.getComponent<Health>(cid, CType.Health);
+            if (!cpos || !chealth?.alive) continue;
+
+            const dx = cpos.x - pos.x;
+            const dy = cpos.y - pos.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= attacker.attackRange && dist < closestDist) {
+              closestDist = dist;
+              closestId = cid;
+            }
+          }
+
+          // Also target bats (low-air friendly units)
+          const bats = this.world.query(CType.Health, CType.Position, CType.BatSwarmMember);
+          for (const cid of bats) {
             if (cid === id) continue;
             const cpos = this.world.getComponent<Position>(cid, CType.Position);
             const chealth = this.world.getComponent<Health>(cid, CType.Health);
@@ -119,8 +137,8 @@ export class EnemyAttackSystem implements System {
           if (attacker.cooldown <= 0) {
             const targetHealth = this.world.getComponent<Health>(closestId, CType.Health);
             if (targetHealth) {
-              // 远程敌人攻击建筑时发射子弹
-              if (canAttackBuildings && this.world.hasComponent(closestId, CType.Tower)) {
+              // 远程敌人攻击建筑或蝙蝠时发射子弹
+              if (canAttackBuildings && (this.world.hasComponent(closestId, CType.Tower) || this.world.hasComponent(closestId, CType.BatSwarmMember))) {
                 this.spawnEnemyProjectile(id, pos, closestId, attacker.attackDamage);
               } else {
                 // 近战攻击直接造成伤害

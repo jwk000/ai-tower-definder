@@ -1,4 +1,4 @@
-import { UnitCategory, type UnitTypeConfig, type LifecycleConfig } from '../../types/index.js';
+import { UnitCategory, UnitLayer, type UnitTypeConfig, type LifecycleConfig } from '../../types/index.js';
 
 /**
  * 单位配置文件 - 定义所有单位的属性和行为
@@ -176,6 +176,87 @@ export const LIGHTNING_TOWER_CONFIG: UnitTypeConfig = {
     chainCount: 3,
     chainDecay: 0.2,
     upgradeAtkBonus: [6, 9, 13, 18],
+    upgradeRangeBonus: [15, 15, 20, 20],
+  },
+};
+
+export const LASER_TOWER_CONFIG: UnitTypeConfig = {
+  id: 'laser_tower',
+  name: '激光塔',
+  category: 'tower' as UnitCategory,
+  description: '穿透光束攻击路径上所有敌人',
+
+  hp: 80,
+  atk: 22,
+  defense: 0,
+  attackSpeed: 0.4,
+  moveSpeed: 0,
+  moveRange: 0,
+  attackRange: 250,
+  magicResist: 0,
+
+  color: '#00e5ff',
+  size: 36,
+  shape: 'rect',
+
+  aiConfig: 'tower_laser',
+
+  lifecycle: createLifecycle({
+    onDeath: [{ type: 'destroy_entity' }],
+    onHit: [{ type: 'flash_white', params: { duration: 0.12 } }],
+  }),
+
+  cost: 90,
+  sellValue: 45,
+  upgradeCosts: [55, 85, 130, 190],
+
+  special: {
+    damageType: 'magic',
+    pierceCount: 99,
+    pierceDecay: 0.15,
+    laserBeamWidth: 6,
+    upgradeAtkBonus: [6, 9, 13, 18],
+    upgradeRangeBonus: [15, 15, 20, 20],
+  },
+};
+
+export const BAT_TOWER_CONFIG: UnitTypeConfig = {
+  id: 'bat_tower',
+  name: '蝙蝠塔',
+  category: 'tower' as UnitCategory,
+  description: '暗夜生物 — 仅在夜晚和雾天攻击，附带生命偷取',
+
+  hp: 90,
+  atk: 25,
+  defense: 0,
+  attackSpeed: 0.75,
+  moveSpeed: 0,
+  moveRange: 0,
+  attackRange: 200,
+  magicResist: 0,
+
+  color: '#7c4dff',
+  size: 34,
+  shape: 'rect',
+
+  layer: 'low_air' as UnitLayer,
+
+  aiConfig: 'tower_bat',
+
+  lifecycle: createLifecycle({
+    onDeath: [{ type: 'destroy_entity' }],
+    onHit: [{ type: 'flash_white', params: { duration: 0.12 } }],
+  }),
+
+  cost: 85,
+  sellValue: 42,
+  upgradeCosts: [50, 80, 120, 175],
+
+  special: {
+    damageType: 'magic',
+    lifeSteal: 0.3,
+    nightOnly: true,
+    upgradeAtkBonus: [7, 10, 15, 21],
     upgradeRangeBonus: [15, 15, 20, 20],
   },
 };
@@ -582,7 +663,7 @@ export const ENERGY_TOWER_CONFIG: UnitTypeConfig = {
 
 export const TRAP_SPIKE_CONFIG: UnitTypeConfig = {
   id: 'trap_spike',
-  name: '地刺陷阱',
+  name: '地刺',
   category: 'trap' as UnitCategory,
   description: '对经过的敌人造成持续伤害',
   
@@ -706,6 +787,8 @@ export const UNIT_CONFIGS: Record<string, UnitTypeConfig> = {
   'cannon_tower': CANNON_TOWER_CONFIG,
   'ice_tower': ICE_TOWER_CONFIG,
   'lightning_tower': LIGHTNING_TOWER_CONFIG,
+  'laser_tower': LASER_TOWER_CONFIG,
+  'bat_tower': BAT_TOWER_CONFIG,
   
   // Enemies
   'grunt': GRUNT_CONFIG,

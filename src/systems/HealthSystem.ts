@@ -5,6 +5,7 @@ import { Health } from '../components/Health.js';
 import { Boss } from '../components/Boss.js';
 import { Enemy } from '../components/Enemy.js';
 import { GoldChest } from '../components/GoldChest.js';
+import { BatSwarmMember } from '../components/BatSwarmMember.js';
 
 /** Destroys dead entities and checks win/lose conditions */
 export class HealthSystem implements System {
@@ -21,6 +22,7 @@ export class HealthSystem implements System {
     private onEnemyKilled: (enemyId: number) => void,
     private onUnitDied?: (unitId: number) => void,
     private onChestDestroyed?: (chestId: number) => void,
+    private onBatDied?: (batId: number) => void,
   ) {}
 
   update(entities: number[], dt: number): void {
@@ -41,9 +43,13 @@ export class HealthSystem implements System {
         const isProduction = this.world.hasComponent(id, CType.Production);
         const isUnit = this.world.hasComponent(id, CType.Unit);
         const isChest = this.world.hasComponent(id, CType.GoldChest);
+        const isBat = this.world.hasComponent(id, CType.BatSwarmMember);
 
         if (isEnemy) {
           this.onEnemyKilled(id);
+          this.world.destroyEntity(id);
+        } else if (isBat) {
+          this.onBatDied?.(id);
           this.world.destroyEntity(id);
         } else if (isUnit) {
           this.onUnitDied?.(id);

@@ -9,6 +9,7 @@ import { PlayerOwned } from '../components/PlayerOwned.js';
 import { Production } from '../components/Production.js';
 import { Trap } from '../components/Trap.js';
 import { AI } from '../components/AI.js';
+import { BatTower } from '../components/BatTower.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS } from '../data/gameData.js';
 import { RenderSystem } from './RenderSystem.js';
 import { isAdjacentToPath } from '../utils/grid.js';
@@ -271,17 +272,35 @@ export class BuildSystem implements System {
     this.world.addComponent(id, new Position(x, y));
     this.world.addComponent(id, new GridOccupant(row, col));
     this.world.addComponent(id, new Health(config.hp));
-    this.world.addComponent(id, new Attack(config.atk, config.range, config.attackSpeed));
     this.world.addComponent(id, new Tower(config.type, config.cost));
-    const render = new Render('circle', config.color, this.map.tileSize * 0.65);
-    render.outline = true;
+    this.world.addComponent(id, new PlayerOwned());
+
+    // Bat tower uses BatTower + summoned bats instead of Attack
+    if (tt === TowerType.Bat) {
+      const batCount = config.batCount ?? 4;
+      const replenishCD = config.batReplenishCD ?? 12;
+      const batDmg = config.batDamage ?? config.atk;
+      const batRange = config.batAttackRange ?? config.range;
+      const batAS = config.batAttackSpeed ?? config.attackSpeed;
+      const batHP = config.batHP ?? 30;
+      const batSpeed = config.batSpeed ?? 120;
+      const batSize = 10;
+      this.world.addComponent(id, new BatTower(
+        batCount, replenishCD, batDmg, batRange, batAS, batHP, batSpeed, batSize,
+      ));
+    } else {
+      this.world.addComponent(id, new Attack(config.atk, config.range, config.attackSpeed));
+    }
+    
+    // Render shape: all towers use circle
+    const shape = 'circle';
+    const render = new Render(shape, config.color, this.map.tileSize * 0.65);
+    render.outline = false;
     render.label = config.name;
     render.labelColor = '#ffffff';
     render.labelSize = 16;
     this.world.addComponent(id, render);
-    this.world.addComponent(id, new PlayerOwned());
     
-    // 添加AI组件 - 根据塔类型选择AI配置
     const aiConfigId = this.getTowerAIConfig(tt);
     this.world.addComponent(id, new AI(aiConfigId));
     
@@ -298,6 +317,10 @@ export class BuildSystem implements System {
         return 'tower_ice';
       case TowerType.Lightning:
         return 'tower_lightning';
+      case TowerType.Laser:
+        return 'tower_laser';
+      case TowerType.Bat:
+        return 'tower_bat';
       default:
         return 'tower_basic';
     }
