@@ -1,12 +1,9 @@
-import { System, GamePhase } from '../types/index.js';
-import { CType } from '../types/index.js';
-import { Enemy } from '../components/Enemy.js';
+import { TowerWorld, type System } from '../core/World.js';
+import { UnitTag } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
-import type { World } from '../core/World.js';
 
 export class EconomySystem implements System {
   readonly name = 'EconomySystem';
-  readonly requiredComponents = [] as const;
 
   gold: number = 200;
   private pendingGold: number = 0;
@@ -19,8 +16,6 @@ export class EconomySystem implements System {
 
   endlessScore: number = 0;
   isEndless: boolean = false;
-
-  constructor(private world: World) {}
 
   addEndlessKillScore(enemyGoldReward: number, waveNumber: number): void {
     if (!this.isEndless) return;
@@ -78,16 +73,13 @@ export class EconomySystem implements System {
   }
 
   rewardForEnemy(enemyId: number): void {
-    const enemy = this.world.getComponent<Enemy>(enemyId, CType.Enemy) as Enemy | undefined;
-    if (enemy) {
-      const config = ENEMY_CONFIGS[enemy.enemyType];
-      if (config) {
-        this.addGold(config.rewardGold);
-      }
+    const goldReward = UnitTag.rewardGold[enemyId];
+    if (goldReward !== undefined) {
+      this.addGold(goldReward);
     }
   }
 
-  update(_entities: number[], _dt: number): void {
+  update(_world: TowerWorld, _dt: number): void {
     this.gold += this.pendingGold;
     this.pendingGold = 0;
     this.energy += this.pendingEnergy;
