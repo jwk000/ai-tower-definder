@@ -319,19 +319,28 @@
 
 ---
 
-## 十四、与代码实现的映射
+## 十四、代码实现映射
 
-当前 `src/utils/Sound.ts` 中已定义的 5 个 `SfxKey`：
+### 14.1 原有 5 键（仍活跃使用，需替换音频文件）
 
-| SfxKey | 对应本文 ID | 状态 |
-|--------|------------|------|
-| `tower_shoot` | SFX_ARROW_SHOOT（通用） | 已有，需拆分为 7 种塔独立音效 |
-| `enemy_death` | SFX_ENEMY_DIE | 已有 |
-| `build_place` | SFX_BUILD_PLACE | 已有 |
-| `wave_start` | SFX_WAVE_START | 已有 |
-| `defeat` | SFX_DEFEAT | 已有 |
+| SfxKey | 对应本文 ID | 触发位置 | 描述 |
+|--------|------------|----------|------|
+| `tower_shoot` | 回退键 | `AttackSystem.ts:193`（`??`回退） | 通用塔射击回退音（极少触发），与 `tower_arrow` 风格一致 |
+| `enemy_death` | SFX_ENEMY_DIE | `main.ts` — `onEnemyKilled` 回调 | 敌人死亡通用碎裂声，电子合成器爆炸感 |
+| `build_place` | SFX_BUILD_PLACE | `main.ts` — `tryDrop` + `spawnUnitAt` | 建造/部署确认，机械锁合"咚"声 |
+| `wave_start` | SFX_WAVE_START | `WaveSystem.ts` — `startWave()` | 波次开始警报/号角 |
+| `defeat` | SFX_DEFEAT | `main.ts` — `handleDefeat()` | 失败下行沉重旋律 |
 
-新增 `SfxKey` 时需同步更新：
-1. `src/utils/Sound.ts` — `SfxKey` 联合类型 + `SFX_PATHS` 映射
-2. 对应系统的回调位置（见各系统 `onXxx` 回调或事件处理函数）
-3. `public/sfx/` 目录下的音频文件
+### 14.2 新增 34 键（已落地）
+
+详见上方各分类表格。总计 **39 个 `SfxKey`**，覆盖 11 个系统。
+
+### 14.3 音频文件替换说明
+
+所有 39 个 `.mp3` 占位文件已生成在 `public/sfx/` 目录下，均为零字节空文件。替换为真实音频素材时：
+
+- 原有 5 个文件（`tower_shoot.mp3` / `enemy_death.mp3` / `build_place.mp3` / `wave_start.mp3` / `defeat.mp3`）需与新 34 个文件**统一风格**（电子合成器 + 8-bit），不可保留旧版本
+- 新增 `SfxKey` 时同步更新：
+  1. `src/utils/Sound.ts` — `SfxKey` 联合类型 + `SFX_PATH` 映射 + `PER_KEY_THROTTLE_MS`
+  2. 对应系统的回调位置
+  3. `public/sfx/` 目录下的音频文件

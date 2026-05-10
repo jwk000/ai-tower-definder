@@ -1,10 +1,10 @@
 export type SfxKey =
-  // Legacy (kept for backward compat, maps to specific tower sound)
-  | 'tower_shoot'
-  | 'enemy_death'
-  | 'build_place'
-  | 'wave_start'
-  | 'defeat'
+  // ═══ Legacy (5 keys — audio files need replacement for style consistency) ═══
+  | 'tower_shoot'   // fallback when towerTypeVal out of range (rarely hit)
+  | 'enemy_death'   // generic enemy death — synth explosion style
+  | 'build_place'   // building/unit placement confirm — mechanical lock clunk
+  | 'wave_start'    // wave start alarm/horn
+  | 'defeat'        // defeat descending melody
   // Tower attack sounds (7 types)
   | 'tower_arrow'
   | 'tower_cannon'
