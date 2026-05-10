@@ -1,21 +1,53 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
+// ============================================================
+// Tower Defender — RenderSystem (bitecs migration)
+//
+// Canvas 2D map + entity rendering.
+// Data access migrated from class-based components to bitecs SoA stores.
+// All Canvas 2D drawing logic preserved as-is.
+// ============================================================
+
+import { TowerWorld, System, defineQuery, hasComponent } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
-import { CType, TileType, ObstacleType } from '../types/index.js';
-import { Position } from '../components/Position.js';
-import { Render } from '../components/Render.js';
-import { Health } from '../components/Health.js';
-import { Projectile } from '../components/Projectile.js';
-import { BuffContainer } from '../components/Buff.js';
-import { Boss } from '../components/Boss.js';
-import { Enemy } from '../components/Enemy.js';
-import { Unit } from '../components/Unit.js';
-import { Attack } from '../components/Attack.js';
-import { Trap } from '../components/Trap.js';
-import { Tower } from '../components/Tower.js';
+import { TileType, ObstacleType } from '../types/index.js';
+import type { MapConfig, SceneLayout, ShapeType } from '../types/index.js';
+import {
+  Position,
+  Visual,
+  Health,
+  UnitTag,
+  Tower,
+  Attack,
+  Projectile,
+  BuffContainer,
+  Boss,
+  Category,
+  CategoryVal,
+  Movement,
+  Trap,
+  GridOccupant,
+  ShapeVal,
+  Slowed,
+  Frozen,
+  Stunned,
+} from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
 import { UNIT_CONFIGS } from '../data/gameData.js';
-import type { MapConfig, SceneLayout } from '../types/index.js';
+
+// ---- Query: all entities with position + visual ----
+const renderableQuery = defineQuery([Position, Visual]);
+
+// ---- ShapeVal numeric -> string mapping ----
+function shapeValToString(v: number): ShapeType {
+  switch (v) {
+    case ShapeVal.Rect:     return 'rect';
+    case ShapeVal.Circle:   return 'circle';
+    case ShapeVal.Triangle: return 'triangle';
+    case ShapeVal.Diamond:  return 'diamond';
+    case ShapeVal.Hexagon:  return 'hexagon';
+    case ShapeVal.Arrow:    return 'arrow';
+    default:                return 'rect';
+  }
+}
 
 export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: number): SceneLayout {
   const mapPixelW = map.cols * map.tileSize;
@@ -27,7 +59,6 @@ export function computeSceneLayout(map: MapConfig, canvasW: number, canvasH: num
 
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
-  readonly requiredComponents = [CType.Render] as const;
 
   static sceneOffsetX = 0;
   static sceneOffsetY = 0;
@@ -35,12 +66,11 @@ export class RenderSystem implements System {
   static sceneH = 0;
 
   constructor(
-    private world: World,
     private renderer: Renderer,
     private map: MapConfig,
-    private getSelectedTowerEntityId: () => number | null = () => null,
-    private getSelectedUnitEntityId: () => number | null = () => null,
-    private getSelectedTrapEntityId: () => number | null = () => null,
+    private getSelectedTowerId: () => number | null = () => null,
+    private getSelectedUnitId: () => number | null = () => null,
+    private getSelectedTrapId: () => number | null = () => null,
   ) {
     const layout = computeSceneLayout(map, 1920, 1080);
     RenderSystem.sceneOffsetX = layout.offsetX;
@@ -49,9 +79,9 @@ export class RenderSystem implements System {
     RenderSystem.sceneH = layout.mapPixelH;
   }
 
-  update(entities: number[], _dt: number): void {
+  update(world: TowerWorld, _dt: number): void {
     this.drawMap(this.map);
-    this.drawEntities(entities);
+    this.drawEntities(world);
   }
 
   private static readonly OBSTACLE_VISUALS: Record<ObstacleType, { shape: 'circle' | 'triangle' | 'diamond'; color: string; size: number; alpha?: number }> = {
@@ -161,33 +191,44 @@ export class RenderSystem implements System {
     this.renderer.push({ shape: 'rect', x: ox + mapW + borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1 });
   }
 
-  private drawEntities(entities: number[]): void {
-    const sorted = entities
-      .map((id) => ({
-        id,
-        pos: this.world.getComponent<Position>(id, CType.Position)!,
-        render: this.world.getComponent<Render>(id, CType.Render)!,
-      }))
-      .filter((e) => e.pos && e.render)
-      .sort((a, b) => a.pos.y - b.pos.y);
+  private drawEntities(world: TowerWorld): void {
+    const entities = renderableQuery(world.world);
 
-    const selectedTowerId = this.getSelectedTowerEntityId();
-    const selectedUnitId = this.getSelectedUnitEntityId();
-    const selectedTrapId = this.getSelectedTrapEntityId();
+    // Build sorted array: entity id + position for Y-sorting
+    const sorted = (entities as number[])
+      .filter((eid: number) => typeof Position.x[eid] === 'number' && typeof Position.y[eid] === 'number')
+      .sort((a: number, b: number) => Position.y[a] - Position.y[b]);
 
-    for (const { id, pos, render: r } of sorted) {
-      const isProjectile = this.world.hasComponent(id, CType.Projectile);
-      const isEnemy = this.world.hasComponent(id, CType.Enemy);
-      const isTower = this.world.hasComponent(id, CType.Tower);
-      const isTrap = this.world.hasComponent(id, CType.Trap);
-      const isUnit = this.world.hasComponent(id, CType.Unit);
+    const selectedTowerId = this.getSelectedTowerId();
+    const selectedUnitId = this.getSelectedUnitId();
+    const selectedTrapId = this.getSelectedTrapId();
 
+    for (const eid of sorted) {
+      const posX = Position.x[eid];
+      const posY = Position.y[eid];
+
+      // ---- Type identification ----
+      const isProjectile = hasComponent(world.world, eid, Projectile);
+      const isEnemy = hasComponent(world.world, eid, Category) && Category.value[eid] === CategoryVal.Enemy;
+      const isTower = hasComponent(world.world, eid, Tower);
+      const isTrap = hasComponent(world.world, eid, Trap);
+      const isUnit = hasComponent(world.world, eid, Category) && Category.value[eid] === CategoryVal.Soldier;
+
+      // ---- Buff/status flags (computed once) ----
+      const hasFrozen = hasComponent(world.world, eid, Frozen);
+      const hasSlowed = hasComponent(world.world, eid, Slowed);
+      const hasStunnedComponent = hasComponent(world.world, eid, Stunned);
+
+      // ========================================
+      // TRAP rendering
+      // ========================================
       if (isTrap) {
-        const trap = this.world.getComponent<Trap>(id, CType.Trap);
+        const animTimer = Trap.animTimer[eid];
+        const animDuration = Trap.animDuration[eid];
         let spikeOffset = 0;
         let spikeSizeBonus = 0;
-        if (trap && trap.spikeAnimTimer > 0) {
-          const progress = 1 - trap.spikeAnimTimer / trap.spikeAnimDuration;
+        if (animTimer > 0) {
+          const progress = 1 - animTimer / animDuration;
           const factor = Math.sin(progress * Math.PI);
           spikeOffset = -factor * 12;
           spikeSizeBonus = factor * 6;
@@ -197,8 +238,8 @@ export class RenderSystem implements System {
         for (let o = -1; o <= 1; o++) {
           this.renderer.push({
             shape: 'triangle',
-            x: pos.x + o * 8,
-            y: pos.y + spikeOffset,
+            x: posX + o * 8,
+            y: posY + spikeOffset,
             size: 14 + spikeSizeBonus,
             color: tColor,
             alpha: tAlpha,
@@ -206,8 +247,8 @@ export class RenderSystem implements System {
         }
         this.renderer.push({
           shape: 'rect',
-          x: pos.x,
-          y: pos.y + 16,
+          x: posX,
+          y: posY + 16,
           size: 0.1,
           h: 0.1,
           color: '#f44336',
@@ -219,65 +260,86 @@ export class RenderSystem implements System {
         continue;
       }
 
-      const flashActive = r.hitFlashTimer > 0;
-      let displayColor = r.color;
-      let displayAlpha = r.alpha;
+      // ========================================
+      // Hit flash
+      // ========================================
+      const flashActive = Visual.hitFlashTimer[eid] > 0;
+      let displayColor = rgbFromVisual(eid);
+      let displayAlpha = Visual.alpha[eid];
       if (flashActive) {
         displayColor = '#ffffff';
         displayAlpha = 1;
-        r.hitFlashTimer = 0;
+        Visual.hitFlashTimer[eid] = 0;
       }
 
-      const buffContainer = this.world.getComponent<BuffContainer>(id, CType.Buff);
-      if (buffContainer && !flashActive) {
-        if (buffContainer.buffs.has('ice_frozen')) {
+      // ========================================
+      // Buff visual effects (frozen / slow)
+      // ========================================
+      if (!flashActive) {
+        if (hasFrozen) {
           displayColor = '#00bcd4';
           displayAlpha = 1;
-        } else if (buffContainer.buffs.has('ice_slow')) {
-          const slowBuff = buffContainer.buffs.get('ice_slow')!;
-          const t = Math.min(slowBuff.currentStacks / 5, 1);
-          displayColor = this.lerpColor(r.color, '#4488cc', t * 0.7);
+        } else if (hasSlowed) {
+          const stacks = Slowed.stacks[eid];
+          const t = Math.min(stacks / 5, 1);
+          displayColor = this.lerpColorRGB(
+            Visual.colorR[eid], Visual.colorG[eid], Visual.colorB[eid],
+            '#4488cc', t * 0.7,
+          );
         }
       }
 
+      // ========================================
+      // Enemy stun visual
+      // ========================================
       if (isEnemy && !flashActive) {
-        const enemy = this.world.getComponent<Enemy>(id, CType.Enemy);
-        if (enemy && enemy.stunTimer > 0) {
+        if (hasStunnedComponent && Stunned.timer[eid] > 0) {
           displayColor = '#ffd700';
           displayAlpha = 0.9;
         }
       }
 
-      const boss = this.world.getComponent<Boss>(id, CType.Boss);
-      const isBossEntity = boss !== undefined;
-      let drawSize = r.size;
+      // ========================================
+      // Boss rendering
+      // ========================================
+      const isBossEntity = hasComponent(world.world, eid, Boss);
+      let drawSize = Visual.size[eid];
       if (isBossEntity) {
-        drawSize = r.size * 1.3;
-        if (boss.phase === 2 && !flashActive) {
-          if (boss.phaseTransitionTimer > 0) {
-            const cycle = Math.floor(boss.phaseTransitionTimer / 0.1) % 2;
+        drawSize = Visual.size[eid] * 1.3;
+        if (Boss.phase[eid] === 2 && !flashActive) {
+          if (Boss.transitionTimer[eid] > 0) {
+            const cycle = Math.floor(Boss.transitionTimer[eid] / 0.1) % 2;
             displayColor = cycle === 0 ? '#ffffff' : '#d32f2f';
             displayAlpha = 1;
           } else {
-            displayColor = this.lerpColor(r.color, '#d32f2f', 0.35);
+            displayColor = this.lerpColorRGB(
+              Visual.colorR[eid], Visual.colorG[eid], Visual.colorB[eid],
+              '#d32f2f', 0.35,
+            );
           }
         }
       }
 
-      const isSelected = (selectedTowerId !== null && id === selectedTowerId) || 
-                         (selectedUnitId !== null && id === selectedUnitId) ||
-                         (selectedTrapId !== null && id === selectedTrapId);
-      const strokeColor = isSelected ? '#ffffff' : r.outline ? '#ffffff' : undefined;
-      const strokeW = isSelected ? 3 : r.outline ? 2 : undefined;
+      // ========================================
+      // Selection highlight
+      // ========================================
+      const isSelected = (selectedTowerId !== null && eid === selectedTowerId) ||
+                         (selectedUnitId !== null && eid === selectedUnitId) ||
+                         (selectedTrapId !== null && eid === selectedTrapId);
+      const strokeColor = isSelected ? '#ffffff' : (Visual.outline[eid] ? '#ffffff' : undefined);
+      const strokeW = isSelected ? 3 : (Visual.outline[eid] ? 2 : undefined);
 
-      if (isUnit && selectedUnitId === id) {
-        const unitComp = this.world.getComponent<Unit>(id, CType.Unit);
-        if (unitComp) {
+      // ========================================
+      // Unit move-range circle (when selected)
+      // ========================================
+      if (isUnit && selectedUnitId === eid) {
+        if (hasComponent(world.world, eid, Movement)) {
+          const moveRange = Movement.moveRange[eid];
           this.renderer.push({
             shape: 'circle',
-            x: pos.x,
-            y: pos.y,
-            size: unitComp.moveRange * 2,
+            x: posX,
+            y: posY,
+            size: moveRange * 2,
             color: '#4fc3f7',
             alpha: 0.15,
             stroke: '#4fc3f7',
@@ -286,42 +348,43 @@ export class RenderSystem implements System {
         }
       }
 
+      // ========================================
+      // Main render command builder
+      // ========================================
       const pushCmd = (extras: Partial<Parameters<typeof this.renderer.push>[0]> = {}) => {
-        let shape = r.shape;
+        let shape: ShapeType = shapeValToString(Visual.shape[eid]);
         let targetX: number | undefined;
         let targetY: number | undefined;
 
         if (isProjectile) {
           shape = 'arrow';
-          const proj = this.world.getComponent<Projectile>(id, CType.Projectile);
-          if (proj) {
-            const tp = this.world.getComponent<Position>(proj.targetId, CType.Position);
-            if (tp) { targetX = tp.x; targetY = tp.y; }
+          const projTargetId = Projectile.targetId[eid];
+          if (projTargetId > 0 && typeof Position.x[projTargetId] === 'number') {
+            targetX = Position.x[projTargetId];
+            targetY = Position.y[projTargetId];
           }
         }
 
         this.renderer.push({
           shape,
-          x: pos.x, y: pos.y,
+          x: posX, y: posY,
           size: drawSize,
           color: displayColor,
           alpha: displayAlpha,
           stroke: strokeColor,
           strokeWidth: strokeW,
-          label: r.label ?? undefined,
-          labelColor: r.labelColor,
-          labelSize: r.labelSize,
           targetX,
           targetY,
           ...extras,
         });
 
+        // Boss crown
         if (isBossEntity) {
-          const crownSize = r.size * 0.4;
+          const crownSize = Visual.size[eid] * 0.4;
           this.renderer.push({
             shape: 'triangle',
-            x: pos.x,
-            y: pos.y - drawSize / 2 - crownSize / 2 - 2,
+            x: posX,
+            y: posY - drawSize / 2 - crownSize / 2 - 2,
             size: crownSize,
             color: '#ffd700',
             alpha: 0.95,
@@ -329,23 +392,34 @@ export class RenderSystem implements System {
         }
       };
 
-      const health = this.world.getComponent<Health>(id, CType.Health);
-      if (health && !isProjectile && health.ratio < 1) {
-        const barW = Math.max(r.size * 1.2, 28);
-        this.drawHealthBar(pos.x, pos.y - r.size / 2 - 16, barW, health.ratio);
+      // ========================================
+      // Health bar (below entity)
+      // ========================================
+      const hasHealth = hasComponent(world.world, eid, Health);
+      if (hasHealth && !isProjectile) {
+        const hpCurrent = Health.current[eid];
+        const hpMax = Health.max[eid];
+        const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
+        if (ratio < 1) {
+          const barW = Math.max(Visual.size[eid] * 1.2, 28);
+          this.drawHealthBar(posX, posY - Visual.size[eid] / 2 - 16, barW, ratio);
+        }
       }
 
       pushCmd();
 
+      // ========================================
+      // Tower level diamonds
+      // ========================================
       if (isTower) {
-        const tower = this.world.getComponent<Tower>(id, CType.Tower);
-        if (tower && tower.level > 0) {
+        const towerLevel = Tower.level[eid];
+        if (towerLevel > 0) {
           const diamondSize = 6;
           const gap = 2;
-          const totalW = tower.level * diamondSize * 2 + (tower.level - 1) * gap;
-          const startX = pos.x - totalW / 2 + diamondSize;
-          const diamondY = pos.y - drawSize / 2 - 8;
-          for (let i = 0; i < tower.level; i++) {
+          const totalW = towerLevel * diamondSize * 2 + (towerLevel - 1) * gap;
+          const startX = posX - totalW / 2 + diamondSize;
+          const diamondY = posY - drawSize / 2 - 8;
+          for (let i = 0; i < towerLevel; i++) {
             this.renderer.push({
               shape: 'diamond',
               x: startX + i * (diamondSize * 2 + gap),
@@ -358,82 +432,87 @@ export class RenderSystem implements System {
         }
       }
 
-      if (isUnit && selectedUnitId === id) {
-        const unitComp = this.world.getComponent<Unit>(id, CType.Unit);
-        const attack = this.world.getComponent<Attack>(id, CType.Attack);
-        if (unitComp && health && attack) {
-          const cfg = UNIT_CONFIGS[unitComp.unitType];
-          if (cfg) {
-            const infoY = pos.y - r.size / 2 - 30;
-            this.renderer.push({
-              shape: 'rect',
-              x: pos.x,
-              y: infoY - 12,
-              size: 120,
-              h: 45,
-              color: '#1a1a2e',
-              alpha: 0.85,
-              stroke: '#555555',
-              strokeWidth: 1,
-            });
-            this.renderer.push({
-              shape: 'rect',
-              x: pos.x,
-              y: infoY - 25,
-              size: 0.1,
-              h: 0.1,
-              color: '#ffffff',
-              alpha: 1,
-              label: cfg.name,
-              labelColor: '#ffffff',
-              labelSize: 14,
-            });
-            this.renderer.push({
-              shape: 'rect',
-              x: pos.x,
-              y: infoY - 5,
-              size: 0.1,
-              h: 0.1,
-              color: '#ffffff',
-              alpha: 1,
-              label: `HP:${Math.ceil(health.current)}/${health.max}`,
-              labelColor: '#4caf50',
-              labelSize: 12,
-            });
-            this.renderer.push({
-              shape: 'rect',
-              x: pos.x,
-              y: infoY + 12,
-              size: 0.1,
-              h: 0.1,
-              color: '#ffffff',
-              alpha: 1,
-              label: `ATK:${attack.atk} SPD:${attack.attackSpeed.toFixed(1)}`,
-              labelColor: '#ff9800',
-              labelSize: 12,
-            });
-          }
+      // ========================================
+      // Unit info panel (when selected)
+      // ========================================
+      if (isUnit && selectedUnitId === eid) {
+        const hasAttack = hasComponent(world.world, eid, Attack);
+        if (hasHealth && hasAttack) {
+          const hpCurrent = Math.ceil(Health.current[eid]);
+          const hpMax = Health.max[eid];
+          const atkDmg = Attack.damage[eid];
+          const atkSpd = Attack.attackSpeed[eid];
+          const entitySize = Visual.size[eid];
+
+          const infoY = posY - entitySize / 2 - 30;
+          this.renderer.push({
+            shape: 'rect',
+            x: posX,
+            y: infoY - 12,
+            size: 120,
+            h: 45,
+            color: '#1a1a2e',
+            alpha: 0.85,
+            stroke: '#555555',
+            strokeWidth: 1,
+          });
+          this.renderer.push({
+            shape: 'rect',
+            x: posX,
+            y: infoY - 25,
+            size: 0.1,
+            h: 0.1,
+            color: '#ffffff',
+            alpha: 1,
+            label: '士兵',
+            labelColor: '#ffffff',
+            labelSize: 14,
+          });
+          this.renderer.push({
+            shape: 'rect',
+            x: posX,
+            y: infoY - 5,
+            size: 0.1,
+            h: 0.1,
+            color: '#ffffff',
+            alpha: 1,
+            label: `HP:${hpCurrent}/${hpMax}`,
+            labelColor: '#4caf50',
+            labelSize: 12,
+          });
+          this.renderer.push({
+            shape: 'rect',
+            x: posX,
+            y: infoY + 12,
+            size: 0.1,
+            h: 0.1,
+            color: '#ffffff',
+            alpha: 1,
+            label: `ATK:${atkDmg} SPD:${atkSpd.toFixed(1)}`,
+            labelColor: '#ff9800',
+            labelSize: 12,
+          });
         }
       }
 
-      // Ice particles at feet for slowed/frozen enemies
+      // ========================================
+      // Ice particles at feet (slowed/frozen enemies)
+      // ========================================
       if (isEnemy && !flashActive) {
-        const bc = this.world.getComponent<BuffContainer>(id, CType.Buff);
-        if (bc && (bc.buffs.has('ice_slow') || bc.buffs.has('ice_frozen'))) {
-          const slowBuff = bc.buffs.get('ice_slow');
-          const stacks = slowBuff?.currentStacks ?? (bc.buffs.has('ice_frozen') ? 5 : 1);
+        if (hasFrozen || hasSlowed) {
+          const stacks = hasSlowed ? Slowed.stacks[eid] : (hasFrozen ? 5 : 1);
           const particleCount = Math.min(stacks * 2, 10);
-          const footY = pos.y + r.size / 2 + 2;
+          const footY = posY + Visual.size[eid] / 2 + 2;
           for (let i = 0; i < particleCount; i++) {
             const angle = (i / particleCount) * Math.PI * 2 + (Date.now() % 3000) / 3000 * Math.PI * 2;
-            const radius = r.size * 0.4 + (i % 3) * 3;
-            const px = pos.x + Math.cos(angle) * radius;
+            const radius = Visual.size[eid] * 0.4 + (i % 3) * 3;
+            const px = posX + Math.cos(angle) * radius;
             const py = footY + Math.sin(angle * 2) * 4;
             this.renderer.push({
               shape: 'circle',
               x: px, y: py,
               size: 4 + (i % 2) * 2,
-              color: bc.buffs.has('ice_frozen') ? '#e0f7fa' : '#b3e5fc',
+              color: hasFrozen ? '#e0f7fa' : '#b3e5fc',
               alpha: 0.7 + (i % 3) * 0.1,
             });
           }
@@ -442,6 +521,9 @@ export class RenderSystem implements System {
     }
   }
 
+  // ============================================
+  // Health bar
+  // ============================================
   private drawHealthBar(
     x: number, y: number, width: number, ratio: number,
   ): void {
@@ -477,16 +559,26 @@ export class RenderSystem implements System {
     }
   }
 
-  private lerpColor(c1: string, c2: string, t: number): string {
-    const r1 = parseInt(c1.slice(1, 3), 16);
-    const g1 = parseInt(c1.slice(3, 5), 16);
-    const b1 = parseInt(c1.slice(5, 7), 16);
-    const r2 = parseInt(c2.slice(1, 3), 16);
-    const g2 = parseInt(c2.slice(3, 5), 16);
-    const b2 = parseInt(c2.slice(5, 7), 16);
+  // ============================================
+  // Color utilities
+  // ============================================
+
+  /** Lerp from RGB components (entity base color) toward a target hex color */
+  private lerpColorRGB(r1: number, g1: number, b1: number, hex2: string, t: number): string {
+    const r2 = parseInt(hex2.slice(1, 3), 16);
+    const g2 = parseInt(hex2.slice(3, 5), 16);
+    const b2 = parseInt(hex2.slice(5, 7), 16);
     const r = Math.round(r1 + (r2 - r1) * t);
     const g = Math.round(g1 + (g2 - g1) * t);
     const b = Math.round(b1 + (b2 - b1) * t);
-    return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+    return `rgb(${r},${g},${b})`;
   }
+}
+
+// ---- Helper: convert Visual RGB components to CSS rgb string ----
+function rgbFromVisual(eid: number): string {
+  const r = Visual.colorR[eid];
+  const g = Visual.colorG[eid];
+  const b = Visual.colorB[eid];
+  return `rgb(${r},${g},${b})`;
 }

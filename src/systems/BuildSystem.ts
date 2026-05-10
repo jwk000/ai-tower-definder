@@ -1,19 +1,115 @@
-import { System, GamePhase, TowerType, UnitType, ProductionType, CType, TileType } from '../types/index.js';
-import { World } from '../core/World.js';
-import { Position, GridOccupant } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { Attack } from '../components/Attack.js';
-import { Tower } from '../components/Tower.js';
-import { Render } from '../components/Render.js';
-import { PlayerOwned } from '../components/PlayerOwned.js';
-import { Production } from '../components/Production.js';
-import { Trap } from '../components/Trap.js';
-import { AI } from '../components/AI.js';
-import { BatTower } from '../components/BatTower.js';
+// ============================================================
+// Tower Defender — BuildSystem (bitecs migration)
+//
+// 处理玩家建造交互：拖拽放置塔/陷阱/生产建筑/单位。
+// 使用 bitecs 组件存储 + defineQuery 查询网格占用。
+// ============================================================
+
+import { TowerWorld, System, defineQuery } from '../core/World.js';
+import {
+  Position,
+  Tower,
+  Attack,
+  Health,
+  Visual,
+  GridOccupant,
+  PlayerOwned,
+  UnitTag,
+  Production,
+  Trap,
+  Category,
+  CategoryVal,
+  Layer,
+  LayerVal,
+  BatTower,
+  AI,
+  Movement,
+  PlayerControllable,
+  Skill,
+  ShapeVal,
+  DamageTypeVal,
+  ResourceTypeVal,
+  TargetSelectionVal,
+  AttackModeVal,
+  MoveModeVal,
+} from '../core/components.js';
+import {
+  TowerType,
+  UnitType,
+  ProductionType,
+  type MapConfig,
+  TileType,
+  GamePhase,
+} from '../types/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS } from '../data/gameData.js';
 import { RenderSystem } from './RenderSystem.js';
 import { isAdjacentToPath } from '../utils/grid.js';
-import type { MapConfig } from '../types/index.js';
+
+// ============================================================
+// 类型 → 数值 ID 映射
+// ============================================================
+
+/** TowerType 枚举 → bitecs Tower.towerType (ui8) */
+const TOWER_TYPE_ID: Record<TowerType, number> = {
+  [TowerType.Arrow]: 0,
+  [TowerType.Cannon]: 1,
+  [TowerType.Ice]: 2,
+  [TowerType.Lightning]: 3,
+  [TowerType.Laser]: 4,
+  [TowerType.Bat]: 5,
+};
+
+/** AI config 字符串 → bitecs AI.configId (ui16) */
+const AI_CONFIG_ID: Record<string, number> = {
+  tower_basic: 0,
+  tower_cannon: 1,
+  tower_ice: 2,
+  tower_lightning: 3,
+  tower_laser: 4,
+  tower_bat: 5,
+  soldier_tank: 6,
+  soldier_dps: 7,
+  soldier_basic: 8,
+};
+
+/** ProductionType 枚举 → 索引 (用于内部标识) */
+const PRODUCTION_TYPE_ID: Record<ProductionType, number> = {
+  [ProductionType.GoldMine]: 0,
+  [ProductionType.EnergyTower]: 1,
+};
+
+// ============================================================
+// Helper: hex 颜色 → RGB 分量
+// ============================================================
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+// ============================================================
+// Helper: 形状名 → ShapeVal
+// ============================================================
+
+function shapeNameToVal(shape: string): number {
+  switch (shape) {
+    case 'rect': return ShapeVal.Rect;
+    case 'circle': return ShapeVal.Circle;
+    case 'triangle': return ShapeVal.Triangle;
+    case 'diamond': return ShapeVal.Diamond;
+    case 'hexagon': return ShapeVal.Hexagon;
+    case 'arrow': return ShapeVal.Arrow;
+    default: return ShapeVal.Circle;
+  }
+}
+
+// ============================================================
+// DragState
+// ============================================================
 
 export interface DragState {
   active: boolean;
@@ -24,20 +120,50 @@ export interface DragState {
   trap?: boolean;
 }
 
+// ============================================================
+// BuildSystem
+// ============================================================
+
 export class BuildSystem implements System {
   readonly name = 'BuildSystem';
-  readonly requiredComponents = [] as const;
 
+  // —— 公开状态（main.ts / UISystem 读取） ——
   selectedTowerType: TowerType | null = TowerType.Arrow;
   dragState: DragState | null = null;
 
+  // —— 构造参数 ——
+  private map: MapConfig;
+  private getPhase: () => GamePhase;
+  private spendGold: (amount: number) => boolean;
+
+  // —— 每帧由 update() 注入 ——
+  private _world: TowerWorld | null = null;
+
+  // —— bitecs 查询（只定义一次） ——
+  private gridQuery = defineQuery([GridOccupant]);
+
   constructor(
-    private world: World,
-    private map: MapConfig,
-    private getPhase: () => GamePhase,
-    private spendGold: (amount: number) => boolean,
-    private spendPopAndGold?: (popCost: number, goldCost: number) => boolean,
-  ) {}
+    map: MapConfig,
+    getPhase: () => GamePhase,
+    spendGold: (amount: number) => boolean,
+  ) {
+    this.map = map;
+    this.getPhase = getPhase;
+    this.spendGold = spendGold;
+  }
+
+  // ==========================================================
+  // System 接口
+  // ==========================================================
+
+  /** 每帧缓存 world 引用，供建造方法使用 */
+  update(world: TowerWorld, _dt: number): void {
+    this._world = world;
+  }
+
+  // ==========================================================
+  // 塔选择
+  // ==========================================================
 
   get selectedTower(): TowerType | null {
     return this.selectedTowerType;
@@ -47,11 +173,18 @@ export class BuildSystem implements System {
     this.selectedTowerType = type;
   }
 
-  startDrag(entityType: 'tower' | 'unit' | 'production' | 'trap', opts?: {
-    towerType?: TowerType;
-    unitType?: UnitType;
-    productionType?: ProductionType;
-  }): void {
+  // ==========================================================
+  // 拖拽状态管理
+  // ==========================================================
+
+  startDrag(
+    entityType: 'tower' | 'unit' | 'production' | 'trap',
+    opts?: {
+      towerType?: TowerType;
+      unitType?: UnitType;
+      productionType?: ProductionType;
+    },
+  ): void {
     this.dragState = {
       active: true,
       entityType,
@@ -66,9 +199,18 @@ export class BuildSystem implements System {
     this.dragState = null;
   }
 
-  /** Drop at canvas pixel coords. Returns entity ID if placed, false otherwise, null if invalid but no cancel. */
+  // ==========================================================
+  // 放置建造（由 main.ts onPointerUp 调用）
+  // ==========================================================
+
+  /**
+   * 在画布像素坐标处尝试放置。
+   * @returns 实体 ID（成功）| false（失败）
+   */
   tryDrop(px: number, py: number): number | false {
-    if (!this.dragState) return false;
+    const world = this._world;
+    const ds = this.dragState;
+    if (!world || !ds) return false;
 
     const phase = this.getPhase();
     if (phase === GamePhase.Victory || phase === GamePhase.Defeat) {
@@ -80,6 +222,7 @@ export class BuildSystem implements System {
     const col = Math.floor((px - RenderSystem.sceneOffsetX) / ts);
     const row = Math.floor((py - RenderSystem.sceneOffsetY) / ts);
 
+    // 边界检查
     if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) {
       this.cancelDrag();
       return false;
@@ -87,12 +230,15 @@ export class BuildSystem implements System {
 
     const tile = this.map.tiles[row]![col]!;
 
-    if (this.dragState.entityType === 'trap') {
+    // 地形校验
+    if (ds.entityType === 'trap') {
+      // 陷阱只能放在路径上
       if (tile !== TileType.Path) {
         this.cancelDrag();
         return false;
       }
     } else {
+      // 塔/建筑/单位必须放在空地 + 毗邻路径
       if (tile !== TileType.Empty) {
         this.cancelDrag();
         return false;
@@ -103,179 +249,112 @@ export class BuildSystem implements System {
       }
     }
 
-    const occupants = this.world.query(CType.GridOccupant);
-    for (const id of occupants) {
-      const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) {
+    // 网格占用检查 (bitecs query)
+    const occupantEntities = this.gridQuery(world.world);
+    for (let i = 0; i < occupantEntities.length; i++) {
+      const eid = occupantEntities[i]!;
+      if (GridOccupant.row[eid] === row && GridOccupant.col[eid] === col) {
         this.cancelDrag();
         return false;
       }
     }
 
+    // 像素坐标 → 网格中心
     const x = col * ts + ts / 2 + RenderSystem.sceneOffsetX;
     const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
 
-    switch (this.dragState.entityType) {
-      case 'tower': return this.placeTower(x, y, row, col);
-      case 'unit': return this.placeUnit(x, y, row, col);
-      case 'production': return this.placeProduction(x, y, row, col);
-      case 'trap': return this.placeTrap(x, y, row, col);
+    // 按实体类型分发
+    switch (ds.entityType) {
+      case 'tower':     return this.placeTower(world, x, y, row, col);
+      case 'trap':      return this.placeTrap(world, x, y, row, col);
+      case 'production': return this.placeProduction(world, x, y, row, col);
+      case 'unit':      return this.placeUnit();
       default: { this.cancelDrag(); return false; }
     }
   }
 
-  /** Try to build selected tower at canvas pixel coords. Returns entity ID if built, false otherwise. */
-  tryBuild(px: number, py: number): number | false {
-    const phase = this.getPhase();
-    if (phase === GamePhase.Victory || phase === GamePhase.Defeat) return false;
-    if (!this.selectedTowerType) return false;
+  // ==========================================================
+  // 放置实现
+  // ==========================================================
 
-    const config = TOWER_CONFIGS[this.selectedTowerType];
-    if (!config) return false;
-
-    const ts = this.map.tileSize;
-    const col = Math.floor((px - RenderSystem.sceneOffsetX) / ts);
-    const row = Math.floor((py - RenderSystem.sceneOffsetY) / ts);
-
-    if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
-
-    const tile = this.map.tiles[row]![col]!;
-    if (tile !== TileType.Empty) return false;
-
-    if (!isAdjacentToPath(row, col, this.map)) return false;
-
-    const occupants = this.world.query(CType.GridOccupant);
-    for (const id of occupants) {
-      const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) return false;
-    }
-
-    if (!this.spendGold(config.cost)) return false;
-
-    const x = col * ts + ts / 2 + RenderSystem.sceneOffsetX;
-    const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
-
-    return this.createTowerEntity(x, y, row, col, config.type);
-  }
-
-  update(_entities: number[], _dt: number): void {
-    // Logic invoked via tryBuild() / tryDrop() from input dispatch
-  }
-
-  /** Try to build a trap at canvas pixel coords. Returns entity ID if built, false otherwise. */
-  tryBuildTrap(px: number, py: number): number | false {
-    const phase = this.getPhase();
-    if (phase === GamePhase.Victory || phase === GamePhase.Defeat) return false;
-
-    const ts = this.map.tileSize;
-    const col = Math.floor((px - RenderSystem.sceneOffsetX) / ts);
-    const row = Math.floor((py - RenderSystem.sceneOffsetY) / ts);
-
-    if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
-
-    const tile = this.map.tiles[row]![col]!;
-    if (tile !== TileType.Path) return false;
-
-    const occupants = this.world.query(CType.GridOccupant);
-    for (const id of occupants) {
-      const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) return false;
-    }
-
-    const TRAP_COST = 40;
-    if (!this.spendGold(TRAP_COST)) return false;
-
-    const x = col * ts + ts / 2 + RenderSystem.sceneOffsetX;
-    const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
-
-    return this.createTrapEntity(x, y, row, col);
-  }
-
-  /** Try to build production building at canvas pixel coords. Returns entity ID if built, false otherwise. */
-  tryBuildProduction(px: number, py: number): number | false {
-    const phase = this.getPhase();
-    if (phase === GamePhase.Victory || phase === GamePhase.Defeat) return false;
-
-    const ts = this.map.tileSize;
-    const col = Math.floor((px - RenderSystem.sceneOffsetX) / ts);
-    const row = Math.floor((py - RenderSystem.sceneOffsetY) / ts);
-
-    if (col < 0 || col >= this.map.cols || row < 0 || row >= this.map.rows) return false;
-
-    const tile = this.map.tiles[row]![col]!;
-    if (tile !== TileType.Empty) return false;
-
-    if (!isAdjacentToPath(row, col, this.map)) return false;
-
-    const occupants = this.world.query(CType.GridOccupant);
-    for (const id of occupants) {
-      const grid = this.world.getComponent<GridOccupant>(id, CType.GridOccupant);
-      if (grid && grid.gridPos.row === row && grid.gridPos.col === col) return false;
-    }
-
-    const pt = this.dragState?.productionType;
-    if (!pt) return false;
-    const config = PRODUCTION_CONFIGS[pt];
-    if (!config) return false;
-    if (!this.spendGold(config.cost)) return false;
-
-    const x = col * ts + ts / 2 + RenderSystem.sceneOffsetX;
-    const y = row * ts + ts / 2 + RenderSystem.sceneOffsetY;
-
-    return this.createProductionEntity(x, y, row, col, config.type);
-  }
-
-  // ---- Placement helpers (used by both tryBuild and tryDrop) ----
-
-  private placeTower(x: number, y: number, row: number, col: number): number | false {
+  private placeTower(world: TowerWorld, x: number, y: number, row: number, col: number): number | false {
     const tt = this.dragState?.towerType ?? this.selectedTowerType;
     if (!tt) { this.cancelDrag(); return false; }
+
     const config = TOWER_CONFIGS[tt];
     if (!config) { this.cancelDrag(); return false; }
+
     if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
-    const id = this.createTowerEntity(x, y, row, col, tt);
+
+    const eid = this.createTowerEntity(world, x, y, row, col, tt);
     this.cancelDrag();
-    return id;
+    return eid;
   }
 
-  private placeTrap(x: number, y: number, row: number, col: number): number | false {
+  private placeTrap(world: TowerWorld, x: number, y: number, row: number, col: number): number | false {
     const TRAP_COST = 40;
     if (!this.spendGold(TRAP_COST)) { this.cancelDrag(); return false; }
-    const id = this.createTrapEntity(x, y, row, col);
+
+    const eid = this.createTrapEntity(world, x, y, row, col);
     this.cancelDrag();
-    return id;
+    return eid;
   }
 
-  private placeProduction(x: number, y: number, row: number, col: number): number | false {
+  private placeProduction(world: TowerWorld, x: number, y: number, row: number, col: number): number | false {
     const pt = this.dragState?.productionType;
     if (!pt) { this.cancelDrag(); return false; }
+
     const config = PRODUCTION_CONFIGS[pt];
     if (!config) { this.cancelDrag(); return false; }
+
     if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
-    const id = this.createProductionEntity(x, y, row, col, pt);
+
+    const eid = this.createProductionEntity(world, x, y, row, col, pt);
     this.cancelDrag();
-    return id;
+    return eid;
   }
 
-  private placeUnit(_x: number, _y: number, _row: number, _col: number): number | false {
-    // Unit placement is handled by main.ts spawnUnitAt
-    // Here we just cancel drag and return false — main.ts handles via tryDrop callback
+  /** 单位放置由 main.ts spawnUnitAt 处理，此处仅取消拖拽 */
+  private placeUnit(): number | false {
     this.cancelDrag();
     return false;
   }
 
-  // ---- Entity creation helpers ----
+  // ==========================================================
+  // bitecs 实体创建
+  // ==========================================================
 
-  private createTowerEntity(x: number, y: number, row: number, col: number, tt: TowerType): number {
+  private createTowerEntity(
+    world: TowerWorld,
+    x: number, y: number,
+    row: number, col: number,
+    tt: TowerType,
+  ): number {
     const config = TOWER_CONFIGS[tt]!;
-    const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new GridOccupant(row, col));
-    this.world.addComponent(id, new Health(config.hp));
-    this.world.addComponent(id, new Tower(config.type, config.cost));
-    this.world.addComponent(id, new PlayerOwned());
+    const ts = this.map.tileSize;
+    const eid = world.createEntity();
 
-    // Bat tower uses BatTower + summoned bats instead of Attack
+    // Position
+    world.addComponent(eid, Position, { x, y });
+    // GridOccupant
+    world.addComponent(eid, GridOccupant, { row, col });
+    // Health
+    world.addComponent(eid, Health, {
+      current: config.hp,
+      max: config.hp,
+      armor: 0,
+      magicResist: 0,
+    });
+    // Tower
+    world.addComponent(eid, Tower, {
+      towerType: TOWER_TYPE_ID[tt],
+      level: 1,
+      totalInvested: config.cost,
+    });
+    // PlayerOwned (tag)
+    world.addComponent(eid, PlayerOwned);
+
+    // Attack / BatTower
     if (tt === TowerType.Bat) {
       const batCount = config.batCount ?? 4;
       const replenishCD = config.batReplenishCD ?? 12;
@@ -285,78 +364,173 @@ export class BuildSystem implements System {
       const batHP = config.batHP ?? 30;
       const batSpeed = config.batSpeed ?? 120;
       const batSize = 10;
-      this.world.addComponent(id, new BatTower(
-        batCount, replenishCD, batDmg, batRange, batAS, batHP, batSpeed, batSize,
-      ));
+
+      world.addComponent(eid, BatTower, {
+        maxBats: batCount,
+        replenishCooldown: replenishCD,
+        replenishTimer: 0,
+        batDamage: batDmg,
+        batAttackRange: batRange,
+        batAttackSpeed: batAS,
+        batHp: batHP,
+        batSpeed,
+        batSize,
+      });
     } else {
-      this.world.addComponent(id, new Attack(config.atk, config.range, config.attackSpeed));
+      const dmgType = config.damageType === 'magic'
+        ? DamageTypeVal.Magic
+        : DamageTypeVal.Physical;
+
+      world.addComponent(eid, Attack, {
+        damage: config.atk,
+        attackSpeed: config.attackSpeed,
+        range: config.range,
+        damageType: dmgType,
+        cooldownTimer: 0,
+        targetId: 0,
+        targetSelection: TargetSelectionVal.Nearest,
+        attackMode: AttackModeVal.SingleTarget,
+        splashRadius: config.splashRadius ?? 0,
+        chainCount: 0,
+        chainRange: 0,
+        chainDecay: 0,
+        drainPercent: 0,
+      });
     }
-    
-    // Render shape: all towers use circle
-    const shape = 'circle';
-    const render = new Render(shape, config.color, this.map.tileSize * 0.65);
-    render.outline = false;
-    render.label = config.name;
-    render.labelColor = '#ffffff';
-    render.labelSize = 16;
-    this.world.addComponent(id, render);
-    
-    const aiConfigId = this.getTowerAIConfig(tt);
-    this.world.addComponent(id, new AI(aiConfigId));
-    
-    return id;
-  }
-  
-  private getTowerAIConfig(towerType: TowerType): string {
-    switch (towerType) {
-      case TowerType.Arrow:
-        return 'tower_basic';
-      case TowerType.Cannon:
-        return 'tower_cannon';
-      case TowerType.Ice:
-        return 'tower_ice';
-      case TowerType.Lightning:
-        return 'tower_lightning';
-      case TowerType.Laser:
-        return 'tower_laser';
-      case TowerType.Bat:
-        return 'tower_bat';
-      default:
-        return 'tower_basic';
-    }
+
+    // Visual
+    const rgb = hexToRgb(config.color);
+    world.addComponent(eid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: rgb.r,
+      colorG: rgb.g,
+      colorB: rgb.b,
+      size: ts * 0.65,
+      alpha: 1,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    // AI
+    const aiId = AI_CONFIG_ID[this.getTowerAIConfigId(tt)] ?? 0;
+    world.addComponent(eid, AI, {
+      configId: aiId,
+      targetId: 0,
+      lastUpdateTime: 0,
+      updateInterval: 0.1,
+      active: 1,
+    });
+
+    // Category
+    world.addComponent(eid, Category, { value: CategoryVal.Tower });
+
+    return eid;
   }
 
-  private createTrapEntity(x: number, y: number, row: number, col: number): number {
+  private createTrapEntity(
+    world: TowerWorld,
+    x: number, y: number,
+    row: number, col: number,
+  ): number {
     const ts = this.map.tileSize;
-    const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new GridOccupant(row, col));
-    this.world.addComponent(id, new Trap(20, 32));
-    const render = new Render('triangle', '#e53935', ts * 0.5);
-    render.outline = true;
-    render.label = '地刺';
-    render.labelColor = '#ffffff';
-    render.labelSize = 14;
-    this.world.addComponent(id, render);
-    this.world.addComponent(id, new PlayerOwned());
-    return id;
+    const eid = world.createEntity();
+
+    world.addComponent(eid, Position, { x, y });
+    world.addComponent(eid, GridOccupant, { row, col });
+    world.addComponent(eid, Trap, {
+      damagePerSecond: 20,
+      radius: 32,
+      cooldown: 0,
+      cooldownTimer: 0,
+      animTimer: 0,
+      animDuration: 0.4,
+      triggerCount: 0,
+      maxTriggers: 0,
+    });
+
+    const rgb = hexToRgb('#e53935');
+    world.addComponent(eid, Visual, {
+      shape: ShapeVal.Triangle,
+      colorR: rgb.r,
+      colorG: rgb.g,
+      colorB: rgb.b,
+      size: ts * 0.5,
+      alpha: 1,
+      outline: 1,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    world.addComponent(eid, PlayerOwned);
+    world.addComponent(eid, Category, { value: CategoryVal.Trap });
+    world.addComponent(eid, Layer, { value: LayerVal.AboveGrid });
+
+    return eid;
   }
 
-  private createProductionEntity(x: number, y: number, row: number, col: number, pt: ProductionType): number {
+  private createProductionEntity(
+    world: TowerWorld,
+    x: number, y: number,
+    row: number, col: number,
+    pt: ProductionType,
+  ): number {
     const config = PRODUCTION_CONFIGS[pt]!;
     const ts = this.map.tileSize;
-    const id = this.world.createEntity();
-    this.world.addComponent(id, new Position(x, y));
-    this.world.addComponent(id, new GridOccupant(row, col));
-    this.world.addComponent(id, new Health(config.hp));
-    this.world.addComponent(id, new Production(config.type, config.resourceType, config.baseRate, config.maxLevel));
-    const render = new Render('circle', config.color, ts * 0.6);
-    render.outline = true;
-    render.label = config.name;
-    render.labelColor = '#ffffff';
-    render.labelSize = 16;
-    this.world.addComponent(id, render);
-    this.world.addComponent(id, new PlayerOwned());
-    return id;
+    const eid = world.createEntity();
+
+    const resourceType = config.resourceType === 'gold'
+      ? ResourceTypeVal.Gold
+      : ResourceTypeVal.Energy;
+
+    world.addComponent(eid, Position, { x, y });
+    world.addComponent(eid, GridOccupant, { row, col });
+    world.addComponent(eid, Health, {
+      current: config.hp,
+      max: config.hp,
+      armor: 0,
+      magicResist: 0,
+    });
+    world.addComponent(eid, Production, {
+      resourceType,
+      rate: config.baseRate,
+      level: 1,
+      maxLevel: config.maxLevel,
+      accumulator: 0,
+    });
+
+    const rgb = hexToRgb(config.color);
+    world.addComponent(eid, Visual, {
+      shape: ShapeVal.Circle,
+      colorR: rgb.r,
+      colorG: rgb.g,
+      colorB: rgb.b,
+      size: ts * 0.6,
+      alpha: 1,
+      outline: 1,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    world.addComponent(eid, PlayerOwned);
+    world.addComponent(eid, Category, { value: CategoryVal.Building });
+
+    return eid;
+  }
+
+  // ==========================================================
+  // AI 配置映射
+  // ==========================================================
+
+  private getTowerAIConfigId(towerType: TowerType): string {
+    switch (towerType) {
+      case TowerType.Arrow:     return 'tower_basic';
+      case TowerType.Cannon:    return 'tower_cannon';
+      case TowerType.Ice:       return 'tower_ice';
+      case TowerType.Lightning: return 'tower_lightning';
+      case TowerType.Laser:     return 'tower_laser';
+      case TowerType.Bat:       return 'tower_bat';
+      default:                  return 'tower_basic';
+    }
   }
 }

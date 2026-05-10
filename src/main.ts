@@ -315,14 +315,13 @@ class TowerDefenderGame extends Game {
       () => this.uiSystem.selectedTrapEntityId,
     );
     const movementSystem = new MovementSystem(this.world, map);
-    const enemyAttackSystem = new EnemyAttackSystem(this.world);
+    const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.world, this.weatherSystem);
     this.batSwarmSystem = new BatSwarmSystem(this.world, this.weatherSystem);
     const unitSystem = new UnitSystem(this.world, map);
     const projectileSystem = new ProjectileSystem(this.world);
 
     this.skillSystem = new SkillSystem(
-      this.world,
       (amount) => this.economy.spendEnergy(amount),
     );
 
@@ -330,15 +329,15 @@ class TowerDefenderGame extends Game {
 
     const productionSystem = new ProductionSystem(this.economy);
     const trapSystem = new TrapSystem(this.world, map.tileSize);
-    const healingSystem = new HealingSystem(this.world);
+    const healingSystem = new HealingSystem();
     const deathEffectSystem = new DeathEffectSystem(this.world);
     const explosionEffectSystem = new ExplosionEffectSystem(this.world);
     const lightningBoltSystem = new LightningBoltSystem(this.world, this.renderer);
-    this.laserBeamSystem = new LaserBeamSystem(this.world, this.renderer);
+    this.laserBeamSystem = new LaserBeamSystem(this.renderer);
 
     // Initialize new unit system
     this.aiSystem = new AISystem(this.world);
-    this.lifecycleSystem = new LifecycleSystem(this.world);
+    this.lifecycleSystem = new LifecycleSystem();
     this.unitFactory = new UnitFactory(this.world);
 
     // Register AI configurations
@@ -351,7 +350,7 @@ class TowerDefenderGame extends Game {
     // UI overlay
     this.onPostRender = () => {
       lightningBoltSystem.renderBolts();
-      this.laserBeamSystem.renderBeams();
+      this.laserBeamSystem.renderBeams(this.world);
       // Weather screen tint
       if (this.currentScreen === GameScreen.Battle) {
         const tint = this.weatherSystem.screenTint;

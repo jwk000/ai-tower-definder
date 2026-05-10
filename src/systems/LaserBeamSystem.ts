@@ -1,137 +1,138 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
+import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import { LaserBeam, Position, Health, Visual } from '../core/components.js';
 import { Renderer } from '../render/Renderer.js';
-import { LaserBeam } from '../components/LaserBeam.js';
-import { Position } from '../components/Position.js';
-import { Health } from '../components/Health.js';
-import { Render } from '../components/Render.js';
 
 const GLOW_COLOR = '#e040fb';
 const CORE_COLOR = '#ffffff';
+const DAMAGE_INTERVAL = 0.1; // 每秒10次伤害tick
 
+const beamQuery = defineQuery([LaserBeam]);
+
+/**
+ * 激光束系统 — 持续性伤害 + Canvas 2D渲染
+ *
+ * 激光束是塔与目标之间的连线，带发光效果。每隔 DAMAGE_INTERVAL 秒
+ * 对目标造成一次伤害。光束追踪目标位置（动态读取 Position）。
+ */
 export class LaserBeamSystem implements System {
   readonly name = 'LaserBeamSystem';
-  readonly requiredComponents = [CType.LaserBeam] as const;
+
+  /** 每个光束实体的伤害计时器累积（秒） */
+  private damageTimers = new Map<number, number>();
 
   constructor(
-    private world: World,
     private renderer: Renderer,
   ) {}
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const beam = this.world.getComponent<LaserBeam>(id, CType.LaserBeam);
-      if (!beam) continue;
+  update(world: TowerWorld, dt: number): void {
+    const entities = beamQuery(world.world);
 
-      beam.timer -= dt;
-      if (beam.timer <= 0) {
-        this.world.destroyEntity(id);
+    for (const eid of entities) {
+      // 更新持续时间
+      LaserBeam.elapsed[eid] += dt;
+      const elapsed = LaserBeam.elapsed[eid];
+      const duration = LaserBeam.duration[eid];
+
+      // 超时销毁
+      if (elapsed >= duration) {
+        world.destroyEntity(eid);
+        this.damageTimers.delete(eid);
         continue;
       }
 
-      // Update beam endpoint to track target
-      const targetPos = this.world.getComponent<Position>(beam.targetId, CType.Position);
-      if (targetPos && this.world.isAlive(beam.targetId)) {
-        beam.toX = targetPos.x;
-        beam.toY = targetPos.y;
+      // 周期性伤害
+      let timer = this.damageTimers.get(eid) ?? 0;
+      timer += dt;
+      if (timer >= DAMAGE_INTERVAL) {
+        timer -= DAMAGE_INTERVAL;
+        this.applyDamage(eid);
       }
-
-      // Burn damage to enemies touching the beam
-      beam.damageTimer += dt;
-      if (beam.damageTimer >= beam.damageInterval) {
-        beam.damageTimer -= beam.damageInterval;
-        this.applyBeamDamage(beam);
-      }
+      this.damageTimers.set(eid, timer);
     }
   }
 
-  private applyBeamDamage(beam: LaserBeam): void {
-    const enemies = this.world.query(CType.Position, CType.Health, CType.Enemy);
-    for (const enemyId of enemies) {
-      if (beam.affectedEnemies.has(enemyId)) continue;
-      if (!this.world.isAlive(enemyId)) continue;
-
-      const ePos = this.world.getComponent<Position>(enemyId, CType.Position);
-      const eHealth = this.world.getComponent<Health>(enemyId, CType.Health);
-      if (!ePos || !eHealth?.alive) continue;
-
-      const eRender = this.world.getComponent<Render>(enemyId, CType.Render);
-      const enemyRadius = eRender ? eRender.size / 2 : 12;
-
-      if (this.lineCircleHit(
-        beam.fromX, beam.fromY, beam.toX, beam.toY,
-        ePos.x, ePos.y, enemyRadius,
-      )) {
-        eHealth.takeDamage(beam.damage);
-        if (eRender) eRender.hitFlashTimer = 0.12;
-        beam.affectedEnemies.add(enemyId);
-      }
-    }
-  }
-
-  private lineCircleHit(
-    x1: number, y1: number, x2: number, y2: number,
-    cx: number, cy: number, r: number,
-  ): boolean {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const fx = x1 - cx;
-    const fy = y1 - cy;
-    const a = dx * dx + dy * dy;
-    if (a < 0.01) {
-      return Math.sqrt(fx * fx + fy * fy) <= r;
-    }
-    let t = -(fx * dx + fy * dy) / a;
-    t = Math.max(0, Math.min(1, t));
-    const closestX = x1 + t * dx;
-    const closestY = y1 + t * dy;
-    const dist = Math.sqrt((closestX - cx) ** 2 + (closestY - cy) ** 2);
-    return dist <= r;
-  }
-
-  renderBeams(): void {
-    const entities = this.world.query(CType.LaserBeam);
+  /**
+   * 渲染所有活跃光束（从 onPostRender 调用，在 endFrame 之后）
+   */
+  renderBeams(world: TowerWorld): void {
+    const entities = beamQuery(world.world);
     const ctx = this.renderer.context;
     if (!ctx) return;
 
-    for (const id of entities) {
-      const beam = this.world.getComponent<LaserBeam>(id, CType.LaserBeam);
-      if (!beam || beam.timer <= 0) continue;
-      this.drawBeam(ctx, beam);
+    for (const eid of entities) {
+      const elapsed = LaserBeam.elapsed[eid];
+      const duration = LaserBeam.duration[eid];
+      if (elapsed >= duration) continue;
+
+      const sourceId = LaserBeam.sourceId[eid];
+      const targetId = LaserBeam.targetId[eid];
+
+      const fromX = Position.x[sourceId];
+      const fromY = Position.y[sourceId];
+      const toX = Position.x[targetId];
+      const toY = Position.y[targetId];
+
+      if (fromX === undefined || fromY === undefined ||
+          toX === undefined || toY === undefined) {
+        continue;
+      }
+
+      const alpha = Math.max(0, 1 - elapsed / duration);
+      this.drawBeam(ctx, fromX, fromY, toX, toY, alpha);
     }
   }
 
-  private drawBeam(ctx: CanvasRenderingContext2D, beam: LaserBeam): void {
-    const alpha = beam.alpha;
+  // ---- 内部 ----
 
-    // Outer glow
+  /** 对光束目标造成一次周期性伤害 */
+  private applyDamage(eid: number): void {
+    const targetId = LaserBeam.targetId[eid];
+    if (!targetId) return;
+
+    // 目标已死亡则跳过
+    if (Health.current[targetId] <= 0) return;
+
+    const damage = LaserBeam.damage[eid];
+    Health.current[targetId] -= damage;
+
+    // 受击闪白
+    Visual.hitFlashTimer[targetId] = 0.08;
+  }
+
+  /** 绘制单条光束（三层发光 → 核心线） */
+  private drawBeam(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number,
+    toX: number, toY: number,
+    alpha: number,
+  ): void {
+    // 外层发光
     ctx.save();
     ctx.globalAlpha = alpha * 0.3;
     ctx.strokeStyle = GLOW_COLOR;
     ctx.lineWidth = 10;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(beam.fromX, beam.fromY);
-    ctx.lineTo(beam.toX, beam.toY);
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
     ctx.stroke();
 
-    // Mid glow
+    // 中层发光
     ctx.globalAlpha = alpha * 0.6;
     ctx.strokeStyle = '#9c27b0';
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(beam.fromX, beam.fromY);
-    ctx.lineTo(beam.toX, beam.toY);
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
     ctx.stroke();
 
-    // Core beam
+    // 核心光束
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = CORE_COLOR;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(beam.fromX, beam.fromY);
-    ctx.lineTo(beam.toX, beam.toY);
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
     ctx.stroke();
 
     ctx.restore();
