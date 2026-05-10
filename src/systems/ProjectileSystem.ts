@@ -12,10 +12,11 @@ import { TowerWorld, type System, defineQuery, hasComponent } from '../core/Worl
 import {
   Position, Projectile, Health, Visual,
   Stunned, ExplosionEffect, BloodParticle, FadingMark,
-  UnitTag, Boss, ShapeVal,
+  UnitTag, Boss, ShapeVal, DamageTypeVal,
 } from '../core/components.js';
 import { addBuff } from './BuffSystem.js';
 import type { BuffData } from './BuffSystem.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 
 // ============================================================
 // Queries
@@ -109,8 +110,9 @@ export class ProjectileSystem implements System {
     const sourceId = Projectile.sourceId[eid] as number;
 
     // -- Deal damage to primary target --
+    const damageType = Projectile.damageType[eid]!;
     if (isAlive(targetId)) {
-      Health.current[targetId] = (Health.current[targetId] ?? 0) - damage;
+      applyDamageToTarget(world, targetId, damage, damageType);
 
       // Hit flash (if target has Visual component)
       if (hasComponent(world.world, Visual, targetId)) {
@@ -130,7 +132,7 @@ export class ProjectileSystem implements System {
 
     // -- Cannon: AOE splash + stun --
     if (splashRadius > 0) {
-      this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage);
+      this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage, damageType);
     }
 
     // -- Ice: slow debuff (BuffSystem handles stacking → freeze) --
@@ -179,6 +181,7 @@ export class ProjectileSystem implements System {
     sourceTargetId: number,
     hitX: number, hitY: number,
     radius: number, stunDuration: number, damage: number,
+    damageType: number,
   ): void {
     const splashDamage = damage * 0.6;
 
@@ -197,7 +200,7 @@ export class ProjectileSystem implements System {
 
       // AOE damage (main target already took full damage)
       if (enemyId !== sourceTargetId) {
-        Health.current[enemyId] = (Health.current[enemyId] ?? 0) - splashDamage;
+        applyDamageToTarget(world, enemyId, splashDamage, damageType);
 
         // Hit flash
         if (hasComponent(world.world, Visual, enemyId)) {
@@ -267,6 +270,7 @@ export class ProjectileSystem implements System {
       world.addComponent(pid, Projectile, {
         speed: 600,
         damage: hopDamage,
+        damageType: Projectile.damageType[sourceEid],
         targetId: nearestId,
         sourceId,
         fromX,
