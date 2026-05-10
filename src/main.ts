@@ -22,6 +22,7 @@ import { HealingSystem } from './systems/HealingSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
+import { Container } from 'pixi.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { Sound } from './utils/Sound.js';
 import { LEVELS } from './data/levels/index.js';
@@ -100,6 +101,7 @@ class TowerDefenderGame extends Game {
   private baseEntityId: number | null = null;
   private batSwarmSystem!: BatSwarmSystem;
   private laserBeamSystem!: LaserBeamSystem;
+  private effectContainer: Container;
 
   // ---- New unit system ----
   private aiSystem!: AISystem;
@@ -116,6 +118,7 @@ class TowerDefenderGame extends Game {
     super(canvas);
 
     Sound.preload();
+    this.effectContainer = new Container();
 
     this.levelSelectUI = new LevelSelectUI(
       this.renderer,
@@ -373,8 +376,8 @@ class TowerDefenderGame extends Game {
     const healingSystem = new HealingSystem();
     const deathEffectSystem = new DeathEffectSystem();
     const explosionEffectSystem = new ExplosionEffectSystem();
-    const lightningBoltSystem = new LightningBoltSystem(this.renderer);
-    this.laserBeamSystem = new LaserBeamSystem(this.renderer);
+    const lightningBoltSystem = new LightningBoltSystem(this.effectContainer);
+    this.laserBeamSystem = new LaserBeamSystem(this.effectContainer);
 
     // ---- New unit system ----
     this.aiSystem = new AISystem();

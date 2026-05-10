@@ -1,6 +1,6 @@
 import { TowerWorld, type System } from '../core/World.js';
 import { LightningBolt, Position, defineQuery } from '../core/components.js';
-import { Renderer } from '../render/Renderer.js';
+import { Container, Graphics } from 'pixi.js';
 
 const SEGMENTS = 8;
 const lightningQuery = defineQuery([LightningBolt]);
@@ -8,9 +8,10 @@ const lightningQuery = defineQuery([LightningBolt]);
 /** Renders lightning bolt visual effects with glow */
 export class LightningBoltSystem implements System {
   readonly name = 'LightningBoltSystem';
+  private prevGraphics: Graphics[] = [];
 
   constructor(
-    private renderer: Renderer,
+    private container: Container,
   ) {}
 
   update(world: TowerWorld, dt: number): void {
@@ -27,6 +28,13 @@ export class LightningBoltSystem implements System {
 
   /** Draw all active bolts — called from onPostRender after endFrame */
   renderBolts(world: TowerWorld): void {
+    // Remove previous frame's graphics
+    for (const g of this.prevGraphics) {
+      this.container.removeChild(g);
+      g.destroy();
+    }
+    this.prevGraphics = [];
+
     const entities = lightningQuery(world.world);
     for (const eid of entities) {
       const elapsed = LightningBolt.elapsed[eid]!;
@@ -38,7 +46,7 @@ export class LightningBoltSystem implements System {
   }
 
   private drawBolt(eid: number): void {
-    const ctx = this.renderer.context;
+    const g = new Graphics();
     const elapsed = LightningBolt.elapsed[eid]!;
     const duration = LightningBolt.duration[eid]!;
     const alpha = Math.max(0, 1 - elapsed / duration);
@@ -72,74 +80,45 @@ export class LightningBoltSystem implements System {
     }
 
     // Draw glow layers (shader-like effect)
-    this.drawGlow(ctx, points, alpha);
+    this.drawGlow(g, points, alpha);
 
     // Draw core line
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.shadowColor = '#ffff00';
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(points[0]!.x, points[0]!.y);
+    g.moveTo(points[0]!.x, points[0]!.y);
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i]!.x, points[i]!.y);
+      g.lineTo(points[i]!.x, points[i]!.y);
     }
-    ctx.stroke();
-    ctx.restore();
+    g.stroke({ color: '#ffffff', width: 2, alpha, cap: 'round', join: 'round' });
 
     // Draw spark particles at junctions
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.8;
-    ctx.fillStyle = '#ffffff';
     for (let i = 1; i < points.length - 1; i += 2) {
       const p = points[i]!;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      ctx.fill();
+      g.circle(p.x, p.y, 3).fill({ color: '#ffffff', alpha: alpha * 0.8 });
     }
-    ctx.restore();
+
+    this.container.addChild(g);
+    this.prevGraphics.push(g);
   }
 
-  private drawGlow(ctx: CanvasRenderingContext2D, points: { x: number; y: number }[], alpha: number): void {
+  private drawGlow(g: Graphics, points: { x: number; y: number }[], alpha: number): void {
     // Outer glow (yellow, wide)
-    ctx.save();
-    ctx.globalAlpha = alpha * 0.3;
-    ctx.strokeStyle = '#ffeb3b';
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(points[0]!.x, points[0]!.y);
+    g.moveTo(points[0]!.x, points[0]!.y);
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i]!.x, points[i]!.y);
+      g.lineTo(points[i]!.x, points[i]!.y);
     }
-    ctx.stroke();
+    g.stroke({ color: '#ffeb3b', width: 8, alpha: alpha * 0.3, cap: 'round', join: 'round' });
 
     // Mid glow (amber, medium)
-    ctx.globalAlpha = alpha * 0.5;
-    ctx.strokeStyle = '#ff9800';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(points[0]!.x, points[0]!.y);
+    g.moveTo(points[0]!.x, points[0]!.y);
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i]!.x, points[i]!.y);
+      g.lineTo(points[i]!.x, points[i]!.y);
     }
-    ctx.stroke();
+    g.stroke({ color: '#ff9800', width: 5, alpha: alpha * 0.5, cap: 'round', join: 'round' });
 
     // Inner glow (white, thin)
-    ctx.globalAlpha = alpha * 0.7;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(points[0]!.x, points[0]!.y);
+    g.moveTo(points[0]!.x, points[0]!.y);
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i]!.x, points[i]!.y);
+      g.lineTo(points[i]!.x, points[i]!.y);
     }
-    ctx.stroke();
-    ctx.restore();
+    g.stroke({ color: '#ffffff', width: 2, alpha: alpha * 0.7, cap: 'round', join: 'round' });
   }
 }

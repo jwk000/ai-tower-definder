@@ -1,11 +1,15 @@
 import type { RenderCommand, ShapeType } from '../types/index.js';
 import { getFont } from '../config/fonts.js';
+import { Container } from 'pixi.js';
 
 /** Canvas 2D renderer — draws geometric shapes with a command buffer */
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private commands: RenderCommand[] = [];
+
+  /** PixiJS container bridge — for systems migrated to Graphics API */
+  readonly container: Container = new Container();
 
   /** Design resolution (virtual canvas size) */
   static readonly DESIGN_W = 1920;
