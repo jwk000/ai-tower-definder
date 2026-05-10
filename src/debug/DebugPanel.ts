@@ -1,4 +1,5 @@
 import { BehaviorTreeRenderer } from './BehaviorTreeRenderer.js';
+import { LogMonitor } from './LogMonitor.js';
 import type { BTNodeDebugInfo, BehaviorTreeDebugState, LogEntry, LogLevel } from './types.js';
 import { FONTS, FONT_FAMILY } from '../config/fonts.js';
 
@@ -18,7 +19,7 @@ export class DebugPanel {
   
   // 状态
   private isExpanded: boolean = false;
-  private activeTab: 'behavior_tree' | 'console' = 'behavior_tree';
+  private activeTab: 'behavior_tree' | 'console' | 'log_monitor' = 'behavior_tree';
   private currentState: BehaviorTreeDebugState | null = null;
   private lastEntityId: number | null = null; // 跟踪上次选择的实体
   private needFitToContent: boolean = false; // 是否需要适应视图
@@ -27,6 +28,10 @@ export class DebugPanel {
   private logs: LogEntry[] = [];
   private maxLogs: number = 500;
   private logContainer: HTMLElement | null = null;
+
+  // 日志监视器
+  private logMonitor: LogMonitor | null = null;
+  private logMonitorContent: HTMLElement | null = null;
   
   // 回调
   private onEntitySelect: ((entityId: number) => void) | null = null;
@@ -198,6 +203,22 @@ export class DebugPanel {
     `;
     consoleTab.addEventListener('click', () => this.switchTab('console'));
     tabs.appendChild(consoleTab);
+
+    // 日志监视器标签
+    const logMonitorTab = document.createElement('button');
+    logMonitorTab.id = 'tab-log-monitor';
+    logMonitorTab.textContent = '日志';
+    logMonitorTab.style.cssText = `
+      flex: 1;
+      padding: 10px;
+      background: #252535;
+      border: none;
+      color: #a0a0b0;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    logMonitorTab.addEventListener('click', () => this.switchTab('log_monitor'));
+    tabs.appendChild(logMonitorTab);
     
     return tabs;
   }
@@ -314,9 +335,21 @@ export class DebugPanel {
       background: #1e1e2e;
     `;
     consoleContent.appendChild(this.logContainer);
-    
+
     content.appendChild(consoleContent);
-    
+
+    // 日志监视器内容
+    const logMonitorContent = document.createElement('div');
+    logMonitorContent.id = 'content-log-monitor';
+    logMonitorContent.style.cssText = `
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    `;
+    this.logMonitorContent = logMonitorContent;
+    content.appendChild(logMonitorContent);
+
     return content;
   }
 
@@ -368,31 +401,38 @@ export class DebugPanel {
   /**
    * 切换标签页
    */
-  private switchTab(tab: 'behavior_tree' | 'console'): void {
+  private switchTab(tab: 'behavior_tree' | 'console' | 'log_monitor'): void {
     this.activeTab = tab;
-    
+
     // 更新标签样式
     const btTab = document.getElementById('tab-behavior-tree');
     const consoleTab = document.getElementById('tab-console');
+    const logMonitorTab = document.getElementById('tab-log-monitor');
     const btContent = document.getElementById('content-behavior-tree');
     const consoleContent = document.getElementById('content-console');
-    
-    if (btTab && consoleTab && btContent && consoleContent) {
-      if (tab === 'behavior_tree') {
-        btTab.style.background = '#3a3a4a';
-        btTab.style.color = '#e0e0e0';
-        consoleTab.style.background = '#252535';
-        consoleTab.style.color = '#a0a0b0';
-        btContent.style.display = 'flex';
-        consoleContent.style.display = 'none';
-      } else {
-        btTab.style.background = '#252535';
-        btTab.style.color = '#a0a0b0';
-        consoleTab.style.background = '#3a3a4a';
-        consoleTab.style.color = '#e0e0e0';
-        btContent.style.display = 'none';
-        consoleContent.style.display = 'flex';
-      }
+    const logMonitorContent = document.getElementById('content-log-monitor');
+
+    // 重置所有标签样式
+    if (btTab) { btTab.style.background = '#252535'; btTab.style.color = '#a0a0b0'; }
+    if (consoleTab) { consoleTab.style.background = '#252535'; consoleTab.style.color = '#a0a0b0'; }
+    if (logMonitorTab) { logMonitorTab.style.background = '#252535'; logMonitorTab.style.color = '#a0a0b0'; }
+
+    // 隐藏所有内容
+    if (btContent) btContent.style.display = 'none';
+    if (consoleContent) consoleContent.style.display = 'none';
+    if (logMonitorContent) logMonitorContent.style.display = 'none';
+
+    if (tab === 'behavior_tree') {
+      if (btTab) { btTab.style.background = '#3a3a4a'; btTab.style.color = '#e0e0e0'; }
+      if (btContent) btContent.style.display = 'flex';
+    } else if (tab === 'console') {
+      if (consoleTab) { consoleTab.style.background = '#3a3a4a'; consoleTab.style.color = '#e0e0e0'; }
+      if (consoleContent) consoleContent.style.display = 'flex';
+    } else if (tab === 'log_monitor') {
+      if (logMonitorTab) { logMonitorTab.style.background = '#3a3a4a'; logMonitorTab.style.color = '#e0e0e0'; }
+      if (logMonitorContent) logMonitorContent.style.display = 'flex';
+      // 延迟初始化日志监视器（首次切换到该标签时创建）
+      this.ensureLogMonitorCreated();
     }
   }
 
@@ -721,7 +761,17 @@ export class DebugPanel {
    * 销毁
    */
   destroy(): void {
+    this.logMonitor?.destroy();
+    this.logMonitor = null;
     this.container.remove();
     window.removeEventListener('resize', () => this.resizeCanvas());
+  }
+
+  /**
+   * 延迟创建日志监视器（首次切换到日志标签时）
+   */
+  private ensureLogMonitorCreated(): void {
+    if (this.logMonitor || !this.logMonitorContent) return;
+    this.logMonitor = new LogMonitor(this.logMonitorContent);
   }
 }

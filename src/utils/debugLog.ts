@@ -46,7 +46,7 @@ export interface LogEntry {
 }
 
 /** 日志级别到标签的反向映射 */
-const LEVEL_LABELS: Record<LogLevel, string> = {
+export const LEVEL_LABELS: Record<LogLevel, string> = {
   [LogLevel.ERROR]: 'ERROR',
   [LogLevel.WARN]: 'WARN',
   [LogLevel.INFO]: 'INFO',
@@ -66,6 +66,44 @@ let logLevel: LogLevel = LogLevel.DEBUG;
 let enabled = true;
 
 // ============================================================
+// Listener / Subscription
+// ============================================================
+
+/** 日志监听器类型 */
+export type LogListener = (entry: LogEntry) => void;
+
+const listeners = new Set<LogListener>();
+
+/**
+ * 订阅新日志条目。
+ * 每当有新日志写入环形缓冲区时，回调会被调用。
+ * 返回取消订阅的函数。
+ */
+export function subscribe(listener: LogListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/**
+ * 获取环形缓冲区中的所有有效条目（按时间戳排序）。
+ * 用于在打开面板时加载历史记录。
+ */
+export function getEntries(levelFilter?: LogLevel): LogEntry[] {
+  const entries: LogEntry[] = [];
+  for (let i = 0; i < RING_SIZE; i++) {
+    const idx = (ringCursor + i) % RING_SIZE;
+    const entry = ringBuffer[idx];
+    if (entry && (levelFilter === undefined || entry.level <= levelFilter)) {
+      entries.push(entry);
+    }
+  }
+  entries.sort((a, b) => a.timestamp - b.timestamp);
+  return entries;
+}
+
+// ============================================================
 // Public API
 // ============================================================
 
@@ -82,6 +120,11 @@ export function getFrame(): number {
 /** 设置日志级别 */
 export function setLogLevel(level: LogLevel): void {
   logLevel = level;
+}
+
+/** 获取当前日志级别 */
+export function getLogLevel(): LogLevel {
+  return logLevel;
 }
 
 /** 启用/禁用日志 */
@@ -122,6 +165,15 @@ export function log(
   // 写入环形缓冲区
   ringBuffer[ringCursor] = entry;
   ringCursor = (ringCursor + 1) % RING_SIZE;
+
+  // 通知所有监听器
+  for (const listener of listeners) {
+    try {
+      listener(entry);
+    } catch {
+      // 静默忽略监听器异常，避免日志系统自身的错误影响游戏运行
+    }
+  }
 
   // 同步输出到控制台（含颜色）
   writeConsole(entry);
