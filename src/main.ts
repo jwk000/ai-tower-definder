@@ -164,12 +164,12 @@ class TowerDefenderGame extends Game {
     this.spawnNeutralUnits(map);
 
     // Economy
-    this.economy = new EconomySystem(this.world);
+    this.economy = new EconomySystem();
     this.economy.gold = config.startingGold;
 
     // Wave system
     this.waveSystem = new WaveSystem(
-      this.world, map, config.waves,
+      map, config.waves,
       () => this.phase,
       (p) => { this.phase = p; },
       () => {
@@ -178,7 +178,7 @@ class TowerDefenderGame extends Game {
     );
 
     // Weather system — init with level config
-    this.weatherSystem = new WeatherSystem(this.world);
+    this.weatherSystem = new WeatherSystem();
     if (config.weatherPool && config.weatherPool.length > 0) {
       const randomIdx = Math.floor(Math.random() * config.weatherPool.length);
       const initialWeather = config.weatherPool[randomIdx]!;
@@ -194,7 +194,7 @@ class TowerDefenderGame extends Game {
 
     // Build system
     this.buildSystem = new BuildSystem(
-      this.world, map,
+      map,
       () => this.phase,
       (amount) => this.economy.spendGold(amount),
     );
@@ -240,7 +240,7 @@ class TowerDefenderGame extends Game {
     };
 
     this.uiSystem = new UISystem(
-      this.world, this.renderer,
+      this.renderer,
       () => this.phase,
       () => this.economy.gold,
       () => this.waveSystem.currentWave,
@@ -282,7 +282,6 @@ class TowerDefenderGame extends Game {
     );
 
     this.healthSystem = new HealthSystem(
-      this.world,
       () => this.phase,
       (p) => { this.phase = p; },
       (enemyId) => {
@@ -302,37 +301,36 @@ class TowerDefenderGame extends Game {
           this.world.addComponent(effectId, new DeathEffect(0.3));
         }
       },
-      undefined,
       (batId) => {
         this.batSwarmSystem.onBatDied(batId);
       },
     );
 
     const renderSystem = new RenderSystem(
-      this.world, this.renderer, map,
+      this.renderer, map,
       () => this.uiSystem.selectedTowerEntityId,
       () => this.uiSystem.selectedUnitEntityId,
       () => this.uiSystem.selectedTrapEntityId,
     );
-    const movementSystem = new MovementSystem(this.world, map);
+    const movementSystem = new MovementSystem(map);
     const enemyAttackSystem = new EnemyAttackSystem();
-    const attackSystem = new AttackSystem(this.world, this.weatherSystem);
-    this.batSwarmSystem = new BatSwarmSystem(this.world, this.weatherSystem);
-    const unitSystem = new UnitSystem(this.world, map);
-    const projectileSystem = new ProjectileSystem(this.world);
+    const attackSystem = new AttackSystem(this.weatherSystem);
+    this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem);
+    const unitSystem = new UnitSystem(map);
+    const projectileSystem = new ProjectileSystem();
 
     this.skillSystem = new SkillSystem(
       (amount) => this.economy.spendEnergy(amount),
     );
 
-    this.buffSystem = new BuffSystem(this.world);
+    this.buffSystem = new BuffSystem();
 
     const productionSystem = new ProductionSystem(this.economy);
-    const trapSystem = new TrapSystem(this.world, map.tileSize);
+    const trapSystem = new TrapSystem(map.tileSize);
     const healingSystem = new HealingSystem();
-    const deathEffectSystem = new DeathEffectSystem(this.world);
-    const explosionEffectSystem = new ExplosionEffectSystem(this.world);
-    const lightningBoltSystem = new LightningBoltSystem(this.world, this.renderer);
+    const deathEffectSystem = new DeathEffectSystem();
+    const explosionEffectSystem = new ExplosionEffectSystem();
+    const lightningBoltSystem = new LightningBoltSystem(this.renderer);
     this.laserBeamSystem = new LaserBeamSystem(this.renderer);
 
     // Initialize new unit system
@@ -349,7 +347,7 @@ class TowerDefenderGame extends Game {
 
     // UI overlay
     this.onPostRender = () => {
-      lightningBoltSystem.renderBolts();
+      lightningBoltSystem.renderBolts(this.world);
       this.laserBeamSystem.renderBeams(this.world);
       // Weather screen tint
       if (this.currentScreen === GameScreen.Battle) {
