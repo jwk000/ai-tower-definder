@@ -459,7 +459,7 @@ export interface UpgradeVisualConfig {
   };
   /** Passive visual unlock at L3 */
   passiveVisual?: {
-    type: 'crit_flash' | 'aoe_ring' | 'shatter_effect' | 'arc_upgrade' | 'beam_widen' | 'bat_plus';
+    type: 'crit_flash' | 'aoe_ring' | 'shatter_effect' | 'arc_upgrade' | 'beam_widen' | 'bat_plus' | 'double_explosion';
     description: string;
   };
 }

@@ -198,7 +198,7 @@ export const LEVEL_04: LevelConfig = {
   map: MAP,
   waves: WAVES,
   startingGold: 350,
-  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Lightning, TowerType.Laser],
+  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Lightning, TowerType.Laser, TowerType.Missile],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L3_tundra',

@@ -207,7 +207,7 @@ export const LEVEL_05: LevelConfig = {
   map: MAP,
   waves: WAVES,
   startingGold: 400,
-  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat],
+  availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile],
   availableUnits: [],
   unlockStarsRequired: 0,
   unlockPrevLevelId: 'L4_volcano',
