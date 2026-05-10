@@ -1,20 +1,16 @@
-import { System, CType } from '../types/index.js';
-import { World } from '../core/World.js';
-import { DeathEffect } from '../components/DeathEffect.js';
+import { TowerWorld, type System } from '../core/World.js';
+import { DeathEffect } from '../core/components.js';
 
 export class DeathEffectSystem implements System {
   readonly name = 'DeathEffectSystem';
-  readonly requiredComponents = [CType.DeathEffect] as const;
 
-  constructor(private world: World) {}
-
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const effect = this.world.getComponent<DeathEffect>(id, CType.DeathEffect);
-      if (!effect) continue;
-      effect.timer -= dt;
-      if (effect.timer <= 0) {
-        this.world.destroyEntity(id);
+  update(world: TowerWorld, dt: number): void {
+    for (let eid = 1; eid < DeathEffect.duration.length; eid++) {
+      if (DeathEffect.duration[eid]! > 0) {
+        DeathEffect.elapsed[eid] += dt;
+        if (DeathEffect.elapsed[eid]! >= DeathEffect.duration[eid]!) {
+          world.destroyEntity(eid);
+        }
       }
     }
   }

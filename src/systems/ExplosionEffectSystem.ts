@@ -1,32 +1,29 @@
-import { System } from '../types/index.js';
-import { World } from '../core/World.js';
-import { CType } from '../types/index.js';
-import { Position } from '../components/Position.js';
-import { Render } from '../components/Render.js';
-import { ExplosionEffect } from '../components/ExplosionEffect.js';
+import { TowerWorld, type System } from '../core/World.js';
+import { ExplosionEffect, Visual, defineQuery } from '../core/components.js';
+
+const explosionVisualQuery = defineQuery([ExplosionEffect, Visual]);
 
 /** Animates explosion effects — expanding fading circles */
 export class ExplosionEffectSystem implements System {
   readonly name = 'ExplosionEffectSystem';
-  readonly requiredComponents = ['ExplosionEffect', CType.Position, CType.Render] as const;
 
-  constructor(private world: World) {}
+  update(world: TowerWorld, dt: number): void {
+    const entities = explosionVisualQuery(world.world);
+    for (const eid of entities) {
+      ExplosionEffect.elapsed[eid] += dt;
 
-  update(entities: number[], dt: number): void {
-    for (const id of entities) {
-      const effect = this.world.getComponent<ExplosionEffect>(id, 'ExplosionEffect')!;
-      const render = this.world.getComponent<Render>(id, CType.Render)!;
+      const duration = ExplosionEffect.duration[eid];
+      const elapsed = ExplosionEffect.elapsed[eid];
+      const progress = Math.min(elapsed / duration, 1);
+      const maxRadius = ExplosionEffect.maxRadius[eid];
 
-      effect.timer -= dt;
-      if (effect.timer <= 0) {
-        this.world.destroyEntity(id);
-        continue;
+      // diameter-style: Visual.size is the full circle diameter
+      Visual.size[eid] = maxRadius * progress;
+      Visual.alpha[eid] = 1 - progress;
+
+      if (elapsed >= duration) {
+        world.destroyEntity(eid);
       }
-
-      // Update render to show expanding fading circle
-      render.size = effect.currentRadius * 2; // diameter
-      render.alpha = effect.currentAlpha;
-      render.color = effect.color;
     }
   }
 }
