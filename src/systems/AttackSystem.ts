@@ -16,7 +16,7 @@ import {
 } from '../core/components.js';
 import { TowerType } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
-import { Sound } from '../utils/Sound.js';
+import { Sound, type SfxKey } from '../utils/Sound.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { evaluateMissileTarget } from './MissileTargeting.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -34,6 +34,17 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
   TowerType.Missile,   // 6
+];
+
+// Tower type → sound key lookup (index matches towerTypeVal)
+const TOWER_SHOOT_SOUNDS: SfxKey[] = [
+  'tower_arrow',     // 0
+  'tower_cannon',    // 1
+  'tower_ice',       // 2
+  'tower_lightning', // 3
+  'tower_laser',     // 4
+  'tower_bat',       // 5
+  'tower_missile',   // 6
 ];
 
 // ============================================================
@@ -144,7 +155,7 @@ export class AttackSystem implements System {
         this.spawnMissileProjectile(world, eid, markId);
         // Marker will be cleaned up next frame
 
-        Sound.play('tower_shoot');
+        Sound.play('tower_missile');
         continue;
       }
 
@@ -179,7 +190,7 @@ export class AttackSystem implements System {
       Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
       Attack.targetId[eid] = nearestId;
 
-      Sound.play('tower_shoot');
+      Sound.play(TOWER_SHOOT_SOUNDS[towerTypeVal] ?? 'tower_shoot');
 
       const level = Tower.level[eid]!;
       const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal]!;

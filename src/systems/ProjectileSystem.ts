@@ -17,6 +17,7 @@ import {
 import { addBuff } from './BuffSystem.js';
 import type { BuffData } from './BuffSystem.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
+import { Sound } from '../utils/Sound.js';
 
 // ============================================================
 // Queries
@@ -113,6 +114,7 @@ export class ProjectileSystem implements System {
     const damageType = Projectile.damageType[eid]!;
     if (isAlive(targetId)) {
       applyDamageToTarget(world, targetId, damage, damageType);
+      Sound.play('enemy_hit');
 
       // Hit flash (if target has Visual component)
       if (hasComponent(world.world, Visual, targetId)) {
@@ -133,6 +135,7 @@ export class ProjectileSystem implements System {
     // -- Cannon: AOE splash + stun --
     if (splashRadius > 0) {
       this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage, damageType);
+      Sound.play('cannon_hit');
     }
 
     // -- Ice: slow debuff (BuffSystem handles stacking → freeze) --
@@ -150,11 +153,13 @@ export class ProjectileSystem implements System {
         };
         addBuff(world, targetId, buff);
       }
+      Sound.play('ice_hit');
     }
 
     // -- Lightning: chain to nearby enemies (initial projectile only) --
     if (chainCount > 0 && !isChain) {
       this.applyChain(world, eid, hitX, hitY, chainCount, chainRange, chainDecay, damage);
+      Sound.play('lightning_hit');
     }
 
     // -- Visual: explosion ring --
@@ -165,6 +170,7 @@ export class ProjectileSystem implements System {
     const projShape = Projectile.shape[eid]!;
     if (projShape === ShapeVal.Arrow) {
       this.spawnBloodSplash(world, hitX, hitY);
+      Sound.play('arrow_hit');
     }
 
     // -- Cannon: smoke puff + persistent ground mark --

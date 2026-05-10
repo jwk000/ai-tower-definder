@@ -1,4 +1,5 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import { Sound } from '../utils/Sound.js';
 import {
   Attack,
   Movement,
@@ -119,6 +120,7 @@ export class WeatherSystem implements System {
     this.previousWeather = this.currentWeather;
     this.currentWeather = type;
     this.transitionTimer = 1.5;
+    Sound.play('weather_change');
     this.clearWeatherModifiers();
     this.applyWeatherModifiers();
   }

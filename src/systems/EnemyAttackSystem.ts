@@ -21,6 +21,7 @@ import {
 } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
+import { Sound } from '../utils/Sound.js';
 
 // ---- Constants ----
 
@@ -241,9 +242,11 @@ export class EnemyAttackSystem implements System {
 
     if (canAttackBuildings) {
       // Ranged — spawn projectile
+      Sound.play('mage_attack');
       this.spawnProjectile(world, sourceId, targetId, damage, fromX, fromY);
     } else {
       // Melee — direct damage (enemies deal physical damage)
+      Sound.play('enemy_attack');
       applyDamageToTarget(world, targetId, damage, DamageTypeVal.Physical);
     }
   }

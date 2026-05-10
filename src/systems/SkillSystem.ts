@@ -4,6 +4,7 @@ import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { SKILL_CONFIGS } from '../data/gameData.js';
 import { SkillTrigger } from '../types/index.js';
 import type { SkillConfig } from '../types/index.js';
+import { Sound } from '../utils/Sound.js';
 
 // --- Skill ID Mapping (string key → bitecs ui8 value) ---
 
@@ -69,6 +70,7 @@ export class SkillSystem implements System {
 
   /** Execute taunt — enemies within range get Taunted component */
   executeTaunt(world: TowerWorld, sourceId: number, x: number, y: number, config: { range: number; value: number }): void {
+    Sound.play('skill_taunt');
     const enemies = enemyQuery(world.world);
     for (let i = 0; i < enemies.length; i++) {
       const eid = enemies[i]!;
@@ -87,6 +89,7 @@ export class SkillSystem implements System {
 
   /** Execute whirlwind — enemies within range take direct damage */
   executeWhirlwind(world: TowerWorld, x: number, y: number, config: { range: number; value: number }): void {
+    Sound.play('skill_whirlwind');
     const enemies = enemyQuery(world.world);
     for (let i = 0; i < enemies.length; i++) {
       const eid = enemies[i]!;

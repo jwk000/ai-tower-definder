@@ -1,11 +1,12 @@
 import { TowerWorld, type System } from '../core/World.js';
 import { UnitTag } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
+import { Sound } from '../utils/Sound.js';
 
 export class EconomySystem implements System {
   readonly name = 'EconomySystem';
 
-  gold: number = 200;
+  gold: number = 220;
   private pendingGold: number = 0;
 
   energy: number = 50;
@@ -36,6 +37,7 @@ export class EconomySystem implements System {
         this.pendingGold = 0;
         this.gold -= fromGold;
       }
+      Sound.play('gold_spend');
       return true;
     }
     return false;

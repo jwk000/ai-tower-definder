@@ -1,4 +1,5 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import { Sound } from '../utils/Sound.js';
 import {
   Health,
   Boss,
@@ -46,6 +47,7 @@ export class HealthSystem implements System {
 
       // Enemy (includes bosses — they also have UnitTag.isEnemy === 1)
       if (UnitTag.isEnemy[eid] === 1) {
+        // TODO: play 'exploder_boom' when exploder enemy type detected
         this.onEnemyKilled(eid);
         world.destroyEntity(eid);
       }
@@ -80,6 +82,7 @@ export class HealthSystem implements System {
     }
 
     if (!baseAlive) {
+      Sound.play('base_hit');
       this.setPhase(GamePhase.Defeat);
     }
   }
@@ -96,6 +99,7 @@ export class HealthSystem implements System {
         Health.current[bossId]! / Health.max[bossId]! < Boss.phase2HpRatio[bossId]!
       ) {
         Boss.phase[bossId] = 2;
+        Sound.play('boss_phase2');
         Boss.transitionTimer[bossId] = 0.5;
         this.enemyPauseTimer = 0.3;
         this.pausedThisTransition = false;

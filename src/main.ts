@@ -284,6 +284,7 @@ class TowerDefenderGame extends Game {
           Attack.range[entityId]! += towerCfg.upgradeRangeBonus[costIdx] ?? 0;
         }
         this.weatherSystem.onTowerUpgraded(entityId);
+        Sound.play('upgrade');
       }
     };
 
@@ -337,6 +338,7 @@ class TowerDefenderGame extends Game {
       (enemyId) => {
         Sound.play('enemy_death');
         this.economy.rewardForEnemy(enemyId);
+        Sound.play('gold_earn');
       },
       (unitId) => {
         const popCost = UnitTag.popCost[unitId];
@@ -497,6 +499,8 @@ class TowerDefenderGame extends Game {
             Sound.play('build_place');
             this.uiSystem.selectedEntityId = result;
             this.uiSystem.selectedEntityType = ds.entityType === 'tower' ? 'tower' : ds.entityType === 'trap' ? 'trap' : null;
+          } else if (result === false) {
+            Sound.play('build_deny');
           }
         }
       }
@@ -559,6 +563,7 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private handleVictory(): void {
+    Sound.play('victory');
     this.phase = GamePhase.Victory;
     let baseHpRatio = 0;
     if (this.baseEntityId !== null) {
@@ -921,6 +926,7 @@ class TowerDefenderGame extends Game {
       this.economy.releaseUnit(UnitTag.popCost[entityId]!);
     }
 
+    Sound.play('sell');
     this.world.destroyEntity(entityId);
     this.uiSystem.selectedEntityId = null;
     this.uiSystem.selectedEntityType = null;

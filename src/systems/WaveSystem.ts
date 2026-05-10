@@ -66,6 +66,12 @@ export class WaveSystem implements System {
   countdown: number = 0;
   private countdownDuration: number = 5;
 
+  /** Tracks last integer-second value of countdown for tick sound */
+  private lastCountdownInt: number = 0;
+
+  /** Throttle counter for enemy spawn sounds */
+  private spawnSoundCounter: number = 0;
+
   constructor(
     world: TowerWorld,
     private map: MapConfig,
@@ -129,6 +135,7 @@ export class WaveSystem implements System {
       Sound.play('wave_start');
       const wave = generateEndlessWave(this.currentWaveIndex + 1);
       this.isBossWave = wave.isBossWave ?? false;
+      if (this.isBossWave) Sound.play('wave_boss');
       this.spawnQueue = wave.enemies.map((g) => ({
         enemyType: g.enemyType,
         count: g.count,
@@ -148,6 +155,7 @@ export class WaveSystem implements System {
     Sound.play('wave_start');
     const wave = this.waves[this.currentWaveIndex]!;
     this.isBossWave = wave.isBossWave ?? false;
+    if (this.isBossWave) Sound.play('wave_boss');
     this.spawnQueue = wave.enemies.map((g) => ({
       enemyType: g.enemyType,
       count: g.count,
@@ -168,8 +176,18 @@ export class WaveSystem implements System {
     // Auto-countdown (ticks regardless of wave state)
     if (this.countdown > 0) {
       this.countdown -= dt;
+
+      // Countdown tick sound at integer boundaries when <= 3s remain
+      const currentCeil = Math.ceil(this.countdown);
+      if (currentCeil !== this.lastCountdownInt && currentCeil <= 3) {
+        Sound.play('countdown_tick');
+      }
+      this.lastCountdownInt = currentCeil;
+
       if (this.countdown <= 0) {
         this.countdown = 0;
+        this.lastCountdownInt = 0;
+        Sound.play('countdown_go');
         this.startWave();
         return;
       }
@@ -207,6 +225,7 @@ export class WaveSystem implements System {
       const hasAliveEnemies = this.hasAliveEnemies();
       if (!hasAliveEnemies) {
         this.waveActive = false;
+        Sound.play('wave_clear');
         this.isBossWave = false;
         this.currentWaveIndex++;
 
@@ -312,6 +331,12 @@ export class WaveSystem implements System {
 
     // Display name for overhead HUD
     this.world.setDisplayName(eid, config.name);
+
+    // Throttled spawn sound — roughly 1 in 3 spawns
+    this.spawnSoundCounter++;
+    if (this.spawnSoundCounter % 3 === 0) {
+      Sound.play('enemy_spawn');
+    }
   }
 
   private getEnemyAIConfig(enemyType: EnemyType): string {
