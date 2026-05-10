@@ -1,4 +1,5 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import {
   Position,
   Health,
@@ -355,7 +356,7 @@ export class BatSwarmSystem implements System {
     Attack.cooldownTimer[batId] = attackSpeed! > 0 ? 1 / attackSpeed! : 0;
 
     // Deal damage
-    Health.current[nearestId]! -= damage!;
+    applyDamageToTarget(world, nearestId, damage!, DamageTypeVal.Magic);
 
     // Hit flash
     if (Visual.hitFlashTimer[nearestId] !== undefined) {

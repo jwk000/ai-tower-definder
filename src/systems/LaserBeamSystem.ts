@@ -1,5 +1,6 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
-import { LaserBeam, Position, Health, Visual } from '../core/components.js';
+import { LaserBeam, Position, Health, Visual, DamageTypeVal } from '../core/components.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import type { Renderer } from '../render/Renderer.js';
 
 const GLOW_COLOR = '#e040fb';
@@ -33,7 +34,7 @@ export class LaserBeamSystem implements System {
       timer += dt;
       if (timer >= DAMAGE_INTERVAL) {
         timer -= DAMAGE_INTERVAL;
-        this.applyDamage(eid);
+        this.applyDamage(world, eid);
       }
       this.damageTimers.set(eid, timer);
     }
@@ -64,10 +65,10 @@ export class LaserBeamSystem implements System {
     }
   }
 
-  private applyDamage(eid: number): void {
+  private applyDamage(world: TowerWorld, eid: number): void {
     const targetId = LaserBeam.targetId[eid]!;
     if (!targetId || Health.current[targetId]! <= 0) return;
-    Health.current[targetId]! -= LaserBeam.damage[eid]!;
+    applyDamageToTarget(world, targetId, LaserBeam.damage[eid]!, DamageTypeVal.Magic);
     Visual.hitFlashTimer[targetId] = 0.08;
   }
 

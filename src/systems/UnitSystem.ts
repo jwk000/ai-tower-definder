@@ -11,7 +11,9 @@ import {
   Projectile,
   DeathEffect,
   Trap,
+  DamageTypeVal,
 } from '../core/components.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import type { MapConfig } from '../types/index.js';
 import { TileType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -71,7 +73,7 @@ export class UnitSystem implements System {
       const radius = this.getRadius(eid);
 
       // ---- Attack Phase ----
-      this.attackPhase(eid, px, py, liveEnemies, dt);
+      this.attackPhase(world, eid, px, py, liveEnemies, dt);
 
       // ---- Movement Phase ----
       this.movementPhase(world, eid, px, py, radius, liveEnemies, ox, oy, maxX, maxY, dt);
@@ -83,6 +85,7 @@ export class UnitSystem implements System {
   // ============================================================
 
   private attackPhase(
+    world: TowerWorld,
     eid: number,
     px: number,
     py: number,
@@ -114,7 +117,7 @@ export class UnitSystem implements System {
 
     // Execute attack
     Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-    Health.current[nearestId]! -= Attack.damage[eid]!;
+    applyDamageToTarget(world, nearestId, Attack.damage[eid]!, DamageTypeVal.Physical);
     Visual.hitFlashTimer[nearestId] = 0.12;
   }
 

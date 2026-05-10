@@ -105,21 +105,20 @@ describe('敌人配置 (ENEMY_CONFIGS)', () => {
 
     const beast = ENEMY_CONFIGS[EnemyType.BossBeast];
     expect(beast.isBoss).toBe(true);
-    // ⚠️ 设计文档 §3.7 要求 HP=1000，当前代码为 700
-    expect(beast.hp).toBeGreaterThanOrEqual(700);
+    expect(beast.hp).toBe(1000);
+    expect(beast.defense).toBe(80);
   });
 
   it('自爆虫有死亡效果', () => {
     const cfg = ENEMY_CONFIGS[EnemyType.Exploder];
-    // ⚠️ 设计文档 §3.5 要求 specialOnDeath='explode'、deathDamage=50、deathRadius=100
-    // 当前 EnemyConfig 接口未包含这些字段，需扩展接口和数据
-    expect(cfg.description).toContain('爆炸');
+    expect(cfg.specialOnDeath).toBe('explode');
+    expect(cfg.deathDamage).toBe(50);
+    expect(cfg.deathRadius).toBe(100);
   });
 
   it('重型/法师可攻击建筑', () => {
     const heavy = ENEMY_CONFIGS[EnemyType.Heavy];
-    // ⚠️ 设计文档 §3.3 要求 canAttackBuildings=true，当前为 false
-    expect(heavy).toBeDefined();
+    expect(heavy.canAttackBuildings).toBe(true);
 
     const mage = ENEMY_CONFIGS[EnemyType.Mage];
     expect(mage.canAttackBuildings).toBe(true);
@@ -142,8 +141,7 @@ describe('单位配置 (UNIT_CONFIGS)', () => {
   it('盾卫 — 高HP + 嘲讽', () => {
     const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
     expect(cfg.hp).toBe(300);
-    // ⚠️ 设计文档 §2.1 要求 defense=40，当前为 20
-    expect(cfg.defense).toBeGreaterThanOrEqual(20);
+    expect(cfg.defense).toBe(40);
     expect(cfg.skillId).toBe('taunt');
   });
 

@@ -223,11 +223,14 @@ export interface EnemyConfig {
   color: string;
   radius: number;
   description?: string;
-  specialOnDeath?: 'explode';
-  deathDamage?: number;
-  deathRadius?: number;
   isBoss?: boolean;
   bossPhase2HpRatio?: number;
+  /** 死亡时触发的特殊效果类型 */
+  specialOnDeath?: 'explode';
+  /** 死亡爆炸伤害 */
+  deathDamage?: number;
+  /** 死亡爆炸半径 */
+  deathRadius?: number;
 }
 
 // ---- Unit ----

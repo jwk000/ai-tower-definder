@@ -1,5 +1,6 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
-import { Skill, Position, Health, UnitTag, Taunted, enemyQuery } from '../core/components.js';
+import { Skill, Position, Health, UnitTag, Taunted, enemyQuery, DamageTypeVal } from '../core/components.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { SKILL_CONFIGS } from '../data/gameData.js';
 import { SkillTrigger } from '../types/index.js';
 import type { SkillConfig } from '../types/index.js';
@@ -97,7 +98,7 @@ export class SkillSystem implements System {
       const dy = ey - y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist <= config.range) {
-        Health.current[eid]! -= config.value;
+        applyDamageToTarget(world, eid, config.value, DamageTypeVal.Physical);
       }
     }
   }

@@ -1,5 +1,6 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
-import { Position, Health, Trap, GridOccupant, UnitTag } from '../core/components.js';
+import { Position, Health, Trap, GridOccupant, UnitTag, DamageTypeVal } from '../core/components.js';
+import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { RenderSystem } from './RenderSystem.js';
 
 const trapQuery = defineQuery([Trap, Position, GridOccupant]);
@@ -30,7 +31,7 @@ export class TrapSystem implements System {
         const enemyRow = Math.floor((Position.y[enemyId]! - oy) / this.tileSize);
 
         if (enemyRow === trapRow && enemyCol === trapCol) {
-          Health.current[enemyId]! -= Trap.damagePerSecond[trapId]! * dt;
+          applyDamageToTarget(world, enemyId, Trap.damagePerSecond[trapId]! * dt, DamageTypeVal.Physical);
           damaging = true;
           break;
         }
