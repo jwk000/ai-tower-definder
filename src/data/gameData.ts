@@ -117,6 +117,21 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
     batAttackSpeed: 0.8,
     batSpeed: 120,
   },
+  [TowerType.Missile]: {
+    type: TowerType.Missile,
+    name: '导弹塔',
+    cost: 200,
+    hp: 150,
+    atk: 80,
+    attackSpeed: 0.15,
+    range: 9999,
+    damageType: 'physical',
+    splashRadius: 120,
+    upgradeCosts: [100, 160, 240, 350],
+    upgradeAtkBonus: [25, 30, 40, 55],
+    upgradeRangeBonus: [0, 0, 0, 0],
+    color: '#ff1744',
+  },
 };
 
 // ---- Upgrade Visual Configs ----

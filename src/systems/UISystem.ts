@@ -12,6 +12,7 @@ import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS, ENEMY_CONFIGS } from '
 import { GamePhase, TowerType, UnitType, ProductionType, type ShapeType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
 import { FONTS, getFont } from '../config/fonts.js';
+import { formatNumber } from '../utils/formatNumber.js';
 import {
   Position,
   Health,
@@ -38,6 +39,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Lightning, // 3
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
+  TowerType.Missile,   // 6
 ];
 
 // ============================================================
@@ -413,7 +415,7 @@ export class UISystem implements System {
       const cd = this.getCountdown();
       this.infos.push({
         x: 1650, y: UISystem.TOP_H / 2,
-        text: `⏱${cd.toFixed(1)}s`,
+        text: `⏱${formatNumber(cd)}s`,
         color: '#ffd54f', size: 20,
       });
 
@@ -531,8 +533,8 @@ export class UISystem implements System {
     const step = bw + gap;       // 88
     const btnStartX = UISystem.PANEL_BTN_START_X; // 308
 
-    // ---- Tower buttons (6) ----
-    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat];
+    // ---- Tower buttons (7) ----
+    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile];
     const towerLabelX = btnStartX + towerTypes.length * step / 2 - step / 2;
     this.infos.push({ x: towerLabelX, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
 
@@ -727,8 +729,8 @@ export class UISystem implements System {
 
             const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : cfg.hp;
             const displayMax = hpMax !== undefined ? hpMax : cfg.hp;
-            const displayAtk = atkDamage !== undefined ? atkDamage : cfg.atk;
-            this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax} ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
+            const displayAtk = atkDamage !== undefined ? formatNumber(atkDamage) : cfg.atk;
+            this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax}  ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
 
             if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
               const ratio = hpCurrent / hpMax;
@@ -739,6 +741,35 @@ export class UISystem implements System {
               if (fillW > 0) {
                 this.renderer.push({ shape: 'rect', x: infoX + fillW / 2, y: btnY + 68, size: fillW, h: 8, color: barColor, alpha: 0.95 });
               }
+            }
+
+            // Upgrade button (bottom panel)
+            const isMaxLevel = towerLevel >= 5;
+            const costIdx = towerLevel - 1;
+            const upgradeCost = towerLevel <= cfg.upgradeCosts.length
+              ? cfg.upgradeCosts[costIdx]
+              : undefined;
+            if (!isMaxLevel && upgradeCost !== undefined) {
+              const canAfford = this.getGold() >= upgradeCost;
+              const ubw = 72;
+              const ubh = 18;
+              const ubx = infoX;
+              const uby = btnY + 79;
+              this.renderer.push({
+                shape: 'rect',
+                x: ubx + ubw / 2, y: uby + ubh / 2,
+                size: ubw, h: ubh,
+                color: canAfford ? '#2e7d32' : '#555555',
+                alpha: 0.9,
+              });
+              this.buttons.push({
+                x: ubx, y: uby, w: ubw, h: ubh,
+                label: `升级 ${upgradeCost}G`,
+                color: canAfford ? '#2e7d32' : '#555555',
+                textColor: canAfford ? '#ffffff' : '#888888',
+                enabled: canAfford,
+                onClick: () => { if (this.onUpgradeTower) this.onUpgradeTower(id); },
+              });
             }
           }
         }
@@ -758,8 +789,8 @@ export class UISystem implements System {
 
           const displayHp = hpCurrent !== undefined && hpMax !== undefined ? Math.ceil(hpCurrent) : defaultHp;
           const displayMax = hpMax !== undefined ? hpMax : defaultHp;
-          const displayAtk = atkDamage !== undefined ? atkDamage : defaultAtk;
-          this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax} ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
+          const displayAtk = atkDamage !== undefined ? formatNumber(atkDamage) : defaultAtk;
+          this.infos.push({ x: infoX, y: btnY + 50, text: `HP: ${displayHp}/${displayMax}  ATK: ${displayAtk}`, color: '#ffffff', size: 16 });
         }
       } else if (this.selectedEntityType === 'trap') {
         const trapDps = Trap.damagePerSecond[id];
@@ -767,7 +798,7 @@ export class UISystem implements System {
 
         if (trapDps !== undefined && trapRadius !== undefined) {
           this.infos.push({ x: infoX, y: btnY + 26, text: '地刺', color: '#ffffff', size: 20 });
-          this.infos.push({ x: infoX, y: btnY + 50, text: `DPS: ${trapDps}  范围: ${trapRadius}px`, color: '#ffffff', size: 16 });
+          this.infos.push({ x: infoX, y: btnY + 50, text: `DPS: ${formatNumber(trapDps)}  范围: ${formatNumber(trapRadius)}px`, color: '#ffffff', size: 16 });
         }
       }
     }
@@ -819,7 +850,7 @@ export class UISystem implements System {
           });
           this.infos.push({
             x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-            text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${config.hp}/${config.hp}`}  ATK: ${atkDamage !== undefined ? atkDamage : config.atk}`,
+            text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${config.hp}/${config.hp}`}  ATK: ${atkDamage !== undefined ? formatNumber(atkDamage) : config.atk}`,
             color: '#ffffff', size: 16,
           });
 
@@ -909,7 +940,7 @@ export class UISystem implements System {
         });
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${defaultHp}/${defaultHp}`}  ATK: ${atkDamage !== undefined ? atkDamage : defaultAtk}`,
+          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${defaultHp}/${defaultHp}`}  ATK: ${atkDamage !== undefined ? formatNumber(atkDamage) : defaultAtk}`,
           color: '#ffffff', size: 16,
         });
 
@@ -948,7 +979,7 @@ export class UISystem implements System {
         });
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-          text: `DPS: ${trapDps}  范围: ${trapRadius}px`,
+          text: `DPS: ${formatNumber(trapDps)}  范围: ${formatNumber(trapRadius)}px`,
           color: '#ffffff', size: 16,
         });
 
@@ -1027,7 +1058,7 @@ export class UISystem implements System {
     if (moveSpeed !== undefined) {
       this.infos.push({
         x: tx - tw / 2 + 10, y: ty - th / 2 + 56,
-        text: `速度: ${moveSpeed}`,
+        text: `速度: ${formatNumber(moveSpeed)}`,
         color: '#ffffff', size: 16,
       });
     }

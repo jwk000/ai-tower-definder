@@ -16,6 +16,8 @@ import {
 import { TowerType } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { Sound } from '../utils/Sound.js';
+import { evaluateMissileTarget } from './MissileTargeting.js';
+import { RenderSystem } from './RenderSystem.js';
 import type { WeatherSystem } from './WeatherSystem.js';
 
 // ============================================================
@@ -29,6 +31,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Lightning, // 3
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
+  TowerType.Missile,   // 6
 ];
 
 // ============================================================
@@ -67,6 +70,7 @@ const PROJ_VISUAL: Record<number, ProjectileVisual> = {
   3: { speed: 600, shape: ShapeVal.Triangle, colorR: LIGHTNING_COLOR[0], colorG: LIGHTNING_COLOR[1], colorB: LIGHTNING_COLOR[2], size: 10 },
   4: { speed: 500, shape: ShapeVal.Circle,   colorR: LASER_COLOR[0],    colorG: LASER_COLOR[1],    colorB: LASER_COLOR[2],    size: 8 },
   5: { speed: 350, shape: ShapeVal.Triangle, colorR: BAT_COLOR[0],      colorG: BAT_COLOR[1],      colorB: BAT_COLOR[2],      size: 10 },
+  6: { speed: 200, shape: ShapeVal.Arrow,    colorR: 0xff,              colorG: 0x17,              colorB: 0x44,              size: 18 },
 };
 
 // ============================================================
@@ -83,11 +87,19 @@ const potentialTargetQuery = defineQuery([Position, Health, UnitTag]);
 export class AttackSystem implements System {
   readonly name = 'AttackSystem';
 
+  private missileMarkers: number[] = [];
+
   constructor(
     private weatherSystem?: WeatherSystem,
   ) {}
 
   update(world: TowerWorld, dt: number): void {
+    // Clean up missile target markers from previous frame
+    for (const markId of this.missileMarkers) {
+      world.destroyEntity(markId);
+    }
+    this.missileMarkers = [];
+
     const towers = towerQuery(world.world);
 
     // Pre-collect valid enemies for efficiency
@@ -107,6 +119,30 @@ export class AttackSystem implements System {
       // Bat tower only attacks in Night/Fog weather
       const towerTypeVal = Tower.towerType[eid]!;
       if (towerTypeVal === 5 && this.weatherSystem && !this.weatherSystem.canAttackBat()) {
+        continue;
+      }
+
+      // Missile tower: grid-scoring target selection
+      if (towerTypeVal === 6) {
+        const missileResult = evaluateMissileTarget(world, eid, enemyList);
+        if (!missileResult) continue;
+
+        // Reset cooldown
+        Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
+        Attack.targetId[eid] = 0; // missile doesn't target a specific entity
+
+        const { targetX, targetY } = missileResult;
+
+        // Create a marker entity at the target position
+        const markId = world.createEntity();
+        world.addComponent(markId, Position, { x: targetX, y: targetY });
+        this.missileMarkers.push(markId);
+
+        // Spawn missile projectile aimed at marker
+        this.spawnMissileProjectile(world, eid, markId);
+        // Marker will be cleaned up next frame
+
+        Sound.play('tower_shoot');
         continue;
       }
 
@@ -226,6 +262,61 @@ export class AttackSystem implements System {
     });
 
     // Inherit layer from source entity for render z-ordering (方案 B: 弹道随来源层级)
+    const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
+    world.addComponent(pid, Layer, { value: sourceLayer });
+  }
+
+  private spawnMissileProjectile(
+    world: TowerWorld,
+    towerId: number,
+    targetMarkId: number,
+  ): void {
+    const visual = PROJ_VISUAL[6]; // missile visual
+    if (!visual) return;
+
+    const damage = Attack.damage[towerId]!;
+    const fromX = Position.x[towerId]!;
+    const fromY = Position.y[towerId]!;
+    const towerCfg = TOWER_CONFIGS[TowerType.Missile];
+
+    const pid = world.createEntity();
+    world.addComponent(pid, Position, { x: fromX, y: fromY });
+    world.addComponent(pid, Projectile, {
+      speed: visual.speed,
+      damage,
+      damageType: Attack.damageType[towerId],
+      targetId: targetMarkId,
+      sourceId: towerId,
+      fromX,
+      fromY,
+      shape: visual.shape,
+      colorR: visual.colorR,
+      colorG: visual.colorG,
+      colorB: visual.colorB,
+      size: visual.size,
+      splashRadius: towerCfg?.splashRadius ?? 120,
+      stunDuration: 0,
+      slowPercent: 0,
+      slowMaxStacks: 0,
+      freezeDuration: 0,
+      chainCount: 0,
+      chainRange: 0,
+      chainDecay: 0,
+    });
+
+    world.addComponent(pid, Visual, {
+      shape: visual.shape,
+      colorR: visual.colorR,
+      colorG: visual.colorG,
+      colorB: visual.colorB,
+      size: visual.size,
+      alpha: 1,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+
+    // Inherit layer from source entity for render z-ordering
     const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
     world.addComponent(pid, Layer, { value: sourceLayer });
   }

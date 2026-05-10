@@ -62,6 +62,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Lightning, // 3
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
+  TowerType.Missile,   // 6
 ];
 
 /** TowerType enum → bitecs ui8 */
@@ -72,6 +73,7 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Lightning]: 3,
   [TowerType.Laser]: 4,
   [TowerType.Bat]: 5,
+  [TowerType.Missile]: 6,
 };
 
 // ---- Utility: hex color → RGB ----
@@ -873,7 +875,10 @@ class TowerDefenderGame extends Game {
     // Check if it's a tower
     const towerTypeNum = Tower.towerType[entityId];
     if (towerTypeNum !== undefined) {
-      refund = Math.floor(Tower.totalInvested[entityId]! * 0.5);
+      const tt = TOWER_TYPE_BY_ID[towerTypeNum];
+      const towerCfg = tt ? TOWER_CONFIGS[tt] : undefined;
+      const invested = Tower.totalInvested[entityId] ?? towerCfg?.cost ?? 0;
+      refund = Math.floor(invested * 0.5);
       // If bat tower, destroy all its bats first
       if (BatTower.maxBats[entityId] !== undefined) {
         // Iterate all entities and check BatSwarmMember.parentId

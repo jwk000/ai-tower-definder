@@ -383,6 +383,8 @@ export class BuildSystem implements System {
         ? DamageTypeVal.Magic
         : DamageTypeVal.Physical;
 
+      const isMissile = tt === TowerType.Missile;
+
       world.addComponent(eid, Attack, {
         damage: config.atk,
         attackSpeed: config.attackSpeed,
@@ -391,7 +393,7 @@ export class BuildSystem implements System {
         cooldownTimer: 0,
         targetId: 0,
         targetSelection: TargetSelectionVal.Nearest,
-        attackMode: AttackModeVal.SingleTarget,
+        attackMode: isMissile ? AttackModeVal.AoeSplash : AttackModeVal.SingleTarget,
         isRanged: 1,  // all towers are ranged
         splashRadius: config.splashRadius ?? 0,
         chainCount: 0,
