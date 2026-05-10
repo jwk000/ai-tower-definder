@@ -24,6 +24,8 @@ import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { BloodParticleSystem } from './systems/BloodParticleSystem.js';
 import { FadingMarkSystem } from './systems/FadingMarkSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
+import { DecorationSystem } from './systems/DecorationSystem.js';
+import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
 import { Container } from 'pixi.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { Sound } from './utils/Sound.js';
@@ -104,6 +106,10 @@ class TowerDefenderGame extends Game {
   private batSwarmSystem!: BatSwarmSystem;
   private laserBeamSystem!: LaserBeamSystem;
   private effectContainer: Container;
+
+  // ---- Scene decoration ----
+  private decorationSystem!: DecorationSystem;
+  private screenFXSystem!: ScreenFXSystem;
 
   // ---- New unit system ----
   private aiSystem!: AISystem;
@@ -360,6 +366,14 @@ class TowerDefenderGame extends Game {
       () => this.uiSystem.selectedUnitEntityId,
       () => this.uiSystem.selectedTrapEntityId,
     );
+
+    // ---- Scene decoration ----
+    this.decorationSystem = new DecorationSystem(
+      this.renderer, map,
+      () => this.weatherSystem.currentWeather,
+    );
+    this.screenFXSystem = new ScreenFXSystem();
+
     const movementSystem = new MovementSystem(map);
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
@@ -409,6 +423,8 @@ class TowerDefenderGame extends Game {
           ctx.fillRect(0, 0, 1920, 1080);
           ctx.restore();
         }
+        // Screen FX overlay (sun rays, wind lines, vignette)
+        this.screenFXSystem.render(ctx, 1 / 60, this.weatherSystem.currentWeather);
       }
       this.uiSystem.renderUI();
     };
@@ -525,6 +541,7 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(this.healthSystem);
     this.world.registerSystem(this.economy);
     this.world.registerSystem(this.buildSystem);
+    this.world.registerSystem(this.decorationSystem);  // background + decorations — before entity render
     this.world.registerSystem(renderSystem);
     this.world.registerSystem(lightningBoltSystem); // direct canvas draw — after buffered render
     this.world.registerSystem(this.uiSystem);
