@@ -8,8 +8,8 @@
 
 import { TowerWorld, System, defineQuery, hasComponent } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
-import { TileType } from '../types/index.js';
-import type { MapConfig, SceneLayout, ShapeType } from '../types/index.js';
+import { TileType, TowerType } from '../types/index.js';
+import type { MapConfig, SceneLayout, ShapeType, CompositePart, UpgradeVisualConfig } from '../types/index.js';
 import {
   Position,
   Visual,
@@ -32,7 +32,17 @@ import {
   Production,
 } from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
-import { UNIT_CONFIGS } from '../data/gameData.js';
+import { UNIT_CONFIGS, UPGRADE_VISUALS } from '../data/gameData.js';
+
+// ---- TowerType numeric ID → enum mapping ----
+const TOWER_TYPE_BY_ID: TowerType[] = [
+  TowerType.Arrow,     // 0
+  TowerType.Cannon,    // 1
+  TowerType.Ice,       // 2
+  TowerType.Lightning, // 3
+  TowerType.Laser,     // 4
+  TowerType.Bat,       // 5
+];
 
 // ---- Query: all entities with position + visual ----
 const renderableQuery = defineQuery([Position, Visual]);
@@ -331,7 +341,7 @@ export class RenderSystem implements System {
       }
 
       // ========================================
-      // Main render command builder
+      // Build pushCmd for single-shape entities
       // ========================================
       const pushCmd = (extras: Partial<Parameters<typeof this.renderer.push>[0]> = {}) => {
         let shape: ShapeType = shapeValToString(Visual.shape[eid]!);
@@ -359,25 +369,91 @@ export class RenderSystem implements System {
           targetY,
           ...extras,
         });
+      };
 
-        // Boss crown
-        if (isBossEntity) {
-          const crownSize = Visual.size[eid]! * 0.4;
+      // ========================================
+      // Per-level upgrade visuals for towers
+      // ========================================
+      let upgradeVisual: UpgradeVisualConfig | undefined;
+      const towerLevel = Tower.level[eid] ?? 1;
+      if (isTower) {
+        const towerTypeEnum = TOWER_TYPE_BY_ID[Tower.towerType[eid]!];
+        const upgradeKey = towerTypeEnum + '_tower';
+        if (towerTypeEnum && UPGRADE_VISUALS[upgradeKey]) {
+          const levelConfigs = UPGRADE_VISUALS[upgradeKey]!;
+          upgradeVisual = levelConfigs[towerLevel - 1];
+          if (upgradeVisual) {
+            drawSize = Math.round(drawSize * upgradeVisual.scaleMultiplier);
+          }
+        }
+      }
+
+      // ========================================
+      // Glow rendering (L3+ towers)
+      // ========================================
+      if (upgradeVisual?.glow) {
+        const g = upgradeVisual.glow;
+        const pulseMult = g.pulseAmplitude ? 1 + Math.sin(Date.now() * 0.003) * g.pulseAmplitude : 1;
+        const glowRadius = Math.round(g.radius * pulseMult);
+        this.renderer.push({
+          shape: 'circle',
+          x: posX,
+          y: posY,
+          size: glowRadius * 2,
+          color: g.color,
+          alpha: g.alpha * 0.5,
+        });
+        // Second glow layer (larger, more transparent)
+        if (towerLevel >= 4) {
           this.renderer.push({
-            shape: 'triangle',
+            shape: 'circle',
             x: posX,
-            y: posY - drawSize / 2 - crownSize / 2 - 2,
-            size: crownSize,
-            color: '#ffd700',
-            alpha: 0.95,
+            y: posY,
+            size: glowRadius * 3,
+            color: g.color,
+            alpha: g.alpha * 0.2,
           });
         }
-      };
+      }
 
       // ========================================
       // 1. Entity body (bottom layer — drawn first)
       // ========================================
       pushCmd();
+
+      // ========================================
+      // 2. Composite geometry extra parts (L3-L5 towers)
+      // ========================================
+      if (upgradeVisual && upgradeVisual.extraParts.length > 0) {
+        for (const part of upgradeVisual.extraParts) {
+          this.renderer.push({
+            shape: part.shape,
+            x: posX + part.offsetX,
+            y: posY + part.offsetY,
+            size: part.size,
+            color: part.color,
+            alpha: part.alpha ?? 1,
+            stroke: part.stroke,
+            strokeWidth: part.strokeWidth,
+            rotation: part.rotation,
+          });
+        }
+      }
+
+      // ========================================
+      // Boss crown (keep existing)
+      // ========================================
+      if (isBossEntity) {
+        const crownSize = Visual.size[eid]! * 0.4;
+        this.renderer.push({
+          shape: 'triangle',
+          x: posX,
+          y: posY - drawSize / 2 - crownSize / 2 - 2,
+          size: crownSize,
+          color: '#ffd700',
+          alpha: 0.95,
+        });
+      }
 
       // ========================================
       // 2. Health bar (always visible above entity)
