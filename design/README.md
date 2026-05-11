@@ -31,6 +31,7 @@
 | 21 | [MDA数值设计](./21-mda-numerical-design.md) | **MDA理论驱动全局数值重设计**——塔/兵/敌方/经济/波次/天气全维度重平衡 |
 | 22 | [新单位设计](./22-new-unit-design.md) | **后续版本新单位设计**——阵容缺口分析 + 经典TD参考 + 新敌7种/新塔6种/新兵3种 |
 | 23 | [AI 行为树统一方案](./23-ai-behavior-tree.md) | **行为树审计**——现状偏差、ID映射修复、BT接管所有单位AI、任务拆分 |
+| 24 | [士兵AI行为设计](./24-soldier-ai-behavior.md) | **士兵AI四状态机**——IDLE/ALERT/COMBAT/RETURN、三圈模型、敌方反击规则、行为树映射 |
 
 ---
 
