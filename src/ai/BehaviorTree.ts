@@ -8,6 +8,8 @@ import {
   UnitTag,
   Tower,
   Movement,
+  Production,
+  ResourceTypeVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
 } from '../core/components.js';
@@ -489,6 +491,21 @@ export class MoveTowardsNode extends ActionNode {
   }
 }
 
+/** 资源生产动作 — 按 rate × dt 累积，满 1 后产出到经济系统 */
+export class ProduceResourceNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const rate = Production.rate[eid];
+    if (rate === undefined) return NodeStatus.Failure;
+
+    Production.accumulator[eid]! += rate * context.dt;
+
+    // 检查是否需要产出（需要访问 EconomySystem）
+    // ProductionSystem 会独立处理，这里只做累积标记
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -587,6 +604,8 @@ export class BehaviorTree {
         return new MoveToNode(type, params);
       case 'move_towards':
         return new MoveTowardsNode(type, params);
+      case 'produce_resource':
+        return new ProduceResourceNode(type, params);
       case 'wait':
         return new WaitNode(type, params);
 

@@ -550,6 +550,18 @@ export class BuildSystem implements System {
     world.addComponent(eid, Category, { value: CategoryVal.Building });
     world.addComponent(eid, Layer, { value: LayerVal.Ground });
 
+    // UnitTag — AISystem 查询需要
+    world.addComponent(eid, UnitTag, {
+      isEnemy: 0,
+      isBoss: 0,
+      isRanged: 0,
+      canAttackBuildings: 0,
+      rewardGold: 0,
+      rewardEnergy: 0,
+      popCost: 0,
+      cost: config.cost ?? 0,
+    });
+
     // AI — 行为树控制资源生产
     world.addComponent(eid, AI, {
       configId: AI_CONFIG_ID['building_production'] ?? 12,
