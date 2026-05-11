@@ -106,8 +106,8 @@ export class DebugManager {
    */
   private setupKeyboardShortcuts(): void {
     document.addEventListener('keydown', (e) => {
-      // F12: 切换调试面板
-      if (e.key === 'F12') {
+      // Backtick: 切换调试面板 (F12 reserved for browser DevTools)
+      if (e.key === '`') {
         e.preventDefault();
         this.debugPanel.toggle();
       }
