@@ -1,5 +1,3 @@
-import { getSynthUrl } from './SoundSynth.js';
-
 export type SfxKey =
   // ═══ Legacy (5 keys — audio files need replacement for style consistency) ═══
   | 'tower_shoot'   // fallback when towerTypeVal out of range (rarely hit)
@@ -53,54 +51,54 @@ export type SfxKey =
 
 const SFX_PATH: Record<SfxKey, string> = {
   // Legacy
-  tower_shoot: '/sfx/tower_shoot.mp3',
-  enemy_death: '/sfx/enemy_death.mp3',
-  build_place: '/sfx/build_place.mp3',
-  wave_start: '/sfx/wave_start.mp3',
-  defeat: '/sfx/defeat.mp3',
+  tower_shoot: '/sfx/tower_shoot.ogg',
+  enemy_death: '/sfx/enemy_death.ogg',
+  build_place: '/sfx/build_place.ogg',
+  wave_start: '/sfx/wave_start.ogg',
+  defeat: '/sfx/defeat.ogg',
   // Tower attack
-  tower_arrow: '/sfx/tower_arrow.mp3',
-  tower_cannon: '/sfx/tower_cannon.mp3',
-  tower_ice: '/sfx/tower_ice.mp3',
-  tower_lightning: '/sfx/tower_lightning.mp3',
-  tower_laser: '/sfx/tower_laser.mp3',
-  tower_bat: '/sfx/tower_bat.mp3',
-  tower_missile: '/sfx/tower_missile.mp3',
+  tower_arrow: '/sfx/tower_arrow.ogg',
+  tower_cannon: '/sfx/tower_cannon.ogg',
+  tower_ice: '/sfx/tower_ice.ogg',
+  tower_lightning: '/sfx/tower_lightning.ogg',
+  tower_laser: '/sfx/tower_laser.ogg',
+  tower_bat: '/sfx/tower_bat.ogg',
+  tower_missile: '/sfx/tower_missile.ogg',
   // Projectile hits
-  arrow_hit: '/sfx/arrow_hit.mp3',
-  cannon_hit: '/sfx/cannon_hit.mp3',
-  ice_hit: '/sfx/ice_hit.mp3',
-  lightning_hit: '/sfx/lightning_hit.mp3',
-  missile_impact: '/sfx/missile_impact.mp3',
+  arrow_hit: '/sfx/arrow_hit.ogg',
+  cannon_hit: '/sfx/cannon_hit.ogg',
+  ice_hit: '/sfx/ice_hit.ogg',
+  lightning_hit: '/sfx/lightning_hit.ogg',
+  missile_impact: '/sfx/missile_impact.ogg',
   // Game phase
-  victory: '/sfx/victory.mp3',
-  wave_clear: '/sfx/wave_clear.mp3',
-  wave_boss: '/sfx/wave_boss.mp3',
-  countdown_tick: '/sfx/countdown_tick.mp3',
-  countdown_go: '/sfx/countdown_go.mp3',
+  victory: '/sfx/victory.ogg',
+  wave_clear: '/sfx/wave_clear.ogg',
+  wave_boss: '/sfx/wave_boss.ogg',
+  countdown_tick: '/sfx/countdown_tick.ogg',
+  countdown_go: '/sfx/countdown_go.ogg',
   // UI & building
-  ui_click: '/sfx/ui_click.mp3',
-  ui_error: '/sfx/ui_error.mp3',
-  build_deny: '/sfx/build_deny.mp3',
-  upgrade: '/sfx/upgrade.mp3',
-  sell: '/sfx/sell.mp3',
+  ui_click: '/sfx/ui_click.ogg',
+  ui_error: '/sfx/ui_error.ogg',
+  build_deny: '/sfx/build_deny.ogg',
+  upgrade: '/sfx/upgrade.ogg',
+  sell: '/sfx/sell.ogg',
   // Enemy
-  enemy_spawn: '/sfx/enemy_spawn.mp3',
-  enemy_hit: '/sfx/enemy_hit.mp3',
-  boss_phase2: '/sfx/boss_phase2.mp3',
-  exploder_boom: '/sfx/exploder_boom.mp3',
-  base_hit: '/sfx/base_hit.mp3',
+  enemy_spawn: '/sfx/enemy_spawn.ogg',
+  enemy_hit: '/sfx/enemy_hit.ogg',
+  boss_phase2: '/sfx/boss_phase2.ogg',
+  exploder_boom: '/sfx/exploder_boom.ogg',
+  base_hit: '/sfx/base_hit.ogg',
   // Economy
-  gold_earn: '/sfx/gold_earn.mp3',
-  gold_spend: '/sfx/gold_spend.mp3',
+  gold_earn: '/sfx/gold_earn.ogg',
+  gold_spend: '/sfx/gold_spend.ogg',
   // Skills
-  skill_taunt: '/sfx/skill_taunt.mp3',
-  skill_whirlwind: '/sfx/skill_whirlwind.mp3',
+  skill_taunt: '/sfx/skill_taunt.ogg',
+  skill_whirlwind: '/sfx/skill_whirlwind.ogg',
   // Weather
-  weather_change: '/sfx/weather_change.mp3',
+  weather_change: '/sfx/weather_change.ogg',
   // Enemy attack
-  enemy_attack: '/sfx/enemy_attack.mp3',
-  mage_attack: '/sfx/mage_attack.mp3',
+  enemy_attack: '/sfx/enemy_attack.ogg',
+  mage_attack: '/sfx/mage_attack.ogg',
 };
 
 const PER_KEY_THROTTLE_MS: Partial<Record<SfxKey, number>> = {
@@ -160,9 +158,7 @@ export class Sound {
   static preload(): void {
     if (Sound.loaded) return;
     for (const key of Object.keys(SFX_PATH) as SfxKey[]) {
-      const synthUrl = getSynthUrl(key);
-      const src = synthUrl ?? SFX_PATH[key];
-      const audio = new Audio(src);
+      const audio = new Audio(SFX_PATH[key]);
       audio.preload = 'auto';
       audio.volume = Sound.volume;
       Sound.buffers[key] = audio;
@@ -180,7 +176,7 @@ export class Sound {
     if (Sound.unlocked) return;
     const handler = (): void => {
       Sound.unlocked = true;
-      const dummy = new Audio('/sfx/tower_shoot.mp3');
+      const dummy = new Audio('/sfx/tower_shoot.ogg');
       dummy.volume = 0;
       dummy.play().catch(() => {});
       canvas.removeEventListener('pointerdown', handler);

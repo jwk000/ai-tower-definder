@@ -11,15 +11,15 @@ export type BgmKey =
   | 'endless';
 
 const BGM_PATH: Record<BgmKey, string> = {
-  main_menu: '/bgm/main_menu.mp3',
-  battle_default: '/bgm/battle_default.mp3',
-  battle_intense: '/bgm/battle_intense.mp3',
-  battle_snow: '/bgm/battle_snow.mp3',
-  battle_lava: '/bgm/battle_lava.mp3',
-  battle_castle: '/bgm/battle_castle.mp3',
-  wave_break: '/bgm/wave_break.mp3',
+  main_menu: '/bgm/main_menu.ogg',
+  battle_default: '/bgm/battle_default.ogg',
+  battle_intense: '/bgm/battle_intense.ogg',
+  battle_snow: '/bgm/battle_snow.ogg',
+  battle_lava: '/bgm/battle_lava.ogg',
+  battle_castle: '/bgm/battle_castle.ogg',
+  wave_break: '/bgm/wave_break.ogg',
   victory: '/bgm/victory.mp3',
-  defeat: '/bgm/defeat.mp3',
+  defeat: '/bgm/defeat.ogg',
   endless: '/bgm/endless.mp3',
 };
 
