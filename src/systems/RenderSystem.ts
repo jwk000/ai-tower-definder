@@ -28,6 +28,8 @@ import {
   GridOccupant,
   ShapeVal,
   Slowed,
+  AlertMark,
+  AlertMarkVal,
   Frozen,
   Stunned,
   Production,
@@ -132,7 +134,7 @@ export class RenderSystem implements System {
     this.drawMap(this.map);
     this.drawTargetingMarks(world, dt);
     this.drawTileDamageMarks(world);
-    this.drawEntities(world);
+    this.drawEntities(world, dt);
   }
 
   private drawMap(map: MapConfig): void {
@@ -320,7 +322,7 @@ export class RenderSystem implements System {
     }
   }
 
-  private drawEntities(world: TowerWorld): void {
+  private drawEntities(world: TowerWorld, dt: number): void {
     const entities = renderableQuery(world.world);
 
     // Build sorted array: entity id + position for Y-sorting
@@ -633,6 +635,45 @@ export class RenderSystem implements System {
           alpha: 0.95,
           z: renderZ,
         });
+      }
+
+      // ========================================
+      // Alert mark (red ! above soldier head)
+      // ========================================
+      if (hasComponent(world.world, AlertMark, eid)) {
+        const visible = AlertMark.visible[eid]!;
+        if (visible === AlertMarkVal.Blinking || visible === AlertMarkVal.Solid) {
+          let show = true;
+          if (visible === AlertMarkVal.Blinking) {
+            // Blink: visible 0.3s, hidden 0.3s
+            AlertMark.timer[eid]! += dt;
+            if (AlertMark.timer[eid]! >= 0.3) AlertMark.timer[eid] = 0;
+            show = AlertMark.timer[eid]! < 0.15;
+          }
+          if (show) {
+            const markY = posY - drawSize / 2 - 12;
+            this.renderer.push({
+              shape: 'triangle',
+              x: posX,
+              y: markY,
+              size: 14,
+              color: '#ff1744',
+              alpha: 0.95,
+              z: renderZ + 1,
+            });
+            // Vertical bar of the "!" mark
+            this.renderer.push({
+              shape: 'rect',
+              x: posX,
+              y: markY + 3,
+              size: 2,
+              h: 6,
+              color: '#ff1744',
+              alpha: 0.95,
+              z: renderZ + 1,
+            });
+          }
+        }
       }
 
       // ========================================
