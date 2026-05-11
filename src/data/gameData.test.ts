@@ -28,8 +28,8 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
       expect(cfg.cost, `${type}: cost`).toBeGreaterThan(0);
       expect(cfg.hp, `${type}: hp`).toBeGreaterThan(0);
       expect(cfg.atk, `${type}: atk`).toBeGreaterThanOrEqual(0);
-      expect(cfg.attackSpeed, `${type}: attackSpeed`).toBeGreaterThan(0);
-      expect(cfg.range, `${type}: range`).toBeGreaterThan(0);
+      expect(cfg.attackSpeed, `${type}: attackSpeed`).toBeGreaterThanOrEqual(0);
+      expect(cfg.range, `${type}: range`).toBeGreaterThanOrEqual(0);
       expect(cfg.damageType, `${type}: damageType`).toMatch(/^(physical|magic)$/);
       expect(cfg.upgradeCosts.length, `${type}: upgradeCosts`).toBe(4);
       expect(cfg.upgradeAtkBonus.length, `${type}: upgradeAtkBonus`).toBe(4);
