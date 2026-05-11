@@ -101,12 +101,25 @@ export class Renderer {
         const rh = cmd.h ?? s;  // height = h if set, else size (square)
         const x = cx - rw / 2;
         const y = cy - rh / 2;
+
+        // Apply circular clip if requested (for water-fill effects etc.)
+        if (cmd.clipRadius) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, cmd.clipRadius, 0, Math.PI * 2);
+          ctx.clip();
+        }
+
         ctx.fillStyle = cmd.color;
         ctx.fillRect(x, y, rw, rh);
         if (cmd.stroke) {
           ctx.strokeStyle = cmd.stroke;
           ctx.lineWidth = cmd.strokeWidth ?? 1;
           ctx.strokeRect(x, y, rw, rh);
+        }
+
+        if (cmd.clipRadius) {
+          ctx.restore();
         }
         break;
       }

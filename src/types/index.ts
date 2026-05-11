@@ -465,6 +465,8 @@ export interface RenderCommand {
   h?: number;           // height for rect (defaults to size = square)
   /** 渲染层级 (z-index)，值越大越靠前。默认 5 (Ground 层) */
   z?: number;
+  /** 圆形裁剪半径 — 设置后 rect 绘制会被裁剪到该圆内 */
+  clipRadius?: number;
 }
 
 // ---- Projectile ----

@@ -33,10 +33,14 @@ import {
   Production,
   Layer,
   LayerVal,
+  TargetingMark,
+  TileDamageMark,
+  MissileCharge,
 } from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
 import { UNIT_CONFIGS, UPGRADE_VISUALS } from '../data/gameData.js';
 import { formatNumber } from '../utils/formatNumber.js';
+import { ScreenShakeSystem } from '../systems/ScreenShakeSystem.js';
 
 // ---- TowerType numeric ID → enum mapping ----
 const TOWER_TYPE_BY_ID: TowerType[] = [
@@ -50,6 +54,10 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
 
 // ---- Query: all entities with position + visual ----
 const renderableQuery = defineQuery([Position, Visual]);
+
+// ---- Query: targeting marks + tile damage ----
+const targetingMarkQuery = defineQuery([TargetingMark, Position]);
+const tileDamageMarkQuery = defineQuery([TileDamageMark, Position]);
 
 // ---- ShapeVal numeric -> string mapping ----
 function shapeValToString(v: number): ShapeType {
@@ -104,6 +112,7 @@ export class RenderSystem implements System {
     private getSelectedUnitId: () => number | null = () => null,
     private getSelectedTrapId: () => number | null = () => null,
     private getSelectedProductionId: () => number | null = () => null,
+    private screenShakeSystem?: ScreenShakeSystem,
   ) {
     const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     RenderSystem.sceneOffsetX = layout.offsetX;
@@ -112,8 +121,17 @@ export class RenderSystem implements System {
     RenderSystem.sceneH = layout.mapPixelH;
   }
 
-  update(world: TowerWorld, _dt: number): void {
+  update(world: TowerWorld, dt: number): void {
+    // Apply screen shake offset (composes on top of design transform from beginFrame)
+    if (this.screenShakeSystem) {
+      const state = this.screenShakeSystem.state;
+      if (state.offsetX !== 0 || state.offsetY !== 0) {
+        this.renderer.context.translate(state.offsetX, state.offsetY);
+      }
+    }
     this.drawMap(this.map);
+    this.drawTargetingMarks(world, dt);
+    this.drawTileDamageMarks(world);
     this.drawEntities(world);
   }
 
@@ -196,6 +214,110 @@ export class RenderSystem implements System {
     this.renderer.push({ shape: 'rect', x: ox - borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1, z: 0 });
     // Right
     this.renderer.push({ shape: 'rect', x: ox + mapW + borderW / 2, y: oy + mapH / 2, size: borderW, h: mapH, color: '#111111', alpha: 1, z: 0 });
+  }
+
+  // ============================================
+  // TargetingMark rendering (red crosshair + rotating ring on ground)
+  // ============================================
+  private drawTargetingMarks(world: TowerWorld, dt: number): void {
+    const entities = targetingMarkQuery(world.world);
+    for (const eid of entities) {
+      const px = Position.x[eid]!;
+      const py = Position.y[eid]!;
+      const blastRadius = TargetingMark.blastRadius[eid]!;
+
+      // Advance timing
+      TargetingMark.pulsePhase[eid]! += dt;
+      TargetingMark.ringRotation[eid]! += dt * (2 * Math.PI / 1.2);
+
+      const pulsePhase = TargetingMark.pulsePhase[eid]!;
+      const ringRot = TargetingMark.ringRotation[eid]!;
+
+      // Pulsing alpha: oscillates between 0.5 – 1.0
+      const pulseAlpha = 0.75 + 0.25 * Math.sin(pulsePhase * 12);
+
+      // ---- Red crosshair (two lines crossing at center) ----
+      // Vertical line
+      this.renderer.push({ shape: 'rect', x: px, y: py, size: 2, h: 24, color: '#ff1744', alpha: pulseAlpha, z: 4 });
+      // Horizontal line
+      this.renderer.push({ shape: 'rect', x: px, y: py, size: 24, h: 2, color: '#ff1744', alpha: pulseAlpha, z: 4 });
+
+      // ---- Center dot ----
+      this.renderer.push({ shape: 'circle', x: px, y: py, size: 8, color: '#ff0000', alpha: 1, z: 4 });
+
+      // ---- Rotating ring ----
+      if (blastRadius > 0) {
+        // Ring outline (stroke only, no fill)
+        this.renderer.push({
+          shape: 'circle', x: px, y: py, size: blastRadius * 2,
+          color: 'transparent', alpha: 0.6, stroke: '#d50000', strokeWidth: 2, z: 4,
+        });
+        // Ring tick marks (4 dots rotating around the ring)
+        for (let i = 0; i < 4; i++) {
+          const angle = ringRot + (i * Math.PI) / 2;
+          const tx = px + Math.cos(angle) * blastRadius;
+          const ty = py + Math.sin(angle) * blastRadius;
+          this.renderer.push({
+            shape: 'circle', x: tx, y: ty, size: 5,
+            color: '#d50000', alpha: 0.9, z: 4,
+          });
+        }
+      }
+    }
+  }
+
+  // ============================================
+  // TileDamageMark rendering (dark overlay + crack pattern on damaged tiles)
+  // ============================================
+  private drawTileDamageMarks(world: TowerWorld): void {
+    const entities = tileDamageMarkQuery(world.world);
+    const ts = this.map.tileSize;
+
+    for (const eid of entities) {
+      const row = TileDamageMark.row[eid]!;
+      const col = TileDamageMark.col[eid]!;
+      const duration = TileDamageMark.duration[eid]!;
+      const elapsed = TileDamageMark.elapsed[eid]!;
+      const crackSeed = TileDamageMark.crackSeed[eid]!;
+      const maxAlpha = TileDamageMark.maxAlpha[eid]!;
+
+      // Fade out in last 1.0 second
+      let fadeFactor: number;
+      if (elapsed < duration - 1.0) {
+        fadeFactor = 1.0;
+      } else {
+        fadeFactor = Math.max(0, 1.0 - (elapsed - (duration - 1.0)) / 1.0);
+      }
+      const alpha = maxAlpha * fadeFactor;
+
+      // Tile center position (matches drawMap tile positioning)
+      const tileX = RenderSystem.sceneOffsetX + col * ts + ts / 2;
+      const tileY = RenderSystem.sceneOffsetY + row * ts + ts / 2;
+
+      // ---- Dark overlay ----
+      this.renderer.push({
+        shape: 'rect', x: tileX, y: tileY, size: ts,
+        color: '#000000', alpha: alpha * 0.4, z: 1,
+      });
+
+      // ---- Crack dots (scattered dots from center, seeded PRNG) ----
+      const rand = simplePRNG(crackSeed);
+      const numDots = 10 + (crackSeed % 6); // 10–15 dots
+      for (let i = 0; i < numDots; i++) {
+        const angle = rand() * Math.PI * 2;
+        const dist = ts * 0.1 + rand() * ts * 0.4;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        this.renderer.push({
+          shape: 'circle',
+          x: tileX + dx, y: tileY + dy,
+          size: 1.5 + rand() * 3,
+          color: '#3e2723',
+          alpha: alpha * (0.5 + rand() * 0.5),
+          z: 2,
+        });
+      }
+    }
   }
 
   private drawEntities(world: TowerWorld): void {
@@ -444,6 +566,24 @@ export class RenderSystem implements System {
       }
 
       // ========================================
+      // MissileCharge visual (pulsing red glow + alpha flicker)
+      // ========================================
+      if (isTower && hasComponent(world.world, MissileCharge, eid)) {
+        const chargeElapsed = MissileCharge.chargeElapsed[eid]!;
+        const glowAlpha = 0.15 + 0.25 * Math.sin(chargeElapsed * 10);
+        this.renderer.push({
+          shape: 'circle',
+          x: posX,
+          y: posY,
+          size: drawSize * 2 + 16,
+          color: '#ff1744',
+          alpha: glowAlpha,
+          z: renderZ,
+        });
+        displayAlpha *= (0.85 + 0.15 * Math.sin(chargeElapsed * 10));
+      }
+
+      // ========================================
       // 1. Entity body (bottom layer — drawn first)
       // ========================================
       pushCmd();
@@ -663,48 +803,52 @@ export class RenderSystem implements System {
   ): void {
     if (fillRatio <= 0.01) return; // invisible when empty
 
-    // Water fill dimensions — slightly inset from tower edges
-    const inset = Math.max(size * 0.06, 2);
+    // Fill uses a darkened version of the tower's own color
+    const waterColor = darkenHex(towerColor, 0.45);
+    const inset = Math.max(size * 0.08, 2);
     const fillW = size - inset * 2;
-    const maxH = size - inset * 2;   // full height (top to bottom inside tower)
+    const maxH = size - inset * 2;
     const fillH = Math.max(maxH * fillRatio, 2);
 
-    // Position: anchored at bottom of tower, filling upward
+    // Anchor rect at bottom of circle, fill upward
     const fillCenterY = y + size / 2 - inset - fillH / 2;
 
-    // Dark "container" background inside tower
+    // Dark container circle (sits behind the water)
     this.renderer.push({
-      shape: 'rect',
-      x, y: y + size / 2 - inset - maxH / 2,
-      size: fillW, h: maxH,
+      shape: 'circle',
+      x, y,
+      size: size - inset * 2,
       color: '#000000',
-      alpha: 0.15,
+      alpha: 0.18,
       z,
     });
 
-    // Water fill — cyan water color
+    // Water fill — rect clipped to the same circle
     this.renderer.push({
       shape: 'rect',
       x,
       y: fillCenterY,
       size: fillW,
       h: fillH,
-      color: '#4fc3f7',
-      alpha: 0.45,
+      color: waterColor,
+      alpha: 0.6,
+      clipRadius: (size - inset * 2) / 2,
       z: z + 0.1,
     });
 
-    // Subtle top edge highlight (water surface)
+    // Subtle water surface highlight line
     if (fillRatio > 0.02) {
       const topY = fillCenterY - fillH / 2;
+      const surfaceW = fillW * 0.85;
       this.renderer.push({
         shape: 'rect',
         x,
         y: topY,
-        size: fillW,
+        size: surfaceW,
         h: 2,
-        color: '#b3e5fc',
-        alpha: 0.7,
+        color: waterColor,
+        alpha: 0.85,
+        clipRadius: (size - inset * 2) / 2,
         z: z + 0.2,
       });
     }
@@ -773,4 +917,27 @@ function rgbFromVisual(eid: number): string {
   const g = Visual.colorG[eid]!;
   const b = Visual.colorB[eid]!;
   return `rgb(${r},${g},${b})`;
+}
+
+// ---- Helper: darken a hex color by factor (0-1) ----
+function darkenHex(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const dr = Math.round(r * factor);
+  const dg = Math.round(g * factor);
+  const db = Math.round(b * factor);
+  return '#' +
+    dr.toString(16).padStart(2, '0') +
+    dg.toString(16).padStart(2, '0') +
+    db.toString(16).padStart(2, '0');
+}
+
+// ---- Helper: seeded PRNG for deterministic crack patterns ----
+function simplePRNG(seed: number): () => number {
+  let state = seed * 12345 + 67890;
+  return () => {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    return state / 0x7fffffff;
+  };
 }
