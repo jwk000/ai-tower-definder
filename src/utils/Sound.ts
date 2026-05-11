@@ -49,6 +49,14 @@ export type SfxKey =
   | 'enemy_attack'
   | 'mage_attack';
 
+/** Vite base URL — adapts to deployment path (/, /repo-name/, etc.) */
+const BASE = import.meta.env.BASE_URL;
+
+/** Resolve a relative SFX path to a full URL matching the current base. */
+function sfxUrl(key: SfxKey): string {
+  return `${BASE}sfx/${key}.ogg`;
+}
+
 const SFX_PATH: Record<SfxKey, string> = {
   // Legacy
   tower_shoot: '/sfx/tower_shoot.ogg',
@@ -159,7 +167,7 @@ export class Sound {
     if (Sound.loaded) return;
     if (typeof Audio === 'undefined') return; // non-browser env
     for (const key of Object.keys(SFX_PATH) as SfxKey[]) {
-      const audio = new Audio(SFX_PATH[key]);
+      const audio = new Audio(sfxUrl(key));
       audio.preload = 'auto';
       audio.volume = Sound.volume;
       Sound.buffers[key] = audio;
@@ -180,7 +188,8 @@ export class Sound {
       Sound.unlocked = true;
       // Try a preloaded buffer first; fall back to creating a fresh one
       const first = Object.values(Sound.buffers).find(a => a && a.readyState >= 1);
-      const unlockAudio = first ?? new Audio(Object.values(SFX_PATH)[0]!);
+      const fallbackKey = Object.keys(SFX_PATH)[0] as SfxKey;
+      const unlockAudio = first ?? new Audio(sfxUrl(fallbackKey));
       unlockAudio.volume = 0;
       unlockAudio.play().catch(() => {});
       if (!first) {
@@ -209,7 +218,7 @@ export class Sound {
     Sound.lastPlayedAt[key] = now;
 
     // Create fresh Audio element — more reliable than cloneNode for media elements
-    const audio = new Audio(SFX_PATH[key]!);
+    const audio = new Audio(sfxUrl(key));
     audio.volume = Sound.volume;
     void audio.play().catch(() => {});
   }
@@ -254,7 +263,7 @@ export class Sound {
       console.groupEnd();
       return;
     }
-    const path = SFX_PATH[testKey]!;
+    const path = sfxUrl(testKey);
     console.log(`Test-playing "${testKey}" from ${path} ...`);
     const test = new Audio(path);
     test.volume = 0.3;

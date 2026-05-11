@@ -10,17 +10,20 @@ export type BgmKey =
   | 'defeat'
   | 'endless';
 
+/** Vite base URL — adapts to deployment path (/, /repo-name/, etc.) */
+const BASE = import.meta.env.BASE_URL;
+
 const BGM_PATH: Record<BgmKey, string> = {
-  main_menu: '/bgm/main_menu.ogg',
-  battle_default: '/bgm/battle_default.ogg',
-  battle_intense: '/bgm/battle_intense.ogg',
-  battle_snow: '/bgm/battle_snow.ogg',
-  battle_lava: '/bgm/battle_lava.ogg',
-  battle_castle: '/bgm/battle_castle.ogg',
-  wave_break: '/bgm/wave_break.ogg',
-  victory: '/bgm/victory.mp3',
-  defeat: '/bgm/defeat.ogg',
-  endless: '/bgm/endless.mp3',
+  main_menu: 'bgm/main_menu.ogg',
+  battle_default: 'bgm/battle_default.ogg',
+  battle_intense: 'bgm/battle_intense.ogg',
+  battle_snow: 'bgm/battle_snow.ogg',
+  battle_lava: 'bgm/battle_lava.ogg',
+  battle_castle: 'bgm/battle_castle.ogg',
+  wave_break: 'bgm/wave_break.ogg',
+  victory: 'bgm/victory.mp3',
+  defeat: 'bgm/defeat.ogg',
+  endless: 'bgm/endless.mp3',
 };
 
 /** Cross-fade an audio element's volume over a given duration in seconds. */
@@ -71,7 +74,7 @@ export class Music {
     if (Music.currentKey === key) return;
     Music.stopCurrent(fadeIn);
 
-    const audio = new Audio(BGM_PATH[key]);
+    const audio = new Audio(BASE + BGM_PATH[key]);
     audio.loop = true;
     audio.volume = 0;
     audio.play().catch(() => {});

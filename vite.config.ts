@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  base: '/',
+  // GitHub Pages: 如果仓库名不是 TowerDefender，改成对应名称
+  base: '/TowerDefender/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
