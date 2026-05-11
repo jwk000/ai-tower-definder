@@ -33,6 +33,8 @@ const ENEMY_AI_IDS: Record<string, number> = {
   enemy_basic: 0,
   enemy_ranged: 1,
   enemy_boss: 2,
+  enemy_shaman: 3,
+  enemy_balloon: 4,
 };
 
 // ---- hex color → RGB helper ----
@@ -295,9 +297,25 @@ export class WaveSystem implements System {
     this.world.addComponent(eid, Category, {
       value: CategoryVal.Enemy,
     });
-    this.world.addComponent(eid, Layer, {
-      value: LayerVal.Ground,
-    });
+
+    // HotAirBalloon uses LowAir layer (flies over ground)
+    if (type === EnemyType.HotAirBalloon) {
+      this.world.addComponent(eid, Layer, {
+        value: LayerVal.LowAir,
+      });
+      // Add Attack component for bomb dropping
+      this.world.addComponent(eid, Attack, {
+        damage: config.bombDamage ?? config.atk,
+        attackSpeed: 1 / (config.bombInterval ?? 3.5),
+        range: 32, // checks directly below
+        damageType: DamageTypeVal.Physical,
+        isRanged: 1,
+      });
+    } else {
+      this.world.addComponent(eid, Layer, {
+        value: LayerVal.Ground,
+      });
+    }
     this.world.addComponent(eid, Faction, {
       value: FactionVal.Enemy,
     });
@@ -351,6 +369,10 @@ export class WaveSystem implements System {
       case EnemyType.BossCommander:
       case EnemyType.BossBeast:
         return 'enemy_boss';
+      case EnemyType.Shaman:
+        return 'enemy_shaman';
+      case EnemyType.HotAirBalloon:
+        return 'enemy_balloon';
       default:
         return 'enemy_basic';
     }
