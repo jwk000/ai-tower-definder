@@ -20,6 +20,7 @@ import { UISystem } from './systems/UISystem.js';
 import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
 import { ShamanSystem } from './systems/ShamanSystem.js';
+import { JuggernautSystem } from './systems/JuggernautSystem.js';
 import { CommandTowerSystem } from './systems/CommandTowerSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { HotAirBalloonSystem } from './systems/HotAirBalloonSystem.js';
@@ -407,6 +408,7 @@ class TowerDefenderGame extends Game {
 
     const movementSystem = new MovementSystem(map);
     const shamanSystem = new ShamanSystem();
+    const juggernautSystem = new JuggernautSystem();
     const commandTowerSystem = new CommandTowerSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
@@ -573,6 +575,7 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(movementSystem);
     this.world.registerSystem(shamanSystem);
     this.world.registerSystem(enemyAttackSystem);
+    this.world.registerSystem(juggernautSystem);
     this.world.registerSystem(attackSystem);
     this.world.registerSystem(commandTowerSystem);
     this.world.registerSystem(hotAirBalloonSystem);
