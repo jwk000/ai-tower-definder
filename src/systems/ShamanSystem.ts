@@ -3,8 +3,8 @@ import { Position, Health, Movement, UnitTag, AI, Visual } from '../core/compone
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { EnemyType } from '../types/index.js';
 
-/** AI config ID for Shaman enemies (matches WaveSystem ENEMY_AI_IDS.enemy_shaman) */
-const SHAMAN_AI_ID = 3;
+/** AI config ID for Shaman enemies（与 ALL_AI_CONFIGS 注册顺序一致：enemy_shaman = 17） */
+const SHAMAN_AI_ID = 17;
 
 /** Shaman entities: have Position, AI (to check configId), and UnitTag (isEnemy check) */
 const shamanQuery = defineQuery([Position, AI, UnitTag, Health]);

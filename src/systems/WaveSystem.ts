@@ -28,13 +28,14 @@ import { Sound } from '../utils/Sound.js';
 const aliveEnemyQuery = defineQuery([Health, UnitTag]);
 
 // ---- AI config string → numeric index mapping ----
+// 索引必须与 ALL_AI_CONFIGS 注册顺序一致
 
 const ENEMY_AI_IDS: Record<string, number> = {
-  enemy_basic: 0,
-  enemy_ranged: 1,
-  enemy_boss: 2,
-  enemy_shaman: 3,
-  enemy_balloon: 4,
+  enemy_basic: 6,
+  enemy_ranged: 7,
+  enemy_boss: 8,
+  enemy_shaman: 17,
+  enemy_balloon: 18,
 };
 
 // ---- hex color → RGB helper ----

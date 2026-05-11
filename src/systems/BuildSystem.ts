@@ -63,21 +63,26 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Ballista]: 9,
 };
 
-/** AI config 字符串 → bitecs AI.configId (ui16) */
+/** AI config 字符串 → bitecs AI.configId (ui16)
+ *  索引必须与 ALL_AI_CONFIGS 注册顺序一致 */
 const AI_CONFIG_ID: Record<string, number> = {
+  // Towers (0-5, 15-16)
   tower_basic: 0,
   tower_cannon: 1,
   tower_ice: 2,
   tower_lightning: 3,
   tower_laser: 4,
   tower_bat: 5,
-  soldier_tank: 6,
-  soldier_dps: 7,
-  soldier_basic: 8,
-  tower_missile: 9,
-  tower_vine: 10,
-  tower_ballista: 11,
+  tower_missile: 15,
+  tower_vine: 16,
+  tower_ballista: 19,
+  // Soldiers (9-11)
+  soldier_tank: 10,
+  soldier_dps: 11,
+  soldier_basic: 9,
+  // Buildings (12)
   building_production: 12,
+  // Traps (13-14)
   trap_damage: 13,
   trap_healing: 14,
 };

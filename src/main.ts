@@ -902,11 +902,11 @@ class TowerDefenderGame extends Game {
 
     // AI component — based on unit type
     const aiConfigId = this.getUnitAIConfig(dragUnitType);
-    // Map AI config string to numeric ID (hardcoded for player units)
+    // Map AI config string to numeric ID（与 ALL_AI_CONFIGS 注册顺序一致）
     const AI_NUM_IDS: Record<string, number> = {
-      soldier_tank: 6,
-      soldier_dps: 7,
-      soldier_basic: 8,
+      soldier_tank: 10,
+      soldier_dps: 11,
+      soldier_basic: 9,
     };
     this.world.addComponent(id, AI, {
       configId: AI_NUM_IDS[aiConfigId] ?? 8,

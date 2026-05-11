@@ -421,10 +421,106 @@ export const TRAP_HEALING_AI: BehaviorTreeConfig = {
   }
 };
 
+// ==================== 桩配置（待完善节点后启用） ====================
+
+/** 导弹塔AI — 桩：全图射程 AOE（AttackSystem 接管实际逻辑） */
+export const TOWER_MISSILE_AI: BehaviorTreeConfig = {
+  id: 'tower_missile',
+  name: '导弹塔AI（桩）',
+  description: '全图射程，由 AttackSystem 暂时接管',
+  version: '0.1-stub',
+  root: {
+    type: 'selector',
+    children: [
+      {
+        type: 'sequence',
+        name: '攻击流程',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: 2000 } },
+          { type: 'attack', params: { target: 'nearest_enemy' } }
+        ]
+      },
+      { type: 'wait', params: { duration: 0.5 } }
+    ]
+  }
+};
+
+/** 毒藤塔AI — 桩：单体 DOT 攻击（ProjectileSystem 接管 DOT 逻辑） */
+export const TOWER_VINE_AI: BehaviorTreeConfig = {
+  id: 'tower_vine',
+  name: '毒藤塔AI（桩）',
+  description: '射程内持续伤害，由 ProjectileSystem 接管 DOT',
+  version: '0.1-stub',
+  root: {
+    type: 'selector',
+    children: [
+      {
+        type: 'sequence',
+        name: '攻击流程',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'attack', params: { target: 'nearest_enemy' } }
+        ]
+      },
+      { type: 'wait', params: { duration: 0.1 } }
+    ]
+  }
+};
+
+/** 萨满敌人AI — 桩：简单跟随路径（ShamanSystem 接管治疗/光环） */
+export const ENEMY_SHAMAN_AI: BehaviorTreeConfig = {
+  id: 'enemy_shaman',
+  name: '萨满AI（桩）',
+  description: '沿路径移动，由 ShamanSystem 接管治疗逻辑',
+  version: '0.1-stub',
+  root: {
+    type: 'selector',
+    children: [
+      { type: 'move_to', params: { target: 'path_waypoint' } }
+    ]
+  }
+};
+
+/** 热气球敌人AI — 桩：飞行路径移动（HotAirBalloonSystem 接管炸弹） */
+export const ENEMY_BALLOON_AI: BehaviorTreeConfig = {
+  id: 'enemy_balloon',
+  name: '热气球AI（桩）',
+  description: '沿路径飞行，由 HotAirBalloonSystem 接管轰炸逻辑',
+  version: '0.1-stub',
+  root: {
+    type: 'selector',
+    children: [
+      { type: 'move_to', params: { target: 'path_waypoint' } }
+    ]
+  }
+};
+
+/** 弩炮塔AI — 桩：远程贯穿攻击（AttackSystem 接管） */
+export const TOWER_BALLISTA_AI: BehaviorTreeConfig = {
+  id: 'tower_ballista',
+  name: '弩炮塔AI（桩）',
+  description: '远程贯穿狙击，由 AttackSystem 暂时接管',
+  version: '0.1-stub',
+  root: {
+    type: 'selector',
+    children: [
+      {
+        type: 'sequence',
+        name: '攻击流程',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'attack', params: { target: 'farthest' } }
+        ]
+      },
+      { type: 'wait', params: { duration: 0.1 } }
+    ]
+  }
+};
+
 // ==================== 导出所有AI配置 ====================
 
 export const ALL_AI_CONFIGS: BehaviorTreeConfig[] = [
-  // Tower AIs
+  // Tower AIs (0-5)
   TOWER_BASIC_AI,
   TOWER_CANNON_AI,
   TOWER_ICE_AI,
@@ -432,22 +528,34 @@ export const ALL_AI_CONFIGS: BehaviorTreeConfig[] = [
   TOWER_LASER_AI,
   TOWER_BAT_AI,
   
-  // Enemy AIs
+  // Enemy AIs (6-8)
   ENEMY_BASIC_AI,
   ENEMY_RANGED_AI,
   ENEMY_BOSS_AI,
   
-  // Soldier AIs
+  // Soldier AIs (9-11)
   SOLDIER_BASIC_AI,
   SOLDIER_TANK_AI,
   SOLDIER_DPS_AI,
   
-  // Building AIs
+  // Building AIs (12)
   BUILDING_PRODUCTION_AI,
   
-  // Trap AIs
+  // Trap AIs (13-14)
   TRAP_DAMAGE_AI,
   TRAP_HEALING_AI,
+
+  // ---- 桩配置（待完善） ----
+  // Tower AIs (15-16)
+  TOWER_MISSILE_AI,
+  TOWER_VINE_AI,
+
+  // Enemy AIs (17-18)
+  ENEMY_SHAMAN_AI,
+  ENEMY_BALLOON_AI,
+
+  // Tower AI (19)
+  TOWER_BALLISTA_AI,
 ];
 
 /** 获取AI配置 */
