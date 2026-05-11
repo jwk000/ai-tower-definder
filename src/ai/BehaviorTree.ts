@@ -335,6 +335,10 @@ export class AttackNode extends ActionNode {
       } else {
         // 士兵/玩家单位：直接造成伤害
         Health.current[targetId]! -= attackDmg;
+        // 敌方反击：将伤害来源设为敌人目标
+        if (UnitTag.isEnemy[targetId] === 1 && Attack.damage[targetId] !== undefined) {
+          Attack.targetId[targetId] = eid;
+        }
       }
 
       // Set target for rendering
