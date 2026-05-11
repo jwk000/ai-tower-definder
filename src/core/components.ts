@@ -95,6 +95,12 @@ export const AttackModeVal = {
   Heal: 5,
 } as const;
 
+export const AlertMarkVal = {
+  Hidden: 0,
+  Blinking: 1,
+  Solid: 2,
+} as const;
+
 // ============================================================
 // 核心组件 — 所有单位共享
 // ============================================================
@@ -159,6 +165,7 @@ export const Attack = defineComponent({
   damage: Types.f32,
   attackSpeed: Types.f32,   // 每秒攻击次数
   range: Types.f32,         // 攻击范围（像素）
+  alertRange: Types.f32,    // 警戒范围（像素）
   damageType: Types.ui8,    // DamageTypeVal
   cooldownTimer: Types.f32, // 冷却剩余（秒）
   targetId: Types.eid,      // 当前目标实体ID
@@ -388,6 +395,13 @@ export const Taunted = defineComponent({
   timer: Types.f32,
 });
 
+/** 警戒标记 — 敌人进入警戒状态时的视觉指示 */
+export const AlertMark = defineComponent({
+  visible: Types.ui8,   // AlertMarkVal
+  blink: Types.ui8,     // 0/1
+  timer: Types.f32,     // blink animation timer
+});
+
 // ============================================================
 // 蝙蝠塔专属（特殊机制）
 // ============================================================
@@ -557,3 +571,6 @@ export const projectileQuery = defineQuery([Position, Projectile]);
 
 /** Boss实体 */
 export const bossQuery = defineQuery([Position, Health, Boss]);
+
+/** 警戒标记实体 */
+export const alertMarkQuery = defineQuery([Position, AlertMark, Visual]);
