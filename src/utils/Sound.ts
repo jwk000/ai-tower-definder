@@ -157,6 +157,7 @@ export class Sound {
 
   static preload(): void {
     if (Sound.loaded) return;
+    if (typeof Audio === 'undefined') return; // non-browser env
     for (const key of Object.keys(SFX_PATH) as SfxKey[]) {
       const audio = new Audio(SFX_PATH[key]);
       audio.preload = 'auto';
@@ -174,11 +175,18 @@ export class Sound {
    */
   static initUnlock(canvas: HTMLCanvasElement): void {
     if (Sound.unlocked) return;
+    if (typeof Audio === 'undefined') return; // non-browser env
     const handler = (): void => {
       Sound.unlocked = true;
-      const dummy = new Audio('/sfx/tower_shoot.ogg');
-      dummy.volume = 0;
-      dummy.play().catch(() => {});
+      // Try a preloaded buffer first; fall back to creating a fresh one
+      const first = Object.values(Sound.buffers).find(a => a && a.readyState >= 1);
+      const unlockAudio = first ?? new Audio(Object.values(SFX_PATH)[0]!);
+      unlockAudio.volume = 0;
+      unlockAudio.play().catch(() => {});
+      if (!first) {
+        // Clean up the temporary element after it plays
+        unlockAudio.addEventListener('ended', () => { unlockAudio.remove(); });
+      }
       canvas.removeEventListener('pointerdown', handler);
       canvas.removeEventListener('touchstart', handler);
       canvas.removeEventListener('click', handler);
@@ -190,8 +198,9 @@ export class Sound {
 
   static play(key: SfxKey): void {
     if (Sound.muted) return;
-    const template = Sound.buffers[key];
-    if (!template) return;
+    if (!(key in SFX_PATH)) return;
+    // Skip in non-browser environments (e.g. Node.js test runner)
+    if (typeof Audio === 'undefined') return;
 
     const now = performance.now();
     const last = Sound.lastPlayedAt[key] ?? 0;
@@ -199,9 +208,10 @@ export class Sound {
     if (now - last < throttle) return;
     Sound.lastPlayedAt[key] = now;
 
-    const node = template.cloneNode(true) as HTMLAudioElement;
-    node.volume = Sound.volume;
-    void node.play().catch(() => {});
+    // Create fresh Audio element — more reliable than cloneNode for media elements
+    const audio = new Audio(SFX_PATH[key]!);
+    audio.volume = Sound.volume;
+    void audio.play().catch(() => {});
   }
 
   static setVolume(v: number): void {
@@ -217,5 +227,43 @@ export class Sound {
 
   static isMuted(): boolean {
     return Sound.muted;
+  }
+
+  /**
+   * Diagnostic: test audio playback and report status.
+   * Call `Sound.verify()` from the browser console to debug sound issues.
+   */
+  static verify(): void {
+    if (typeof Audio === 'undefined') {
+      console.error('[Sound] Audio API not available (non-browser environment?)');
+      return;
+    }
+    console.group('[Sound] Diagnostic');
+    console.log('muted:', Sound.muted);
+    console.log('volume:', Sound.volume);
+    console.log('loaded:', Sound.loaded);
+    console.log('unlocked:', Sound.unlocked);
+    console.log('buffers created:', Object.keys(Sound.buffers).length);
+    console.log('OGG supported:', new Audio().canPlayType('audio/ogg'));
+    console.log('MP3 supported:', new Audio().canPlayType('audio/mpeg'));
+
+    // Test-play a sound
+    const testKey = Object.keys(SFX_PATH)[0] as SfxKey | undefined;
+    if (!testKey) {
+      console.warn('No SFX keys defined');
+      console.groupEnd();
+      return;
+    }
+    const path = SFX_PATH[testKey]!;
+    console.log(`Test-playing "${testKey}" from ${path} ...`);
+    const test = new Audio(path);
+    test.volume = 0.3;
+    const promise = test.play();
+    if (promise !== undefined) {
+      promise
+        .then(() => console.log('[Sound] ✅ Play succeeded'))
+        .catch((e) => console.error(`[Sound] ❌ Play blocked: ${String(e)}`));
+    }
+    console.groupEnd();
   }
 }

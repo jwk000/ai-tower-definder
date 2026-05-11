@@ -998,3 +998,4 @@ game.start();
 
 window.addEventListener('resize', () => game.resize());
 (window as unknown as Record<string, unknown>).game = game;
+(window as unknown as Record<string, unknown>).Sound = Sound;
