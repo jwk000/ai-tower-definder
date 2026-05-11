@@ -19,7 +19,9 @@ import { BuildSystem } from './systems/BuildSystem.js';
 import { UISystem } from './systems/UISystem.js';
 import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
+import { ShamanSystem } from './systems/ShamanSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
+import { HotAirBalloonSystem } from './systems/HotAirBalloonSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { BloodParticleSystem } from './systems/BloodParticleSystem.js';
@@ -214,6 +216,9 @@ class TowerDefenderGame extends Game {
       colorB: baseRgb.b,
       size: ts * 0.6,
     });
+    this.world.addComponent(this.baseEntityId, Faction, { value: FactionVal.Player });
+    this.world.addComponent(this.baseEntityId, Category, { value: CategoryVal.Objective });
+    this.world.addComponent(this.baseEntityId, PlayerOwned);
 
     // Spawn neutral units from map config (stub)
     this.spawnNeutralUnits(map);
@@ -389,6 +394,7 @@ class TowerDefenderGame extends Game {
     this.screenFXSystem = new ScreenFXSystem();
 
     const movementSystem = new MovementSystem(map);
+    const shamanSystem = new ShamanSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
@@ -550,6 +556,7 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(this.lifecycleSystem);  // Lifecycle first
     this.world.registerSystem(this.aiSystem);         // AI system
     this.world.registerSystem(movementSystem);
+    this.world.registerSystem(shamanSystem);
     this.world.registerSystem(enemyAttackSystem);
     this.world.registerSystem(attackSystem);
     this.world.registerSystem(this.weatherSystem);

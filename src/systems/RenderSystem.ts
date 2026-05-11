@@ -449,6 +449,17 @@ export class RenderSystem implements System {
       pushCmd();
 
       // ========================================
+      // 1.5. Cooldown water level (tower reload indicator)
+      // ========================================
+      if (isTower && hasComponent(world.world, Attack, eid)) {
+        const atkSpeed = Attack.attackSpeed[eid]!;
+        const cdTimer = Attack.cooldownTimer[eid]!;
+        // fillRatio: 0 = just fired (empty), 1 = ready to fire (full)
+        const fillRatio = Math.max(0, Math.min(1, 1 - cdTimer * atkSpeed));
+        this.drawCooldownWater(posX, posY, drawSize, fillRatio, displayColor, renderZ);
+      }
+
+      // ========================================
       // 2. Composite geometry extra parts (L3-L5 towers)
       // ========================================
       if (upgradeVisual && upgradeVisual.extraParts.length > 0) {
@@ -640,6 +651,62 @@ export class RenderSystem implements System {
           }
         }
       }
+    }
+  }
+
+  // ============================================
+  // Cooldown water level — vertical fill indicator on towers
+  // ============================================
+  private drawCooldownWater(
+    x: number, y: number, size: number, fillRatio: number,
+    towerColor: string, z: number,
+  ): void {
+    if (fillRatio <= 0.01) return; // invisible when empty
+
+    // Water fill dimensions — slightly inset from tower edges
+    const inset = Math.max(size * 0.06, 2);
+    const fillW = size - inset * 2;
+    const maxH = size - inset * 2;   // full height (top to bottom inside tower)
+    const fillH = Math.max(maxH * fillRatio, 2);
+
+    // Position: anchored at bottom of tower, filling upward
+    const fillCenterY = y + size / 2 - inset - fillH / 2;
+
+    // Dark "container" background inside tower
+    this.renderer.push({
+      shape: 'rect',
+      x, y: y + size / 2 - inset - maxH / 2,
+      size: fillW, h: maxH,
+      color: '#000000',
+      alpha: 0.15,
+      z,
+    });
+
+    // Water fill — cyan water color
+    this.renderer.push({
+      shape: 'rect',
+      x,
+      y: fillCenterY,
+      size: fillW,
+      h: fillH,
+      color: '#4fc3f7',
+      alpha: 0.45,
+      z: z + 0.1,
+    });
+
+    // Subtle top edge highlight (water surface)
+    if (fillRatio > 0.02) {
+      const topY = fillCenterY - fillH / 2;
+      this.renderer.push({
+        shape: 'rect',
+        x,
+        y: topY,
+        size: fillW,
+        h: 2,
+        color: '#b3e5fc',
+        alpha: 0.7,
+        z: z + 0.2,
+      });
     }
   }
 
