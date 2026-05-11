@@ -301,6 +301,7 @@ export interface UnitConfig {
   skillId: string;
   cost: number;
   moveRange: number;
+  alertRange?: number; // detection radius for soldier AI alert behavior (default 0)
 }
 
 // ---- Production ----

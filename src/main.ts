@@ -47,7 +47,7 @@ import {
   DeathEffect, ExplosionEffect, Category, CategoryVal, Boss,
   Movement, ShapeVal, Layer, LayerVal, Faction, FactionVal,
   DamageTypeVal, TargetSelectionVal, AttackModeVal,
-  BatSwarmMember,
+  BatSwarmMember, AlertMark, AlertMarkVal,
   defineQuery,
 } from './core/components.js';
 
@@ -848,6 +848,7 @@ class TowerDefenderGame extends Game {
       chainRange: 0,
       chainDecay: 0,
       drainPercent: 0,
+      alertRange: config.alertRange ?? (config.attackRange * 2),
     });
 
     // UnitTag (player unit)
@@ -869,6 +870,13 @@ class TowerDefenderGame extends Game {
       homeX: x,
       homeY: y,
       moveRange: config.moveRange,
+    });
+
+    // AlertMark (警戒标记，初始隐藏)
+    this.world.addComponent(id, AlertMark, {
+      visible: 0, // AlertMarkVal.Hidden
+      blink: 0,
+      timer: 0,
     });
 
     // PlayerControllable
@@ -904,6 +912,7 @@ class TowerDefenderGame extends Game {
     const aiConfigId = this.getUnitAIConfig(dragUnitType);
     // Map AI config string to numeric ID（与 ALL_AI_CONFIGS 注册顺序一致）
     const AI_NUM_IDS: Record<string, number> = {
+      soldier_generic: 20,
       soldier_tank: 10,
       soldier_dps: 11,
       soldier_basic: 9,
