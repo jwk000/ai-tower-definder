@@ -411,7 +411,7 @@ class TowerDefenderGame extends Game {
     const juggernautSystem = new JuggernautSystem();
     const commandTowerSystem = new CommandTowerSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
-    const attackSystem = new AttackSystem(this.weatherSystem);
+    const attackSystem = new AttackSystem(this.weatherSystem, map);
     const hotAirBalloonSystem = new HotAirBalloonSystem();
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);

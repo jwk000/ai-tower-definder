@@ -17,6 +17,7 @@ import {
   TargetingMark,
 } from '../core/components.js';
 import { TowerType } from '../types/index.js';
+import type { MapConfig } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { Sound, type SfxKey } from '../utils/Sound.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
@@ -123,6 +124,7 @@ export class AttackSystem implements System {
 
   constructor(
     private weatherSystem?: WeatherSystem,
+    private map?: MapConfig,
   ) {}
 
   update(world: TowerWorld, dt: number): void {
@@ -291,7 +293,7 @@ export class AttackSystem implements System {
     // (cooldown already checked by caller)
 
     // Evaluate best target position
-    const missileResult = evaluateMissileTarget(world, towerId, enemyList);
+    const missileResult = evaluateMissileTarget(world, towerId, enemyList, this.map!);
     if (!missileResult) return;
 
     const { targetX, targetY, row, col } = missileResult;

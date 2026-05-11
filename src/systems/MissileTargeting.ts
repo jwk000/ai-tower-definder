@@ -4,10 +4,15 @@
 // Grid-based scoring algorithm for the Missile tower.
 // Evaluates all grid positions with enemies and returns the
 // best-scoring position for the missile to target.
+//
+// Uses dynamic scene offsets from RenderSystem + MapConfig
+// to correctly convert between pixel and grid coordinates.
 // ============================================================
 
 import { TowerWorld } from '../core/World.js';
-import { Position, UnitTag } from '../core/components.js';
+import { Position, UnitTag, Attack } from '../core/components.js';
+import { RenderSystem } from '../systems/RenderSystem.js';
+import type { MapConfig } from '../types/index.js';
 
 export interface MissileTargetResult {
   targetX: number;
@@ -20,6 +25,11 @@ export interface MissileTargetResult {
 
 /**
  * Evaluate all grid positions with enemies and return the best missile target.
+ *
+ * Uses the **actual** scene layout (computed by RenderSystem) for
+ * pixel ↔ grid coordinate conversions, and derives the base position
+ * from the MapConfig's enemyPath.
+ *
  * Scoring factors:
  * 1. Distance to base (closer = higher) - weight 0.35
  * 2. Enemy density in blast radius - weight 0.45
@@ -27,33 +37,43 @@ export interface MissileTargetResult {
  */
 export function evaluateMissileTarget(
   world: TowerWorld,
-  _towerId: number,
+  towerId: number,
   enemyList: number[],
+  map: MapConfig,
 ): MissileTargetResult | null {
   if (enemyList.length === 0) return null;
 
-  // Hardcoded scene layout constants (matches MAP_01 and other maps)
-  // Tile size is 64, map is 21×9
-  const TILE_SIZE = 64;
-  const MAP_COLS = 21;
-  const MAP_ROWS = 9;
-  const SCENE_OFFSET_X = 288;
-  const SCENE_OFFSET_Y = 216;
-  const BLAST_RADIUS = 120; // missile explosion radius
+  // ---- Dynamic scene layout ----
+  const TILE_SIZE      = map.tileSize;
+  const MAP_COLS       = map.cols;
+  const MAP_ROWS       = map.rows;
+  const SCENE_OFFSET_X = RenderSystem.sceneOffsetX;
+  const SCENE_OFFSET_Y = RenderSystem.sceneOffsetY;
 
-  // Grid to pixel conversion
+  // ---- Blast radius: read from tower's Attack component ----
+  const towerSplashRadius = Attack.splashRadius[towerId];
+  const BLAST_RADIUS = towerSplashRadius !== undefined && towerSplashRadius > 0
+    ? towerSplashRadius
+    : 120; // fallback
+
+  // ---- Base position: last waypoint of enemyPath ----
+  const basePos = map.enemyPath[map.enemyPath.length - 1];
+  const BASE_ROW = basePos?.row ?? MAP_ROWS - 1;
+  const BASE_COL = basePos?.col ?? MAP_COLS - 1;
+  const MAX_PATH_DIST = MAP_COLS + MAP_ROWS;
+
+  // ---- Grid ↔ pixel conversion ----
   const gridToPixel = (row: number, col: number) => ({
     x: SCENE_OFFSET_X + col * TILE_SIZE + TILE_SIZE / 2,
     y: SCENE_OFFSET_Y + row * TILE_SIZE + TILE_SIZE / 2,
   });
 
-  // Pixel to grid conversion
   const pixelToGrid = (px: number, py: number) => ({
     row: Math.floor((py - SCENE_OFFSET_Y) / TILE_SIZE),
     col: Math.floor((px - SCENE_OFFSET_X) / TILE_SIZE),
   });
 
-  // Collect all unique grid positions that have enemies
+  // ---- Collect all unique grid positions that have enemies ----
   const gridPositions = new Map<string, { row: number; col: number; enemies: number[] }>();
 
   for (const enemyId of enemyList) {
@@ -72,11 +92,7 @@ export function evaluateMissileTarget(
     gridPositions.get(key)!.enemies.push(enemyId);
   }
 
-  // Distance to base: base is approximately at (6, 20) for MAP_01
-  const BASE_ROW = 6;
-  const BASE_COL = 20;
-  const MAX_PATH_DIST = MAP_COLS + MAP_ROWS; // 30, max possible Manhattan distance
-
+  // ---- Score each grid position ----
   let bestResult: MissileTargetResult | null = null;
   let bestScore = -Infinity;
 

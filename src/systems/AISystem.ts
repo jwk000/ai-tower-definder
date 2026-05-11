@@ -105,6 +105,12 @@ export class AISystem implements System {
         continue;
       }
 
+      // 统一管理攻击冷却（所有有 Attack 组件的实体，每帧 tick）
+      const ct = Attack.cooldownTimer[eid];
+      if (ct !== undefined && ct > 0) {
+        Attack.cooldownTimer[eid] = ct - dt;
+      }
+
       // 累积距离上次更新的时间
       AI.lastUpdateTime[eid]! += dt;
 
