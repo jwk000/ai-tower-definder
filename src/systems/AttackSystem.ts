@@ -237,7 +237,16 @@ export class AttackSystem implements System {
       }
     }
 
-    // Destroy targeting marks not referenced by any charging tower
+    // Also preserve marks targeted by active missile projectiles
+    for (let eid = 1; eid < Projectile.sourceTowerType.length; eid++) {
+      if (Projectile.sourceTowerType[eid] !== 6) continue;
+      const tgt = Projectile.targetId[eid];
+      if (tgt !== undefined && tgt !== 0) {
+        referencedMarks.add(tgt);
+      }
+    }
+
+    // Destroy targeting marks not referenced by any charging tower or active missile
     for (const markId of marks) {
       if (!referencedMarks.has(markId)) {
         world.destroyEntity(markId);
