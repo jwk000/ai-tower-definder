@@ -20,6 +20,7 @@ import { UISystem } from './systems/UISystem.js';
 import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
 import { ShamanSystem } from './systems/ShamanSystem.js';
+import { CommandTowerSystem } from './systems/CommandTowerSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { HotAirBalloonSystem } from './systems/HotAirBalloonSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
@@ -122,8 +123,6 @@ class TowerDefenderGame extends Game {
   // ---- Scene decoration ----
   private decorationSystem!: DecorationSystem;
   private screenFXSystem!: ScreenFXSystem;
-
-  // ---- Missile tower effects ----
   private screenShakeSystem!: ScreenShakeSystem;
   private tileDamageSystem!: TileDamageSystem;
 
@@ -403,13 +402,12 @@ class TowerDefenderGame extends Game {
       () => this.weatherSystem.currentWeather,
     );
     this.screenFXSystem = new ScreenFXSystem();
-
-    // ---- Missile tower effects ----
     this.screenShakeSystem = new ScreenShakeSystem();
     this.tileDamageSystem = new TileDamageSystem(map);
 
     const movementSystem = new MovementSystem(map);
     const shamanSystem = new ShamanSystem();
+    const commandTowerSystem = new CommandTowerSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
     const hotAirBalloonSystem = new HotAirBalloonSystem();
@@ -576,6 +574,7 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(shamanSystem);
     this.world.registerSystem(enemyAttackSystem);
     this.world.registerSystem(attackSystem);
+    this.world.registerSystem(commandTowerSystem);
     this.world.registerSystem(hotAirBalloonSystem);
     this.world.registerSystem(this.weatherSystem);
     this.world.registerSystem(this.batSwarmSystem);
