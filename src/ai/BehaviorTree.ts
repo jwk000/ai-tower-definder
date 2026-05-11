@@ -10,6 +10,8 @@ import {
   Movement,
   Production,
   ResourceTypeVal,
+  AlertMark,
+  AlertMarkVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
 } from '../core/components.js';
@@ -80,6 +82,7 @@ export abstract class BTNode {
       case 'attack_speed': return Attack.attackSpeed[eid] ?? 0;
       case 'move_speed': return Movement.speed[eid] ?? 0;
       case 'attack_range': return Attack.range[eid] ?? 0;
+      case 'alert_range': return Attack.alertRange[eid] ?? 0;
       case 'move_range': return Movement.moveRange[eid] ?? 0;
       case 'x': return Position.x[eid];
       case 'y': return Position.y[eid];
@@ -204,6 +207,7 @@ export class CheckEnemyInRangeNode extends ConditionNode {
     const targetType = this.getParam<string>('target_type', context, 'any');
     const count = this.getParam<number>('count', context, 1);
     const sameTile = this.getParam<boolean>('same_tile', context, false);
+    const setTarget = this.getParam<boolean>('set_target', context, false);
 
     // same_tile: 用实体自身攻击范围作为检测距离
     const checkRange = sameTile
@@ -214,6 +218,10 @@ export class CheckEnemyInRangeNode extends ConditionNode {
 
     if (enemies.length >= count) {
       context.blackboard.set('found_enemies', enemies);
+      // Store nearest enemy as current_target if set_target is truthy
+      if (setTarget && enemies[0] !== undefined) {
+        context.blackboard.set('current_target', enemies[0]);
+      }
       return NodeStatus.Success;
     }
     return NodeStatus.Failure;
@@ -278,75 +286,60 @@ export class CheckCooldownNode extends ConditionNode {
 export class AttackNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
     const targetParam = this.getParam<string>('target', context, 'nearest_enemy');
-    const damageType = this.getParam<string>('damage_type', context, 'direct');
+    const targetId = this.resolveTarget(targetParam, context);
+
+    if (targetId === 0) {
+      return NodeStatus.Failure;
+    }
 
     const eid = context.entityId;
     const attackDmg = Attack.damage[eid];
+    const attackRange = Attack.range[eid];
     const atkSpeed = Attack.attackSpeed[eid];
 
     if (attackDmg === undefined) return NodeStatus.Failure;
 
-    // all_in_range: 攻击 check_enemy_in_range 已找到的所有敌人
-    if (targetParam === 'all_in_range') {
-      const enemies = context.blackboard.get('found_enemies') as number[] | undefined;
-      if (!enemies || enemies.length === 0) return NodeStatus.Failure;
-
-      const cooldown = Attack.cooldownTimer[eid]!;
-      if (cooldown > 0) return NodeStatus.Failure;
-
-      Attack.cooldownTimer[eid] = 1 / atkSpeed!;
-
-      for (const tid of enemies) {
-        if (Health.current[tid]! <= 0) continue;
-        Health.current[tid]! -= damageType === 'dot'
-          ? attackDmg * context.dt
-          : attackDmg;
-      }
-
-      AI.targetId[eid] = enemies[0]!;
-      return NodeStatus.Success;
-    }
-
-    // ---- 单目标攻击 ----
-    const targetId = this.resolveTarget(targetParam, context);
-    if (targetId === 0) return NodeStatus.Failure;
-
-    const attackRange = Attack.range[eid];
-
-    // Range check
-    if (attackRange !== undefined) {
-      const tx = Position.x[targetId];
-      const ty = Position.y[targetId];
-      if (tx !== undefined && ty !== undefined) {
-        const dx = tx - Position.x[eid]!;
-        const dy = ty - Position.y[eid]!;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > attackRange) return NodeStatus.Failure;
-      }
-    }
-
+    // Get target position
+    const targetX = Position.x[targetId];
+    const targetY = Position.y[targetId];
     const targetHp = Health.current[targetId];
-    if (targetHp === undefined || targetHp <= 0) return NodeStatus.Failure;
+
+    if (targetX === undefined || targetHp! <= 0) {
+      return NodeStatus.Failure;
+    }
+
+    // Check range
+    const dx = targetX - Position.x[eid]!;
+    const dy = targetY! - Position.y[eid]!;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > attackRange!) {
+      return NodeStatus.Failure;
+    }
 
     // Check cooldown
     const cooldown = Attack.cooldownTimer[eid]!;
     if (cooldown <= 0) {
+      // Reset cooldown
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
 
       const isEnemy = UnitTag.isEnemy[eid] === 1;
       const isTower = Tower.towerType[eid] !== undefined;
 
       if (isEnemy) {
+        // 敌人：委托 EnemyAttackSystem 执行（弹道/伤害/移动控制）
         Attack.targetId[eid] = targetId;
       } else if (isTower) {
+        // 塔：委托 AttackSystem 执行（弹道/激光/链击等）
         Attack.targetId[eid] = targetId;
       } else {
-        Health.current[targetId]! -= damageType === 'dot'
-          ? attackDmg * context.dt
-          : attackDmg;
+        // 士兵/玩家单位：直接造成伤害
+        Health.current[targetId]! -= attackDmg;
       }
 
+      // Set target for rendering
       AI.targetId[eid] = targetId;
+
       return NodeStatus.Success;
     }
 
@@ -455,6 +448,21 @@ export class MoveTowardsNode extends ActionNode {
     const px = Position.x[eid]!;
     const py = Position.y[eid]!;
 
+    // 如果设置了 max_range，检查是否超出 home 范围
+    const maxRange = this.getParam<number>('max_range', context, 0);
+    if (maxRange > 0) {
+      const homeX = Movement.homeX[eid];
+      const homeY = Movement.homeY[eid];
+      if (homeX !== undefined && homeY !== undefined) {
+        const dx = px - homeX;
+        const dy = py - homeY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > maxRange) {
+          return NodeStatus.Failure;
+        }
+      }
+    }
+
     // 查找最近敌人
     const targetId = this.findNearestEnemy(context);
     if (targetId === 0) {
@@ -553,6 +561,108 @@ export class WaitNode extends ActionNode {
   }
 }
 
+/** 设置AI状态 — 写入 blackboard 'ai_state' */
+export class SetStateNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const state = this.getParam<string>('state', context, '');
+    if (state) {
+      context.blackboard.set('ai_state', state);
+    }
+    return NodeStatus.Success;
+  }
+}
+
+/** 显示警戒标记 — 设置 AlertMark 为 Blinking 或 Solid */
+export class ShowAlertMarkNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const blink = this.getParam<boolean>('blink', context, false);
+    const eid = context.entityId;
+    // Check if AlertMark component exists on entity
+    AlertMark.visible[eid] = blink ? AlertMarkVal.Blinking : AlertMarkVal.Solid;
+    AlertMark.blink[eid] = blink ? 1 : 0;
+    return NodeStatus.Success;
+  }
+}
+
+/** 隐藏警戒标记 — 设置 AlertMark.visible 为 Hidden */
+export class HideAlertMarkNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    AlertMark.visible[eid] = AlertMarkVal.Hidden;
+    return NodeStatus.Success;
+  }
+}
+
+/** 检查与出生点的距离 — 大于阈值返回 Success */
+export class CheckDistanceFromHomeNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    const min = this.getParam<number>('min', context, 5);
+    const eid = context.entityId;
+    const hx = Movement.homeX[eid];
+    const hy = Movement.homeY[eid];
+    const px = Position.x[eid];
+    const py = Position.y[eid];
+
+    if (hx === undefined || hy === undefined || px === undefined || py === undefined) {
+      return NodeStatus.Failure;
+    }
+
+    const dx = px - hx;
+    const dy = py - hy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    return dist > min ? NodeStatus.Success : NodeStatus.Failure;
+  }
+}
+
+/** 游荡动作 — 在出生点半径内随机移动，始终返回 Running */
+export class WanderNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const radius = this.getParam<number>('radius', context, 100);
+    const speedRatio = this.getParam<number>('speed_ratio', context, 0.5);
+    const eid = context.entityId;
+
+    // Initialize / increment elapsed time
+    const elapsed = ((context.blackboard.get('wander_elapsed') as number) ?? 0) + context.dt;
+    context.blackboard.set('wander_elapsed', elapsed);
+
+    const nextPick = context.blackboard.get('wander_next_pick_time') as number | undefined;
+
+    // Pick a new wander target if needed
+    if (nextPick === undefined || elapsed >= nextPick) {
+      const homeX = Movement.homeX[eid] ?? Position.x[eid]!;
+      const homeY = Movement.homeY[eid] ?? Position.y[eid]!;
+
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * radius;
+      context.blackboard.set('wander_target_x', homeX + Math.cos(angle) * dist);
+      context.blackboard.set('wander_target_y', homeY + Math.sin(angle) * dist);
+
+      // Schedule next pick in 2-4 seconds
+      context.blackboard.set('wander_next_pick_time', elapsed + 2 + Math.random() * 2);
+    }
+
+    // Set movement targets
+    const tx = context.blackboard.get('wander_target_x') as number;
+    const ty = context.blackboard.get('wander_target_y') as number;
+    if (tx !== undefined && ty !== undefined) {
+      Movement.targetX[eid] = tx;
+      Movement.targetY[eid] = ty;
+    }
+
+    // Store original speed on first tick if not already stored
+    if (context.blackboard.get('wander_original_speed') === undefined) {
+      context.blackboard.set('wander_original_speed', Movement.speed[eid]);
+    }
+
+    // Apply speed ratio (each tick, in case speed changes externally)
+    const origSpeed = context.blackboard.get('wander_original_speed') as number;
+    Movement.speed[eid] = origSpeed * speedRatio;
+
+    return NodeStatus.Running;
+  }
+}
+
 // ============================================================
 // 行为树类
 // ============================================================
@@ -616,6 +726,8 @@ export class BehaviorTree {
         return new CheckEnemyInRangeNode(type, params);
       case 'check_cooldown':
         return new CheckCooldownNode(type, params);
+      case 'check_distance_from_home':
+        return new CheckDistanceFromHomeNode(type, params);
 
       // Action nodes
       case 'attack':
@@ -628,6 +740,14 @@ export class BehaviorTree {
         return new ProduceResourceNode(type, params);
       case 'wait':
         return new WaitNode(type, params);
+      case 'set_state':
+        return new SetStateNode(type, params);
+      case 'show_alert_mark':
+        return new ShowAlertMarkNode(type, params);
+      case 'hide_alert_mark':
+        return new HideAlertMarkNode(type, params);
+      case 'wander':
+        return new WanderNode(type, params);
 
       default:
         console.warn(`Unknown node type: ${type}`);
