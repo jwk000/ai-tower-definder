@@ -627,13 +627,15 @@ class TowerDefenderGame extends Game {
 
   private findUnitAt(x: number, y: number): number | null {
     // Use bitecs: entities with Position + UnitTag (player units) + Visual + PlayerOwned
+    const w = this.world.world;
     for (let eid = 1; eid < Position.x.length; eid++) {
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
       // Check if it's a player unit (UnitTag exists, isEnemy === 0, PlayerOwned, and has Visual)
+      if (!hasComponent(w, UnitTag, eid)) continue;
       if (UnitTag.isEnemy[eid] !== 0) continue;
-      if (!hasComponent(this.world.world, PlayerOwned, eid)) continue;
+      if (!hasComponent(w, PlayerOwned, eid)) continue;
       const size = Visual.size[eid];
       if (size === undefined) continue;
       const r = size * 0.65;
@@ -663,7 +665,7 @@ class TowerDefenderGame extends Game {
 
     // Try clicking on a tower
     for (let eid = 1; eid < Tower.towerType.length; eid++) {
-      if (Tower.towerType[eid] === undefined) continue;
+      if (!hasComponent(w, Tower, eid)) continue;
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
@@ -681,7 +683,7 @@ class TowerDefenderGame extends Game {
 
     // Try clicking on a trap
     for (let eid = 1; eid < Trap.damagePerSecond.length; eid++) {
-      if (Trap.damagePerSecond[eid] === undefined) continue;
+      if (!hasComponent(w, Trap, eid)) continue;
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
@@ -699,7 +701,7 @@ class TowerDefenderGame extends Game {
 
     // Try clicking on a production building
     for (let eid = 1; eid < Production.rate.length; eid++) {
-      if (Production.rate[eid] === undefined) continue;
+      if (!hasComponent(w, Production, eid)) continue;
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
