@@ -413,6 +413,69 @@ export class MoveToNode extends ActionNode {
   }
 }
 
+/** 追击敌人动作 — 持续向最近敌人移动，始终返回 Running */
+export class MoveTowardsNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const px = Position.x[eid]!;
+    const py = Position.y[eid]!;
+
+    // 查找最近敌人
+    const targetId = this.findNearestEnemy(context);
+    if (targetId === 0) {
+      return NodeStatus.Failure;
+    }
+
+    const tx = Position.x[targetId]!;
+    const ty = Position.y[targetId]!;
+
+    // 已在攻击范围内则停止追击（留给 attack 节点处理）
+    const attackRange = Attack.range[eid];
+    if (attackRange !== undefined) {
+      const dx = tx - px;
+      const dy = ty - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= attackRange) {
+        return NodeStatus.Success; // 已进入攻击范围
+      }
+    }
+
+    // 设置移动目标，持续追击
+    Movement.targetX[eid] = tx;
+    Movement.targetY[eid] = ty;
+    return NodeStatus.Running;
+  }
+
+  private findNearestEnemy(context: AIContext): number {
+    const { world, entityId } = context;
+    const px = Position.x[entityId]!;
+    const py = Position.y[entityId]!;
+    const candidates = enemyTargetQuery(world.world);
+
+    let nearestId = 0;
+    let nearestDist = Infinity;
+
+    for (const id of candidates) {
+      if (id === entityId) continue;
+      if (UnitTag.isEnemy[id] !== 1) continue;
+      if (Health.current[id]! <= 0) continue;
+
+      const tx = Position.x[id]!;
+      const ty = Position.y[id]!;
+      const dx = tx - px;
+      const dy = ty - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestId = id;
+      }
+    }
+
+    return nearestId;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -509,6 +572,8 @@ export class BehaviorTree {
         return new AttackNode(type, params);
       case 'move_to':
         return new MoveToNode(type, params);
+      case 'move_towards':
+        return new MoveTowardsNode(type, params);
       case 'wait':
         return new WaitNode(type, params);
 

@@ -1,19 +1,15 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
 import {
   Position,
-  Health,
   Attack,
   PlayerControllable,
   PlayerOwned,
   Movement,
-  UnitTag,
   Visual,
   Projectile,
   DeathEffect,
   Trap,
-  DamageTypeVal,
 } from '../core/components.js';
-import { applyDamageToTarget } from '../utils/damageUtils.js';
 import type { MapConfig } from '../types/index.js';
 import { TileType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -33,9 +29,6 @@ export class UnitSystem implements System {
   /** Query: player-controllable combat units (soldiers) */
   private unitQuery = defineQuery([Position, Movement, PlayerControllable, PlayerOwned, Attack]);
 
-  /** Query: enemies (for targeting and auto-chase) */
-  private enemyQuery = defineQuery([Position, Health, UnitTag]);
-
   /** Query: all physical entities (for collision detection) */
   private collisionQuery = defineQuery([Position, Visual]);
 
@@ -49,18 +42,6 @@ export class UnitSystem implements System {
     const units = this.unitQuery(world.world);
     if (units.length === 0) return;
 
-    // Pre-filter live enemies for reuse across units
-    const liveEnemies: number[] = [];
-    {
-      const allEnemies = this.enemyQuery(world.world);
-      for (let i = 0; i < allEnemies.length; i++) {
-        const eid = allEnemies[i]!;
-        if (UnitTag.isEnemy[eid]! === 1 && Health.current[eid]! > 0) {
-          liveEnemies.push(eid);
-        }
-      }
-    }
-
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
     const maxX = ox + RenderSystem.sceneW;
@@ -72,57 +53,20 @@ export class UnitSystem implements System {
       const py = Position.y[eid]!;
       const radius = this.getRadius(eid);
 
-      // ---- Attack Phase ----
-      this.attackPhase(world, eid, px, py, liveEnemies, dt);
+      // Tick attack cooldown (BT AttackNode 依赖此值 ≤0 来触发攻击)
+      const ct = Attack.cooldownTimer[eid];
+      if (ct !== undefined && ct > 0) {
+        Attack.cooldownTimer[eid] = ct - dt;
+      }
 
       // ---- Movement Phase ----
-      this.movementPhase(world, eid, px, py, radius, liveEnemies, ox, oy, maxX, maxY, dt);
+      // 玩家指令优先，否则跟随行为树设置的 Movement.targetX/Y
+      this.movementPhase(world, eid, px, py, radius, ox, oy, maxX, maxY, dt);
     }
   }
 
   // ============================================================
-  // Attack — find nearest enemy in range, apply damage
-  // ============================================================
-
-  private attackPhase(
-    world: TowerWorld,
-    eid: number,
-    px: number,
-    py: number,
-    enemies: number[],
-    dt: number,
-  ): void {
-    // Tick cooldown
-    Attack.cooldownTimer[eid]! -= dt;
-    if (Attack.cooldownTimer[eid]! > 0) return;
-
-    const range = Attack.range[eid]!;
-    let nearestId = 0;
-    let nearestDist = Infinity;
-
-    for (let j = 0; j < enemies.length; j++) {
-      const enemyId = enemies[j]!;
-      const ex = Position.x[enemyId]!;
-      const ey = Position.y[enemyId]!;
-      const dx = ex - px;
-      const dy = ey - py;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= range && dist < nearestDist) {
-        nearestDist = dist;
-        nearestId = enemyId;
-      }
-    }
-
-    if (nearestId === 0) return;
-
-    // Execute attack
-    Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-    applyDamageToTarget(world, nearestId, Attack.damage[eid]!, DamageTypeVal.Physical);
-    Visual.hitFlashTimer[nearestId] = 0.12;
-  }
-
-  // ============================================================
-  // Movement — steer toward target, clamp boundaries, avoid collisions
+  // Movement — 玩家指令优先，否则跟行为树目标
   // ============================================================
 
   private movementPhase(
@@ -131,39 +75,32 @@ export class UnitSystem implements System {
     px: number,
     py: number,
     radius: number,
-    enemies: number[],
     ox: number,
     oy: number,
     maxX: number,
     maxY: number,
     dt: number,
   ): void {
-    // Determine move target: player-directed or auto-chase nearest enemy
+    // 玩家指令优先，否则跟随行为树设置的目标
     const pcTargetX = PlayerControllable.targetX[eid]!;
     const pcTargetY = PlayerControllable.targetY[eid]!;
     let moveTargetX: number;
     let moveTargetY: number;
+    let isPlayerDirected = false;
 
     if (pcTargetX !== 0 || pcTargetY !== 0) {
       moveTargetX = pcTargetX;
       moveTargetY = pcTargetY;
+      isPlayerDirected = true;
     } else {
-      // Auto-target nearest enemy
-      let closestDist = Infinity;
-      moveTargetX = px;
-      moveTargetY = py;
-      for (let j = 0; j < enemies.length; j++) {
-        const enemyId = enemies[j]!;
-        const ex = Position.x[enemyId]!;
-        const ey = Position.y[enemyId]!;
-        const dx = ex - px;
-        const dy = ey - py;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < closestDist) {
-          closestDist = dist;
-          moveTargetX = ex;
-          moveTargetY = ey;
-        }
+      // 行为树通过 Movement.targetX/Y 设定目标
+      const btTargetX = Movement.targetX[eid];
+      const btTargetY = Movement.targetY[eid];
+      if (btTargetX !== undefined && btTargetY !== undefined && (btTargetX !== 0 || btTargetY !== 0)) {
+        moveTargetX = btTargetX;
+        moveTargetY = btTargetY;
+      } else {
+        return; // 无目标，原地待命
       }
     }
 
@@ -172,9 +109,16 @@ export class UnitSystem implements System {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     // If player-directed and arrived at target, clear and stop
-    if ((pcTargetX !== 0 || pcTargetY !== 0) && dist < 5) {
+    if (isPlayerDirected && dist < 5) {
       PlayerControllable.targetX[eid] = 0;
       PlayerControllable.targetY[eid] = 0;
+      return;
+    }
+
+    // If BT-directed and arrived at target, clear Movement target
+    if (!isPlayerDirected && dist < 5) {
+      Movement.targetX[eid] = 0;
+      Movement.targetY[eid] = 0;
       return;
     }
 

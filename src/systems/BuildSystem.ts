@@ -76,6 +76,10 @@ const AI_CONFIG_ID: Record<string, number> = {
   soldier_basic: 8,
   tower_missile: 9,
   tower_vine: 10,
+  tower_ballista: 11,
+  building_production: 12,
+  trap_damage: 13,
+  trap_healing: 14,
 };
 
 /** ProductionType 枚举 → 索引 (用于内部标识) */
@@ -479,6 +483,15 @@ export class BuildSystem implements System {
     world.addComponent(eid, Category, { value: CategoryVal.Trap });
     world.addComponent(eid, Layer, { value: LayerVal.AboveGrid });
 
+    // AI — 行为树控制陷阱检测与伤害
+    world.addComponent(eid, AI, {
+      configId: AI_CONFIG_ID['trap_damage'] ?? 13,
+      targetId: 0,
+      lastUpdateTime: 0,
+      updateInterval: 0.1,
+      active: 1,
+    });
+
     // Display name for overhead HUD
     world.setDisplayName(eid, '地刺');
 
@@ -532,6 +545,15 @@ export class BuildSystem implements System {
     world.addComponent(eid, Category, { value: CategoryVal.Building });
     world.addComponent(eid, Layer, { value: LayerVal.Ground });
 
+    // AI — 行为树控制资源生产
+    world.addComponent(eid, AI, {
+      configId: AI_CONFIG_ID['building_production'] ?? 12,
+      targetId: 0,
+      lastUpdateTime: 0,
+      updateInterval: 1.0,
+      active: 1,
+    });
+
     // Display name for overhead HUD
     world.setDisplayName(eid, config.name);
 
@@ -552,6 +574,7 @@ export class BuildSystem implements System {
       case TowerType.Bat:       return 'tower_bat';
       case TowerType.Missile:   return 'tower_missile';
       case TowerType.Vine:      return 'tower_vine';
+      case TowerType.Ballista:  return 'tower_ballista';
       default:                  return 'tower_basic';
     }
   }
