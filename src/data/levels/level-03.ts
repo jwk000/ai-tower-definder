@@ -42,8 +42,8 @@ const MAP: MapConfig = {
   enemyPath: PRIMARY_WAYPOINTS,
   altSpawnPoints: [{ row: 0, col: 6 }],
   tileColors: {
-    [TileType.Empty]: '#cfd8dc',
-    [TileType.Path]: '#90a4ae',
+    [TileType.Empty]: '#e0e8eb',
+    [TileType.Path]: '#b0bec5',
     [TileType.Spawn]: '#4dd0e1',
     [TileType.Base]: '#42a5f5',
   },

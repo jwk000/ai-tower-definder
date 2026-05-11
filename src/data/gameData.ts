@@ -351,7 +351,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     attackSpeed: 1,
     canAttackBuildings: false,
     rewardGold: 8,
-    color: '#ffab91',
+    color: '#ff7043',
     radius: 10,
   },
   [EnemyType.Heavy]: {
@@ -367,7 +367,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     attackSpeed: 0.7,
     canAttackBuildings: true,
     rewardGold: 25,
-    color: '#8d6e63',
+    color: '#5d4037',
     radius: 20,
   },
   [EnemyType.Mage]: {
@@ -383,7 +383,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     attackSpeed: 0.6,
     canAttackBuildings: true,
     rewardGold: 18,
-    color: '#ce93d8',
+    color: '#ab47bc',
     radius: 14,
   },
   [EnemyType.Exploder]: {
@@ -399,7 +399,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
     attackSpeed: 1,
     canAttackBuildings: false,
     rewardGold: 15,
-    color: '#ff8a65',
+    color: '#ff5722',
     radius: 12,
     specialOnDeath: 'explode',
     deathDamage: 55,

@@ -12,28 +12,39 @@ import {
 } from '../../types/index.js';
 
 const WAYPOINTS: GridPos[] = [
-  { row: 1, col: 0 },
-  { row: 1, col: 4 },
-  { row: 4, col: 4 },
+  { row: 0, col: 0 },
+  { row: 0, col: 20 },
+  { row: 1, col: 20 },
+  { row: 2, col: 20 },
+  { row: 3, col: 20 },
+  { row: 3, col: 1 },
   { row: 4, col: 1 },
+  { row: 5, col: 1 },
   { row: 6, col: 1 },
-  { row: 6, col: 5 },
-  { row: 4, col: 5 },
-  { row: 4, col: 8 },
-  { row: 6, col: 8 },
   { row: 6, col: 20 },
+  { row: 7, col: 20 },
+  { row: 8, col: 20 },
 ];
 
 const TILES: TileType[][] = [
-  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Spawn,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
-  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
-  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  // Row 0: spawn top-left, then full-width horizontal path →
+  [TileType.Spawn,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path],
+  // Row 1: buildable grassland, right edge connector ↓
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path],
+  // Row 2: buildable grassland, right edge connector ↓
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path],
+  // Row 3: full-width horizontal path ← (reversed direction)
+  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path],
+  // Row 4: left edge connector ↓, then buildable grassland
+  [TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  // Row 5: left edge connector ↓, then buildable grassland
+  [TileType.Empty,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
+  // Row 6: full-width horizontal path →
+  [TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path],
+  // Row 7: buildable grassland, right edge connector ↓
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Path],
+  // Row 8: buildable grassland, base at bottom-right
+  [TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Base],
 ];
 
 const MAP: MapConfig = {
@@ -44,29 +55,29 @@ const MAP: MapConfig = {
   tiles: TILES,
   enemyPath: WAYPOINTS,
   tileColors: {
-    [TileType.Empty]: '#3a7d44',
-    [TileType.Path]: '#a1887f',
+    [TileType.Empty]: '#7d9b6e',
+    [TileType.Path]: '#bfad94',
     [TileType.Spawn]: '#ff8f00',
     [TileType.Base]: '#1e88e5',
   },
-  sceneDescription: '青翠的草原上点缀着野花和灌木丛。一条土路从村庄延伸而来，蜿蜒穿过田野。这里是哥布林侦察兵经常出没的地方，村民们已经加固了道路尽头的基地。微风吹过，草浪起伏，看似平静的表面下暗藏杀机。',
+  sceneDescription: '广袤的草原上，一条宽阔的土路从山脚蜿蜒而出，横穿整个平原后折返，经过麦田和农舍，最终通向那座被村民加固过的石墙基地。哥布林侦察兵常年沿此路南下劫掠，如今村民们已在沿途布下防御。',
   obstaclePlacements: [
-    { type: ObstacleType.Tree, row: 0, col: 3 },
-    { type: ObstacleType.Tree, row: 0, col: 17 },
-    { type: ObstacleType.Tree, row: 3, col: 18 },
-    { type: ObstacleType.Tree, row: 7, col: 20 },
-    { type: ObstacleType.Tree, row: 8, col: 2 },
-    { type: ObstacleType.Bush, row: 1, col: 8 },
-    { type: ObstacleType.Bush, row: 2, col: 9 },
-    { type: ObstacleType.Bush, row: 3, col: 10 },
-    { type: ObstacleType.Bush, row: 4, col: 12 },
-    { type: ObstacleType.Bush, row: 7, col: 8 },
-    { type: ObstacleType.Bush, row: 8, col: 15 },
-    { type: ObstacleType.Flower, row: 0, col: 10 },
-    { type: ObstacleType.Flower, row: 1, col: 16 },
-    { type: ObstacleType.Flower, row: 2, col: 1 },
-    { type: ObstacleType.Flower, row: 3, col: 14 },
-    { type: ObstacleType.Flower, row: 8, col: 11 },
+    { type: ObstacleType.Tree, row: 1, col: 8 },
+    { type: ObstacleType.Tree, row: 2, col: 15 },
+    { type: ObstacleType.Tree, row: 4, col: 18 },
+    { type: ObstacleType.Tree, row: 7, col: 5 },
+    { type: ObstacleType.Tree, row: 8, col: 17 },
+    { type: ObstacleType.Bush, row: 1, col: 3 },
+    { type: ObstacleType.Bush, row: 2, col: 10 },
+    { type: ObstacleType.Bush, row: 4, col: 10 },
+    { type: ObstacleType.Bush, row: 5, col: 12 },
+    { type: ObstacleType.Bush, row: 7, col: 16 },
+    { type: ObstacleType.Bush, row: 8, col: 5 },
+    { type: ObstacleType.Flower, row: 3, col: 0 },
+    { type: ObstacleType.Flower, row: 4, col: 15 },
+    { type: ObstacleType.Flower, row: 5, col: 18 },
+    { type: ObstacleType.Flower, row: 7, col: 10 },
+    { type: ObstacleType.Flower, row: 8, col: 12 },
   ],
 };
 

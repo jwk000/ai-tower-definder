@@ -48,9 +48,9 @@ const MAP: MapConfig = {
   tiles: TILES,
   enemyPath: WAYPOINTS,
   tileColors: {
-    [TileType.Empty]: '#37474f',
-    [TileType.Path]: '#616161',
-    [TileType.Blocked]: '#1a1a1a',
+    [TileType.Empty]: '#546e7a',
+    [TileType.Path]: '#8e8e8e',
+    [TileType.Blocked]: '#2a2a2a',
     [TileType.Spawn]: '#fff176',
     [TileType.Base]: '#42a5f5',
   },

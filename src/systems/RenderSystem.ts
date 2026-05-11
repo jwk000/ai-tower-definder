@@ -125,13 +125,13 @@ export class RenderSystem implements System {
     const tc = map.tileColors ?? {};
 
     const defaults: Partial<Record<TileType, string>> = {
-      [TileType.Empty]: '#3a7d44',
-      [TileType.Path]: '#a1887f',
-      [TileType.Blocked]: '#546e7a',
+      [TileType.Empty]: '#7d9b6e',
+      [TileType.Path]: '#bfad94',
+      [TileType.Blocked]: '#78909c',
       [TileType.Spawn]: '#ff8f00',
       [TileType.Base]: '#1e88e5',
     };
-    const emptyAdjacentColor = '#5a9e5f';
+    const emptyAdjacentColor = '#8eaa80';
 
     for (let r = 0; r < map.rows; r++) {
       for (let c = 0; c < map.cols; c++) {
@@ -160,9 +160,9 @@ export class RenderSystem implements System {
         if (tile === TileType.Empty && isAdjacentToPath(r, c, map) && !tc[TileType.Empty]) {
           this.renderer.push({
             shape: 'rect', x, y, size: ts - 2,
-            color: '#4caf50',
-            alpha: 0.3,
-            stroke: '#81c784',
+            color: '#81c784',
+            alpha: 0.25,
+            stroke: '#a5d6a7',
             strokeWidth: 1,
             z: 0,
           });
