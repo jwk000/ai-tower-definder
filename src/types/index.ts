@@ -164,6 +164,8 @@ export enum TowerType {
   Bat = 'bat',
   Missile = 'missile',
   Vine = 'vine',
+  Command = 'command',
+  Ballista = 'ballista',
 }
 
 export interface TowerConfig {
@@ -199,6 +201,14 @@ export interface TowerConfig {
   dotDamage?: number;
   dotDuration?: number;
   dotMaxStacks?: number;
+  // Command tower specific (aura buff)
+  auraRadius?: number;
+  auraAtkSpeedBonus?: number;
+  auraRangeBonus?: number;
+  auraAtkBonus?: number;
+  // Ballista tower specific (piercing sniper)
+  pierceCount?: number;
+  armorPenetration?: number;
 }
 
 // ---- Enemy ----
@@ -213,6 +223,7 @@ export enum EnemyType {
   BossBeast = 'boss_beast',
   HotAirBalloon = 'hot_air_balloon',
   Shaman = 'shaman',
+  Juggernaut = 'juggernaut',
 }
 
 export interface EnemyConfig {
@@ -256,6 +267,16 @@ export interface EnemyConfig {
   auraAttackBonus?: number;
   /** 萨满专用：光环半径 */
   auraRadius?: number;
+  /** 铁甲巨兽专用：冲锋速度加成 */
+  chargeSpeedBonus?: number;
+  /** 铁甲巨兽专用：冲锋冷却(秒) */
+  chargeCooldown?: number;
+  /** 铁甲巨兽专用：冲锋持续时间(秒) */
+  chargeDuration?: number;
+  /** 铁甲巨兽专用：眩晕抵抗(0-1, 0=正常 1=免疫) */
+  stunResist?: number;
+  /** 铁甲巨兽专用：冰冻抵抗(秒, 免疫时长减免) */
+  freezeResist?: number;
 }
 
 // ---- Unit ----

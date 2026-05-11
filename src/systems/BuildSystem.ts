@@ -59,6 +59,8 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Bat]: 5,
   [TowerType.Missile]: 6,
   [TowerType.Vine]: 7,
+  [TowerType.Command]: 8,
+  [TowerType.Ballista]: 9,
 };
 
 /** AI config 字符串 → bitecs AI.configId (ui16) */

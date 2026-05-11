@@ -84,6 +84,27 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
     expect(cfg.atk).toBe(6);
     expect(cfg.attackSpeed).toBe(0.8);
   });
+
+  it('号令塔 — 光环增益', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Command];
+    expect(cfg.atk).toBe(0);
+    expect(cfg.attackSpeed).toBe(0);
+    expect(cfg.auraRadius).toBe(120);
+    expect(cfg.auraAtkSpeedBonus).toBe(10);
+    expect(cfg.auraAtkBonus).toBe(0);
+    expect(cfg.cost).toBe(100);
+    expect(cfg.hp).toBe(80);
+  });
+
+  it('弩炮塔 — 远程贯穿狙击', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Ballista];
+    expect(cfg.damageType).toBe('physical');
+    expect(cfg.atk).toBe(45);
+    expect(cfg.attackSpeed).toBe(0.25);
+    expect(cfg.range).toBe(320);
+    expect(cfg.pierceCount).toBe(2);
+    expect(cfg.cost).toBe(100);
+  });
 });
 
 describe('敌人配置 (ENEMY_CONFIGS)', () => {
@@ -161,6 +182,21 @@ describe('敌人配置 (ENEMY_CONFIGS)', () => {
     expect(cfg.auraRadius).toBe(120);
     expect(cfg.canAttackBuildings).toBe(false);
     expect(cfg.rewardGold).toBe(30);
+  });
+
+  it('铁甲巨兽 — 建筑破坏+冲锋', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Juggernaut];
+    expect(cfg.canAttackBuildings).toBe(true);
+    expect(cfg.hp).toBe(350);
+    expect(cfg.atk).toBe(30);
+    expect(cfg.defense).toBe(90);
+    expect(cfg.speed).toBe(22);
+    expect(cfg.radius).toBe(28);
+    expect(cfg.chargeSpeedBonus).toBe(50);
+    expect(cfg.chargeCooldown).toBe(8);
+    expect(cfg.stunResist).toBe(0.5);
+    expect(cfg.freezeResist).toBe(0.5);
+    expect(cfg.rewardGold).toBe(45);
   });
 });
 

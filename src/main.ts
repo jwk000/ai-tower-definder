@@ -26,6 +26,8 @@ import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { BloodParticleSystem } from './systems/BloodParticleSystem.js';
 import { FadingMarkSystem } from './systems/FadingMarkSystem.js';
+import { ScreenShakeSystem } from './systems/ScreenShakeSystem.js';
+import { TileDamageSystem } from './systems/TileDamageSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
@@ -68,6 +70,8 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Bat,       // 5
   TowerType.Missile,   // 6
   TowerType.Vine,      // 7
+  TowerType.Command,   // 8
+  TowerType.Ballista,  // 9
 ];
 
 /** TowerType enum → bitecs ui8 */
@@ -80,6 +84,8 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Bat]: 5,
   [TowerType.Missile]: 6,
   [TowerType.Vine]: 7,
+  [TowerType.Command]: 8,
+  [TowerType.Ballista]: 9,
 };
 
 // ---- Utility: hex color → RGB ----
@@ -116,6 +122,10 @@ class TowerDefenderGame extends Game {
   // ---- Scene decoration ----
   private decorationSystem!: DecorationSystem;
   private screenFXSystem!: ScreenFXSystem;
+
+  // ---- Missile tower effects ----
+  private screenShakeSystem!: ScreenShakeSystem;
+  private tileDamageSystem!: TileDamageSystem;
 
   // ---- New unit system ----
   private aiSystem!: AISystem;
@@ -384,6 +394,7 @@ class TowerDefenderGame extends Game {
       () => this.uiSystem.selectedUnitEntityId,
       () => this.uiSystem.selectedTrapEntityId,
       () => this.uiSystem.selectedProductionEntityId,
+      this.screenShakeSystem,
     );
 
     // ---- Scene decoration ----
@@ -393,6 +404,10 @@ class TowerDefenderGame extends Game {
     );
     this.screenFXSystem = new ScreenFXSystem();
 
+    // ---- Missile tower effects ----
+    this.screenShakeSystem = new ScreenShakeSystem();
+    this.tileDamageSystem = new TileDamageSystem(map);
+
     const movementSystem = new MovementSystem(map);
     const shamanSystem = new ShamanSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
@@ -400,7 +415,7 @@ class TowerDefenderGame extends Game {
     const hotAirBalloonSystem = new HotAirBalloonSystem();
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);
-    const projectileSystem = new ProjectileSystem();
+    const projectileSystem = new ProjectileSystem(map);
 
     this.skillSystem = new SkillSystem(
       (amount) => this.economy.spendEnergy(amount),
@@ -434,6 +449,7 @@ class TowerDefenderGame extends Game {
     this.onPostRender = () => {
       lightningBoltSystem.renderBolts(this.world);
       this.laserBeamSystem.renderBeams(this.world);
+      this.tileDamageSystem.render(this.renderer, this.world);
       // Weather screen tint (viewport-space — covers entire window)
       if (this.currentScreen === GameScreen.Battle) {
         const tint = this.weatherSystem.screenTint;
@@ -576,10 +592,12 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(explosionEffectSystem);
     this.world.registerSystem(bloodParticleSystem);
     this.world.registerSystem(fadingMarkSystem);
+    this.world.registerSystem(this.tileDamageSystem);  // tile damage marks from missile explosions
     this.world.registerSystem(this.healthSystem);
     this.world.registerSystem(this.economy);
     this.world.registerSystem(this.buildSystem);
     this.world.registerSystem(this.decorationSystem);  // background + decorations — before entity render
+    this.world.registerSystem(this.screenShakeSystem);  // screen shake offset — before render
     this.world.registerSystem(renderSystem);
     this.world.registerSystem(lightningBoltSystem); // direct canvas draw — after buffered render
     this.world.registerSystem(this.uiSystem);

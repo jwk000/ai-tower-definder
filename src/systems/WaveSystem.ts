@@ -373,6 +373,8 @@ export class WaveSystem implements System {
         return 'enemy_shaman';
       case EnemyType.HotAirBalloon:
         return 'enemy_balloon';
+      case EnemyType.Juggernaut:
+        return 'enemy_basic';
       default:
         return 'enemy_basic';
     }
