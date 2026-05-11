@@ -1,3 +1,5 @@
+import { getSynthUrl } from './SoundSynth.js';
+
 export type SfxKey =
   // ═══ Legacy (5 keys — audio files need replacement for style consistency) ═══
   | 'tower_shoot'   // fallback when towerTypeVal out of range (rarely hit)
@@ -158,7 +160,9 @@ export class Sound {
   static preload(): void {
     if (Sound.loaded) return;
     for (const key of Object.keys(SFX_PATH) as SfxKey[]) {
-      const audio = new Audio(SFX_PATH[key]);
+      const synthUrl = getSynthUrl(key);
+      const src = synthUrl ?? SFX_PATH[key];
+      const audio = new Audio(src);
       audio.preload = 'auto';
       audio.volume = Sound.volume;
       Sound.buffers[key] = audio;
