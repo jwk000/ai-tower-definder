@@ -310,6 +310,44 @@ export const FadingMark = defineComponent({
 });
 
 // ============================================================
+// 导弹塔专属组件
+// ============================================================
+
+/** 导弹塔蓄力状态 — 装弹完成后进入蓄力，蓄力完成后发射导弹 */
+export const MissileCharge = defineComponent({
+  chargeTime: Types.f32,     // 蓄力总时长（秒）
+  chargeElapsed: Types.f32,  // 已蓄力时间
+  targetX: Types.f32,        // 目标位置X
+  targetY: Types.f32,        // 目标位置Y
+  markEntityId: Types.eid,   // 靶向标记实体ID
+});
+
+/** 红色靶向标记 — 导弹塔蓄力时出现在目标位置的视觉标记 */
+export const TargetingMark = defineComponent({
+  blastRadius: Types.f32,    // 显示的外圈半径
+  pulsePhase: Types.f32,     // 闪烁相位
+  ringRotation: Types.f32,   // 旋转环角度
+});
+
+/** 屏幕震动 — 爆炸等事件触发，全局效果 */
+export const ScreenShake = defineComponent({
+  intensity: Types.f32,      // 最大偏移像素
+  duration: Types.f32,       // 震动总时长
+  elapsed: Types.f32,        // 已震动时间
+  frequency: Types.f32,      // 震动频率Hz
+});
+
+/** 地格破损标记 — 导弹爆炸后在地格上留下的裂纹效果 */
+export const TileDamageMark = defineComponent({
+  row: Types.ui8,            // 地格行
+  col: Types.ui8,            // 地格列
+  duration: Types.f32,       // 总持续时间
+  elapsed: Types.f32,        // 已过时间
+  crackSeed: Types.ui8,      // 裂纹随机种子（0-255）
+  maxAlpha: Types.f32,       // 最大透明度
+});
+
+// ============================================================
 // AI组件
 // ============================================================
 

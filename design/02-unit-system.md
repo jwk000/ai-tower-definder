@@ -49,7 +49,9 @@
 
 ## 3. 动态行为规则
 
-> **核心原则：规则为主，行为树为补充。** 80%的单位行为用声明式规则覆盖，仅复杂AI（Boss、特殊敌人）使用行为树。
+> **核心原则：行为树统一驱动。** 所有单位的行为（目标选择、攻击、移动、技能释放）由行为树配置驱动。专用系统（AttackSystem/MovementSystem 等）仅执行行为树委派的原子动作，不再自主决策。
+
+详见 [23-AI行为树统一方案](./23-ai-behavior-tree.md)。
 
 ### 3.1 生命周期事件规则
 
@@ -113,17 +115,19 @@
 | `on_enemies_in_range` | 范围内敌人数量达标时使用 |
 | `on_ally_died` | 友方单位死亡时触发 |
 
-### 3.3 行为树（复杂AI补充）
+### 3.3 行为树（统一AI驱动）
 
-当声明式规则不足以表达时，使用行为树：
+所有单位的运行时行为由行为树配置决定。每个单位通过 `aiConfig` 字符串引用一套行为树配置（`src/ai/presets/aiConfigs.ts`），`AISystem` 每帧 tick 行为树，动作节点委派到专用系统执行。
 
 | 使用场景 | 说明 |
 |----------|------|
-| Boss阶段AI | HP<50%切换行为模式 |
-| 多技能优先级 | 召唤、Buff、攻击的优先级决策 |
-| 自适应行为 | 根据玩家阵容动态调整的复杂AI |
+| 塔的自动攻击 | `check_enemy_in_range` → `attack` |
+| 敌人的沿路进攻 | `move_to(path_waypoint)` 或 `check_enemy_in_range` → `attack` |
+| 士兵的智能战斗 | `check_enemy_in_range` → `attack` / `move_towards(nearest_enemy)` |
+| Boss 阶段切换 | `check_hp` → 切换行为子树 |
+| 多技能优先级 | Selector 决定技能释放顺序 |
 
-行为树节点类型：Sequence（顺序）、Selector（选择）、Parallel（并行）、Condition（条件）、Action（动作）、Decorator（修饰：反转/重复/冷却）。
+行为树节点类型：Sequence、Selector、Inverter、CheckHP、CheckEnemyInRange、Attack、MoveTo、MoveTowards、Wait。详见 [23-AI行为树统一方案](./23-ai-behavior-tree.md)。
 
 ---
 
