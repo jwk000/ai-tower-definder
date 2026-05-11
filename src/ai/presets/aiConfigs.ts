@@ -436,15 +436,16 @@ export const SOLDIER_TANK_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 输出士兵AI - 使用旋风斩 */
+/** 输出士兵AI - 旋风斩技能 + 通用4状态逻辑 */
 export const SOLDIER_DPS_AI: BehaviorTreeConfig = {
   id: 'soldier_dps',
   name: '输出士兵AI',
-  description: '使用旋风斩进行范围攻击',
+  description: '优先使用旋风斩，然后执行通用4状态AI',
   version: '1.0',
   root: {
     type: 'selector',
     children: [
+      // Skill: Whirlwind — 范围内敌人≥2时使用旋风斩
       {
         type: 'sequence',
         name: '旋风斩',
@@ -454,25 +455,47 @@ export const SOLDIER_DPS_AI: BehaviorTreeConfig = {
           { type: 'use_skill', params: { skill_id: 'whirlwind' } }
         ]
       },
+      // State 1: COMBAT
       {
         type: 'sequence',
-        name: '攻击',
+        name: '战斗',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'set_state', params: { state: 'combat' } },
+          { type: 'show_alert_mark', params: { blink: false } },
           { type: 'attack', params: { target: 'nearest_enemy' } }
         ]
       },
+      // State 2: ALERT
       {
         type: 'sequence',
-        name: '移动',
+        name: '警戒',
         children: [
-          { type: 'check_enemy_in_range', params: { range: 200 } },
-          { type: 'move_towards', params: { target: 'nearest_enemy' } }
+          { type: 'check_enemy_in_range', params: { range: '${alert_range}', set_target: true } },
+          { type: 'set_state', params: { state: 'alert' } },
+          { type: 'show_alert_mark', params: { blink: true } },
+          { type: 'move_towards', params: { target: 'nearest_enemy', max_range: '${move_range}' } }
         ]
       },
+      // State 3: RETURN
       {
-        type: 'wait',
-        params: { duration: 0.2 }
+        type: 'sequence',
+        name: '返回',
+        children: [
+          { type: 'check_distance_from_home', params: { min: 10 } },
+          { type: 'set_state', params: { state: 'return' } },
+          { type: 'hide_alert_mark', params: {} },
+          { type: 'move_to', params: { target: 'home' } }
+        ]
+      },
+      // State 4: IDLE
+      {
+        type: 'sequence',
+        name: '待机',
+        children: [
+          { type: 'set_state', params: { state: 'idle' } },
+          { type: 'wander', params: { radius: '${move_range}', speed_ratio: 0.5 } }
+        ]
       }
     ]
   }
@@ -662,6 +685,9 @@ export const ALL_AI_CONFIGS: BehaviorTreeConfig[] = [
 
   // Tower AI (19)
   TOWER_BALLISTA_AI,
+
+  // Soldier AI (20) — 通用士兵4状态模板
+  SOLDIER_GENERIC_AI,
 ];
 
 /** 获取AI配置 */
