@@ -103,6 +103,7 @@ export class RenderSystem implements System {
     private getSelectedTowerId: () => number | null = () => null,
     private getSelectedUnitId: () => number | null = () => null,
     private getSelectedTrapId: () => number | null = () => null,
+    private getSelectedProductionId: () => number | null = () => null,
   ) {
     const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     RenderSystem.sceneOffsetX = layout.offsetX;
@@ -208,6 +209,7 @@ export class RenderSystem implements System {
     const selectedTowerId = this.getSelectedTowerId();
     const selectedUnitId = this.getSelectedUnitId();
     const selectedTrapId = this.getSelectedTrapId();
+    const selectedProductionId = this.getSelectedProductionId();
 
     for (const eid of sorted) {
       const posX = Position.x[eid]!;
@@ -331,8 +333,9 @@ export class RenderSystem implements System {
       // Selection highlight
       // ========================================
       const isSelected = (selectedTowerId !== null && eid === selectedTowerId) ||
-                         (selectedUnitId !== null && eid === selectedUnitId) ||
-                         (selectedTrapId !== null && eid === selectedTrapId);
+        (selectedUnitId !== null && eid === selectedUnitId) ||
+        (selectedTrapId !== null && eid === selectedTrapId) ||
+        (selectedProductionId !== null && eid === selectedProductionId);
       const strokeColor = isSelected ? '#ffffff' : (Visual.outline[eid] ? '#ffffff' : undefined);
       const strokeW = isSelected ? 3 : (Visual.outline[eid] ? 2 : undefined);
 

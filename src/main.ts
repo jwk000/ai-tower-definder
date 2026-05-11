@@ -370,6 +370,7 @@ class TowerDefenderGame extends Game {
       () => this.uiSystem.selectedTowerEntityId,
       () => this.uiSystem.selectedUnitEntityId,
       () => this.uiSystem.selectedTrapEntityId,
+      () => this.uiSystem.selectedProductionEntityId,
     );
 
     // ---- Scene decoration ----
@@ -605,13 +606,14 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private findUnitAt(x: number, y: number): number | null {
-    // Use bitecs: entities with Position + UnitTag (player units) + Visual
+    // Use bitecs: entities with Position + UnitTag (player units) + Visual + PlayerOwned
     for (let eid = 1; eid < Position.x.length; eid++) {
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;
-      // Check if it's a player unit (UnitTag exists, isEnemy === 0, and has Visual)
+      // Check if it's a player unit (UnitTag exists, isEnemy === 0, PlayerOwned, and has Visual)
       if (UnitTag.isEnemy[eid] !== 0) continue;
+      if (!hasComponent(this.world.world, PlayerOwned, eid)) continue;
       const size = Visual.size[eid];
       if (size === undefined) continue;
       const r = size * 0.65;
@@ -670,6 +672,24 @@ class TowerDefenderGame extends Game {
         this.uiSystem.enemyEntityId = null;
         this.uiSystem.selectedEntityId = eid;
         this.uiSystem.selectedEntityType = 'trap';
+        this.debugManager.selectEntity(eid);
+        return;
+      }
+    }
+
+    // Try clicking on a production building
+    for (let eid = 1; eid < Production.rate.length; eid++) {
+      if (Production.rate[eid] === undefined) continue;
+      const px = Position.x[eid];
+      const py = Position.y[eid];
+      if (px === undefined || py === undefined) continue;
+      const size = Visual.size[eid];
+      if (size === undefined) continue;
+      const r = size * 0.65;
+      if (Math.abs(e.x - px) < r && Math.abs(e.y - py) < r) {
+        this.uiSystem.enemyEntityId = null;
+        this.uiSystem.selectedEntityId = eid;
+        this.uiSystem.selectedEntityType = 'production';
         this.debugManager.selectEntity(eid);
         return;
       }

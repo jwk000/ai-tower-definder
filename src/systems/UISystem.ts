@@ -27,6 +27,7 @@ import {
   Trap,
   Movement,
   Boss,
+  PlayerOwned,
 } from '../core/components.js';
 
 // ============================================================
@@ -108,7 +109,7 @@ export class UISystem implements System {
   private overlay: UIOverlay | null = null;
 
   public selectedEntityId: number | null = null;
-  public selectedEntityType: 'tower' | 'unit' | 'trap' | null = null;
+  public selectedEntityType: 'tower' | 'unit' | 'trap' | 'production' | null = null;
 
   public enemyEntityId: number | null = null;
   private enemySelectTimer: number = 0;
@@ -180,6 +181,14 @@ export class UISystem implements System {
   set selectedTrapEntityId(id: number | null) {
     this.selectedEntityId = id;
     this.selectedEntityType = id !== null ? 'trap' : null;
+  }
+
+  get selectedProductionEntityId(): number | null {
+    return this.selectedEntityType === 'production' ? this.selectedEntityId : null;
+  }
+  set selectedProductionEntityId(id: number | null) {
+    this.selectedEntityId = id;
+    this.selectedEntityType = id !== null ? 'production' : null;
   }
 
   // ============================================================
@@ -747,9 +756,15 @@ export class UISystem implements System {
     if (px === undefined) return;
 
     const tw = 230;
-    const th = 110;
+    let th = 110;
     const tx = px;
-    const ty = py! - 110;
+
+    // Use taller panel for units (extra stat line + HP bar)
+    if (this.selectedEntityType === 'unit') th = 130;
+    // Production needs space for rate info
+    if (this.selectedEntityType === 'production') th = 120;
+
+    const ty = py! - (th + 10);
 
     this.renderer.push({
       shape: 'rect',
@@ -856,11 +871,11 @@ export class UISystem implements System {
       const hpCurrent = Health.current[id];
       const hpMax = Health.max[id];
       const atkDamage = Attack.damage[id];
+      const atkSpeed = Attack.attackSpeed[id];
+      const atkRange = Attack.range[id];
       const unitCost = UnitTag.cost[id];
 
       const unitName = this._world?.getDisplayName(id) || '单位';
-      const defaultHp = 150;
-      const defaultAtk = 15;
 
       if (unitCost !== undefined || unitName !== '单位') {
         this.infos.push({
@@ -869,13 +884,78 @@ export class UISystem implements System {
           color: '#ffffff', size: 18,
         });
         this.infos.push({
-          x: tx - tw / 2 + 10, y: ty - th / 2 + 36,
-          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : `${defaultHp}/${defaultHp}`}  ATK: ${atkDamage !== undefined ? formatNumber(atkDamage) : defaultAtk}`,
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 34,
+          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : '?'}  ATK: ${atkDamage !== undefined ? formatNumber(atkDamage) : '?'}`,
           color: '#ffffff', size: 16,
+        });
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 52,
+          text: `攻速: ${atkSpeed !== undefined ? formatNumber(atkSpeed) + '/s' : '?'}  范围: ${atkRange !== undefined ? formatNumber(atkRange) + 'px' : '?'}`,
+          color: '#aaaaaa', size: 14,
         });
 
         // Recycle button
         const refund = Math.floor((unitCost ?? 100) * 0.5);
+        const rbw = 65;
+        const rbh = 20;
+        const rbx = tx - tw / 2 + 10;
+        const rby = ty - th / 2 + 72;
+        this.renderer.push({
+          shape: 'rect',
+          x: rbx + rbw / 2, y: rby + rbh / 2,
+          size: rbw, h: rbh,
+          color: '#c62828',
+          alpha: 0.9,
+          stroke: '#ffffff', strokeWidth: 1,
+        });
+        this.buttons.push({
+          x: rbx, y: rby, w: rbw, h: rbh,
+          label: `回收${refund}G`,
+          color: '#c62828',
+          textColor: '#ffffff',
+          enabled: true,
+          onClick: () => { this.onRecycleEntity?.(id); },
+        });
+
+        // HP bar
+        if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
+          const ratio = hpCurrent / hpMax;
+          const barX = tx - tw / 2 + rbx + rbw + 10;
+          const barW = tw - 20 - rbw - 10;
+          this.renderer.push({ shape: 'rect', x: barX + barW / 2, y: rby + rbh / 2, size: barW, h: 6, color: '#222222', alpha: 0.9 });
+          const fillW = Math.max(barW * ratio, 0);
+          if (fillW > 0) {
+            const barColor = ratio > 0.6 ? '#4caf50' : ratio > 0.3 ? '#ffc107' : '#f44336';
+            this.renderer.push({ shape: 'rect', x: barX + fillW / 2, y: rby + rbh / 2, size: fillW, h: 6, color: barColor, alpha: 0.95 });
+          }
+        }
+      }
+    } else if (this.selectedEntityType === 'production') {
+      const prodResourceType = Production.resourceType[id];
+      const prodRate = Production.rate[id];
+      const prodLevel = Production.level[id];
+      const hpCurrent = Health.current[id];
+      const hpMax = Health.max[id];
+
+      if (prodRate !== undefined && prodLevel !== undefined) {
+        const prodName = this._world?.getDisplayName(id) || '生产建筑';
+        const resourceLabel = prodResourceType === 0 ? '金' : '能';
+
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 14,
+          text: `${prodName} Lv.${prodLevel}`,
+          color: '#ffffff', size: 18,
+        });
+        this.infos.push({
+          x: tx - tw / 2 + 10, y: ty - th / 2 + 34,
+          text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : '?'}  产出: +${formatNumber(prodRate)}${resourceLabel}/s`,
+          color: '#ffffff', size: 16,
+        });
+
+        // Recycle button
+        const cfg = PRODUCTION_CONFIGS[prodResourceType === 0 ? ProductionType.GoldMine : ProductionType.EnergyTower];
+        const prodCost = cfg?.cost ?? 65;
+        const refund = Math.floor(prodCost * 0.5);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;
@@ -896,6 +976,19 @@ export class UISystem implements System {
           enabled: true,
           onClick: () => { this.onRecycleEntity?.(id); },
         });
+
+        // HP bar
+        if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
+          const ratio = hpCurrent / hpMax;
+          const barX = tx - tw / 2 + rbx + rbw + 10;
+          const barW = tw - 20 - rbw - 10;
+          this.renderer.push({ shape: 'rect', x: barX + barW / 2, y: rby + rbh / 2, size: barW, h: 6, color: '#222222', alpha: 0.9 });
+          const fillW = Math.max(barW * ratio, 0);
+          if (fillW > 0) {
+            const barColor = ratio > 0.6 ? '#4caf50' : ratio > 0.3 ? '#ffc107' : '#f44336';
+            this.renderer.push({ shape: 'rect', x: barX + fillW / 2, y: rby + rbh / 2, size: fillW, h: 6, color: barColor, alpha: 0.95 });
+          }
+        }
       }
     } else if (this.selectedEntityType === 'trap') {
       const trapDps = Trap.damagePerSecond[id];
