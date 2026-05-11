@@ -520,6 +520,7 @@ export const SHIELD_GUARD_CONFIG: UnitTypeConfig = {
   moveSpeed: 60,
   moveRange: 150,
   attackRange: 40,
+  alertRange: 150,
   magicResist: 0,
   
   color: '#64b5f6',
@@ -558,6 +559,7 @@ export const SWORDSMAN_CONFIG: UnitTypeConfig = {
   moveSpeed: 80,
   moveRange: 200,
   attackRange: 35,
+  alertRange: 200,
   magicResist: 0,
   
   color: '#ef5350',

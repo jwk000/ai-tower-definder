@@ -659,6 +659,7 @@ export interface UnitTypeConfig {
   moveSpeed: number;
   moveRange: number;
   attackRange: number;
+  alertRange?: number; // detection radius for soldier AI alert behavior (default 0)
   magicResist: number;
 
   // Visual
