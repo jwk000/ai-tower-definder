@@ -93,7 +93,7 @@ export const CANNON_TOWER_CONFIG: UnitTypeConfig = {
   special: {
     damageType: 'physical',
     splashRadius: 80,
-    stunDuration: 1.5,
+    stunDuration: 0.8,
     upgradeAtkBonus: [8, 12, 16, 22],
     upgradeRangeBonus: [20, 20, 30, 30],
   },

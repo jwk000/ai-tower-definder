@@ -75,7 +75,7 @@ cannon_tower:
   stats:
     hp: 120
     atk: 25
-    attackSpeed: 0.4
+    attackSpeed: 0.35
     range: 180
     armor: 0
     mr: 0
@@ -100,7 +100,7 @@ cannon_tower:
     special:
       splashRadius: 80
       splashPercent: 0.6
-      stunDuration: 1.5
+      stunDuration: 0.8
       bossImmuneStun: true
 
   lifecycle:
