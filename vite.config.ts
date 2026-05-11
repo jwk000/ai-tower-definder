@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   // GitHub Pages: 如果仓库名不是 TowerDefender，改成对应名称
-  base: '/TowerDefender/',
+  base: '/ai-tower-defender/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
