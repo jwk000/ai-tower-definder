@@ -397,6 +397,7 @@ class TowerDefenderGame extends Game {
     const shamanSystem = new ShamanSystem();
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem);
+    const hotAirBalloonSystem = new HotAirBalloonSystem();
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);
     const projectileSystem = new ProjectileSystem();
@@ -559,6 +560,7 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(shamanSystem);
     this.world.registerSystem(enemyAttackSystem);
     this.world.registerSystem(attackSystem);
+    this.world.registerSystem(hotAirBalloonSystem);
     this.world.registerSystem(this.weatherSystem);
     this.world.registerSystem(this.batSwarmSystem);
     this.world.registerSystem(unitSystem);
