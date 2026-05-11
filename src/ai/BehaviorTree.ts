@@ -306,8 +306,16 @@ export class AttackNode extends ActionNode {
     if (cooldown <= 0) {
       // Reset cooldown
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
-      // Deal damage
-      Health.current[targetId]! -= attackDmg;
+
+      const isEnemy = UnitTag.isEnemy[eid] === 1;
+
+      if (isEnemy) {
+        // 敌人：委托 EnemyAttackSystem 执行（弹道/伤害/移动控制）
+        Attack.targetId[eid] = targetId;
+      } else {
+        // 玩家单位：直接造成伤害
+        Health.current[targetId]! -= attackDmg;
+      }
 
       // Set target for rendering
       AI.targetId[eid] = targetId;

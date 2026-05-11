@@ -53,12 +53,6 @@ export class UnitSystem implements System {
       const py = Position.y[eid]!;
       const radius = this.getRadius(eid);
 
-      // Tick attack cooldown (BT AttackNode 依赖此值 ≤0 来触发攻击)
-      const ct = Attack.cooldownTimer[eid];
-      if (ct !== undefined && ct > 0) {
-        Attack.cooldownTimer[eid] = ct - dt;
-      }
-
       // ---- Movement Phase ----
       // 玩家指令优先，否则跟随行为树设置的 Movement.targetX/Y
       this.movementPhase(world, eid, px, py, radius, ox, oy, maxX, maxY, dt);

@@ -161,18 +161,18 @@ export const TOWER_BAT_AI: BehaviorTreeConfig = {
 
 // ==================== 敌人类AI ====================
 
-/** 基础敌人AI - 沿路径移动 */
+/** 基础敌人AI - 沿路径移动，攻击途中的士兵 */
 export const ENEMY_BASIC_AI: BehaviorTreeConfig = {
   id: 'enemy_basic',
   name: '基础敌人AI',
-  description: '沿路径移动，攻击途中敌人',
+  description: '沿路径移动，攻击途中士兵',
   version: '1.0',
   root: {
     type: 'selector',
     children: [
       {
         type: 'sequence',
-        name: '攻击单位',
+        name: '攻击士兵',
         children: [
           { type: 'check_enemy_in_range', params: { range: 30, target_type: 'soldier' } },
           { type: 'attack', params: { target: 'nearest_enemy' } }

@@ -10,11 +10,6 @@ import {
   UnitTag,
   Projectile,
   Visual,
-  Category,
-  Tower,
-  PlayerOwned,
-  BatSwarmMember,
-  CategoryVal,
   ShapeVal,
   MoveModeVal,
   DamageTypeVal,
@@ -32,30 +27,21 @@ const ENEMY_PROJECTILE_SPEED = 200; // px/s
 /** Enemies capable of attacking: have position, movement, attack, and unit tag */
 const attackerQuery = defineQuery([Position, Movement, Attack, UnitTag]);
 
-/** Tower targets: must have Tower + Health + Position */
-const towerTargetQuery = defineQuery([Tower, Health, Position]);
-
-/** Bat swarm targets */
-const batTargetQuery = defineQuery([BatSwarmMember, Position, Health]);
-
-/** Player units (soldiers, etc.) */
-const unitTargetQuery = defineQuery([PlayerOwned, Position, Health]);
-
-/** Buildings and objectives (filtered by Category.value in loop) */
-const categoryTargetQuery = defineQuery([Category, Position, Health]);
-
 // ============================================================
 // System
 // ============================================================
 
 /**
- * Handles enemy attack logic:
- *  - Ranged enemies (canAttackBuildings=true) target towers, bats, buildings, objectives
- *    and fire projectiles.
- *  - Melee enemies target player units and deal direct damage.
+ * Handles enemy attack EXECUTION (not target selection).
+ *
+ * Target selection is delegated to AISystem's behavior tree (check_enemy_in_range +
+ * attack nodes set Attack.targetId). This system reads Attack.targetId and executes
+ * the attack (projectile for ranged, direct damage for melee).
  *
  * Movement is paused (MoveModeVal.HoldPosition) while an enemy has a valid target,
  * and resumed (MoveModeVal.FollowPath) when the target is lost.
+ *
+ * Attack cooldown ticking is handled by AISystem.
  */
 export class EnemyAttackSystem implements System {
   readonly name = 'EnemyAttackSystem';
@@ -66,67 +52,51 @@ export class EnemyAttackSystem implements System {
     for (let i = 0; i < attackers.length; i++) {
       const eid = attackers[i]!;
 
-      // Only process actual enemies (defensive guard)
+      // Only process actual enemies
       if (UnitTag.isEnemy[eid] !== 1) continue;
 
-      // Determine attack capability — prefer UnitTag flag, fall back to range heuristic
       const canAttackBuildings =
         UnitTag.canAttackBuildings[eid] === 1 || Attack.range[eid]! > 0;
 
-      // Tick cooldown
-      if (Attack.cooldownTimer[eid]! > 0) {
-        Attack.cooldownTimer[eid]! -= dt;
-      }
-
       const posX = Position.x[eid]!;
       const posY = Position.y[eid]!;
+      const targetId = Attack.targetId[eid]!;
 
-      // ====================================================
-      // Check if current target is still valid
-      // ====================================================
-      const currentTarget = Attack.targetId[eid]!;
-      if (currentTarget !== 0) {
-        const targetValid = this.isTargetValid(currentTarget);
-
-        if (!targetValid) {
-          // Dead or invalid — clear target and resume movement
-          Attack.targetId[eid] = 0;
+      // No target set by BT → resume movement
+      if (targetId === 0) {
+        if (Movement.moveMode[eid] === MoveModeVal.HoldPosition) {
           Movement.moveMode[eid] = MoveModeVal.FollowPath;
-        } else {
-          const tX = Position.x[currentTarget]!;
-          const tY = Position.y[currentTarget]!;
-          const dx = tX - posX;
-          const dy = tY - posY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist > Attack.range[eid]!) {
-            // Out of range — abandon
-            Attack.targetId[eid] = 0;
-            Movement.moveMode[eid] = MoveModeVal.FollowPath;
-          } else if (Attack.cooldownTimer[eid]! <= 0) {
-            // Ready to attack!
-            this.doAttack(world, eid, currentTarget, posX, posY, canAttackBuildings);
-            Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-          }
         }
+        continue;
       }
 
-      // ====================================================
-      // Search for a new target if none is set
-      // ====================================================
-      if (Attack.targetId[eid] === 0) {
-        const newTarget = this.findTarget(world, eid, posX, posY, canAttackBuildings);
+      // Validate target (alive + in range)
+      if (!this.isTargetValid(targetId)) {
+        Attack.targetId[eid] = 0;
+        Movement.moveMode[eid] = MoveModeVal.FollowPath;
+        continue;
+      }
 
-        if (newTarget !== 0) {
-          Attack.targetId[eid] = newTarget;
-          // Pause path-following while attacking
-          Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+      const tX = Position.x[targetId]!;
+      const tY = Position.y[targetId]!;
+      const dx = tX - posX;
+      const dy = tY - posY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (Attack.cooldownTimer[eid]! <= 0) {
-            this.doAttack(world, eid, newTarget, posX, posY, canAttackBuildings);
-            Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-          }
-        }
+      if (dist > Attack.range[eid]!) {
+        // Out of range — abandon
+        Attack.targetId[eid] = 0;
+        Movement.moveMode[eid] = MoveModeVal.FollowPath;
+        continue;
+      }
+
+      // Pause movement while engaging
+      Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+
+      // Execute attack (cooldown is managed by AISystem)
+      if (Attack.cooldownTimer[eid]! <= 0) {
+        this.doAttack(world, eid, targetId, posX, posY, canAttackBuildings);
+        Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
       }
     }
   }
@@ -139,90 +109,6 @@ export class EnemyAttackSystem implements System {
   private isTargetValid(targetId: number): boolean {
     const hp = Health.current[targetId];
     return hp !== undefined && hp > 0;
-  }
-
-  /**
-   * Find the nearest valid target within attack range.
-   *
-   * - Ranged enemies (canAttackBuildings=true): search towers, bats, buildings, objectives.
-   * - Melee enemies: search player-owned units.
-   */
-  private findTarget(
-    world: TowerWorld,
-    eid: number,
-    fromX: number,
-    fromY: number,
-    canAttackBuildings: boolean,
-  ): number {
-    const range = Attack.range[eid]!;
-    let bestId = 0;
-    let bestDist = Infinity;
-
-    if (canAttackBuildings) {
-      // --- Ranged: towers ---
-      const towers = towerTargetQuery(world.world);
-      for (let i = 0; i < towers.length; i++) {
-        const tid = towers[i]!;
-        if (tid === eid) continue;
-        if (Health.current[tid]! <= 0) continue;
-        const dx = Position.x[tid]! - fromX;
-        const dy = Position.y[tid]! - fromY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= range && dist < bestDist) {
-          bestDist = dist;
-          bestId = tid;
-        }
-      }
-
-      // --- Ranged: bat swarm ---
-      const bats = batTargetQuery(world.world);
-      for (let i = 0; i < bats.length; i++) {
-        const bid = bats[i]!;
-        if (bid === eid) continue;
-        if (Health.current[bid]! <= 0) continue;
-        const dx = Position.x[bid]! - fromX;
-        const dy = Position.y[bid]! - fromY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= range && dist < bestDist) {
-          bestDist = dist;
-          bestId = bid;
-        }
-      }
-
-      // --- Ranged: buildings & objectives ---
-      const categoryTargets = categoryTargetQuery(world.world);
-      for (let i = 0; i < categoryTargets.length; i++) {
-        const cid = categoryTargets[i]!;
-        if (cid === eid) continue;
-        if (Health.current[cid]! <= 0) continue;
-        const cat = Category.value[cid];
-        if (cat !== CategoryVal.Building && cat !== CategoryVal.Objective) continue;
-        const dx = Position.x[cid]! - fromX;
-        const dy = Position.y[cid]! - fromY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= range && dist < bestDist) {
-          bestDist = dist;
-          bestId = cid;
-        }
-      }
-    } else {
-      // --- Melee: player units ---
-      const units = unitTargetQuery(world.world);
-      for (let i = 0; i < units.length; i++) {
-        const uid = units[i]!;
-        if (uid === eid) continue;
-        if (Health.current[uid]! <= 0) continue;
-        const dx = Position.x[uid]! - fromX;
-        const dy = Position.y[uid]! - fromY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= range && dist < bestDist) {
-          bestDist = dist;
-          bestId = uid;
-        }
-      }
-    }
-
-    return bestId;
   }
 
   /**
