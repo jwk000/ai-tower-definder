@@ -505,7 +505,9 @@ class TowerDefenderGame extends Game {
           if (result !== false && result !== null) {
             Sound.play('build_place');
             this.uiSystem.selectedEntityId = result;
-            this.uiSystem.selectedEntityType = ds.entityType === 'tower' ? 'tower' : ds.entityType === 'trap' ? 'trap' : null;
+            this.uiSystem.selectedEntityType = ds.entityType === 'tower' ? 'tower' :
+              ds.entityType === 'trap' ? 'trap' :
+              ds.entityType === 'production' ? 'production' : null;
           } else if (result === false) {
             Sound.play('build_deny');
           }
