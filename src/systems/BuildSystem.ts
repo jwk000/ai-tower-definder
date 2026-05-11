@@ -73,6 +73,7 @@ const AI_CONFIG_ID: Record<string, number> = {
   soldier_dps: 7,
   soldier_basic: 8,
   tower_missile: 9,
+  tower_vine: 10,
 };
 
 /** ProductionType 枚举 → 索引 (用于内部标识) */
@@ -548,6 +549,7 @@ export class BuildSystem implements System {
       case TowerType.Laser:     return 'tower_laser';
       case TowerType.Bat:       return 'tower_bat';
       case TowerType.Missile:   return 'tower_missile';
+      case TowerType.Vine:      return 'tower_vine';
       default:                  return 'tower_basic';
     }
   }

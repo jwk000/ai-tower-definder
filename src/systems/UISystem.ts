@@ -42,6 +42,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
   TowerType.Missile,   // 6
+  TowerType.Vine,      // 7
 ];
 
 // ============================================================
@@ -568,7 +569,7 @@ export class UISystem implements System {
     const btnStartX = UISystem.PANEL_BTN_START_X; // 308
 
     // ---- Tower buttons (7) ----
-    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile];
+    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile, TowerType.Vine];
     const towerLabelX = btnStartX + towerTypes.length * step / 2 - step / 2;
     this.infos.push({ x: towerLabelX, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
 

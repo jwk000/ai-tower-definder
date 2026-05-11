@@ -34,6 +34,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
   TowerType.Missile,   // 6
+  TowerType.Vine,      // 7
 ];
 
 // Tower type → sound key lookup (index matches towerTypeVal)
@@ -45,6 +46,7 @@ const TOWER_SHOOT_SOUNDS: SfxKey[] = [
   'tower_laser',     // 4
   'tower_bat',       // 5
   'tower_missile',   // 6
+  'tower_arrow',     // 7 (vine, fallback)
 ];
 
 // ============================================================
@@ -84,6 +86,7 @@ const PROJ_VISUAL: Record<number, ProjectileVisual> = {
   4: { speed: 500, shape: ShapeVal.Circle,   colorR: LASER_COLOR[0],    colorG: LASER_COLOR[1],    colorB: LASER_COLOR[2],    size: 8 },
   5: { speed: 350, shape: ShapeVal.Triangle, colorR: BAT_COLOR[0],      colorG: BAT_COLOR[1],      colorB: BAT_COLOR[2],      size: 10 },
   6: { speed: 200, shape: ShapeVal.Arrow,    colorR: 0xff,              colorG: 0x17,              colorB: 0x44,              size: 18 },
+  7: { speed: 280, shape: ShapeVal.Circle,   colorR: 0x66,              colorG: 0xbb,              colorB: 0x6a,              size: 8 },
 };
 
 // ============================================================
@@ -263,6 +266,7 @@ export class AttackSystem implements System {
       chainCount: towerCfg?.chainCount ?? 0,
       chainRange: towerCfg?.chainRange ?? 0,
       chainDecay: towerCfg?.chainDecay ?? 0,
+      sourceTowerType: towerTypeVal,
     });
 
     world.addComponent(pid, Visual, {
@@ -315,6 +319,7 @@ export class AttackSystem implements System {
       chainCount: 0,
       chainRange: 0,
       chainDecay: 0,
+      sourceTowerType: 6,
     });
 
     world.addComponent(pid, Visual, {

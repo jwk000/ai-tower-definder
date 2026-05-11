@@ -18,6 +18,8 @@ import { addBuff } from './BuffSystem.js';
 import type { BuffData } from './BuffSystem.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { Sound } from '../utils/Sound.js';
+import { TowerType } from '../types/index.js';
+import { TOWER_CONFIGS } from '../data/gameData.js';
 
 // ============================================================
 // Queries
@@ -45,6 +47,17 @@ const EXPLOSION_G = 0x6d;
 const EXPLOSION_B = 0x00;
 
 // ============================================================
+// Vine tower DOT tracking
+// ============================================================
+
+interface VineDOT {
+  damagePerTick: number;
+  ticksRemaining: number;
+  stackCount: number;
+  timer: number;
+}
+
+// ============================================================
 // Helpers
 // ============================================================
 
@@ -60,6 +73,9 @@ function isAlive(eid: number): boolean {
 
 export class ProjectileSystem implements System {
   readonly name = 'ProjectileSystem';
+
+  /** Vine tower DOT entries: targetId → DOT state */
+  private dotEntries = new Map<number, VineDOT>();
 
   // ---- Frame update ----
 
@@ -99,6 +115,26 @@ export class ProjectileSystem implements System {
       } else {
         Position.x[eid] = px + (dx / dist) * moveDist;
         Position.y[eid] = py + (dy / dist) * moveDist;
+      }
+    }
+
+    // ---- Vine tower DOT ticking ----
+    for (const [targetId, dot] of this.dotEntries) {
+      if (!isAlive(targetId)) {
+        this.dotEntries.delete(targetId);
+        continue;
+      }
+      dot.timer -= dt;
+      while (dot.timer <= 0) {
+        const tickDamage = dot.stackCount * dot.damagePerTick;
+        const current = Health.current[targetId] ?? 0;
+        Health.current[targetId] = current - tickDamage;
+        dot.timer += 1.0;
+        dot.ticksRemaining--;
+        if (dot.ticksRemaining <= 0) {
+          this.dotEntries.delete(targetId);
+          break;
+        }
       }
     }
   }
@@ -177,6 +213,29 @@ export class ProjectileSystem implements System {
     if (splashRadius > 0) {
       this.spawnSmokeExplosion(world, hitX, hitY, splashRadius);
       this.spawnGroundMark(world, hitX, hitY, splashRadius);
+    }
+
+    // -- Vine: stacking DOT true damage --
+    const sourceTowerType = Projectile.sourceTowerType[eid] as number;
+    if (sourceTowerType === 7 && isAlive(targetId)) {
+      const vineCfg = TOWER_CONFIGS[TowerType.Vine];
+      if (vineCfg?.dotDamage !== undefined && vineCfg?.dotDuration !== undefined) {
+        const existing = this.dotEntries.get(targetId);
+        if (existing) {
+          existing.stackCount = Math.min(
+            existing.stackCount + 1,
+            vineCfg.dotMaxStacks ?? 5,
+          );
+          existing.ticksRemaining = vineCfg.dotDuration;
+        } else {
+          this.dotEntries.set(targetId, {
+            damagePerTick: vineCfg.dotDamage,
+            ticksRemaining: vineCfg.dotDuration,
+            stackCount: 1,
+            timer: 1.0,
+          });
+        }
+      }
     }
   }
 

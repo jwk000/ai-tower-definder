@@ -197,6 +197,7 @@ export const Projectile = defineComponent({
   isChain: Types.ui8,
   chainIndex: Types.ui8,
   drainAmount: Types.f32,
+  sourceTowerType: Types.ui8,
 });
 
 // ============================================================
