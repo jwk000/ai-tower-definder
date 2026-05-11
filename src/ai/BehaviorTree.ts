@@ -6,6 +6,7 @@ import {
   Health,
   Attack,
   UnitTag,
+  Tower,
   Movement,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
@@ -308,12 +309,16 @@ export class AttackNode extends ActionNode {
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
 
       const isEnemy = UnitTag.isEnemy[eid] === 1;
+      const isTower = Tower.towerType[eid] !== undefined;
 
       if (isEnemy) {
         // 敌人：委托 EnemyAttackSystem 执行（弹道/伤害/移动控制）
         Attack.targetId[eid] = targetId;
+      } else if (isTower) {
+        // 塔：委托 AttackSystem 执行（弹道/激光/链击等）
+        Attack.targetId[eid] = targetId;
       } else {
-        // 玩家单位：直接造成伤害
+        // 士兵/玩家单位：直接造成伤害
         Health.current[targetId]! -= attackDmg;
       }
 

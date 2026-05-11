@@ -143,12 +143,12 @@ export class AttackSystem implements System {
     }
 
     for (const eid of towers) {
-      // Tick cooldown
-      Attack.cooldownTimer[eid]! -= dt;
-      if (Attack.cooldownTimer[eid]! > 0) continue;
+      // Cooldown ticking handled by AISystem — just check if ready
+      if ((Attack.cooldownTimer[eid] ?? 0) > 0) continue;
+
+      const towerTypeVal = Tower.towerType[eid]!;
 
       // Bat tower only attacks in Night/Fog weather
-      const towerTypeVal = Tower.towerType[eid]!;
       if (towerTypeVal === 5 && this.weatherSystem && !this.weatherSystem.canAttackBat()) {
         continue;
       }
@@ -159,36 +159,61 @@ export class AttackSystem implements System {
         continue;
       }
 
-      // Find nearest enemy within range
       const tx = Position.x[eid]!;
       const ty = Position.y[eid]!;
       const range = Attack.range[eid]!;
       const attackerLayer = Layer.value[eid] ?? LayerVal.Ground;
       const attackerIsRanged = Attack.isRanged[eid] === 1;
-      let nearestId = 0;
-      let nearestDist = Infinity;
 
-      for (const enemyId of enemyList) {
-        // Layer reachability check
-        const targetLayer = Layer.value[enemyId] ?? LayerVal.Ground;
-        if (!this.canAttackLayer(attackerLayer, targetLayer, attackerIsRanged)) continue;
-
-        const ex = Position.x[enemyId]!;
-        const ey = Position.y[enemyId]!;
-        const dx = ex - tx;
-        const dy = ey - ty;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= range && dist < nearestDist) {
-          nearestDist = dist;
-          nearestId = enemyId;
+      // ---- 优先使用行为树设定的目标 ----
+      let targetId = Attack.targetId[eid] ?? 0;
+      if (targetId !== 0) {
+        // Validate BT target: alive, in range, layer-compatible
+        const tHp = Health.current[targetId];
+        if (tHp === undefined || tHp <= 0) {
+          targetId = 0;
+        } else {
+          const tLayer = Layer.value[targetId] ?? LayerVal.Ground;
+          if (!this.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) {
+            targetId = 0;
+          } else {
+            const dx = Position.x[targetId]! - tx;
+            const dy = Position.y[targetId]! - ty;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > range) {
+              targetId = 0;
+            }
+          }
         }
       }
 
-      if (nearestId === 0) continue;
+      // ---- 回退：自行搜索最近敌人 ----
+      if (targetId === 0) {
+        let nearestId = 0;
+        let nearestDist = Infinity;
 
-      // Reset cooldown
+        for (const enemyId of enemyList) {
+          const tLayer = Layer.value[enemyId] ?? LayerVal.Ground;
+          if (!this.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) continue;
+
+          const ex = Position.x[enemyId]!;
+          const ey = Position.y[enemyId]!;
+          const dx = ex - tx;
+          const dy = ey - ty;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= range && dist < nearestDist) {
+            nearestDist = dist;
+            nearestId = enemyId;
+          }
+        }
+
+        if (nearestId === 0) continue;
+        targetId = nearestId;
+      }
+
+      // ---- 执行攻击 ----
       Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-      Attack.targetId[eid] = nearestId;
+      Attack.targetId[eid] = targetId;
 
       Sound.play(TOWER_SHOOT_SOUNDS[towerTypeVal] ?? 'tower_shoot');
 
@@ -196,14 +221,10 @@ export class AttackSystem implements System {
       const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal]!;
 
       if (towerTypeEnum === TowerType.Lightning) {
-        this.doLightningAttack(world, eid, nearestId, level);
+        this.doLightningAttack(world, eid, targetId, level);
       } else if (towerTypeEnum === TowerType.Laser) {
         const enemiesInRange: Array<{ id: number; dist: number }> = [];
         for (const enemyId of enemyList) {
-          if (enemyId === nearestId) {
-            enemiesInRange.push({ id: enemyId, dist: nearestDist });
-            continue;
-          }
           const ex = Position.x[enemyId]!;
           const ey = Position.y[enemyId]!;
           const dx = ex - tx;
@@ -216,7 +237,7 @@ export class AttackSystem implements System {
         enemiesInRange.sort((a, b) => a.dist - b.dist);
         this.doLaserAttack(world, eid, enemiesInRange, level);
       } else {
-        this.spawnProjectile(world, eid, nearestId, towerTypeVal);
+        this.spawnProjectile(world, eid, targetId, towerTypeVal);
       }
     }
   }
