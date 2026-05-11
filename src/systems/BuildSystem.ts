@@ -488,6 +488,36 @@ export class BuildSystem implements System {
     world.addComponent(eid, Category, { value: CategoryVal.Trap });
     world.addComponent(eid, Layer, { value: LayerVal.AboveGrid });
 
+    // UnitTag — AISystem 查询需要
+    world.addComponent(eid, UnitTag, {
+      isEnemy: 0,
+      isBoss: 0,
+      isRanged: 0,
+      canAttackBuildings: 0,
+      rewardGold: 0,
+      rewardEnergy: 0,
+      popCost: 0,
+      cost: 0,
+    });
+
+    // Health — 陷阱不可摧毁（超大血量）
+    world.addComponent(eid, Health, {
+      current: 99999,
+      max: 99999,
+      armor: 0,
+      magicResist: 0,
+    });
+
+    // Attack — BT 行为树通过 AttackNode 施加 DOT 伤害
+    world.addComponent(eid, Attack, {
+      damage: 20,
+      attackSpeed: 1,
+      range: 32,
+      damageType: DamageTypeVal.Physical,
+      isRanged: 0,
+      cooldownTimer: 0,
+    });
+
     // AI — 行为树控制陷阱检测与伤害
     world.addComponent(eid, AI, {
       configId: AI_CONFIG_ID['trap_damage'] ?? 13,

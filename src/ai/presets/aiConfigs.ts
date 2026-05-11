@@ -255,48 +255,132 @@ export const ENEMY_BOSS_AI: BehaviorTreeConfig = {
 
 // ==================== 士兵类AI ====================
 
-/** 基础士兵AI - 自动攻击 */
-export const SOLDIER_BASIC_AI: BehaviorTreeConfig = {
-  id: 'soldier_basic',
-  name: '基础士兵AI',
-  description: '自动攻击范围内敌人',
+/**
+ * 通用士兵AI — 4状态Selector
+ *
+ * 状态优先级: 战斗 > 警戒 > 返回 > 待机
+ *
+ * 前置条件: AISystem 应在首次tick时将以下值写入entity blackboard:
+ *   - home_x, home_y: 单位部署/出生位置
+ *   - attack_range: 攻击范围（默认使用Attack.range）
+ *   - alert_range: 警戒范围（通常 = max(attack_range * 2, move_range)）
+ *   - move_range: 活动的最大范围
+ */
+export const SOLDIER_GENERIC_AI: BehaviorTreeConfig = {
+  id: 'soldier_generic',
+  name: '通用士兵AI',
+  description: '4状态选择器：战斗→警戒→返回→待机',
   version: '1.0',
   root: {
     type: 'selector',
     children: [
+      // State 1: COMBAT — 在攻击范围内直接攻击
       {
         type: 'sequence',
-        name: '攻击敌人',
+        name: '战斗',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'set_state', params: { state: 'combat' } },
+          { type: 'show_alert_mark', params: { blink: false } },
           { type: 'attack', params: { target: 'nearest_enemy' } }
         ]
       },
+      // State 2: ALERT — 在警戒范围内追击敌人
       {
         type: 'sequence',
-        name: '追击敌人',
+        name: '警戒',
         children: [
-          { type: 'check_enemy_in_range', params: { range: 200 } },
-          { type: 'move_towards', params: { target: 'nearest_enemy' } }
+          { type: 'check_enemy_in_range', params: { range: '${alert_range}', set_target: true } },
+          { type: 'set_state', params: { state: 'alert' } },
+          { type: 'show_alert_mark', params: { blink: true } },
+          { type: 'move_towards', params: { target: 'nearest_enemy', max_range: '${move_range}' } }
         ]
       },
+      // State 3: RETURN — 远离出生点，返回
       {
-        type: 'wait',
-        params: { duration: 0.2 }
+        type: 'sequence',
+        name: '返回',
+        children: [
+          { type: 'check_distance_from_home', params: { min: 10 } },
+          { type: 'set_state', params: { state: 'return' } },
+          { type: 'hide_alert_mark', params: {} },
+          { type: 'move_to', params: { target: 'home' } }
+        ]
+      },
+      // State 4: IDLE — 无敌人，在出生点附近游荡
+      {
+        type: 'sequence',
+        name: '待机',
+        children: [
+          { type: 'set_state', params: { state: 'idle' } },
+          { type: 'wander', params: { radius: '${move_range}', speed_ratio: 0.5 } }
+        ]
       }
     ]
   }
 };
 
-/** 坦克士兵AI - 使用嘲讽技能 */
-export const SOLDIER_TANK_AI: BehaviorTreeConfig = {
-  id: 'soldier_tank',
-  name: '坦克士兵AI',
-  description: '使用嘲讽技能吸引敌人',
+/** 基础士兵AI — 与SOLDIER_GENERIC_AI相同 */
+export const SOLDIER_BASIC_AI: BehaviorTreeConfig = {
+  id: 'soldier_basic',
+  name: '基础士兵AI',
+  description: '4状态选择器：战斗→警戒→返回→待机',
   version: '1.0',
   root: {
     type: 'selector',
     children: [
+      {
+        type: 'sequence',
+        name: '战斗',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'set_state', params: { state: 'combat' } },
+          { type: 'show_alert_mark', params: { blink: false } },
+          { type: 'attack', params: { target: 'nearest_enemy' } }
+        ]
+      },
+      {
+        type: 'sequence',
+        name: '警戒',
+        children: [
+          { type: 'check_enemy_in_range', params: { range: '${alert_range}', set_target: true } },
+          { type: 'set_state', params: { state: 'alert' } },
+          { type: 'show_alert_mark', params: { blink: true } },
+          { type: 'move_towards', params: { target: 'nearest_enemy', max_range: '${move_range}' } }
+        ]
+      },
+      {
+        type: 'sequence',
+        name: '返回',
+        children: [
+          { type: 'check_distance_from_home', params: { min: 10 } },
+          { type: 'set_state', params: { state: 'return' } },
+          { type: 'hide_alert_mark', params: {} },
+          { type: 'move_to', params: { target: 'home' } }
+        ]
+      },
+      {
+        type: 'sequence',
+        name: '待机',
+        children: [
+          { type: 'set_state', params: { state: 'idle' } },
+          { type: 'wander', params: { radius: '${move_range}', speed_ratio: 0.5 } }
+        ]
+      }
+    ]
+  }
+};
+
+/** 坦克士兵AI - 嘲讽技能 + 通用4状态逻辑 */
+export const SOLDIER_TANK_AI: BehaviorTreeConfig = {
+  id: 'soldier_tank',
+  name: '坦克士兵AI',
+  description: '优先使用嘲讽技能，然后执行通用4状态AI',
+  version: '1.0',
+  root: {
+    type: 'selector',
+    children: [
+      // Skill: Taunt — 范围内敌人≥3时使用嘲讽
       {
         type: 'sequence',
         name: '嘲讽技能',
@@ -306,25 +390,47 @@ export const SOLDIER_TANK_AI: BehaviorTreeConfig = {
           { type: 'use_skill', params: { skill_id: 'taunt' } }
         ]
       },
+      // State 1: COMBAT
       {
         type: 'sequence',
-        name: '攻击',
+        name: '战斗',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'set_state', params: { state: 'combat' } },
+          { type: 'show_alert_mark', params: { blink: false } },
           { type: 'attack', params: { target: 'nearest_enemy' } }
         ]
       },
+      // State 2: ALERT
       {
         type: 'sequence',
-        name: '移动',
+        name: '警戒',
         children: [
-          { type: 'check_enemy_in_range', params: { range: 200 } },
-          { type: 'move_towards', params: { target: 'nearest_enemy' } }
+          { type: 'check_enemy_in_range', params: { range: '${alert_range}', set_target: true } },
+          { type: 'set_state', params: { state: 'alert' } },
+          { type: 'show_alert_mark', params: { blink: true } },
+          { type: 'move_towards', params: { target: 'nearest_enemy', max_range: '${move_range}' } }
         ]
       },
+      // State 3: RETURN
       {
-        type: 'wait',
-        params: { duration: 0.2 }
+        type: 'sequence',
+        name: '返回',
+        children: [
+          { type: 'check_distance_from_home', params: { min: 10 } },
+          { type: 'set_state', params: { state: 'return' } },
+          { type: 'hide_alert_mark', params: {} },
+          { type: 'move_to', params: { target: 'home' } }
+        ]
+      },
+      // State 4: IDLE
+      {
+        type: 'sequence',
+        name: '待机',
+        children: [
+          { type: 'set_state', params: { state: 'idle' } },
+          { type: 'wander', params: { radius: '${move_range}', speed_ratio: 0.5 } }
+        ]
       }
     ]
   }
@@ -391,16 +497,16 @@ export const BUILDING_PRODUCTION_AI: BehaviorTreeConfig = {
 
 // ==================== 陷阱类AI ====================
 
-/** 伤害陷阱AI - 对范围内敌人造成伤害 */
+/** 伤害陷阱AI - 对范围内敌人造成持续伤害 */
 export const TRAP_DAMAGE_AI: BehaviorTreeConfig = {
   id: 'trap_damage',
   name: '伤害陷阱AI',
-  description: '对同格敌人造成持续伤害',
+  description: '对范围内的敌人施加 DOT 持续伤害',
   version: '1.0',
   root: {
     type: 'sequence',
     children: [
-      { type: 'check_enemy_in_range', params: { range: 0, same_tile: true } },
+      { type: 'check_enemy_in_range', params: { range: 0, same_tile: true, target_type: 'any' } },
       { type: 'attack', params: { target: 'all_in_range', damage_type: 'dot' } }
     ]
   }
