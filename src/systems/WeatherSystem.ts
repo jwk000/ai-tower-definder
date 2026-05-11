@@ -28,6 +28,7 @@ const TOWER_TYPE_NUM: Record<TowerType, number> = {
   [TowerType.Laser]: 4,
   [TowerType.Bat]: 5,
   [TowerType.Missile]: 6,
+  [TowerType.Vine]: 7,
 };
 
 /** Reverse lookup: numeric tower type → TowerType string */

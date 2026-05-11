@@ -50,7 +50,7 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
   it('炮塔 — AOE+眩晕', () => {
     const cfg = TOWER_CONFIGS[TowerType.Cannon];
     expect(cfg.splashRadius).toBe(80);
-    expect(cfg.stunDuration).toBe(1.5);
+    expect(cfg.stunDuration).toBe(0.8);
   });
 
   it('冰塔 — 减速+冰冻', () => {
@@ -72,6 +72,17 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
     const cfg = TOWER_CONFIGS[TowerType.Laser];
     expect(cfg.damageType).toBe('magic');
     expect(cfg.range).toBe(260); // 最远射程
+  });
+
+  it('毒藤塔 — DOT持续伤害', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Vine];
+    expect(cfg.damageType).toBe('magic');
+    expect(cfg.dotDamage).toBe(6);
+    expect(cfg.dotDuration).toBe(4);
+    expect(cfg.dotMaxStacks).toBe(5);
+    expect(cfg.cost).toBe(70);
+    expect(cfg.atk).toBe(6);
+    expect(cfg.attackSpeed).toBe(0.8);
   });
 });
 
@@ -127,6 +138,29 @@ describe('敌人配置 (ENEMY_CONFIGS)', () => {
   it('小兵/快兵不可攻击建筑', () => {
     expect(ENEMY_CONFIGS[EnemyType.Grunt].canAttackBuildings).toBe(false);
     expect(ENEMY_CONFIGS[EnemyType.Runner].canAttackBuildings).toBe(false);
+  });
+
+  it('热气球 — 飞行轰炸属性', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.HotAirBalloon];
+    expect(cfg.canAttackBuildings).toBe(true);
+    expect(cfg.bombDamage).toBe(30);
+    expect(cfg.bombInterval).toBe(3.5);
+    expect(cfg.bombRadius).toBe(60);
+    expect(cfg.hp).toBe(100);
+    expect(cfg.speed).toBe(45);
+    expect(cfg.rewardGold).toBe(30);
+  });
+
+  it('萨满 — 治疗光环属性', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Shaman];
+    expect(cfg.healAmount).toBe(25);
+    expect(cfg.healInterval).toBe(4);
+    expect(cfg.healRadius).toBe(150);
+    expect(cfg.auraSpeedBonus).toBe(15);
+    expect(cfg.auraAttackBonus).toBe(10);
+    expect(cfg.auraRadius).toBe(120);
+    expect(cfg.canAttackBuildings).toBe(false);
+    expect(cfg.rewardGold).toBe(30);
   });
 });
 

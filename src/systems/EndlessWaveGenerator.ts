@@ -13,6 +13,8 @@ const ENEMY_COSTS: Record<EnemyType, number> = {
   [EnemyType.Exploder]: 18,
   [EnemyType.BossCommander]: 80,
   [EnemyType.BossBeast]: 100,
+  [EnemyType.HotAirBalloon]: 28,
+  [EnemyType.Shaman]: 25,
 };
 
 export function generateEndlessWave(waveNumber: number): WaveConfig {

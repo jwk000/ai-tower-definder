@@ -163,6 +163,7 @@ export enum TowerType {
   Laser = 'laser',
   Bat = 'bat',
   Missile = 'missile',
+  Vine = 'vine',
 }
 
 export interface TowerConfig {
@@ -194,6 +195,10 @@ export interface TowerConfig {
   batAttackRange?: number;
   batAttackSpeed?: number;
   batSpeed?: number;
+  // Vine tower specific (DOT)
+  dotDamage?: number;
+  dotDuration?: number;
+  dotMaxStacks?: number;
 }
 
 // ---- Enemy ----
@@ -206,6 +211,8 @@ export enum EnemyType {
   Exploder = 'exploder',
   BossCommander = 'boss_commander',
   BossBeast = 'boss_beast',
+  HotAirBalloon = 'hot_air_balloon',
+  Shaman = 'shaman',
 }
 
 export interface EnemyConfig {
@@ -231,6 +238,24 @@ export interface EnemyConfig {
   deathDamage?: number;
   /** 死亡爆炸半径 */
   deathRadius?: number;
+  /** 热气球专用：炸弹伤害 */
+  bombDamage?: number;
+  /** 热气球专用：投弹间隔(秒) */
+  bombInterval?: number;
+  /** 热气球专用：炸弹爆炸半径 */
+  bombRadius?: number;
+  /** 萨满专用：治疗量/次 */
+  healAmount?: number;
+  /** 萨满专用：治疗间隔(秒) */
+  healInterval?: number;
+  /** 萨满专用：治疗光环半径 */
+  healRadius?: number;
+  /** 萨满专用：光环移速加成 */
+  auraSpeedBonus?: number;
+  /** 萨满专用：光环攻击加成 */
+  auraAttackBonus?: number;
+  /** 萨满专用：光环半径 */
+  auraRadius?: number;
 }
 
 // ---- Unit ----

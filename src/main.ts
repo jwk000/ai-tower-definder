@@ -65,6 +65,7 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Laser,     // 4
   TowerType.Bat,       // 5
   TowerType.Missile,   // 6
+  TowerType.Vine,      // 7
 ];
 
 /** TowerType enum → bitecs ui8 */
@@ -76,6 +77,7 @@ const TOWER_TYPE_ID: Record<TowerType, number> = {
   [TowerType.Laser]: 4,
   [TowerType.Bat]: 5,
   [TowerType.Missile]: 6,
+  [TowerType.Vine]: 7,
 };
 
 // ---- Utility: hex color → RGB ----
