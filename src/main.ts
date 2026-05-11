@@ -29,6 +29,7 @@ import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { Sound } from './utils/Sound.js';
+import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
 import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
@@ -122,6 +123,7 @@ class TowerDefenderGame extends Game {
 
   private unitDragId: number | null = null;
   private defeatSfxPlayed = false;
+  private previousPhase: GamePhase = GamePhase.Deployment;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -145,6 +147,7 @@ class TowerDefenderGame extends Game {
   private enterLevelSelect(): void {
     this.currentScreen = GameScreen.LevelSelect;
     this.world.reset();
+    Music.play('main_menu');
     this.onUpdate = (dt) => this.levelSelectUI.update(dt);
     this.onPostRender = null;
     this.onAfterUpdate = null;
@@ -187,6 +190,8 @@ class TowerDefenderGame extends Game {
     const map = config.map;
     this.currentMap = map;
     this.defeatSfxPlayed = false;
+    this.previousPhase = GamePhase.Deployment;
+    Music.play('battle_default');
 
     // ---- Create base entity ----
     const basePath = map.enemyPath[map.enemyPath.length - 1]!;
@@ -516,6 +521,16 @@ class TowerDefenderGame extends Game {
       // Update debug manager
       this.debugManager.update();
 
+      // BGM: switch on phase change
+      if (this.phase !== this.previousPhase) {
+        this.previousPhase = this.phase;
+        if (this.phase === GamePhase.WaveBreak) {
+          Music.play('wave_break');
+        } else if (this.phase === GamePhase.Deployment) {
+          Music.play('battle_default');
+        }
+      }
+
       if (this.phase === GamePhase.Victory) {
         this.handleVictory();
       } else if (this.phase === GamePhase.Defeat) {
@@ -566,6 +581,7 @@ class TowerDefenderGame extends Game {
 
   private handleVictory(): void {
     Sound.play('victory');
+    Music.play('victory', 0.5);   // BGM: victory fanfare via cross-fade
     this.phase = GamePhase.Victory;
     let baseHpRatio = 0;
     if (this.baseEntityId !== null) {
@@ -589,6 +605,7 @@ class TowerDefenderGame extends Game {
   }
 
   private handleDefeat(): void {
+    Music.play('defeat', 0.5);    // BGM: defeat melody via cross-fade
     this.phase = GamePhase.Defeat;
     this.levelSelectUI.refresh();
     setTimeout(() => this.enterLevelSelect(), 1500);
