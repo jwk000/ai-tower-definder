@@ -127,6 +127,7 @@ class TowerDefenderGame extends Game {
     super(canvas);
 
     Sound.preload();
+    Sound.initUnlock(canvas);
 
     this.levelSelectUI = new LevelSelectUI(
       this.renderer,

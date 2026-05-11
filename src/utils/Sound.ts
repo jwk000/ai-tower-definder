@@ -153,6 +153,7 @@ export class Sound {
   private static volume = 0.6;
   private static muted = false;
   private static loaded = false;
+  private static unlocked = false;
 
   static preload(): void {
     if (Sound.loaded) return;
@@ -163,6 +164,28 @@ export class Sound {
       Sound.buffers[key] = audio;
     }
     Sound.loaded = true;
+  }
+
+  /**
+   * Register one-time event listeners on the canvas to unlock audio playback.
+   * Browsers block Audio.play() until the first user gesture (click/touch).
+   * This plays a silent sound on the first interaction to satisfy the policy,
+   * unblocking all future Sound.play() calls.
+   */
+  static initUnlock(canvas: HTMLCanvasElement): void {
+    if (Sound.unlocked) return;
+    const handler = (): void => {
+      Sound.unlocked = true;
+      const dummy = new Audio('/sfx/tower_shoot.mp3');
+      dummy.volume = 0;
+      dummy.play().catch(() => {});
+      canvas.removeEventListener('pointerdown', handler);
+      canvas.removeEventListener('touchstart', handler);
+      canvas.removeEventListener('click', handler);
+    };
+    canvas.addEventListener('pointerdown', handler);
+    canvas.addEventListener('touchstart', handler);
+    canvas.addEventListener('click', handler);
   }
 
   static play(key: SfxKey): void {
