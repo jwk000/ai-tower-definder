@@ -1,6 +1,6 @@
-import { DebugPanel } from './DebugPanel.js';
-import type { LogEntry, BehaviorTreeDebugState, BTNodeDebugInfo } from './types.js';
-import { LogLevel } from './types.js';
+import { DebugPanel, type DebugAction } from './DebugPanel.js';
+import { BehaviorTreeWindow } from './BehaviorTreeWindow.js';
+import type { BehaviorTreeDebugState, BTNodeDebugInfo } from './types.js';
 import type { TowerWorld } from '../core/World.js';
 import type { EntityId } from '../types/index.js';
 import { CType } from '../types/index.js';
@@ -9,180 +9,148 @@ import type { UnitTag } from '../components/UnitTag.js';
 import type { Unit } from '../components/Unit.js';
 import type { Tower } from '../components/Tower.js';
 import type { Enemy } from '../components/Enemy.js';
-import type { Position } from '../components/Position.js';
-import type { Health } from '../components/Health.js';
-import type { Attack } from '../components/Attack.js';
 import type { BehaviorTreeConfig, BTNodeConfig } from '../types/index.js';
+import type { EconomySystem } from '../systems/EconomySystem.js';
+import { SaveManager } from '../utils/SaveManager.js';
+import { LEVELS } from '../data/levels/index.js';
 
-/**
- * 调试管理器
- * 
- * 管理调试面板，包括：
- * - 行为树查看器
- * - 调试控制台
- * - 单位选择集成
- */
+export interface DebugManagerHooks {
+  getEconomy?: () => EconomySystem | null;
+  onLevelProgressChanged?: () => void;
+}
+
+const GOLD_BONUS = 99999;
+const FULL_STARS = 3;
+
 export class DebugManager {
   private world: TowerWorld;
-  
-  // 调试面板
   private debugPanel: DebugPanel;
-  
-  // 状态
-  private selectedEntityId: EntityId | null = null;
-  
-  // AI配置缓存
-  private aiConfigs: Map<string, BehaviorTreeConfig> = new Map();
-  
-  // 日志收集
-  private logIdCounter: number = 0;
-  
-  // 原始console方法
-  private originalConsole = {
-    log: console.log,
-    info: console.info,
-    warn: console.warn,
-    error: console.error,
-    debug: console.debug,
-  };
+  private behaviorTreeWindow: BehaviorTreeWindow;
 
-  constructor(world: TowerWorld) {
+  private selectedEntityId: EntityId | null = null;
+  private aiConfigs: Map<string, BehaviorTreeConfig> = new Map();
+
+  private getEconomyFn: (() => EconomySystem | null) | null = null;
+  private onLevelProgressChangedFn: (() => void) | null = null;
+
+  constructor(world: TowerWorld, hooks: DebugManagerHooks = {}) {
     this.world = world;
-    
-    // 创建调试面板
-    this.debugPanel = new DebugPanel();
-    
-    // 拦截console输出
-    this.interceptConsole();
-    
-    // 设置键盘快捷键
+    this.getEconomyFn = hooks.getEconomy ?? null;
+    this.onLevelProgressChangedFn = hooks.onLevelProgressChanged ?? null;
+
+    this.behaviorTreeWindow = new BehaviorTreeWindow();
+    this.debugPanel = new DebugPanel(this.buildActions());
     this.setupKeyboardShortcuts();
   }
 
-  /**
-   * 注册AI配置
-   */
+  setEconomyProvider(provider: () => EconomySystem | null): void {
+    this.getEconomyFn = provider;
+    this.debugPanel.refresh();
+  }
+
+  setOnLevelProgressChanged(cb: () => void): void {
+    this.onLevelProgressChangedFn = cb;
+  }
+
   registerAIConfigs(configs: BehaviorTreeConfig[]): void {
     for (const config of configs) {
       this.aiConfigs.set(config.id, config);
     }
-    console.log(`[Debug] 注册了 ${configs.length} 个AI配置`);
   }
 
-  /**
-   * 拦截console输出
-   */
-  private interceptConsole(): void {
-    const self = this;
-    
-    console.log = function(...args: unknown[]) {
-      self.originalConsole.log.apply(console, args);
-      self.addLog('info', 'console', args.map(String).join(' '));
-    };
-    
-    console.info = function(...args: unknown[]) {
-      self.originalConsole.info.apply(console, args);
-      self.addLog('info', 'console', args.map(String).join(' '));
-    };
-    
-    console.warn = function(...args: unknown[]) {
-      self.originalConsole.warn.apply(console, args);
-      self.addLog('warn', 'console', args.map(String).join(' '));
-    };
-    
-    console.error = function(...args: unknown[]) {
-      self.originalConsole.error.apply(console, args);
-      self.addLog('error', 'console', args.map(String).join(' '));
-    };
-    
-    console.debug = function(...args: unknown[]) {
-      self.originalConsole.debug.apply(console, args);
-      self.addLog('debug', 'console', args.map(String).join(' '));
-    };
+  private buildActions(): DebugAction[] {
+    return [
+      {
+        id: 'complete_all_levels',
+        label: '一键通关（全部 3 星）',
+        icon: '🏆',
+        isEnabled: () => true,
+        onClick: () => this.completeAllLevels(),
+      },
+      {
+        id: 'add_gold',
+        label: `金币 +${GOLD_BONUS}`,
+        icon: '💰',
+        isEnabled: () => this.getEconomy() !== null,
+        disabledHint: '仅战斗中可用',
+        onClick: () => this.addDebugGold(),
+      },
+      {
+        id: 'view_behavior_tree',
+        label: '查看行为树',
+        icon: '🌳',
+        isEnabled: () => true,
+        onClick: () => this.openBehaviorTreeWindow(),
+      },
+    ];
   }
 
-  /**
-   * 设置键盘快捷键
-   */
+  private getEconomy(): EconomySystem | null {
+    return this.getEconomyFn ? this.getEconomyFn() : null;
+  }
+
+  completeAllLevels(): { stars: number; unlocked: number } {
+    for (let i = 1; i <= LEVELS.length; i++) {
+      SaveManager.setStars(i, FULL_STARS);
+    }
+    SaveManager.unlockLevel(LEVELS.length);
+    this.onLevelProgressChangedFn?.();
+    this.debugPanel.flashButton('complete_all_levels', `✅ 已通关 ${LEVELS.length} 关 · 全部 3 星`);
+    return { stars: FULL_STARS, unlocked: LEVELS.length };
+  }
+
+  addDebugGold(): boolean {
+    const economy = this.getEconomy();
+    if (!economy) return false;
+    economy.addGold(GOLD_BONUS);
+    this.debugPanel.flashButton('add_gold', `✅ 金币 +${GOLD_BONUS} 已发放`);
+    return true;
+  }
+
+  private openBehaviorTreeWindow(): void {
+    const state = this.buildCurrentBehaviorTreeState();
+    this.behaviorTreeWindow.show(state);
+  }
+
   private setupKeyboardShortcuts(): void {
     document.addEventListener('keydown', (e) => {
-      // Backtick: 切换调试面板 (F12 reserved for browser DevTools)
       if (e.key === '`') {
         e.preventDefault();
         this.debugPanel.toggle();
-      }
-      
-      // Escape: 收起调试面板
-      if (e.key === 'Escape') {
-        this.debugPanel.collapse();
+      } else if (e.key === 'Escape') {
+        if (this.behaviorTreeWindow.getIsOpen()) {
+          this.behaviorTreeWindow.hide();
+        } else if (this.debugPanel.getIsExpanded()) {
+          this.debugPanel.collapse();
+        }
       }
     });
   }
 
-  /**
-   * 选择实体（由游戏调用）
-   */
   selectEntity(entityId: EntityId | null): void {
     this.selectedEntityId = entityId;
-    
-    if (entityId === null) {
-      this.debugPanel.updateBehaviorTreeState(null);
-      return;
+    if (this.behaviorTreeWindow.getIsOpen()) {
+      this.behaviorTreeWindow.updateState(this.buildCurrentBehaviorTreeState());
     }
-    
-    // 获取AI组件
-    const ai = this.world.getComponent<AI>(entityId, CType.AI);
-    
-    if (!ai) {
-      console.log(`[Debug] 实体 ${entityId} 没有AI组件`);
-      this.debugPanel.updateBehaviorTreeState(null);
-      return;
-    }
-    
-    // 获取单位名称（尝试多种组件）
-    let unitName = '未知单位';
-    const unitTag = this.world.getComponent<UnitTag>(entityId, CType.UnitTag);
-    const unit = this.world.getComponent<Unit>(entityId, CType.Unit);
-    const tower = this.world.getComponent<Tower>(entityId, CType.Tower);
-    const enemy = this.world.getComponent<Enemy>(entityId, CType.Enemy);
-    
-    if (unitTag) {
-      unitName = unitTag.unitConfigId;
-    } else if (tower) {
-      unitName = `Tower_${tower.towerType}`;
-    } else if (enemy) {
-      unitName = `Enemy_${enemy.enemyType}`;
-    } else if (unit) {
-      unitName = `Unit_${unit.unitType}`;
-    }
-    
-    console.log(`[Debug] 选择单位: ${unitName} (ID: ${entityId}, AI: ${ai.configId})`);
-    
-    // 更新行为树状态
-    this.updateBehaviorTreeState(entityId, unitName);
   }
 
-  /**
-   * 更新行为树状态
-   */
-  private updateBehaviorTreeState(entityId: EntityId, unitName: string): void {
-    const ai = this.world.getComponent<AI>(entityId, CType.AI);
-    
-    if (!ai) {
-      this.debugPanel.updateBehaviorTreeState(null);
-      return;
+  update(): void {
+    this.debugPanel.refresh();
+    if (this.selectedEntityId !== null && this.behaviorTreeWindow.getIsOpen()) {
+      this.behaviorTreeWindow.updateState(this.buildCurrentBehaviorTreeState());
     }
-    
-    // 获取AI配置
-    const aiConfig = this.aiConfigs.get(ai.configId);
-    
-    if (!aiConfig) {
-      console.warn(`[Debug] AI配置未找到: ${ai.configId}`);
-    }
-    
-    // 构建行为树调试状态
-    const state: BehaviorTreeDebugState = {
-      entityId,
+  }
+
+  private buildCurrentBehaviorTreeState(): BehaviorTreeDebugState | null {
+    if (this.selectedEntityId === null) return null;
+    const ai = this.world.getComponent<AI>(this.selectedEntityId, CType.AI);
+    if (!ai) return null;
+
+    const unitName = this.getEntityDisplayName(this.selectedEntityId);
+    const aiConfig = this.aiConfigs.get(ai.configId) ?? null;
+
+    return {
+      entityId: this.selectedEntityId,
       unitName,
       aiConfigId: ai.configId,
       root: aiConfig ? this.buildBehaviorTreeDebugInfo(aiConfig.root, ai) : null,
@@ -191,24 +159,24 @@ export class DebugManager {
       targetId: ai.targetId,
       lastUpdateTime: ai.lastUpdateTime,
     };
-    
-    this.debugPanel.updateBehaviorTreeState(state);
   }
 
-  /**
-   * 构建行为树调试信息
-   */
+  private getEntityDisplayName(entityId: EntityId): string {
+    const unitTag = this.world.getComponent<UnitTag>(entityId, CType.UnitTag);
+    if (unitTag) return unitTag.unitConfigId;
+    const tower = this.world.getComponent<Tower>(entityId, CType.Tower);
+    if (tower) return `Tower_${tower.towerType}`;
+    const enemy = this.world.getComponent<Enemy>(entityId, CType.Enemy);
+    if (enemy) return `Enemy_${enemy.enemyType}`;
+    const unit = this.world.getComponent<Unit>(entityId, CType.Unit);
+    if (unit) return `Unit_${unit.unitType}`;
+    return '未知单位';
+  }
+
   private buildBehaviorTreeDebugInfo(nodeConfig: BTNodeConfig, ai: AI): BTNodeDebugInfo {
     const nodeId = `node_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // 根据节点类型推断状态
-    let status: 'idle' | 'running' | 'success' | 'failure' = 'idle';
-    
-    // 如果是当前正在执行的节点，标记为运行中
-    if (ai.state === nodeConfig.type) {
-      status = 'running';
-    }
-    
+    const status: BTNodeDebugInfo['status'] = ai.state === nodeConfig.type ? 'running' : 'idle';
+
     const result: BTNodeDebugInfo = {
       id: nodeId,
       name: nodeConfig.name || this.getNodeDisplayName(nodeConfig.type),
@@ -216,115 +184,53 @@ export class DebugManager {
       status,
       params: nodeConfig.params,
     };
-    
-    // 递归处理子节点
+
     if (nodeConfig.children) {
-      result.children = nodeConfig.children.map(child => 
-        this.buildBehaviorTreeDebugInfo(child, ai)
+      result.children = nodeConfig.children.map((child) =>
+        this.buildBehaviorTreeDebugInfo(child, ai),
       );
     }
-    
     return result;
   }
 
-  /**
-   * 获取节点显示名称
-   */
   private getNodeDisplayName(type: string): string {
     const displayNames: Record<string, string> = {
-      'sequence': '顺序节点',
-      'selector': '选择节点',
-      'parallel': '并行节点',
-      'inverter': '反转节点',
-      'repeater': '重复节点',
-      'until_fail': '直到失败',
-      'always_succeed': '总是成功',
-      'cooldown': '冷却节点',
-      'check_hp': '检查血量',
-      'check_enemy_in_range': '检查范围内敌人',
-      'check_ally_in_range': '检查范围内友军',
-      'check_buff': '检查Buff',
-      'check_cooldown': '检查冷却',
-      'check_phase': '检查阶段',
-      'check_target_alive': '检查目标存活',
-      'check_distance_to_target': '检查与目标距离',
-      'check_moving': '检查移动中',
-      'check_stunned': '检查眩晕',
-      'check_player_control': '检查玩家控制',
-      'attack': '攻击',
-      'move_to': '移动到',
-      'move_towards': '向目标移动',
-      'flee': '逃跑',
-      'use_skill': '使用技能',
-      'wait': '等待',
-      'spawn': '生成单位',
-      'patrol': '巡逻',
-      'set_target': '设置目标',
-      'clear_target': '清除目标',
-      'play_animation': '播放动画',
+      sequence: '顺序节点',
+      selector: '选择节点',
+      parallel: '并行节点',
+      inverter: '反转节点',
+      repeater: '重复节点',
+      until_fail: '直到失败',
+      always_succeed: '总是成功',
+      cooldown: '冷却节点',
+      check_hp: '检查血量',
+      check_enemy_in_range: '检查范围内敌人',
+      check_ally_in_range: '检查范围内友军',
+      check_buff: '检查Buff',
+      check_cooldown: '检查冷却',
+      check_phase: '检查阶段',
+      check_target_alive: '检查目标存活',
+      check_distance_to_target: '检查与目标距离',
+      check_moving: '检查移动中',
+      check_stunned: '检查眩晕',
+      check_player_control: '检查玩家控制',
+      attack: '攻击',
+      move_to: '移动到',
+      move_towards: '向目标移动',
+      flee: '逃跑',
+      use_skill: '使用技能',
+      wait: '等待',
+      spawn: '生成单位',
+      patrol: '巡逻',
+      set_target: '设置目标',
+      clear_target: '清除目标',
+      play_animation: '播放动画',
     };
-    
     return displayNames[type] || type;
   }
 
-  /**
-   * 添加日志
-   */
-  addLog(level: LogLevel, category: string, message: string, data?: unknown): void {
-    const entry: LogEntry = {
-      id: this.logIdCounter++,
-      timestamp: Date.now(),
-      level,
-      category,
-      message,
-      data,
-    };
-    
-    this.debugPanel.addLog(entry);
-  }
-
-  /**
-   * 更新（每帧调用）
-   */
-  update(): void {
-    // 如果有选中的实体，持续更新行为树状态
-    if (this.selectedEntityId !== null) {
-      const ai = this.world.getComponent<AI>(this.selectedEntityId, CType.AI);
-      if (ai && ai.active) {
-        // 获取单位名称
-        let unitName = '未知单位';
-        const unitTag = this.world.getComponent<UnitTag>(this.selectedEntityId, CType.UnitTag);
-        const unit = this.world.getComponent<Unit>(this.selectedEntityId, CType.Unit);
-        const tower = this.world.getComponent<Tower>(this.selectedEntityId, CType.Tower);
-        const enemy = this.world.getComponent<Enemy>(this.selectedEntityId, CType.Enemy);
-        
-        if (unitTag) {
-          unitName = unitTag.unitConfigId;
-        } else if (tower) {
-          unitName = `Tower_${tower.towerType}`;
-        } else if (enemy) {
-          unitName = `Enemy_${enemy.enemyType}`;
-        } else if (unit) {
-          unitName = `Unit_${unit.unitType}`;
-        }
-        
-        this.updateBehaviorTreeState(this.selectedEntityId, unitName);
-      }
-    }
-  }
-
-  /**
-   * 销毁
-   */
   destroy(): void {
-    // 恢复原始console方法
-    console.log = this.originalConsole.log;
-    console.info = this.originalConsole.info;
-    console.warn = this.originalConsole.warn;
-    console.error = this.originalConsole.error;
-    console.debug = this.originalConsole.debug;
-    
-    // 销毁调试面板
     this.debugPanel.destroy();
+    this.behaviorTreeWindow.destroy();
   }
 }

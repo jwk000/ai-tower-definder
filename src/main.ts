@@ -139,7 +139,7 @@ class TowerDefenderGame extends Game {
   private unitFactory!: UnitFactory;
 
   // ---- Debug system ----
-  private debugManager!: DebugManager;
+  private debugManager: DebugManager;
 
   private unitDragId: number | null = null;
   private defeatSfxPlayed = false;
@@ -165,6 +165,13 @@ class TowerDefenderGame extends Game {
       (levelId) => this.startLevel(levelId),
       () => this.startEndless(),
     );
+
+    // Debug manager — global lifetime (design/27): button visible across all screens.
+    this.debugManager = new DebugManager(this.world, {
+      getEconomy: () => (this.currentScreen === GameScreen.Battle ? this.economy : null),
+      onLevelProgressChanged: () => this.levelSelectUI.refresh(),
+    });
+    this.debugManager.registerAIConfigs(ALL_AI_CONFIGS);
 
     this.enterLevelSelect();
   }
@@ -558,10 +565,6 @@ class TowerDefenderGame extends Game {
     this.aiSystem.setWeatherProvider(() => this.weatherSystem.currentWeather);
     this.aiSystem.setSkillCaster((eid, skillId) => this.skillSystem.castSkill(this.world, eid, skillId));
     this.aiSystem.setMapConfigProvider(() => this.currentMap);
-
-    // Initialize debug manager
-    this.debugManager = new DebugManager(this.world);
-    this.debugManager.registerAIConfigs(ALL_AI_CONFIGS);
 
     // ---- UI overlay (onPostRender) ----
     this.onPostRender = () => {
