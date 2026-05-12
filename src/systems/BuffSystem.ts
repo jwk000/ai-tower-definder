@@ -1,5 +1,5 @@
 // ============================================================
-// Tower Defender — BuffSystem (bitecs migration)
+// Tower Defender — BuffSystem (bitecs migration) v1.1 (P1-#10)
 //
 // Manages buff/debuff lifecycle with per‑entity side‑channel Map.
 // bitecs SoA stores cannot hold Map references, so buff data
@@ -7,15 +7,37 @@
 //
 // Status effects (Slowed, Frozen, Stunned) are synced to bitecs
 // components so other systems can query them directly.
+//
+// v1.1 additions (design/04-skill-buff-system.md §3.2.1-§3.2.3):
+// - Per-entity buff cap: MAX_BUFFS_PER_ENTITY = 8
+// - LRU eviction by priority (lower priority evicted first; tie → oldest)
+// - Player-faction buffs receive +100 priority bonus (protected from LRU)
+// - Source-death cleanup via removeOnSourceDeath flag
 // ============================================================
 
 import { TowerWorld, type System, hasComponent, entityExists } from '../core/World.js';
-import { Slowed, Frozen, Stunned, defineQuery } from '../core/components.js';
+import { Slowed, Frozen, Stunned, Faction, FactionVal, defineQuery } from '../core/components.js';
 import { error, warn, debug, getFrame } from '../utils/debugLog.js';
 
 // ============================================================
 // Buff Data Types
 // ============================================================
+
+/**
+ * Buff category — drives priority resolution (design §3.2.2).
+ * Lower numeric value = higher priority (stun overrides everything).
+ */
+export const BuffPriority = {
+  Stun: 1,
+  Taunt: 2,
+  Slow: 3,
+  Dot: 4,
+  Buff: 5,
+  Mark: 6,
+} as const;
+
+export const MAX_BUFFS_PER_ENTITY = 8;
+export const PLAYER_BUFF_PRIORITY_BONUS = 100;
 
 export interface BuffData {
   /** Buff identifier, e.g. 'ice_slow', 'ice_frozen', 'taunt' */
@@ -34,6 +56,12 @@ export interface BuffData {
   maxStacks: number;
   /** Entity that applied this buff (source) */
   sourceId: number;
+  /** Priority for LRU eviction; lower = more important (default Buff=5) */
+  priority?: number;
+  /** Auto-remove this buff when sourceId entity dies (default false) */
+  removeOnSourceDeath?: boolean;
+  /** Internal: monotonic timestamp set on apply, used for LRU tie-break */
+  appliedAt?: number;
 }
 
 // ============================================================
@@ -41,6 +69,8 @@ export interface BuffData {
 // ============================================================
 
 const buffMap = new Map<number, Map<string, BuffData>>();
+
+let buffApplyCounter = 0;
 
 // ============================================================
 // Queries for status-effect bitecs components
@@ -74,14 +104,20 @@ export class BuffSystem implements System {
       const expired: string[] = [];
 
       for (const [buffId, buff] of buffs) {
-        buff.duration -= dt;
-        if (buff.duration <= 0) {
+        if (buff.duration > 0) {
+          buff.duration -= dt;
+        }
+        if (buff.duration <= 0 && buff.duration !== -1) {
+          expired.push(buffId);
+          continue;
+        }
+        if (buff.removeOnSourceDeath && !entityExists(w, buff.sourceId)) {
           expired.push(buffId);
         }
       }
 
       for (const buffId of expired) {
-        debug('BuffSystem', `[F${frame}] eid=${eid} buff "${buffId}" expired`, {
+        debug('BuffSystem', `[F${frame}] eid=${eid} buff "${buffId}" expired/source-dead`, {
           remaining: buffs.size - 1,
         });
         buffs.delete(buffId);
@@ -247,11 +283,20 @@ export class BuffSystem implements System {
 // ============================================================
 
 /**
- * Apply or update a buff on an entity.
+ * Apply or update a buff on an entity (P1-#10 v1.1).
  *
  * If a buff with the same id already exists on the entity,
  * its duration is refreshed and stacks are incremented (up to maxStacks).
  * Otherwise a new buff entry is created.
+ *
+ * Capacity enforcement (design §3.2.1):
+ * - Entities may hold at most MAX_BUFFS_PER_ENTITY (8) distinct buffs.
+ * - When full, the new buff evicts the existing buff with the highest
+ *   numeric priority (= least important). Tie-break: oldest appliedAt.
+ * - Player-faction-applied buffs receive +PLAYER_BUFF_PRIORITY_BONUS,
+ *   making them effectively un-evictable by enemy buffs.
+ * - If the incoming buff would itself be the eviction target (i.e. its
+ *   effective priority is the highest), it is rejected silently.
  */
 export function addBuff(world: TowerWorld, eid: number, data: BuffData): void {
   let entityBuffs = buffMap.get(eid);
@@ -266,7 +311,82 @@ export function addBuff(world: TowerWorld, eid: number, data: BuffData): void {
     if (existing.stacks < existing.maxStacks) {
       existing.stacks++;
     }
-  } else {
-    entityBuffs.set(data.id, { ...data });
+    return;
   }
+
+  const incoming: BuffData = {
+    ...data,
+    priority: effectivePriority(world, data),
+    appliedAt: ++buffApplyCounter,
+  };
+
+  if (entityBuffs.size >= MAX_BUFFS_PER_ENTITY) {
+    const victimId = pickLruVictim(entityBuffs, incoming.priority!);
+    if (victimId === null) {
+      debug('BuffSystem', `addBuff: eid=${eid} cap full, incoming "${data.id}" rejected (lowest priority)`);
+      return;
+    }
+    debug('BuffSystem', `addBuff: eid=${eid} LRU evict "${victimId}" for "${data.id}"`);
+    entityBuffs.delete(victimId);
+  }
+
+  entityBuffs.set(data.id, incoming);
+}
+
+/**
+ * Manually remove a buff by id. Returns true if removed.
+ */
+export function removeBuff(eid: number, buffId: string): boolean {
+  const entityBuffs = buffMap.get(eid);
+  if (!entityBuffs) return false;
+  const ok = entityBuffs.delete(buffId);
+  if (ok && entityBuffs.size === 0) buffMap.delete(eid);
+  return ok;
+}
+
+/**
+ * Read-only buff list for testing/UI. Returns a shallow copy.
+ */
+export function getBuffs(eid: number): BuffData[] {
+  const entityBuffs = buffMap.get(eid);
+  if (!entityBuffs) return [];
+  return [...entityBuffs.values()];
+}
+
+/**
+ * Clear all buff state. Test-only helper.
+ */
+export function clearAllBuffs(): void {
+  buffMap.clear();
+  buffApplyCounter = 0;
+}
+
+function effectivePriority(world: TowerWorld, data: BuffData): number {
+  const base = data.priority ?? BuffPriority.Buff;
+  if (entityExists(world.world, data.sourceId) && hasComponent(world.world, Faction, data.sourceId)) {
+    if (Faction.value[data.sourceId] === FactionVal.Player) {
+      return base - PLAYER_BUFF_PRIORITY_BONUS;
+    }
+  }
+  return base;
+}
+
+function pickLruVictim(buffs: Map<string, BuffData>, incomingPriority: number): string | null {
+  let victimId: string | null = null;
+  let victimPriority = -Infinity;
+  let victimAppliedAt = Infinity;
+
+  for (const [id, b] of buffs) {
+    const p = b.priority ?? BuffPriority.Buff;
+    const t = b.appliedAt ?? 0;
+    if (p > victimPriority || (p === victimPriority && t < victimAppliedAt)) {
+      victimPriority = p;
+      victimAppliedAt = t;
+      victimId = id;
+    }
+  }
+
+  if (victimId === null) return null;
+  if (incomingPriority >= victimPriority) return null;
+  return victimId;
 }

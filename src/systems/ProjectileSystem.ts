@@ -17,7 +17,7 @@ import {
   Tower,
 } from '../core/components.js';
 import { calcPhysicalDamage } from '../utils/combatFormulas.js';
-import { addBuff } from './BuffSystem.js';
+import { addBuff, BuffPriority } from './BuffSystem.js';
 import type { BuffData } from './BuffSystem.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { Sound } from '../utils/Sound.js';
@@ -254,6 +254,8 @@ export class ProjectileSystem implements System {
           stacks: 1,
           maxStacks: slowMaxStacks,
           sourceId,
+          priority: BuffPriority.Slow,
+          removeOnSourceDeath: false,
         };
         addBuff(world, targetId, buff);
       }
