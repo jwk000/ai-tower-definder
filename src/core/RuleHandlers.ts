@@ -11,6 +11,7 @@
 import type { World } from 'bitecs';
 import type { RuleHandlerFn } from '../core/RuleEngine.js';
 import { Health, Position, FactionVal, Faction, Visual } from '../core/components.js';
+import { getGlobalRandom } from '../utils/Random.js';
 
 // ============================================================
 // 战斗相关处理器
@@ -165,7 +166,7 @@ export const dropGold: RuleHandlerFn = (world, entityId, params, context) => {
 export const dropGoldRandom: RuleHandlerFn = (world, entityId, params, context) => {
   const min = params['min'] as number ?? 0;
   const max = params['max'] as number ?? 0;
-  const amount = min + Math.random() * (max - min);
+  const amount = getGlobalRandom().drop.nextFloat(min, max);
   // EconomySystem.addGold(Math.floor(amount));
 };
 

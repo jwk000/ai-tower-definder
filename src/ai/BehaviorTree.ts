@@ -1,5 +1,6 @@
 import { NodeStatus, type BTNodeConfig, type BehaviorTreeConfig } from '../types/index.js';
 import type { TowerWorld } from '../core/World.js';
+import { getGlobalRandom } from '../utils/Random.js';
 import {
   AI,
   Position,
@@ -679,13 +680,14 @@ export class WanderNode extends ActionNode {
       const homeX = Movement.homeX[eid] ?? Position.x[eid]!;
       const homeY = Movement.homeY[eid] ?? Position.y[eid]!;
 
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * radius;
+      const rng = getGlobalRandom().wave;
+      const angle = rng.next() * Math.PI * 2;
+      const dist = rng.next() * radius;
       context.blackboard.set('wander_target_x', homeX + Math.cos(angle) * dist);
       context.blackboard.set('wander_target_y', homeY + Math.sin(angle) * dist);
 
       // Schedule next pick in 2-4 seconds
-      context.blackboard.set('wander_next_pick_time', elapsed + 2 + Math.random() * 2);
+      context.blackboard.set('wander_next_pick_time', elapsed + 2 + rng.next() * 2);
     }
 
     // Set movement targets

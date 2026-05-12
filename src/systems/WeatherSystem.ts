@@ -1,5 +1,6 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
 import { Sound } from '../utils/Sound.js';
+import { getGlobalRandom } from '../utils/Random.js';
 import {
   Attack,
   Movement,
@@ -113,7 +114,7 @@ export class WeatherSystem implements System {
   }
 
   switchWeather(): void {
-    const idx = Math.floor(Math.random() * this.weatherPool.length);
+    const idx = getGlobalRandom().wave.nextInt(0, this.weatherPool.length);
     const next = this.weatherPool[idx];
     if (next) this.setWeather(next);
   }

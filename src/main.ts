@@ -34,6 +34,7 @@ import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
+import { initGlobalRandom, getGlobalRandom, generateSeed } from './utils/Random.js';
 import { Sound } from './utils/Sound.js';
 import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
@@ -201,6 +202,8 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private initBattle(config: LevelConfig): void {
+    initGlobalRandom(generateSeed());
+
     const map = config.map;
     this.currentMap = map;
     this.defeatSfxPlayed = false;
@@ -250,7 +253,7 @@ class TowerDefenderGame extends Game {
     // ---- Weather system — init with level config ----
     this.weatherSystem = new WeatherSystem();
     if (config.weatherPool && config.weatherPool.length > 0) {
-      const randomIdx = Math.floor(Math.random() * config.weatherPool.length);
+      const randomIdx = getGlobalRandom().wave.nextInt(0, config.weatherPool.length);
       const initialWeather = config.weatherPool[randomIdx]!;
       this.weatherSystem.init(
         config.weatherPool,

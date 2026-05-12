@@ -9,6 +9,8 @@
  * - design/05-combat-system.md §4 数值锚点
  */
 
+import { getGlobalRandom } from './Random.js';
+
 // ---- 常数 ----
 
 /** 护甲减伤常数: 100护甲 = 50%减伤 */
@@ -83,13 +85,22 @@ export function calcFinalDamage(
  * 获取暴击倍率
  * @param critChance 暴击率 (0-1, 上限0.8)
  * @param critBonus 额外暴伤加成 (0 = 1.5倍)
+ * @param rng 可选的随机源 (默认使用游戏全局 dropRandom 流，与暴击掉落同流)
  * @returns [暴击倍率, 是否暴击]
  */
-export function getCritMultiplier(critChance: number, critBonus: number = 0): [number, boolean] {
+export function getCritMultiplier(
+  critChance: number,
+  critBonus: number = 0,
+  rng: () => number = defaultCritRng,
+): [number, boolean] {
   const clampedChance = Math.min(critChance, CRIT_CAP);
-  const didCrit = Math.random() < clampedChance;
+  const didCrit = rng() < clampedChance;
   const multiplier = didCrit ? BASE_CRIT_MULT + critBonus : 1.0;
   return [multiplier, didCrit];
+}
+
+function defaultCritRng(): number {
+  return getGlobalRandom().drop.next();
 }
 
 // ---- 攻速公式 ----
