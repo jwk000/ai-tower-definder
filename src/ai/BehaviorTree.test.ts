@@ -57,10 +57,11 @@ import {
   LaunchMissileProjectileNode,
   SpawnProjectileTowerNode,
   LightningChainNode,
+  LaserBeamNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
-import { MissileCharge, TargetingMark, Projectile, LightningBolt } from '../core/components.js';
+import { MissileCharge, TargetingMark, Projectile, LightningBolt, LaserBeam } from '../core/components.js';
 import { getEffectiveValue, clearAllBuffs } from '../systems/BuffSystem.js';
 import { NodeStatus } from '../types/index.js';
 import { TowerWorld } from '../core/World.js';
@@ -2422,5 +2423,163 @@ describe('LightningChainNode（闪电塔链式攻击 P4 R3）', () => {
     expect(node.tick(ctx)).toBe(NodeStatus.Success);
     expect(Attack.cooldownTimer[tower]).toBe(0);
     expect(boltQuery(world).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('LaserBeamNode（激光塔多束自扫 P4 R4）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  const TOWER_TYPE_LASER = 4;
+
+  function makeLaserTower(world: TowerWorld, x: number, y: number, level: number = 1): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Attack, {
+      damage: 20,
+      attackSpeed: 1.0,
+      range: 200,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+    });
+    addComp(w, tower, Tower, {
+      towerType: TOWER_TYPE_LASER,
+      level,
+      position: 0,
+      cost: 0,
+      maxLevel: 5,
+      upgradeCost: 0,
+      sellRefund: 0,
+    });
+    return tower;
+  }
+
+  function makeEnemy(world: TowerWorld, x: number, y: number, hp: number = 100): number {
+    const w = world.world;
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x, y });
+    addComp(w, enemy, Health, { current: hp, max: hp, armor: 0 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1, canAttackBuildings: 0 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+    return enemy;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  function beamQuery(world: TowerWorld): number[] {
+    return defineQuery([LaserBeam])(world.world);
+  }
+
+  it('cooldownTimer > 0 → FAILURE（冷却守卫）', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200);
+    Attack.cooldownTimer[tower] = 0.5;
+    makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(beamQuery(world).length).toBe(0);
+  });
+
+  it('范围内无活敌 → FAILURE（不读 current_target，自扫语义）', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200);
+    const outOfRangeEnemy = makeEnemy(world, 500, 500, 100);
+    expect(outOfRangeEnemy).toBeGreaterThan(0);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(beamQuery(world).length).toBe(0);
+  });
+
+  it('范围内仅死敌 → FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200);
+    const deadEnemy = makeEnemy(world, 250, 200, 0);
+    expect(deadEnemy).toBeGreaterThan(0);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(beamQuery(world).length).toBe(0);
+  });
+
+  it('L1 单敌 → 1 束 LaserBeam + set targetId + reset cooldown', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200, 1);
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.targetId[tower]).toBe(enemy);
+    expect(Attack.cooldownTimer[tower]).toBeCloseTo(1 / 1.0, 3);
+
+    const beams = beamQuery(world);
+    expect(beams.length).toBe(1);
+    expect(LaserBeam.sourceId[beams[0]!]).toBe(tower);
+    expect(LaserBeam.targetId[beams[0]!]).toBe(enemy);
+    expect(LaserBeam.duration[beams[0]!]).toBe(1.0);
+  });
+
+  it('L3 三敌 → 2 束 LaserBeam（按距离取前 N）', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200, 3);
+    const nearEnemy = makeEnemy(world, 220, 200);
+    const midEnemy = makeEnemy(world, 250, 200);
+    makeEnemy(world, 300, 200); // 第三远，L3 拿不到
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const beams = beamQuery(world);
+    expect(beams.length).toBe(2);
+
+    // beam 目标必须是最近两敌（不保证顺序）
+    const targets = beams.map(b => LaserBeam.targetId[b]).sort();
+    expect(targets).toEqual([nearEnemy, midEnemy].sort());
+
+    // targetId 写第一束（最近敌）
+    expect(Attack.targetId[tower]).toBe(nearEnemy);
+  });
+
+  it('L5 多敌 → 3 束 LaserBeam', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200, 5);
+    makeEnemy(world, 220, 200);
+    makeEnemy(world, 250, 200);
+    makeEnemy(world, 280, 200);
+    makeEnemy(world, 310, 200); // 第四远，L5 拿不到
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(beamQuery(world).length).toBe(3);
+  });
+
+  it('attackSpeed=0 时不重置 cooldown（防御性兜底）', () => {
+    const world = makeRealWorld();
+    const tower = makeLaserTower(world, 200, 200);
+    Attack.attackSpeed[tower] = 0;
+    makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LaserBeamNode('laser_beam', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.cooldownTimer[tower]).toBe(0);
+    expect(beamQuery(world).length).toBe(1);
   });
 });

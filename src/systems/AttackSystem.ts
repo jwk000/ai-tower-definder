@@ -757,6 +757,37 @@ export function doLightningAttack(
 }
 
 /**
+ * 扫描指定塔射程内的活敌，返回按距离升序排列的 {id, dist} 列表（design/23 §0.5 工具函数）。
+ *
+ * 服务 BT 层 LaserBeamNode（多束自扫）及 AttackSystem 内部 update / doLightningAttack 链跳目标搜索。
+ * 用 potentialTargetQuery（Position + Health + UnitTag）+ UnitTag.isEnemy === 1 + Health.current > 0 过滤。
+ */
+export function findEnemiesInRange(
+  world: TowerWorld,
+  towerId: number,
+  range: number,
+): Array<{ id: number; dist: number }> {
+  const tx = Position.x[towerId]!;
+  const ty = Position.y[towerId]!;
+  const result: Array<{ id: number; dist: number }> = [];
+  const allMatches = potentialTargetQuery(world.world);
+  for (const eid of allMatches) {
+    if (UnitTag.isEnemy[eid]! !== 1) continue;
+    if ((Health.current[eid] ?? 0) <= 0) continue;
+    const ex = Position.x[eid]!;
+    const ey = Position.y[eid]!;
+    const dx = ex - tx;
+    const dy = ey - ty;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist <= range) {
+      result.push({ id: eid, dist });
+    }
+  }
+  result.sort((a, b) => a.dist - b.dist);
+  return result;
+}
+
+/**
  * 执行激光多束攻击（design/23 §0.5 `laser_beam` 节点核心副作用）。
  *
  * 服务 laser 塔。L1-2: 1 束 / L3-4: 2 束 / L5: 3 束（getLaserBeamCount）；

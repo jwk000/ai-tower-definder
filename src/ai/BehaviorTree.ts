@@ -34,6 +34,7 @@ import {
   spawnProjectile,
   doLightningAttack,
   doLaserAttack,
+  findEnemiesInRange,
   TOWER_SHOOT_SOUNDS,
 } from '../systems/AttackSystem.js';
 import { doEnemyAttack } from '../systems/EnemyAttackSystem.js';
@@ -1281,6 +1282,52 @@ export class LightningChainNode extends ActionNode {
   }
 }
 
+/**
+ * LaserBeamNode — 激光塔多束自扫攻击（design/23 §0.5 `laser_beam`）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: 无（不依赖 current_target，节点自扫范围内全部活敌）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：
+ *   - cooldownTimer > 0 → FAILURE
+ *   - 范围内无活敌 → FAILURE
+ *   - 成功 → doLaserAttack（spawn N 个 LaserBeam entity，N = getLaserBeamCount(level)）
+ *           + Sound.play('tower_laser') + set targetId（第一束目标）+ reset cooldown → SUCCESS
+ *
+ * 副作用（与 AttackSystem.update line 220-233 laser 分支等价）：
+ *   - 自扫 range 内活敌，按距离升序排序（findEnemiesInRange）
+ *   - 取前 N 束（L1-2: 1 束 / L3-4: 2 束 / L5: 3 束），每束 spawn LaserBeam entity（duration 1.0s）
+ *   - 持续伤害（DOT）由 LaserBeamSystem 周期 tick 实施，本节点不直接造伤
+ *
+ * 服务 laser 塔（towerType=4 / TowerType.Laser）。
+ */
+export class LaserBeamNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
+    const range = Attack.range[eid] ?? 0;
+    const enemiesInRange = findEnemiesInRange(world, eid, range);
+    if (enemiesInRange.length === 0) return NodeStatus.Failure;
+
+    const level = Tower.level[eid] ?? 1;
+    doLaserAttack(world, eid, enemiesInRange, level);
+    Sound.play('tower_laser');
+
+    Attack.targetId[eid] = enemiesInRange[0]!.id;
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1525,6 +1572,8 @@ export class BehaviorTree {
         return new SpawnProjectileTowerNode(type, params);
       case 'lightning_chain':
         return new LightningChainNode(type, params);
+      case 'laser_beam':
+        return new LaserBeamNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 
