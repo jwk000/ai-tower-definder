@@ -24,6 +24,7 @@ import { JuggernautSystem } from './systems/JuggernautSystem.js';
 import { CommandTowerSystem } from './systems/CommandTowerSystem.js';
 import { HealingSystem } from './systems/HealingSystem.js';
 import { HotAirBalloonSystem } from './systems/HotAirBalloonSystem.js';
+import { BombSystem } from './systems/BombSystem.js';
 import { DeathEffectSystem } from './systems/DeathEffectSystem.js';
 import { ExplosionEffectSystem } from './systems/ExplosionEffectSystem.js';
 import { BloodParticleSystem } from './systems/BloodParticleSystem.js';
@@ -520,6 +521,7 @@ class TowerDefenderGame extends Game {
     const enemyAttackSystem = new EnemyAttackSystem();
     const attackSystem = new AttackSystem(this.weatherSystem, map);
     const hotAirBalloonSystem = new HotAirBalloonSystem();
+    const bombSystem = new BombSystem();
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);
     const projectileSystem = new ProjectileSystem(map);
@@ -697,8 +699,9 @@ class TowerDefenderGame extends Game {
     this.world.registerSystem(juggernautSystem);
     this.world.registerSystem(attackSystem);
     this.world.registerSystem(commandTowerSystem);
-    this.world.registerSystem(hotAirBalloonSystem);
-    this.world.registerSystem(this.weatherSystem);
+this.world.registerSystem(hotAirBalloonSystem);
+this.world.registerSystem(bombSystem);
+this.world.registerSystem(this.weatherSystem);
     this.world.registerSystem(this.batSwarmSystem);
     this.world.registerSystem(unitSystem);
     this.world.registerSystem(projectileSystem);

@@ -548,6 +548,7 @@ export const CType = {
   GoldChest: 'GoldChest',
   DeathEffect: 'DeathEffect',
   ExplosionEffect: 'ExplosionEffect',
+  Bomb: 'Bomb',
   // New unified unit system components
   UnitTag: 'UnitTag',
   AI: 'AI',

@@ -284,6 +284,15 @@ export const Boss = defineComponent({
   transitionTimer: Types.f32,
 });
 
+/** 炸弹（重力下落 + 触底 AOE）— ownerFaction 之外阵营受伤 */
+export const Bomb = defineComponent({
+  targetY: Types.f32,
+  fallSpeed: Types.f32,
+  damage: Types.f32,
+  radius: Types.f32,
+  ownerFaction: Types.ui8,
+});
+
 /** 死亡特效 */
 export const DeathEffect = defineComponent({
   duration: Types.f32,
