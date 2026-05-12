@@ -99,6 +99,13 @@ const LAYER_TO_Z: Record<number, number> = {
   5: 7,  // Space → top
 };
 
+const HEALTH_BAR_HEIGHT = 6;
+const HEALTH_BAR_HALF_H = HEALTH_BAR_HEIGHT / 2;
+const CD_BAR_HEIGHT = 3;
+const CD_BAR_HALF_H = CD_BAR_HEIGHT / 2;
+const CD_BAR_GAP = 1;
+const CD_BAR_COLOR = '#2196f3';
+
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
 
@@ -591,17 +598,6 @@ export class RenderSystem implements System {
       pushCmd();
 
       // ========================================
-      // 1.5. Cooldown water level (tower reload indicator)
-      // ========================================
-      if (isTower && hasComponent(world.world, Attack, eid)) {
-        const atkSpeed = Attack.attackSpeed[eid]!;
-        const cdTimer = Attack.cooldownTimer[eid]!;
-        // fillRatio: 0 = just fired (empty), 1 = ready to fire (full)
-        const fillRatio = Math.max(0, Math.min(1, 1 - cdTimer * atkSpeed));
-        this.drawCooldownWater(posX, posY, drawSize, fillRatio, displayColor, renderZ);
-      }
-
-      // ========================================
       // 2. Composite geometry extra parts (L3-L5 towers)
       // ========================================
       if (upgradeVisual && upgradeVisual.extraParts.length > 0) {
@@ -683,12 +679,24 @@ export class RenderSystem implements System {
       const healthBarY = entityTop - 8;  // bar center, 6px height
 
       const hasHealth = hasComponent(world.world, Health, eid);
+      const barW = Math.max(drawSize * 1.2, 28);
       if (hasHealth && !isProjectile && drawSize > 0 && isFinite(entityTop)) {
         const hpCurrent = Health.current[eid]!;
         const hpMax = Health.max[eid]!;
         const ratio = hpMax > 0 ? hpCurrent / hpMax : 0;
-        const barW = Math.max(drawSize * 1.2, 28);
         this.drawHealthBar(posX, healthBarY, barW, ratio, renderZ);
+      }
+
+      // ========================================
+      // 2.5. Cooldown bar (thin blue bar below health bar, towers only)
+      // ========================================
+      if (isTower && hasComponent(world.world, Attack, eid) && drawSize > 0 && isFinite(entityTop)) {
+        const atkSpeed = Attack.attackSpeed[eid]!;
+        const cdTimer = Attack.cooldownTimer[eid]!;
+        // fillRatio: 0 = just fired (empty), 1 = ready to fire (full)
+        const fillRatio = Math.max(0, Math.min(1, 1 - cdTimer * atkSpeed));
+        const cdBarY = healthBarY + HEALTH_BAR_HALF_H + CD_BAR_GAP + CD_BAR_HALF_H;
+        this.drawCooldownBar(posX, cdBarY, barW, fillRatio, renderZ);
       }
 
       // ========================================
@@ -836,61 +844,32 @@ export class RenderSystem implements System {
   }
 
   // ============================================
-  // Cooldown water level — vertical fill indicator on towers
+  // Cooldown bar — thin blue progress bar (rendered below health bar)
   // ============================================
-  private drawCooldownWater(
-    x: number, y: number, size: number, fillRatio: number,
-    towerColor: string, z: number,
+  private drawCooldownBar(
+    x: number, y: number, width: number, ratio: number, z: number,
   ): void {
-    if (fillRatio <= 0.01) return; // invisible when empty
+    const barH = CD_BAR_HEIGHT;
+    const barW = width;
+    const halfW = barW / 2;
 
-    // Fill uses a darkened version of the tower's own color
-    const waterColor = darkenHex(towerColor, 0.45);
-    const inset = Math.max(size * 0.08, 2);
-    const fillW = size - inset * 2;
-    const maxH = size - inset * 2;
-    const fillH = Math.max(maxH * fillRatio, 2);
-
-    // Anchor rect at bottom of circle, fill upward
-    const fillCenterY = y + size / 2 - inset - fillH / 2;
-
-    // Dark container circle (sits behind the water)
     this.renderer.push({
-      shape: 'circle',
-      x, y,
-      size: size - inset * 2,
-      color: '#000000',
-      alpha: 0.18,
+      shape: 'rect', x, y, size: barW, h: barH,
+      color: '#222222', alpha: 0.7,
       z,
     });
 
-    // Water fill — rect clipped to the same circle
-    this.renderer.push({
-      shape: 'rect',
-      x,
-      y: fillCenterY,
-      size: fillW,
-      h: fillH,
-      color: waterColor,
-      alpha: 0.6,
-      clipRadius: (size - inset * 2) / 2,
-      z: z + 0.1,
-    });
-
-    // Subtle water surface highlight line
-    if (fillRatio > 0.02) {
-      const topY = fillCenterY - fillH / 2;
-      const surfaceW = fillW * 0.85;
+    const fillW = Math.max(barW * ratio, 0);
+    if (fillW > 0) {
       this.renderer.push({
         shape: 'rect',
-        x,
-        y: topY,
-        size: surfaceW,
-        h: 2,
-        color: waterColor,
-        alpha: 0.85,
-        clipRadius: (size - inset * 2) / 2,
-        z: z + 0.2,
+        x: x - halfW + fillW / 2,
+        y,
+        size: fillW,
+        h: barH,
+        color: CD_BAR_COLOR,
+        alpha: 0.95,
+        z,
       });
     }
   }
@@ -902,7 +881,7 @@ export class RenderSystem implements System {
     x: number, y: number, width: number, ratio: number,
     z: number = 5,
   ): void {
-    const barH = 6;
+    const barH = HEALTH_BAR_HEIGHT;
     const barW = width;
     const halfW = barW / 2;
 
@@ -958,20 +937,6 @@ function rgbFromVisual(eid: number): string {
   const g = Visual.colorG[eid]!;
   const b = Visual.colorB[eid]!;
   return `rgb(${r},${g},${b})`;
-}
-
-// ---- Helper: darken a hex color by factor (0-1) ----
-function darkenHex(hex: string, factor: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const dr = Math.round(r * factor);
-  const dg = Math.round(g * factor);
-  const db = Math.round(b * factor);
-  return '#' +
-    dr.toString(16).padStart(2, '0') +
-    dg.toString(16).padStart(2, '0') +
-    db.toString(16).padStart(2, '0');
 }
 
 // ---- Helper: seeded PRNG for deterministic crack patterns ----
