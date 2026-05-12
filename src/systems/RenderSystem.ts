@@ -106,6 +106,17 @@ const CD_BAR_HALF_H = CD_BAR_HEIGHT / 2;
 const CD_BAR_GAP = 1;
 const CD_BAR_COLOR = '#2196f3';
 
+const RANK_CHEVRON_THICKNESS = 2;
+const RANK_CHEVRON_ARM_LEN = 7;
+const RANK_CHEVRON_ROW_GAP = 1;
+const RANK_CHEVRON_ANGLE = Math.PI / 6;
+const RANK_CHEVRON_FILL = '#e0e0e0';
+const RANK_CHEVRON_STROKE = '#ffd700';
+const RANK_STAR_SIZE = 5;
+const RANK_STAR_COLOR = '#ffd700';
+const RANK_STAR_GAP = 2;
+const RANK_STAR_ROW_GAP = 2;
+
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
 
@@ -721,31 +732,37 @@ export class RenderSystem implements System {
       }
 
       // ========================================
-      // 4. Level diamonds (above name, for towers & production buildings)
+      // 4a. Tower rank insignia (chevron shoulder marks, replaces diamond row)
       // ========================================
-      let levelToShow = 0;
-      if (isTower) {
-        levelToShow = Tower.level[eid]!;
-      } else if (isProduction) {
-        levelToShow = Production.level[eid]!;
+      if (isTower && isFinite(entityTop)) {
+        const towerLevel = Tower.level[eid]!;
+        if (towerLevel >= 1) {
+          this.drawTowerRankInsignia(posX, entityTop - 22, towerLevel, renderZ);
+        }
       }
 
-      if (levelToShow > 1 && isFinite(entityTop)) {
-        const diamondSize = 6;
-        const gap = 2;
-        const totalW = levelToShow * diamondSize * 2 + (levelToShow - 1) * gap;
-        const startX = posX - totalW / 2 + diamondSize;
-        const diamondY = entityTop - 30;
-        for (let i = 0; i < levelToShow; i++) {
-          this.renderer.push({
-            shape: 'diamond',
-            x: startX + i * (diamondSize * 2 + gap),
-            y: diamondY,
-            size: diamondSize,
-            color: '#ffd700',
-            alpha: 0.95,
-            z: renderZ,
-          });
+      // ========================================
+      // 4b. Production building level diamonds (kept as-is)
+      // ========================================
+      if (isProduction && isFinite(entityTop)) {
+        const prodLevel = Production.level[eid]!;
+        if (prodLevel > 1) {
+          const diamondSize = 6;
+          const gap = 2;
+          const totalW = prodLevel * diamondSize * 2 + (prodLevel - 1) * gap;
+          const startX = posX - totalW / 2 + diamondSize;
+          const diamondY = entityTop - 30;
+          for (let i = 0; i < prodLevel; i++) {
+            this.renderer.push({
+              shape: 'diamond',
+              x: startX + i * (diamondSize * 2 + gap),
+              y: diamondY,
+              size: diamondSize,
+              color: '#ffd700',
+              alpha: 0.95,
+              z: renderZ,
+            });
+          }
         }
       }
 
@@ -841,6 +858,81 @@ export class RenderSystem implements System {
         }
       }
     }
+  }
+
+  // ============================================
+  // Tower rank insignia — chevron stripes + star pips (military-style epaulette)
+  // L1: 1 chevron; L2: 2; L3: 3; L4: 3 chevrons + 1 star; L5: 3 chevrons + 2 stars
+  // (x, y) = bottom-center anchor (typically just above tower's top edge)
+  // ============================================
+  private drawTowerRankInsignia(
+    x: number, y: number, level: number, z: number,
+  ): void {
+    const clampedLevel = Math.max(1, Math.min(5, level));
+    const chevronCount = Math.min(clampedLevel, 3);
+    const starCount = Math.max(0, clampedLevel - 3);
+
+    const rowH = RANK_CHEVRON_THICKNESS + RANK_CHEVRON_ROW_GAP;
+    for (let i = 0; i < chevronCount; i++) {
+      // Stack chevrons upward from anchor; row 0 is the bottom-most stripe
+      const chevronY = y - i * rowH;
+      this.drawSingleChevron(x, chevronY, z);
+    }
+
+    if (starCount > 0) {
+      const starsTotalW = starCount * RANK_STAR_SIZE + (starCount - 1) * RANK_STAR_GAP;
+      const starsStartX = x - starsTotalW / 2 + RANK_STAR_SIZE / 2;
+      const starsY = y + RANK_STAR_ROW_GAP + RANK_STAR_SIZE / 2;
+      for (let i = 0; i < starCount; i++) {
+        this.renderer.push({
+          shape: 'diamond',
+          x: starsStartX + i * (RANK_STAR_SIZE + RANK_STAR_GAP),
+          y: starsY,
+          size: RANK_STAR_SIZE,
+          color: RANK_STAR_COLOR,
+          alpha: 0.95,
+          z,
+        });
+      }
+    }
+  }
+
+  // ---- Draw one chevron stripe centered on (x, y), apex pointing up ----
+  private drawSingleChevron(x: number, y: number, z: number): void {
+    const armLen = RANK_CHEVRON_ARM_LEN;
+    const thickness = RANK_CHEVRON_THICKNESS;
+    const angle = RANK_CHEVRON_ANGLE;
+    // Each arm's center sits halfway along the arm from the apex
+    const armCenterDX = Math.sin(angle) * armLen / 2;
+    const armCenterDY = Math.cos(angle) * armLen / 2;
+
+    this.renderer.push({
+      shape: 'rect',
+      x: x - armCenterDX,
+      y: y + armCenterDY,
+      size: armLen,
+      h: thickness,
+      color: RANK_CHEVRON_FILL,
+      stroke: RANK_CHEVRON_STROKE,
+      strokeWidth: 0.5,
+      rotation: -angle,
+      alpha: 0.95,
+      z,
+    });
+
+    this.renderer.push({
+      shape: 'rect',
+      x: x + armCenterDX,
+      y: y + armCenterDY,
+      size: armLen,
+      h: thickness,
+      color: RANK_CHEVRON_FILL,
+      stroke: RANK_CHEVRON_STROKE,
+      strokeWidth: 0.5,
+      rotation: angle,
+      alpha: 0.95,
+      z,
+    });
   }
 
   // ============================================

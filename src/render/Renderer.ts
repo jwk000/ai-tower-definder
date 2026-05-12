@@ -99,10 +99,8 @@ export class Renderer {
       case 'rect': {
         const rw = s;           // width = size
         const rh = cmd.h ?? s;  // height = h if set, else size (square)
-        const x = cx - rw / 2;
-        const y = cy - rh / 2;
+        const rot = cmd.rotation ?? 0;
 
-        // Apply circular clip if requested (for water-fill effects etc.)
         if (cmd.clipRadius) {
           ctx.save();
           ctx.beginPath();
@@ -110,12 +108,28 @@ export class Renderer {
           ctx.clip();
         }
 
-        ctx.fillStyle = cmd.color;
-        ctx.fillRect(x, y, rw, rh);
-        if (cmd.stroke) {
-          ctx.strokeStyle = cmd.stroke;
-          ctx.lineWidth = cmd.strokeWidth ?? 1;
-          ctx.strokeRect(x, y, rw, rh);
+        if (rot !== 0) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rot);
+          ctx.fillStyle = cmd.color;
+          ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
+          if (cmd.stroke) {
+            ctx.strokeStyle = cmd.stroke;
+            ctx.lineWidth = cmd.strokeWidth ?? 1;
+            ctx.strokeRect(-rw / 2, -rh / 2, rw, rh);
+          }
+          ctx.restore();
+        } else {
+          const x = cx - rw / 2;
+          const y = cy - rh / 2;
+          ctx.fillStyle = cmd.color;
+          ctx.fillRect(x, y, rw, rh);
+          if (cmd.stroke) {
+            ctx.strokeStyle = cmd.stroke;
+            ctx.lineWidth = cmd.strokeWidth ?? 1;
+            ctx.strokeRect(x, y, rw, rh);
+          }
         }
 
         if (cmd.clipRadius) {
