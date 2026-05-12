@@ -96,15 +96,19 @@
 | `selector` / `sequence` / `inverter` / `repeater` | ✅ 已实现 | — |
 | `check_enemy_in_range` / `attack` / `move_towards` | ✅ 已实现 | — |
 | `check_ally_in_range` / `heal` / `all_in_range` DOT | ✅ 已实现（1807ae1） | — |
-| `parallel` / `cooldown` / `once` | ⏳ 未实现 | Phase 4 T4.1 |
-| `set_state` / `show_alert_mark` / `hide_alert_mark` / `check_distance_from_home` / `wander` | ⏳ 未实现 | Phase 4 T4.1 |
-| `use_skill` / `check_cooldown` | ⏳ 未实现 | Phase 4 T4.1 |
-| `on_target_dead_reselect` / `check_current_target_alive` / `check_current_target_in_range` | ⏳ 未实现 | Phase 4 T4.1 |
-| `produce_resource` / `trigger_trap` | ⏳ 未实现 | Phase 4 T4.1 |
-| `ignore_invulnerable` | ⏳ 未实现 | Phase 4 T4.1 |
+| `parallel` / `cooldown` / `once` | ✅ 已实现（187641e / aad2237） | — |
+| `until_fail` / `always_succeed` | ✅ 已实现（187641e） | — |
+| `set_state` / `show_alert_mark` / `hide_alert_mark` / `check_distance_from_home` / `wander` | ✅ 已实现 | — |
+| `use_skill` | ✅ 已实现（批 3） | — |
+| `check_cooldown` | ⚠️ 已注册但 stub（永远 FAILURE） | 后续接入 SkillSystem.isSkillReady |
+| `on_target_dead_reselect` / `check_current_target_alive` / `check_current_target_in_range` | ✅ 已实现（b4de1e0 / 批 3） | — |
+| `produce_resource` | ✅ 已实现 | — |
+| `trigger_trap` | ✅ 已实现（批 3） | — |
+| `ignore_invulnerable` | ✅ 已实现（批 3，依赖 blackboard.invulnerable_set） | invulnerable 数据源待 BuffSystem 提供 |
+| `check_layer` / `check_weather` | ✅ 已实现（b4de1e0） | — |
 | `boid_step` / `drop_bomb` / `aura_buff` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
-> 在 Phase 4 节点全部实现前，引用未实现节点的 AI 配置（士兵 IDLE 游荡、Boss 阶段切换）应使用**占位实现**：`wander` 降级为原地 jitter，`once` 降级为普通 selector 分支，`set_state` 降级为 no-op。占位实现必须在日志或 BehaviorTreeViewer 中明确标注 "STUB"。
+> Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
 
 ---
 

@@ -43,6 +43,10 @@ import {
   CheckCurrentTargetInRangeNode,
   CheckLayerNode,
   CheckWeatherNode,
+  UseSkillNode,
+  TriggerTrapNode,
+  IgnoreInvulnerableNode,
+  OnTargetDeadReselectNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -1005,5 +1009,253 @@ describe('CheckWeatherNode', () => {
     const ctx = makeContext(world, eid);
     const node = new CheckWeatherNode('check_weather', { weather: 'rain' });
     expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('UseSkillNode', () => {
+  it('缺失 castSkill provider — FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    const node = new UseSkillNode('use_skill', { skill_id: 'taunt' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('缺失 skill_id 参数 — FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx: AIContext = {
+      ...makeContext(world, eid),
+      castSkill: () => true,
+    };
+    const node = new UseSkillNode('use_skill', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('provider 返回 true — SUCCESS，传入正确 eid + skillId', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    let receivedEid = -1;
+    let receivedSkill = '';
+    const ctx: AIContext = {
+      ...makeContext(world, eid),
+      castSkill: (e, s) => {
+        receivedEid = e;
+        receivedSkill = s;
+        return true;
+      },
+    };
+    const node = new UseSkillNode('use_skill', { skill_id: 'whirlwind' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(receivedEid).toBe(eid);
+    expect(receivedSkill).toBe('whirlwind');
+  });
+
+  it('provider 返回 false（CD 未到/能量不足）— FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx: AIContext = {
+      ...makeContext(world, eid),
+      castSkill: () => false,
+    };
+    const node = new UseSkillNode('use_skill', { skill_id: 'taunt' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('TriggerTrapNode', () => {
+  it('CD 未到 — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    const ctx = makeContext(world, self, 0.5);
+    const node = new TriggerTrapNode('trigger_trap', { damage: 10, radius: 50, cd: 2.0 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('CD 到 — SUCCESS 并对半径内敌人造成伤害', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x: 130, y: 100 });
+    addComp(w, enemy, Health, { current: 100, max: 100 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, self, 1.0);
+    const node = new TriggerTrapNode('trigger_trap', { damage: 25, radius: 50, cd: 0 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Health.current[enemy]).toBe(75);
+  });
+
+  it('半径外敌人不受伤', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x: 300, y: 100 });
+    addComp(w, enemy, Health, { current: 100, max: 100 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, self, 1.0);
+    const node = new TriggerTrapNode('trigger_trap', { damage: 25, radius: 50, cd: 0 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Health.current[enemy]).toBe(100);
+  });
+});
+
+describe('IgnoreInvulnerableNode', () => {
+  class TargetSetterStub extends BTNode {
+    constructor(private readonly targetId: number) {
+      super('target_setter', {});
+    }
+    override tick(context: AIContext): NodeStatus {
+      context.blackboard.set('current_target', this.targetId);
+      return NodeStatus.Success;
+    }
+  }
+
+  it('current_target 不在 invulnerable_set — 透传 child 状态', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const target = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    ctx.blackboard.set('invulnerable_set', new Set<number>());
+
+    const node = new IgnoreInvulnerableNode('ignore_invulnerable', new TargetSetterStub(target), {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(target);
+  });
+
+  it('current_target 在 invulnerable_set — FAILURE 并清除', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const target = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    ctx.blackboard.set('invulnerable_set', new Set<number>([target]));
+
+    const node = new IgnoreInvulnerableNode('ignore_invulnerable', new TargetSetterStub(target), {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+
+  it('child 未设置 target — 透传 child 状态', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    const child = new StubNode(NodeStatus.Failure);
+
+    const node = new IgnoreInvulnerableNode('ignore_invulnerable', child, {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('OnTargetDeadReselectNode', () => {
+  it('current_target 存活 — SUCCESS，不重选', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 120, y: 100 });
+    addComp(w, target, Health, { current: 50, max: 100 });
+
+    const ctx = makeContext(world, self);
+    ctx.blackboard.set('current_target', target);
+    const node = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 200 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(target);
+  });
+
+  it('target 死亡 + 范围内有新敌人 — SUCCESS，写入新 target', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+
+    const oldTarget = addEntity(w);
+    addComp(w, oldTarget, Position, { x: 120, y: 100 });
+    addComp(w, oldTarget, Health, { current: 0, max: 100 });
+    addComp(w, oldTarget, UnitTag, { isEnemy: 1 });
+
+    const newEnemy = addEntity(w);
+    addComp(w, newEnemy, Position, { x: 130, y: 100 });
+    addComp(w, newEnemy, Health, { current: 100, max: 100 });
+    addComp(w, newEnemy, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, self);
+    ctx.blackboard.set('current_target', oldTarget);
+    const node = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 200 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(newEnemy);
+  });
+
+  it('target 死亡 + 范围内无敌人 — FAILURE 并清除', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 120, y: 100 });
+    addComp(w, target, Health, { current: 0, max: 100 });
+
+    const ctx = makeContext(world, self);
+    ctx.blackboard.set('current_target', target);
+    const node = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 50 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+
+  it('set_target=false — SUCCESS 但不写入 blackboard', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    const newEnemy = addEntity(w);
+    addComp(w, newEnemy, Position, { x: 130, y: 100 });
+    addComp(w, newEnemy, Health, { current: 100, max: 100 });
+    addComp(w, newEnemy, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, self);
+    const node = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 200, set_target: false });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+
+  it('选最近的敌人（多个候选）', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+
+    const far = addEntity(w);
+    addComp(w, far, Position, { x: 180, y: 100 });
+    addComp(w, far, Health, { current: 100, max: 100 });
+    addComp(w, far, UnitTag, { isEnemy: 1 });
+
+    const near = addEntity(w);
+    addComp(w, near, Position, { x: 120, y: 100 });
+    addComp(w, near, Health, { current: 100, max: 100 });
+    addComp(w, near, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, self);
+    const node = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 200 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(near);
   });
 });

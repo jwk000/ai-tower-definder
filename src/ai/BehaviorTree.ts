@@ -45,6 +45,8 @@ export interface AIContext {
   blackboard: Map<string, unknown>;
   /** Optional: 当前天气 provider（check_weather 节点使用）*/
   getWeather?: () => string;
+  /** Optional: 技能施放 provider（use_skill 节点使用） */
+  castSkill?: (entityId: number, skillId: string) => boolean;
 }
 
 // ============================================================
@@ -738,8 +740,103 @@ export class ProduceResourceNode extends ActionNode {
 
     Production.accumulator[eid]! += rate * context.dt;
 
-    // 检查是否需要产出（需要访问 EconomySystem）
-    // ProductionSystem 会独立处理，这里只做累积标记
+    return NodeStatus.Success;
+  }
+}
+
+export class UseSkillNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    if (!context.castSkill) return NodeStatus.Failure;
+    const skillId = this.getParam<string>('skill_id', context, '');
+    if (!skillId) return NodeStatus.Failure;
+    return context.castSkill(context.entityId, skillId)
+      ? NodeStatus.Success
+      : NodeStatus.Failure;
+  }
+}
+
+export class TriggerTrapNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const cd = this.getParam<number>('cd', context, 1.0);
+    const lastKey = `__n${this.nodeId}_lastFired`;
+    const elapsedKey = `__n${this.nodeId}_elapsed`;
+
+    const elapsed = ((context.blackboard.get(elapsedKey) as number | undefined) ?? 0) + context.dt;
+    context.blackboard.set(elapsedKey, elapsed);
+
+    const lastFired = (context.blackboard.get(lastKey) as number | undefined) ?? -Infinity;
+    if (elapsed - lastFired < cd) return NodeStatus.Failure;
+
+    const damage = this.getParam<number>('damage', context, 0);
+    const radius = this.getParam<number>('radius', context, 0);
+    const eid = context.entityId;
+    const px = Position.x[eid];
+    const py = Position.y[eid];
+    if (px === undefined || py === undefined) return NodeStatus.Failure;
+
+    const enemies = enemyTargetQuery(context.world.world);
+    for (const target of enemies) {
+      if (UnitTag.isEnemy[target] !== 1) continue;
+      if ((Health.current[target] ?? 0) <= 0) continue;
+      const dx = (Position.x[target] ?? 0) - px;
+      const dy = (Position.y[target] ?? 0) - py;
+      if (dx * dx + dy * dy <= radius * radius) {
+        Health.current[target] = Math.max(0, (Health.current[target] ?? 0) - damage);
+      }
+    }
+
+    context.blackboard.set(lastKey, elapsed);
+    return NodeStatus.Success;
+  }
+}
+
+export class IgnoreInvulnerableNode extends DecoratorNode {
+  tick(context: AIContext): NodeStatus {
+    const status = this.child.tick(context);
+    const target = context.blackboard.get('current_target') as number | undefined;
+    if (target === undefined) return status;
+    const invulnSet = context.blackboard.get('invulnerable_set') as Set<number> | undefined;
+    if (invulnSet && invulnSet.has(target)) {
+      context.blackboard.delete('current_target');
+      return NodeStatus.Failure;
+    }
+    return status;
+  }
+}
+
+export class OnTargetDeadReselectNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const current = context.blackboard.get('current_target') as number | undefined;
+    const alive = current !== undefined && (Health.current[current] ?? 0) > 0;
+    if (alive) return NodeStatus.Success;
+
+    if (current !== undefined) context.blackboard.delete('current_target');
+
+    const range = this.getParam<number>('range', context, 100);
+    const setTarget = this.getParam<boolean>('set_target', context, true);
+    const eid = context.entityId;
+    const px = Position.x[eid];
+    const py = Position.y[eid];
+    if (px === undefined || py === undefined) return NodeStatus.Failure;
+
+    const candidates = enemyTargetQuery(context.world.world);
+    let bestId = -1;
+    let bestDistSq = Infinity;
+    for (const c of candidates) {
+      if (c === eid) continue;
+      if (UnitTag.isEnemy[c] !== 1) continue;
+      if ((Health.current[c] ?? 0) <= 0) continue;
+      const dx = (Position.x[c] ?? 0) - px;
+      const dy = (Position.y[c] ?? 0) - py;
+      const dsq = dx * dx + dy * dy;
+      if (dsq <= range * range && dsq < bestDistSq) {
+        bestDistSq = dsq;
+        bestId = c;
+      }
+    }
+
+    if (bestId === -1) return NodeStatus.Failure;
+    if (setTarget) context.blackboard.set('current_target', bestId);
     return NodeStatus.Success;
   }
 }
@@ -968,6 +1065,14 @@ export class BehaviorTree {
         return new HideAlertMarkNode(type, params);
       case 'wander':
         return new WanderNode(type, params);
+      case 'use_skill':
+        return new UseSkillNode(type, params);
+      case 'trigger_trap':
+        return new TriggerTrapNode(type, params);
+      case 'on_target_dead_reselect':
+        return new OnTargetDeadReselectNode(type, params);
+      case 'ignore_invulnerable':
+        return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 
       default:
         console.warn(`Unknown node type: ${type}`);

@@ -106,6 +106,29 @@ export class SkillSystem implements System {
     }
   }
 
+  /**
+   * One-shot cast: useSkill + dispatch execute* by skillId.
+   * Returns true on full success (CD/energy ok AND effect applied).
+   */
+  castSkill(world: TowerWorld, entityId: number, skillId: string): boolean {
+    if (!this.useSkill(entityId, skillId)) return false;
+    const config = SKILL_CONFIGS[skillId];
+    if (!config) return false;
+    const x = Position.x[entityId];
+    const y = Position.y[entityId];
+    if (x === undefined || y === undefined) return false;
+    switch (skillId) {
+      case 'taunt':
+        this.executeTaunt(world, entityId, x, y, { range: config.range, value: config.value });
+        return true;
+      case 'whirlwind':
+        this.executeWhirlwind(world, x, y, { range: config.range, value: config.value });
+        return true;
+      default:
+        return true;
+    }
+  }
+
   /** Check whether an entity's skill is ready to use */
   isSkillReady(entityId: number, skillId: string): boolean {
     const skillIdNum = SkillIdNum[skillId];

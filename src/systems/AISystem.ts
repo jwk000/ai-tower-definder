@@ -35,6 +35,13 @@ export class AISystem implements System {
     this.weatherProvider = fn;
   }
 
+  /** 可选: 技能施放 provider，供 use_skill 节点使用 */
+  private skillCaster?: (entityId: number, skillId: string) => boolean;
+
+  setSkillCaster(fn: (entityId: number, skillId: string) => boolean): void {
+    this.skillCaster = fn;
+  }
+
   /** 性能统计 */
   private stats = {
     totalUpdates: 0,
@@ -141,6 +148,7 @@ export class AISystem implements System {
         dt: AI.lastUpdateTime[eid]!,
         blackboard,
         ...(this.weatherProvider ? { getWeather: this.weatherProvider } : {}),
+        ...(this.skillCaster ? { castSkill: this.skillCaster } : {}),
       };
 
       // 执行行为树
