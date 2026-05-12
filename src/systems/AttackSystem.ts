@@ -431,59 +431,7 @@ export class AttackSystem implements System {
     targetX: number,
     targetY: number,
   ): void {
-    const visual = PROJ_VISUAL[6]; // missile visual
-    if (!visual) return;
-
-    const damage = this.getDamage(towerId);
-    const fromX = Position.x[towerId]!;
-    const fromY = Position.y[towerId]!;
-    const towerCfg = TOWER_CONFIGS[TowerType.Missile];
-
-    const pid = world.createEntity();
-    world.addComponent(pid, Position, { x: fromX, y: fromY });
-    world.addComponent(pid, Projectile, {
-      speed: visual.speed,
-      damage,
-      damageType: Attack.damageType[towerId],
-      targetId: targetMarkId,
-      sourceId: towerId,
-      fromX,
-      fromY,
-      shape: visual.shape,
-      colorR: visual.colorR,
-      colorG: visual.colorG,
-      colorB: visual.colorB,
-      size: visual.size,
-      splashRadius: towerCfg?.splashRadius ?? 120,
-      stunDuration: 0,
-      slowPercent: 0,
-      slowMaxStacks: 0,
-      freezeDuration: 0,
-      chainCount: 0,
-      chainRange: 0,
-      chainDecay: 0,
-      sourceTowerType: 6,
-    });
-
-    // Store target coordinates for parabolic trajectory in fromX/fromY
-    // (ProjectileSystem uses these to calculate the parabolic arc)
-    // We use a different approach: store them in the projectile Position
-
-    world.addComponent(pid, Visual, {
-      shape: visual.shape,
-      colorR: visual.colorR,
-      colorG: visual.colorG,
-      colorB: visual.colorB,
-      size: visual.size,
-      alpha: 1,
-      outline: 0,
-      hitFlashTimer: 0,
-      idlePhase: 0,
-    });
-
-    // Inherit layer from source entity for render z-ordering
-    const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
-    world.addComponent(pid, Layer, { value: sourceLayer });
+    spawnMissileProjectile(world, towerId, targetMarkId, targetX, targetY);
   }
 
   // ---- Damage ----
@@ -643,4 +591,82 @@ export class AttackSystem implements System {
       });
     }
   }
+}
+
+/**
+ * 计算 entity 的有效攻击力（基础 Attack.damage + BuffSystem absolute/percent 加成）。
+ *
+ * 公式：damage = (Attack.damage[eid] + buff.absolute) * (1 + buff.percent / 100)
+ * 由 LaunchMissileProjectileNode 和 AttackSystem 共用，与 AttackSystem.getDamage
+ * 私有方法等价（R5 后 AttackSystem 路径删除，此函数为唯一真理源）。
+ */
+export function getEffectiveDamage(eid: number): number {
+  const raw = Attack.damage[eid]!;
+  const buff = getEffectiveValue(eid, 'atk');
+  return (raw + buff.absolute) * (1 + buff.percent / 100);
+}
+
+/**
+ * 生成导弹塔抛物线投射物（design/23 §0.5 launch_missile_projectile 节点核心副作用）。
+ *
+ * 与 AttackSystem.spawnMissileProjectile 私有方法等价：使用 PROJ_VISUAL[6] 视觉配置，
+ * 读取 BuffSystem 加成后的有效攻击力，挂载 Projectile + Visual + Layer 组件。
+ * targetMarkId 指向 ChargeAttackNode spawn 的 TargetingMark 实体，ProjectileSystem
+ * 据此计算抛物线终点并触发 AOE 爆炸（splashRadius 默认 120px / Missile 塔 130px）。
+ */
+export function spawnMissileProjectile(
+  world: TowerWorld,
+  towerId: number,
+  targetMarkId: number,
+  _targetX: number,
+  _targetY: number,
+): void {
+  const visual = PROJ_VISUAL[6];
+  if (!visual) return;
+
+  const damage = getEffectiveDamage(towerId);
+  const fromX = Position.x[towerId]!;
+  const fromY = Position.y[towerId]!;
+  const towerCfg = TOWER_CONFIGS[TowerType.Missile];
+
+  const pid = world.createEntity();
+  world.addComponent(pid, Position, { x: fromX, y: fromY });
+  world.addComponent(pid, Projectile, {
+    speed: visual.speed,
+    damage,
+    damageType: Attack.damageType[towerId],
+    targetId: targetMarkId,
+    sourceId: towerId,
+    fromX,
+    fromY,
+    shape: visual.shape,
+    colorR: visual.colorR,
+    colorG: visual.colorG,
+    colorB: visual.colorB,
+    size: visual.size,
+    splashRadius: towerCfg?.splashRadius ?? 120,
+    stunDuration: 0,
+    slowPercent: 0,
+    slowMaxStacks: 0,
+    freezeDuration: 0,
+    chainCount: 0,
+    chainRange: 0,
+    chainDecay: 0,
+    sourceTowerType: 6,
+  });
+
+  world.addComponent(pid, Visual, {
+    shape: visual.shape,
+    colorR: visual.colorR,
+    colorG: visual.colorG,
+    colorB: visual.colorB,
+    size: visual.size,
+    alpha: 1,
+    outline: 0,
+    hitFlashTimer: 0,
+    idlePhase: 0,
+  });
+
+  const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
+  world.addComponent(pid, Layer, { value: sourceLayer });
 }

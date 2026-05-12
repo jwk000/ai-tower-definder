@@ -29,6 +29,8 @@ import {
 import { spawnBomb } from '../systems/BombSystem.js';
 import { addBuff } from '../systems/BuffSystem.js';
 import { evaluateMissileTarget } from '../systems/MissileTargeting.js';
+import { spawnMissileProjectile } from '../systems/AttackSystem.js';
+import { Sound } from '../utils/Sound.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 
 // ============================================================
@@ -1127,6 +1129,52 @@ export class ChargeAttackNode extends ActionNode {
   }
 }
 
+/**
+ * LaunchMissileProjectileNode — 导弹塔发射（design/23 §0.5）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: 无（直接读 MissileCharge 组件，由 ChargeAttackNode 写入）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：
+ *   - 塔身无 MissileCharge 组件 → FAILURE（必须由 charge_attack SUCCESS 前置）
+ *   - 有组件 → 调 spawnMissileProjectile + Sound.play('tower_missile') +
+ *     重置 cooldownTimer + 移除 MissileCharge → SUCCESS
+ *
+ * 副作用：
+ *   - 创建 Projectile 实体（抛物线飞向 markEntityId 的位置，ProjectileSystem 接管）
+ *   - 重置 Attack.cooldownTimer = 1 / attackSpeed（开始下一发装弹冷却）
+ *   - 移除 tower 的 MissileCharge 组件（RenderSystem 蓄力视觉脉冲消失）
+ *   - TargetingMark 实体保留（由 ProjectileSystem 命中时销毁，或 stale-cleanup）
+ *
+ * 与原 AttackSystem.handleMissileTower 等价：launch 阶段三件套（spawn projectile +
+ * sound + cooldown reset + remove component）从 AttackSystem line 296-320 迁来。
+ */
+export class LaunchMissileProjectileNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    if (!hasComponent(world.world, MissileCharge, eid)) return NodeStatus.Failure;
+
+    const targetX = MissileCharge.targetX[eid] ?? 0;
+    const targetY = MissileCharge.targetY[eid] ?? 0;
+    const markId = MissileCharge.markEntityId[eid] ?? 0;
+
+    spawnMissileProjectile(world, eid, markId, targetX, targetY);
+    Sound.play('tower_missile');
+
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    world.removeComponent(eid, MissileCharge);
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1365,6 +1413,8 @@ export class BehaviorTree {
         return new SelectMissileTargetNode(type, params);
       case 'charge_attack':
         return new ChargeAttackNode(type, params);
+      case 'launch_missile_projectile':
+        return new LaunchMissileProjectileNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 

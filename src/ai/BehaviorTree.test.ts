@@ -54,10 +54,11 @@ import {
   AuraBuffNode,
   SelectMissileTargetNode,
   ChargeAttackNode,
+  LaunchMissileProjectileNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
-import { MissileCharge, TargetingMark } from '../core/components.js';
+import { MissileCharge, TargetingMark, Projectile } from '../core/components.js';
 import { getEffectiveValue, clearAllBuffs } from '../systems/BuffSystem.js';
 import { NodeStatus } from '../types/index.js';
 import { TowerWorld } from '../core/World.js';
@@ -1977,5 +1978,118 @@ describe('ChargeAttackNode（导弹塔蓄力两阶段状态机）', () => {
     ctx.blackboard.delete('current_target_pos');
     expect(node.tick(ctx)).toBe(NodeStatus.Running);
     expect(MissileCharge.chargeElapsed[tower]).toBeCloseTo(0.1);
+  });
+});
+
+describe('LaunchMissileProjectileNode（导弹塔发射）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  function makeMissileTower(world: TowerWorld, x: number, y: number): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Attack, {
+      damage: 90,
+      attackSpeed: 0.14,
+      range: 600,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+      splashRadius: 130,
+    });
+    return tower;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  function projectileQuery(world: TowerWorld): number[] {
+    return defineQuery([Projectile])(world.world);
+  }
+
+  it('无 MissileCharge 组件 → FAILURE（必须由 charge 前置）', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    const ctx = makeCtx(world, tower);
+    const node = new LaunchMissileProjectileNode('launch_missile_projectile', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('有 MissileCharge 组件 → SUCCESS + spawn Projectile + 重置 cooldown + 移除组件', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    const ctx = makeCtx(world, tower);
+    const markId = world.createEntity();
+    world.addComponent(markId, Position, { x: 400, y: 300 });
+    world.addComponent(tower, MissileCharge, {
+      chargeTime: 0.6,
+      chargeElapsed: 0.6,
+      targetX: 400,
+      targetY: 300,
+      markEntityId: markId,
+    });
+    const node = new LaunchMissileProjectileNode('launch_missile_projectile', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(hasComponent(world.world, MissileCharge, tower)).toBe(false);
+    expect(Attack.cooldownTimer[tower]).toBeCloseTo(1 / 0.14, 3);
+    const projectiles = projectileQuery(world);
+    expect(projectiles.length).toBe(1);
+    const pid = projectiles[0]!;
+    expect(Projectile.targetId[pid]).toBe(markId);
+    expect(Projectile.sourceId[pid]).toBe(tower);
+    expect(Projectile.damage[pid]).toBe(90);
+    expect(Projectile.splashRadius[pid]).toBe(130);
+    expect(Position.x[pid]).toBe(200);
+    expect(Position.y[pid]).toBe(200);
+  });
+
+  it('attackSpeed=0 时不重置 cooldown（防御性兜底）', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    Attack.attackSpeed[tower] = 0;
+    Attack.cooldownTimer[tower] = 5;
+    const ctx = makeCtx(world, tower);
+    const markId = world.createEntity();
+    world.addComponent(markId, Position, { x: 400, y: 300 });
+    world.addComponent(tower, MissileCharge, {
+      chargeTime: 0.6,
+      chargeElapsed: 0.6,
+      targetX: 400,
+      targetY: 300,
+      markEntityId: markId,
+    });
+    const node = new LaunchMissileProjectileNode('launch_missile_projectile', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.cooldownTimer[tower]).toBe(5);
+  });
+
+  it('charge→launch 端到端：3 节点串联完整一轮', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.dt = 0.35;
+    ctx.blackboard.set('current_target_pos', { x: 400, y: 300, row: 7, col: 10 });
+    const chargeNode = new ChargeAttackNode('charge_attack', { charge_time: 0.6 });
+    const launchNode = new LaunchMissileProjectileNode('launch_missile_projectile', {});
+
+    expect(chargeNode.tick(ctx)).toBe(NodeStatus.Running);
+    expect(chargeNode.tick(ctx)).toBe(NodeStatus.Running);
+    expect(chargeNode.tick(ctx)).toBe(NodeStatus.Success);
+    expect(hasComponent(world.world, MissileCharge, tower)).toBe(true);
+    expect(launchNode.tick(ctx)).toBe(NodeStatus.Success);
+    expect(hasComponent(world.world, MissileCharge, tower)).toBe(false);
+    expect(projectileQuery(world).length).toBe(1);
   });
 });
