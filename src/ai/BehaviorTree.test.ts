@@ -52,6 +52,7 @@ import {
   OnTargetDeadReselectNode,
   DropBombNode,
   AuraBuffNode,
+  SelectMissileTargetNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -1699,5 +1700,154 @@ describe('AuraBuffNode（范围光环 buff）', () => {
       range: 120,
     });
     expect(nodeBadValue.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('SelectMissileTargetNode（导弹塔地格评分目标选择）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  function makeMissileTower(world: TowerWorld, x: number, y: number, range = 600): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Attack, {
+      damage: 90,
+      attackSpeed: 0.14,
+      range,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+      splashRadius: 130,
+    });
+    return tower;
+  }
+
+  function makeMinimalMap(): import('../types/index.js').MapConfig {
+    return {
+      name: 'test',
+      cols: 20,
+      rows: 12,
+      tileSize: 40,
+      tiles: [],
+      enemyPath: [{ row: 11, col: 19 }],
+    };
+  }
+
+  function makeContextWithMap(
+    towerWorld: TowerWorld,
+    eid: number,
+    map: import('../types/index.js').MapConfig,
+  ): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+      getMapConfig: () => map,
+    };
+  }
+
+  it('无 getMapConfig provider → FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    const ctx: AIContext = {
+      entityId: tower,
+      world,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target_pos')).toBe(false);
+  });
+
+  it('无敌人 → FAILURE + 清黑板', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    ctx.blackboard.set('current_target_pos', { x: 999, y: 999 });
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target_pos')).toBe(false);
+  });
+
+  it('范围内有地面敌人 → SUCCESS + 写黑板 current_target_pos', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200);
+
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x: 300, y: 200 });
+    addComp(w, enemy, Health, { current: 100, max: 100 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const pos = ctx.blackboard.get('current_target_pos') as { x: number; y: number; row: number; col: number };
+    expect(pos).toBeDefined();
+    expect(typeof pos.x).toBe('number');
+    expect(typeof pos.y).toBe('number');
+    expect(typeof pos.row).toBe('number');
+    expect(typeof pos.col).toBe('number');
+    expect(ctx.blackboard.get('current_target_enemy_count')).toBeGreaterThan(0);
+  });
+
+  it('飞行敌人被过滤（cantTargetFlying=true）→ 仅地敌 → FAILURE 若只有飞敌', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200);
+
+    const flying = addEntity(w);
+    addComp(w, flying, Position, { x: 300, y: 200 });
+    addComp(w, flying, Health, { current: 100, max: 100 });
+    addComp(w, flying, UnitTag, { isEnemy: 1 });
+    addComp(w, flying, Layer, { value: LayerVal.LowAir });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target_pos')).toBe(false);
+  });
+
+  it('射程外敌人不被选中', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200, 100);
+
+    const farEnemy = addEntity(w);
+    addComp(w, farEnemy, Position, { x: 2000, y: 200 });
+    addComp(w, farEnemy, Health, { current: 100, max: 100 });
+    addComp(w, farEnemy, UnitTag, { isEnemy: 1 });
+    addComp(w, farEnemy, Layer, { value: LayerVal.Ground });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('已死亡敌人不被选中', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200);
+
+    const deadEnemy = addEntity(w);
+    addComp(w, deadEnemy, Position, { x: 300, y: 200 });
+    addComp(w, deadEnemy, Health, { current: 0, max: 100 });
+    addComp(w, deadEnemy, UnitTag, { isEnemy: 1 });
+    addComp(w, deadEnemy, Layer, { value: LayerVal.Ground });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
   });
 });

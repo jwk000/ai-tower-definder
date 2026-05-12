@@ -1,4 +1,4 @@
-import { NodeStatus, type BTNodeConfig, type BehaviorTreeConfig } from '../types/index.js';
+import { NodeStatus, type BTNodeConfig, type BehaviorTreeConfig, type MapConfig } from '../types/index.js';
 import { hasComponent } from 'bitecs';
 import type { TowerWorld } from '../core/World.js';
 import { getGlobalRandom } from '../utils/Random.js';
@@ -23,6 +23,7 @@ import {
 } from '../core/components.js';
 import { spawnBomb } from '../systems/BombSystem.js';
 import { addBuff } from '../systems/BuffSystem.js';
+import { evaluateMissileTarget } from '../systems/MissileTargeting.js';
 
 // ============================================================
 // Query helpers for leaf nodes — find entities in the world
@@ -52,6 +53,8 @@ export interface AIContext {
   getWeather?: () => string;
   /** Optional: 技能施放 provider（use_skill 节点使用） */
   castSkill?: (entityId: number, skillId: string) => boolean;
+  /** Optional: 地图配置 provider（select_missile_target 节点需要 grid↔pixel 换算）*/
+  getMapConfig?: () => MapConfig | null;
 }
 
 // ============================================================
@@ -993,6 +996,57 @@ export class AuraBuffNode extends ActionNode {
   }
 }
 
+/**
+ * SelectMissileTargetNode — 导弹塔地格评分目标选择（design/23 §0.5）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: 无
+ *   blackboard 输出: current_target_pos / current_target_score / current_target_enemy_count
+ *
+ * 返回语义：
+ *   - 无 getMapConfig provider 或 map 为空 → FAILURE
+ *   - 调 evaluateMissileTarget 后无目标格（无可命中地敌 / 全在射程外）→ 清黑板 + FAILURE
+ *   - 找到最佳目标格 → 写黑板 + SUCCESS
+ *
+ * 黑板写入位置而非 entity id 因为 missile 目标是「网格中心像素坐标」（地格评分结果），
+ * 与一般 attack 节点用 current_target=entityId 不同；charge_attack/launch 节点消费此结果。
+ *
+ * 注：射程过滤、飞行敌过滤已由 evaluateMissileTarget 内部完成（读 Attack.range[tower]
+ * 与 TOWER_CONFIGS[Missile].cantTargetFlying）。caller 直接传完整 enemy 列表即可。
+ */
+export class SelectMissileTargetNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const map = context.getMapConfig?.();
+    if (!map) return NodeStatus.Failure;
+
+    const eid = context.entityId;
+    const enemies = enemyTargetQuery(context.world.world);
+    const aliveEnemies: number[] = [];
+    for (const e of enemies) {
+      if ((Health.current[e] ?? 0) > 0) aliveEnemies.push(e);
+    }
+
+    const result = evaluateMissileTarget(context.world, eid, aliveEnemies, map);
+    if (!result) {
+      context.blackboard.delete('current_target_pos');
+      context.blackboard.delete('current_target_score');
+      context.blackboard.delete('current_target_enemy_count');
+      return NodeStatus.Failure;
+    }
+
+    context.blackboard.set('current_target_pos', {
+      x: result.targetX,
+      y: result.targetY,
+      row: result.row,
+      col: result.col,
+    });
+    context.blackboard.set('current_target_score', result.score);
+    context.blackboard.set('current_target_enemy_count', result.enemyCount);
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1227,6 +1281,8 @@ export class BehaviorTree {
         return new DropBombNode(type, params);
       case 'aura_buff':
         return new AuraBuffNode(type, params);
+      case 'select_missile_target':
+        return new SelectMissileTargetNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 

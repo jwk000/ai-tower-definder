@@ -1,7 +1,7 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { AI, Position, Health, UnitTag, Attack, Movement } from '../core/components.js';
 import { BehaviorTree, type AIContext } from '../ai/BehaviorTree.js';
-import type { BehaviorTreeConfig } from '../types/index.js';
+import type { BehaviorTreeConfig, MapConfig } from '../types/index.js';
 
 /**
  * AISystem — 处理所有单位的AI逻辑 (bitecs 迁移版)
@@ -40,6 +40,13 @@ export class AISystem implements System {
 
   setSkillCaster(fn: (entityId: number, skillId: string) => boolean): void {
     this.skillCaster = fn;
+  }
+
+  /** 可选: 地图配置 provider，供 select_missile_target 节点做 grid↔pixel 换算 */
+  private mapConfigProvider?: () => MapConfig | null;
+
+  setMapConfigProvider(fn: () => MapConfig | null): void {
+    this.mapConfigProvider = fn;
   }
 
   /** 性能统计 */
@@ -149,6 +156,7 @@ export class AISystem implements System {
         blackboard,
         ...(this.weatherProvider ? { getWeather: this.weatherProvider } : {}),
         ...(this.skillCaster ? { castSkill: this.skillCaster } : {}),
+        ...(this.mapConfigProvider ? { getMapConfig: this.mapConfigProvider } : {}),
       };
 
       // 执行行为树
