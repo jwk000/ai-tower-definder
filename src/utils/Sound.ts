@@ -110,25 +110,25 @@ const SFX_PATH: Record<SfxKey, string> = {
 };
 
 const PER_KEY_THROTTLE_MS: Partial<Record<SfxKey, number>> = {
-  // Tower attacks — throttle to avoid ear fatigue
-  tower_arrow: 40,
-  tower_cannon: 80,
-  tower_ice: 40,
-  tower_lightning: 60,
-  tower_laser: 100,
-  tower_bat: 50,
-  tower_missile: 200,
-  tower_shoot: 40, // legacy
-  // Hits
-  arrow_hit: 20,
-  cannon_hit: 60,
-  ice_hit: 30,
-  lightning_hit: 30,
-  missile_impact: 200,
-  // Frequent events
-  enemy_death: 30,
-  enemy_hit: 20,
-  gold_earn: 30,
+  // Tower attacks — increased to reduce density when multiple towers fire
+  tower_arrow: 80,
+  tower_cannon: 120,
+  tower_ice: 80,
+  tower_lightning: 120,
+  tower_laser: 150,
+  tower_bat: 80,
+  tower_missile: 250,
+  tower_shoot: 80, // legacy
+  // Hits — increased to prevent overlapping impact cacophony
+  arrow_hit: 60,
+  cannon_hit: 100,
+  ice_hit: 80,
+  lightning_hit: 120,
+  missile_impact: 250,
+  // Frequent events — increased to tame rapid-fire noise
+  enemy_death: 80,
+  enemy_hit: 50,
+  gold_earn: 60,
   // Never throttle
   ui_click: 0,
   ui_error: 0,
@@ -155,6 +155,10 @@ const PER_KEY_THROTTLE_MS: Partial<Record<SfxKey, number>> = {
   mage_attack: 0,
 };
 
+/** Global concurrent sound cap: sliding-window limit to prevent audio chaos when many units fire simultaneously. */
+const GLOBAL_SOUND_WINDOW_MS = 150;
+const MAX_SOUNDS_IN_WINDOW = 8;
+
 export class Sound {
   private static buffers: Partial<Record<SfxKey, HTMLAudioElement>> = {};
   private static lastPlayedAt: Partial<Record<SfxKey, number>> = {};
@@ -162,6 +166,8 @@ export class Sound {
   private static muted = false;
   private static loaded = false;
   private static unlocked = false;
+  /** Sliding-window timestamps for global concurrent sound limiting */
+  private static recentPlayTimes: number[] = [];
 
   static preload(): void {
     if (Sound.loaded) return;
@@ -212,6 +218,15 @@ export class Sound {
     if (typeof Audio === 'undefined') return;
 
     const now = performance.now();
+
+    // ── Global sliding-window cap: limit total sounds in a short window ──
+    // Prune timestamps older than the window
+    const cutoff = now - GLOBAL_SOUND_WINDOW_MS;
+    Sound.recentPlayTimes = Sound.recentPlayTimes.filter(t => t >= cutoff);
+    if (Sound.recentPlayTimes.length >= MAX_SOUNDS_IN_WINDOW) return;
+    Sound.recentPlayTimes.push(now);
+
+    // ── Per-key throttle ──
     const last = Sound.lastPlayedAt[key] ?? 0;
     const throttle = PER_KEY_THROTTLE_MS[key] ?? 0;
     if (now - last < throttle) return;

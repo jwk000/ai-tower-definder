@@ -552,6 +552,11 @@ export class AttackSystem implements System {
       // Lightning bolt visual
       this.spawnLightningBolt(world, sourceId, targetId, hop);
 
+      // Sound: only play hit sound on first hop to avoid noise overload
+      if (hop === 0) {
+        Sound.play('lightning_hit');
+      }
+
       // Advance source to current target for next bolt
       sourceId = targetId;
 
