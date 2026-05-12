@@ -49,12 +49,15 @@ export interface AIContext {
 // ============================================================
 
 export abstract class BTNode {
+  private static nextNodeId = 0;
   protected name: string;
   protected params: Record<string, unknown>;
+  protected readonly nodeId: number;
 
   constructor(name: string, params: Record<string, unknown> = {}) {
     this.name = name;
     this.params = params;
+    this.nodeId = BTNode.nextNodeId++;
   }
 
   abstract tick(context: AIContext): NodeStatus;
@@ -194,23 +197,24 @@ export class InverterNode extends DecoratorNode {
 }
 
 export class RepeaterNode extends DecoratorNode {
-  private iterations = 0;
-
   tick(context: AIContext): NodeStatus {
     const count = (this.params['count'] as number) ?? -1;
+    const key = `__n${this.nodeId}_iter`;
+    let iter = (context.blackboard.get(key) as number | undefined) ?? 0;
 
     const status = this.child.tick(context);
     if (status === NodeStatus.Running) return NodeStatus.Running;
     if (status === NodeStatus.Failure) {
-      this.iterations = 0;
+      context.blackboard.set(key, 0);
       return NodeStatus.Failure;
     }
 
-    this.iterations++;
-    if (count >= 0 && this.iterations >= count) {
-      this.iterations = 0;
+    iter++;
+    if (count >= 0 && iter >= count) {
+      context.blackboard.set(key, 0);
       return NodeStatus.Success;
     }
+    context.blackboard.set(key, iter);
     return NodeStatus.Running;
   }
 }
@@ -232,31 +236,33 @@ export class AlwaysSucceedNode extends DecoratorNode {
 }
 
 export class CooldownNode extends DecoratorNode {
-  private lastSuccessTime = -Infinity;
-  private elapsed = 0;
-
   tick(context: AIContext): NodeStatus {
-    this.elapsed += context.dt;
+    const elapsedKey = `__n${this.nodeId}_elapsed`;
+    const lastKey = `__n${this.nodeId}_lastSuccess`;
     const seconds = (this.params['seconds'] as number) ?? 0;
-    if (this.elapsed - this.lastSuccessTime < seconds) {
+
+    const elapsed = ((context.blackboard.get(elapsedKey) as number | undefined) ?? 0) + context.dt;
+    context.blackboard.set(elapsedKey, elapsed);
+
+    const lastSuccess = (context.blackboard.get(lastKey) as number | undefined) ?? -Infinity;
+    if (elapsed - lastSuccess < seconds) {
       return NodeStatus.Failure;
     }
     const status = this.child.tick(context);
     if (status === NodeStatus.Success) {
-      this.lastSuccessTime = this.elapsed;
+      context.blackboard.set(lastKey, elapsed);
     }
     return status;
   }
 }
 
 export class OnceNode extends DecoratorNode {
-  private fired = false;
-
   tick(context: AIContext): NodeStatus {
-    if (this.fired) return NodeStatus.Failure;
+    const key = `__n${this.nodeId}_fired`;
+    if (context.blackboard.get(key) === true) return NodeStatus.Failure;
     const status = this.child.tick(context);
     if (status === NodeStatus.Success) {
-      this.fired = true;
+      context.blackboard.set(key, true);
     }
     return status;
   }

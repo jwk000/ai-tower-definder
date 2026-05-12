@@ -728,6 +728,58 @@ describe('CooldownNode', () => {
   });
 });
 
+describe('节点状态多实体隔离（回归）', () => {
+  it('OnceNode 实例被两个实体复用 — fired 状态互不串扰', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new OnceNode('once', child, {});
+    const world = makeWorld();
+    const eA = addEntity(world.world);
+    const eB = addEntity(world.world);
+    const ctxA = makeContext(world, eA, 0.1, new Map());
+    const ctxB = makeContext(world, eB, 0.1, new Map());
+
+    expect(node.tick(ctxA)).toBe(NodeStatus.Success);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Success);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Failure);
+  });
+
+  it('CooldownNode 实例被两个实体复用 — CD 计时互不串扰', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new CooldownNode('cooldown', child, { seconds: 1.0 });
+    const world = makeWorld();
+    const eA = addEntity(world.world);
+    const eB = addEntity(world.world);
+    const ctxA = makeContext(world, eA, 0.3, new Map());
+    const ctxB = makeContext(world, eB, 0.3, new Map());
+
+    expect(node.tick(ctxA)).toBe(NodeStatus.Success);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Success);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Failure);
+  });
+
+  it('RepeaterNode 实例被两个实体复用 — 计数互不串扰', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new RepeaterNode('repeater', child, { count: 3 });
+    const world = makeWorld();
+    const eA = addEntity(world.world);
+    const eB = addEntity(world.world);
+    const ctxA = makeContext(world, eA, 0.1, new Map());
+    const ctxB = makeContext(world, eB, 0.1, new Map());
+
+    expect(node.tick(ctxA)).toBe(NodeStatus.Running);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Running);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Running);
+    expect(node.tick(ctxA)).toBe(NodeStatus.Success);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Running);
+    expect(node.tick(ctxB)).toBe(NodeStatus.Success);
+  });
+});
+
 describe('OnceNode', () => {
   it('首次 SUCCESS 后永远返回 FAILURE', () => {
     const child = new StubNode(NodeStatus.Success);
