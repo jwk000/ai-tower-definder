@@ -1,6 +1,110 @@
 # 23 — AI 行为树统一方案
 
-> 审计现状、路线修正、遗留问题任务拆分
+> 审计现状、路线修正、遗留问题任务拆分、**节点接口规格冻结**
+>
+> 版本: v1.1 | 日期: 2026-05-12
+
+---
+
+## 零、节点接口规格冻结（Source of Truth）
+
+> **本章是所有 BT 节点的唯一接口规格。** 实现侧（`src/ai/BehaviorTree.ts`）必须严格遵守此规格的入参/出参/语义。节点实现可分阶段补齐，但**接口一旦冻结不再改动**——后续只允许新增节点，不允许改已冻结节点的签名。
+>
+> 24-soldier-ai-behavior.md 中使用的所有节点必须在此处出现，否则视为缺失。
+
+### 0.1 节点分类与返回值约定
+
+所有节点的 `tick(ctx)` 返回三态枚举：
+
+| 状态 | 含义 |
+|------|------|
+| `SUCCESS` | 本次 tick 完成预期 |
+| `FAILURE` | 条件不满足 / 动作不可执行 |
+| `RUNNING` | 跨多帧动作，下一帧继续 tick |
+
+> 黑板（blackboard）：每个实体一个，跨 tick 持久；存储 `current_target`、`alert_state`、`wander_target_x/y`、`wander_pause_until` 等。
+
+### 0.2 组合节点（Composite）
+
+| 节点 | 行为 | 子节点失败时 | 子节点成功时 | 子节点 RUNNING 时 |
+|------|------|------------|------------|------------------|
+| `selector` | 按顺序 tick 子节点，任一 SUCCESS 即返回 | 继续下一个 | 返回 SUCCESS | 返回 RUNNING |
+| `sequence` | 按顺序 tick，任一 FAILURE 即返回 | 返回 FAILURE | 继续下一个 | 返回 RUNNING |
+| `parallel` | 同时 tick 所有子节点 | 按 `failurePolicy` 决定 | 按 `successPolicy` 决定 | 累计 RUNNING |
+
+`parallel` 参数：
+- `successPolicy`: `requireOne` / `requireAll`（默认 `requireAll`）
+- `failurePolicy`: `requireOne` / `requireAll`（默认 `requireOne`）
+
+### 0.3 装饰节点（Decorator）
+
+| 节点 | 参数 | 语义 |
+|------|------|------|
+| `inverter` | — | SUCCESS↔FAILURE 互换，RUNNING 透传 |
+| `repeater` | `count: int` (-1=无限) | 重复 tick 子节点 N 次后返回 SUCCESS |
+| `cooldown` | `seconds: float` | 子节点 SUCCESS 后，CD 内 tick 直接返回 FAILURE |
+| `once` | — | 子节点首次 SUCCESS 后永远返回 FAILURE（用于 Boss 阶段切换） |
+| `ignore_invulnerable` | — | 包裹目标选择类节点；若选中的目标 `invulnerable=true`，强制返回 FAILURE |
+
+### 0.4 条件节点（Condition，无副作用）
+
+| 节点 | 参数 | 黑板读 | 黑板写 | SUCCESS 条件 |
+|------|------|--------|--------|--------------|
+| `check_enemy_in_range` | `range: float`, `set_target: bool=false`, `min_count: int=1`, `filter_faction: enum=Enemy` | `current_target` (可选验证) | `current_target` (当 set_target=true) | 范围内符合过滤的敌人数 ≥ min_count |
+| `check_ally_in_range` | `range: float`, `set_target: bool=false`, `hp_below: float=1.0`, `min_count: int=1` | — | `current_target` (当 set_target=true) | 范围内 HP 比例 < hp_below 的友方 ≥ min_count |
+| `check_hp` | `below: float=1.0`, `above: float=0.0`, `compare: "self"/"current_target"="self"` | `current_target`(条件需要时) | — | HP 比例落在 (above, below) 区间 |
+| `check_cooldown` | `key: string` | `cooldowns[key]` | — | CD 已结束（剩余 ≤ 0） |
+| `check_distance_from_home` | `min: float=0`, `max: float=Infinity` | — | — | 与 `homeX/Y` 距离落在 [min, max] |
+| `check_current_target_alive` | — | `current_target` | — | 目标存在且 `Health.current > 0` |
+| `check_current_target_in_range` | `range: float` | `current_target` | — | 当前目标存在且在 range 内 |
+| `check_layer` | `layer: enum` | — | — | 自身层级匹配（详见 18） |
+| `check_weather` | `weather: enum[]` | — | — | 当前天气在列表内（详见 11） |
+
+> **关键设计**: `check_enemy_in_range` 的 `set_target=true` 形态是士兵 ALERT 状态发现目标的唯一入口；其它节点（move/attack）都只读 `current_target`，不重新选目标。这避免了"每帧重选→目标抖动"的死循环。
+
+### 0.5 动作节点（Action，有副作用）
+
+| 节点 | 参数 | 黑板读 | 黑板写 | 完成条件 |
+|------|------|--------|--------|---------|
+| `attack` | `target: "current_target"` | `current_target` | 记录 `last_attack_time` | 单次攻击执行完毕（命中或弹道发射）→ SUCCESS；目标无效 → FAILURE |
+| `move_towards` | `target: "current_target"/"home_position"/literal`, `max_range: float=Infinity`, `speed_ratio: float=1.0`, `arrive_dist: float=8` | `current_target`(若 target=current_target) | 写 `Movement.targetX/Y` | 到达 arrive_dist → SUCCESS；超出 max_range → FAILURE；移动中 → RUNNING |
+| `wander` | `radius: float`, `speed_ratio: float=0.5`, `pick_interval: [min,max]=[2,4]`, `pause_interval: [min,max]=[1,3]` | `wander_target_x/y`, `wander_pause_until` | 同左 | 持续返回 RUNNING；内部自管选点/停顿 |
+| `set_state` | `state: "idle"/"alert"/"combat"/"return"` | — | `ai_state` | 写完即 SUCCESS |
+| `show_alert_mark` | `blink: bool=false` | — | `AlertMark.visible/blink` | 写完即 SUCCESS |
+| `hide_alert_mark` | — | — | `AlertMark.visible=0` | 写完即 SUCCESS |
+| `use_skill` | `skill_id: string` | `current_target`(技能需要时) | — | 调用 SkillSystem，能量/CD 不足 → FAILURE；触发成功 → SUCCESS |
+| `heal` | `target: "current_target"/"all_in_range"`, `amount: float`, `range: float` | `current_target` | — | 调用 HealingSystem，无目标 → FAILURE，否则 SUCCESS |
+| `produce_resource` | `resource: "gold"/"energy"`, `rate: float` | — | `Production.accumulator` | 累加产出，永远 SUCCESS |
+| `trigger_trap` | `damage: float`, `radius: float`, `cd: float` | — | `Cooldown` | CD 未到 → FAILURE；触发后 → SUCCESS |
+| `on_target_dead_reselect` | `range: float`, `set_target: bool=true` | `current_target` | `current_target`(新目标) | 当前目标存活 → SUCCESS；目标死亡且能选到新目标 → SUCCESS；选不到 → FAILURE |
+| `boid_step` | `cohesion/separation/alignment/wanderJitter` 权重 | `boid_velocity` | 同左 | 每帧 RUNNING（boid 物理） |
+| `drop_bomb` | `damage: float`, `radius: float`, `falloff: float` | `current_target` | — | 调用 BombSystem，CD 未到 → FAILURE；否则 SUCCESS |
+| `aura_buff` | `buff_id: string`, `range: float`, `faction: enum` | — | 范围内单位 `BuffStack` | 应用 Buff，永远 SUCCESS |
+
+### 0.6 全局约定
+
+1. **目标稳定性原则**: 一旦黑板的 `current_target` 被 `set_target=true` 节点写入，后续 tick 中**只有 `on_target_dead_reselect` 可重写它**；其它任何节点不得修改。这是消除"目标抖动"的硬约束。
+2. **状态优先级**: 4 状态切换通过 selector 顺序表达，必须严格按 `COMBAT > ALERT > RETURN > IDLE`。状态切换时由 `set_state` 写入黑板，下一帧从该状态分支重新进入。
+3. **范围继承**: 节点 params 中以 `${var}` 引用单位配置字段（如 `${attack_range}`、`${alert_range}`、`${move_range}`），实现侧必须支持此模板插值。
+4. **远程兵 alert/attack 半径抖动防护**: 当 `alert_range ≤ attack_range × 1.2` 时，`move_towards` 节点的 `arrive_dist` 自动改为 `attack_range × 0.9`，确保进入射程后停下而非贴脸。
+5. **超界保护**: 所有 `move_towards` 必须传 `max_range`（士兵传 `${move_range}`，敌人传 `Infinity`）。超界时返回 FAILURE，触发上层 selector 转入 RETURN。
+
+### 0.7 节点实现进度表
+
+| 节点 | 当前状态 | 目标阶段 |
+|------|---------|---------|
+| `selector` / `sequence` / `inverter` / `repeater` | ✅ 已实现 | — |
+| `check_enemy_in_range` / `attack` / `move_towards` | ✅ 已实现 | — |
+| `check_ally_in_range` / `heal` / `all_in_range` DOT | ✅ 已实现（1807ae1） | — |
+| `parallel` / `cooldown` / `once` | ⏳ 未实现 | Phase 4 T4.1 |
+| `set_state` / `show_alert_mark` / `hide_alert_mark` / `check_distance_from_home` / `wander` | ⏳ 未实现 | Phase 4 T4.1 |
+| `use_skill` / `check_cooldown` | ⏳ 未实现 | Phase 4 T4.1 |
+| `on_target_dead_reselect` / `check_current_target_alive` / `check_current_target_in_range` | ⏳ 未实现 | Phase 4 T4.1 |
+| `produce_resource` / `trigger_trap` | ⏳ 未实现 | Phase 4 T4.1 |
+| `ignore_invulnerable` | ⏳ 未实现 | Phase 4 T4.1 |
+| `boid_step` / `drop_bomb` / `aura_buff` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
+
+> 在 Phase 4 节点全部实现前，引用未实现节点的 AI 配置（士兵 IDLE 游荡、Boss 阶段切换）应使用**占位实现**：`wander` 降级为原地 jitter，`once` 降级为普通 selector 分支，`set_state` 降级为 no-op。占位实现必须在日志或 BehaviorTreeViewer 中明确标注 "STUB"。
 
 ---
 

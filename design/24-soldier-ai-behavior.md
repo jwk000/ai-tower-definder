@@ -89,7 +89,28 @@
 
 **范围大小关系**：`moveRange > alertRange > attackRange`
 
-> 例外：远程士兵（如弓手）可能有 `alertRange ≈ attackRange`（视野即射程），近战士兵（如剑士）`alertRange >> attackRange`（远距离发现，近身后战斗）。
+> **远程兵抖动防护**（关键）：远程士兵（如弓手）的 `alertRange` **不允许 ≈ attackRange**，否则会出现"警戒到敌人 → 追击 1 帧 → 进入射程 → 停下 → 敌人后退一步 → 再次警戒"的抖动循环。
+>
+> **硬约束**：`alertRange ≥ attackRange × 1.1 + 20px`。
+>
+> - 近战士兵（盾卫/剑士）：`alertRange = attackRange × 4~5`（远距离发现，近身后战斗）
+> - 远程士兵（弓手）：`alertRange = attackRange × 1.1 + 20px`（视野略大于射程，必能进入射程命中）
+> - 治疗士兵（祭司）：`alertRange = attackRange × 1.5~2`（中等视野，走向需要治疗的友方）
+
+### 2.1 状态优先级（显式声明）
+
+状态切换由 BT 的 selector 强制按以下优先级判定，每 tick 重新评估：
+
+```
+COMBAT > ALERT > RETURN > IDLE
+```
+
+- **COMBAT**：当前目标存活 + 在 `attackRange` 内
+- **ALERT**：`alertRange` 内有合法敌人（且不满足 COMBAT）
+- **RETURN**：与 home 距离 > 10px 且无敌人在 `alertRange` 内
+- **IDLE**：以上均不满足
+
+> 任何 tick 都强制做这 4 个判定，不允许"状态保留惯性"。这确保不会卡在某状态下不动（如远程兵追击超界后陷入死循环）。
 
 ---
 
@@ -179,11 +200,11 @@ wander:
 | 音效 | `SFX_SOLDIER_ALERT`（短促警告音，每士兵最多 1 次/3秒） |
 
 **追击逻辑**：
-- 锁定警戒范围内最近的敌人
-- 以 100% 速度向敌人移动
-- 受 `moveRange` 约束：如果敌人位置超出移动范围，不追击（立即转换到 RETURN）
-- 每帧更新目标位置（敌人也在移动）
-- 如果多个敌人同时在警戒范围，优先距离最近的
+- 通过 `check_enemy_in_range(set_target=true)` **首次锁定**警戒范围内最近的敌人，写入 `current_target`
+- 锁定后**目标稳定**：后续 tick 中只有 `on_target_dead_reselect` 节点能改写 `current_target`（详见 23 §0.6 全局约定 #1）
+- 以 100% 速度通过 `move_towards(target=current_target, max_range=${move_range})` 向敌人移动
+- **超界保护**：`move_towards` 在追击到达 `moveRange` 边界时返回 FAILURE，触发上层 selector 转入 RETURN 状态——而非死循环卡边界
+- 每帧 `move_towards` 内部自动读取 `current_target` 的实时位置（敌人移动时追击点同步更新）
 
 #### COMBAT — 战斗
 
@@ -196,10 +217,10 @@ wander:
 | 视觉 | 红叹号常亮，攻击动画 |
 
 **攻击逻辑**：
-- 复用现有 `AttackNode` 行为树节点
+- 复用现有 `attack` 行为树节点（详见 23 §0.5）
 - 攻击冷却由 `Attack.cooldownTimer` 管理
 - 近战：直接伤害；远程：发射弹道（复用 `ProjectileSystem`）
-- 目标死亡后：自动切换到警戒范围内下一个最近敌人（如有），否则进入 RETURN
+- **目标死亡处理**：在 `attack` 节点之前插入 `on_target_dead_reselect(range=${alert_range})`，自动在警戒范围内重选最近敌人；选不到则返回 FAILURE，触发上层 selector 转入 ALERT/RETURN
 
 #### RETURN — 返回
 
@@ -333,28 +354,30 @@ wander:
 
 ```json
 // 新版: soldier_generic (所有士兵的通用AI)
+// 节点签名严格按 23 §0 节点接口规格冻结
 {
   "id": "soldier_generic",
   "name": "通用士兵AI",
-  "version": "2.0",
+  "version": "2.1",
   "root": {
     "type": "selector",
-    "comment": "4状态 Selector: COMBAT > ALERT > RETURN > IDLE",
+    "comment": "4 状态严格优先级: COMBAT > ALERT > RETURN > IDLE",
     "children": [
 
-      // ====== COMBAT: 攻击范围内有敌人 ======
+      // ====== COMBAT: 当前目标存活且在攻击范围内 ======
       {
         "type": "sequence",
         "name": "战斗",
         "children": [
-          { "type": "check_enemy_in_range", "params": { "range": "${attack_range}" } },
+          { "type": "on_target_dead_reselect", "params": { "range": "${alert_range}", "set_target": true } },
+          { "type": "check_current_target_in_range", "params": { "range": "${attack_range}" } },
           { "type": "set_state", "params": { "state": "combat" } },
           { "type": "show_alert_mark", "params": { "blink": false } },
           { "type": "attack", "params": { "target": "current_target" } }
         ]
       },
 
-      // ====== ALERT: 警戒范围内有敌人 ======
+      // ====== ALERT: 警戒范围内有敌人（首次锁定目标） ======
       {
         "type": "sequence",
         "name": "警戒",
@@ -362,7 +385,11 @@ wander:
           { "type": "check_enemy_in_range", "params": { "range": "${alert_range}", "set_target": true } },
           { "type": "set_state", "params": { "state": "alert" } },
           { "type": "show_alert_mark", "params": { "blink": true } },
-          { "type": "move_towards", "params": { "target": "current_target", "max_range": "${move_range}" } }
+          { "type": "move_towards", "params": {
+              "target": "current_target",
+              "max_range": "${move_range}",
+              "arrive_dist": "auto"
+          }}
         ]
       },
 
@@ -374,7 +401,11 @@ wander:
           { "type": "check_distance_from_home", "params": { "min": 10 } },
           { "type": "set_state", "params": { "state": "return" } },
           { "type": "hide_alert_mark", "params": {} },
-          { "type": "move_towards", "params": { "target": "home_position", "speed_ratio": 0.8 } }
+          { "type": "move_towards", "params": {
+              "target": "home_position",
+              "speed_ratio": 0.8,
+              "max_range": "Infinity"
+          }}
         ]
       },
 
@@ -392,16 +423,28 @@ wander:
 }
 ```
 
-### 6.3 新增行为树节点类型
+**新版关键变更（对齐 23 §0 节点接口）**：
 
-| 节点名 | 类型 | 参数 | 说明 |
-|--------|------|------|------|
-| `set_state` | Action | `state: string` | 设置AI黑板中的状态标记 |
-| `show_alert_mark` | Action | `blink: bool` | 显示头顶红叹号 |
-| `hide_alert_mark` | Action | — | 隐藏红叹号 |
-| `check_distance_from_home` | Condition | `min: float` | 检查与home的距离是否 > min |
-| `wander` | Action | `radius: float, speed_ratio: float` | 在半径内随机选点漫步 |
-| `check_enemy_in_range` (增强) | Condition | `set_target: bool` | 是否将发现的敌人设为 current_target |
+1. COMBAT 分支首节点为 `on_target_dead_reselect`，保证目标死亡后能在同一帧切换新目标，无需依赖外层 selector 切到 ALERT 再回 COMBAT（避免 1 帧空窗）。
+2. `move_towards.arrive_dist = "auto"`：当 `alert_range ≤ attack_range × 1.2` 时自动取 `attack_range × 0.9`（抖动防护，详见 23 §0.6 #4）。
+3. 所有 `move_towards` 必须传 `max_range`，超界返回 FAILURE 触发 RETURN 转换（消除卡边界死循环）。
+4. ALERT 分支唯一允许 `set_target=true`；COMBAT 分支只允许 `on_target_dead_reselect` 改写目标（目标稳定性原则）。
+
+### 6.3 新增行为树节点（详细规格见 23 §0）
+
+所有节点签名/语义已在 [23 §0 节点接口规格冻结](./23-ai-behavior-tree.md#零节点接口规格冻结source-of-truth) 中定义。本文档仅列出士兵 AI 涉及的节点清单（不再重复签名，避免双源漂移）：
+
+| 节点 | 类型 | 用途 |
+|------|------|------|
+| `set_state` | Action | 写黑板状态标记 |
+| `show_alert_mark` / `hide_alert_mark` | Action | 红叹号显隐 |
+| `check_distance_from_home` | Condition | RETURN 触发判定 |
+| `wander` | Action | IDLE 游荡 |
+| `check_enemy_in_range` (set_target=true) | Condition | ALERT 首次锁定目标 |
+| `check_current_target_in_range` | Condition | COMBAT 持续命中判定 |
+| `on_target_dead_reselect` | Action | COMBAT 中目标死亡后重选 |
+| `move_towards` (max_range, arrive_dist=auto) | Action | 通用移动，含超界保护与抖动防护 |
+| `attack` | Action | 执行攻击 |
 
 ### 6.4 技能节点的保留
 
@@ -536,6 +579,9 @@ private aggroTable: Map<number, { targetId: number; expireTime: number; totalDam
 - [ ] 玩家拖拽优先级最高：拖拽覆盖所有AI状态
 - [ ] 目标切换：当前目标死亡后，自动选择警戒范围内下一个最近敌人
 - [ ] 多敌人目标选择：优先最近敌人
+- [ ] **远程兵抖动防护**：弓手追击时不在射程边界抖动（alert_range ≥ attack_range × 1.1 + 20）
+- [ ] **目标稳定性**：士兵进入 ALERT 后锁定的目标在 COMBAT/ALERT 切换时不会随机变更，只在死亡时由 `on_target_dead_reselect` 切换
+- [ ] **超界保护**：追击到 moveRange 边界时立即转 RETURN，不卡死边缘
 
 ### 9.2 敌方士兵AI
 
