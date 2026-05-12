@@ -160,12 +160,12 @@ export const TOWER_BAT_AI: BehaviorTreeConfig = {
 
 // ==================== 敌人类AI ====================
 
-/** 基础敌人AI - 沿路径移动，攻击途中的士兵 */
+/** 基础敌人AI v2.0 - 沿路径移动，攻击途中士兵（enemy_melee_attack 节点接管） */
 export const ENEMY_BASIC_AI: BehaviorTreeConfig = {
   id: 'enemy_basic',
   name: '基础敌人AI',
   description: '沿路径移动，攻击途中士兵',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -174,7 +174,7 @@ export const ENEMY_BASIC_AI: BehaviorTreeConfig = {
         name: '攻击士兵',
         children: [
           { type: 'check_enemy_in_range', params: { range: 30, target_type: 'soldier' } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'enemy_melee_attack', params: {} }
         ]
       },
       {
@@ -185,12 +185,12 @@ export const ENEMY_BASIC_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 远程敌人AI - 攻击建筑 */
+/** 远程敌人AI v2.0 - 攻击建筑（ranged）/ 士兵（melee） */
 export const ENEMY_RANGED_AI: BehaviorTreeConfig = {
   id: 'enemy_ranged',
   name: '远程敌人AI',
   description: '优先攻击建筑，也可攻击单位',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -199,7 +199,7 @@ export const ENEMY_RANGED_AI: BehaviorTreeConfig = {
         name: '攻击建筑',
         children: [
           { type: 'check_enemy_in_range', params: { range: 150, target_type: 'tower' } },
-          { type: 'attack', params: { target: 'nearest_enemy', projectile: true } }
+          { type: 'enemy_ranged_attack', params: {} }
         ]
       },
       {
@@ -207,7 +207,7 @@ export const ENEMY_RANGED_AI: BehaviorTreeConfig = {
         name: '攻击单位',
         children: [
           { type: 'check_enemy_in_range', params: { range: 30, target_type: 'soldier' } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'enemy_melee_attack', params: {} }
         ]
       },
       {
@@ -218,12 +218,12 @@ export const ENEMY_RANGED_AI: BehaviorTreeConfig = {
   }
 };
 
-/** Boss AI - 使用技能 */
+/** Boss AI v2.0 - 技能阶段 + 近战攻击（enemy_melee_attack 节点接管） */
 export const ENEMY_BOSS_AI: BehaviorTreeConfig = {
   id: 'enemy_boss',
   name: 'Boss AI',
   description: 'Boss敌人AI，有特殊技能',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -241,7 +241,7 @@ export const ENEMY_BOSS_AI: BehaviorTreeConfig = {
         name: '攻击',
         children: [
           { type: 'check_enemy_in_range', params: { range: 30 } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'enemy_melee_attack', params: {} }
         ]
       },
       {

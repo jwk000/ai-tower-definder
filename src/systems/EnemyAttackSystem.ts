@@ -33,123 +33,20 @@ const attackerQuery = defineQuery([Position, Movement, Attack, UnitTag]);
 // ============================================================
 
 /**
- * Handles enemy attack EXECUTION (not target selection).
+ * EnemyAttackSystem (P4 R7 后):
+ * 攻击逻辑（target selection + 执行 + Movement.moveMode 切换）已迁移至 BT 节点
+ * EnemyMeleeAttackNode / EnemyRangedAttackNode（design/23 §0.5）。
  *
- * Target selection is delegated to AISystem's behavior tree (check_enemy_in_range +
- * attack nodes set Attack.targetId). This system reads Attack.targetId and executes
- * the attack (projectile for ranged, direct damage for melee).
+ * 本系统当前职责: 仅作为 ECS system 占位入口（保留 BuildSystem 依赖 + 未来扩展）。
+ * 实际副作用入口为模块级 export doEnemyAttack（供 BT 节点调用）。
  *
- * Movement is paused (MoveModeVal.HoldPosition) while an enemy has a valid target,
- * and resumed (MoveModeVal.FollowPath) when the target is lost.
- *
- * Attack cooldown ticking is handled by AISystem.
+ * cooldown tick 由 AISystem 负责（line 130-133）。
  */
 export class EnemyAttackSystem implements System {
   readonly name = 'EnemyAttackSystem';
 
-  update(world: TowerWorld, dt: number): void {
-    const attackers = attackerQuery(world.world);
-
-    for (let i = 0; i < attackers.length; i++) {
-      const eid = attackers[i]!;
-
-      // Only process actual enemies
-      if (UnitTag.isEnemy[eid] !== 1) continue;
-
-      const canAttackBuildings =
-        UnitTag.canAttackBuildings[eid] === 1 || Attack.range[eid]! > 0;
-
-      const posX = Position.x[eid]!;
-      const posY = Position.y[eid]!;
-      const targetId = Attack.targetId[eid]!;
-
-      // No target set by BT → resume movement
-      if (targetId === 0) {
-        if (Movement.moveMode[eid] === MoveModeVal.HoldPosition) {
-          Movement.moveMode[eid] = MoveModeVal.FollowPath;
-        }
-        continue;
-      }
-
-      // Validate target (alive + in range)
-      if (!this.isTargetValid(targetId)) {
-        Attack.targetId[eid] = 0;
-        Movement.moveMode[eid] = MoveModeVal.FollowPath;
-        continue;
-      }
-
-      const tX = Position.x[targetId]!;
-      const tY = Position.y[targetId]!;
-      const dx = tX - posX;
-      const dy = tY - posY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist > Attack.range[eid]!) {
-        // Out of range — abandon
-        Attack.targetId[eid] = 0;
-        Movement.moveMode[eid] = MoveModeVal.FollowPath;
-        continue;
-      }
-
-      // Pause movement while engaging
-      Movement.moveMode[eid] = MoveModeVal.HoldPosition;
-
-      // Execute attack (cooldown is managed by AISystem)
-      if (Attack.cooldownTimer[eid]! <= 0) {
-        this.doAttack(world, eid, targetId, posX, posY, canAttackBuildings);
-        Attack.cooldownTimer[eid]! = 1 / Attack.attackSpeed[eid]!;
-      }
-    }
-  }
-
-  // ==========================================================
-  // Private helpers
-  // ==========================================================
-
-  /** Return true if the target entity is alive and has health. */
-  private isTargetValid(targetId: number): boolean {
-    const hp = Health.current[targetId];
-    return hp !== undefined && hp > 0;
-  }
-
-  /**
-   * Perform the actual attack based on type:
-   *  - Ranged enemies spawn a projectile toward the target.
-   *  - Melee enemies deal direct damage.
-   */
-  private doAttack(
-    world: TowerWorld,
-    sourceId: number,
-    targetId: number,
-    fromX: number,
-    fromY: number,
-    canAttackBuildings: boolean,
-  ): void {
-    const rawDamage = Attack.damage[sourceId]!;
-    const buff = getEffectiveValue(sourceId, 'atk');
-    const damage = (rawDamage + buff.absolute) * (1 + buff.percent / 100);
-
-    if (canAttackBuildings) {
-      // Ranged — spawn projectile
-      Sound.play('mage_attack');
-      this.spawnProjectile(world, sourceId, targetId, damage, fromX, fromY);
-    } else {
-      // Melee — direct damage (enemies deal physical damage)
-      Sound.play('enemy_attack');
-      applyDamageToTarget(world, targetId, damage, DamageTypeVal.Physical, sourceId);
-    }
-  }
-
-  /** Create an enemy projectile entity flying toward the target. */
-  private spawnProjectile(
-    world: TowerWorld,
-    sourceId: number,
-    targetId: number,
-    damage: number,
-    fromX: number,
-    fromY: number,
-  ): void {
-    spawnEnemyProjectile(world, sourceId, targetId, damage, fromX, fromY);
+  update(_world: TowerWorld, _dt: number): void {
+    // BT v2.0 全权接管，update 不干预（P4 R7）
   }
 }
 

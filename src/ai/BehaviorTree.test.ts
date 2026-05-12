@@ -17,6 +17,7 @@ import {
   Health,
   Attack,
   Movement,
+  MoveModeVal,
   UnitTag,
   Tower,
   Production,
@@ -58,6 +59,8 @@ import {
   SpawnProjectileTowerNode,
   LightningChainNode,
   LaserBeamNode,
+  EnemyMeleeAttackNode,
+  EnemyRangedAttackNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -2581,5 +2584,257 @@ describe('LaserBeamNode（激光塔多束自扫 P4 R4）', () => {
     expect(node.tick(ctx)).toBe(NodeStatus.Success);
     expect(Attack.cooldownTimer[tower]).toBe(0);
     expect(beamQuery(world).length).toBe(1);
+  });
+});
+
+describe('EnemyMeleeAttackNode（敌人近战 P4 R7）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  function makeEnemy(world: TowerWorld, x: number, y: number, opts: { damage?: number; range?: number; attackSpeed?: number } = {}): number {
+    const w = world.world;
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x, y });
+    addComp(w, enemy, Health, { current: 100, max: 100, armor: 0 });
+    addComp(w, enemy, Attack, {
+      damage: opts.damage ?? 10,
+      attackSpeed: opts.attackSpeed ?? 1.0,
+      range: opts.range ?? 30,
+      damageType: 0,
+      isRanged: 0,
+      cooldownTimer: 0,
+    });
+    addComp(w, enemy, Movement, { speed: 50, targetX: 0, targetY: 0, moveRange: 0, moveMode: MoveModeVal.FollowPath });
+    addComp(w, enemy, UnitTag, { isEnemy: 1, canAttackBuildings: 0 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+    return enemy;
+  }
+
+  function makeSoldier(world: TowerWorld, x: number, y: number, hp: number = 50): number {
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x, y });
+    addComp(w, soldier, Health, { current: hp, max: 50, armor: 0 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0, canAttackBuildings: 0 });
+    addComp(w, soldier, Layer, { value: LayerVal.Ground });
+    return soldier;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  it('无 current_target → FAILURE + Movement 恢复 FollowPath', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100);
+    Movement.moveMode[enemy] = MoveModeVal.HoldPosition;
+    const ctx = makeCtx(world, enemy);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.FollowPath);
+    expect(Attack.targetId[enemy]).toBe(0);
+  });
+
+  it('current_target 已死 → FAILURE + 恢复 FollowPath + clear targetId', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100);
+    const deadSoldier = makeSoldier(world, 110, 100, 0);
+    Movement.moveMode[enemy] = MoveModeVal.HoldPosition;
+    Attack.targetId[enemy] = deadSoldier;
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', deadSoldier);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.FollowPath);
+    expect(Attack.targetId[enemy]).toBe(0);
+  });
+
+  it('距离超 range → FAILURE + 恢复 FollowPath + clear targetId', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100, { range: 30 });
+    const farSoldier = makeSoldier(world, 200, 100);
+    Movement.moveMode[enemy] = MoveModeVal.HoldPosition;
+    Attack.targetId[enemy] = farSoldier;
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', farSoldier);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.FollowPath);
+    expect(Attack.targetId[enemy]).toBe(0);
+  });
+
+  it('cooldownTimer > 0 → FAILURE 但保持 HoldPosition（已交战中）', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100);
+    Attack.cooldownTimer[enemy] = 0.5;
+    const soldier = makeSoldier(world, 110, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', soldier);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    // HoldPosition 由 ranged guard 设置但 cooldown 守卫 FAILURE 不回滚
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.HoldPosition);
+    expect(Health.current[soldier]).toBe(50);
+  });
+
+  it('成功路径 → SUCCESS + 直伤 + HoldPosition + set targetId + reset cooldown', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100, { damage: 15, attackSpeed: 2.0 });
+    const soldier = makeSoldier(world, 110, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', soldier);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const expectedHp = 50 - 15;
+    expect(Health.current[soldier]).toBe(expectedHp);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.HoldPosition);
+    expect(Attack.targetId[enemy]).toBe(soldier);
+    const expectedCooldown = 1 / 2.0;
+    expect(Attack.cooldownTimer[enemy]).toBeCloseTo(expectedCooldown, 3);
+  });
+
+  it('attackSpeed=0 → 成功但不重置 cooldown（兜底）', () => {
+    const world = makeRealWorld();
+    const enemy = makeEnemy(world, 100, 100, { attackSpeed: 0 });
+    const soldier = makeSoldier(world, 110, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', soldier);
+
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.cooldownTimer[enemy]).toBe(0);
+  });
+});
+
+describe('EnemyRangedAttackNode（敌人远程 P4 R7）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  function makeRangedEnemy(world: TowerWorld, x: number, y: number, opts: { range?: number; attackSpeed?: number } = {}): number {
+    const w = world.world;
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x, y });
+    addComp(w, enemy, Health, { current: 100, max: 100, armor: 0 });
+    addComp(w, enemy, Attack, {
+      damage: 10,
+      attackSpeed: opts.attackSpeed ?? 1.0,
+      range: opts.range ?? 150,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+    });
+    addComp(w, enemy, Movement, { speed: 50, targetX: 0, targetY: 0, moveRange: 0, moveMode: MoveModeVal.FollowPath });
+    addComp(w, enemy, UnitTag, { isEnemy: 1, canAttackBuildings: 1 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+    return enemy;
+  }
+
+  function makeTowerTarget(world: TowerWorld, x: number, y: number, hp: number = 200): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Health, { current: hp, max: hp, armor: 0 });
+    addComp(w, tower, UnitTag, { isEnemy: 0, canAttackBuildings: 0 });
+    addComp(w, tower, Layer, { value: LayerVal.Ground });
+    return tower;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  function projectileQuery(world: TowerWorld): number[] {
+    return defineQuery([Projectile])(world.world);
+  }
+
+  it('无 current_target → FAILURE + 恢复 FollowPath', () => {
+    const world = makeRealWorld();
+    const enemy = makeRangedEnemy(world, 100, 100);
+    Movement.moveMode[enemy] = MoveModeVal.HoldPosition;
+    const ctx = makeCtx(world, enemy);
+
+    const node = new EnemyRangedAttackNode('enemy_ranged_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.FollowPath);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('target 已死 → FAILURE + 恢复 FollowPath', () => {
+    const world = makeRealWorld();
+    const enemy = makeRangedEnemy(world, 100, 100);
+    const deadTower = makeTowerTarget(world, 150, 100, 0);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', deadTower);
+
+    const node = new EnemyRangedAttackNode('enemy_ranged_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('距离超 range → FAILURE + 恢复 FollowPath', () => {
+    const world = makeRealWorld();
+    const enemy = makeRangedEnemy(world, 100, 100, { range: 150 });
+    const farTower = makeTowerTarget(world, 500, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', farTower);
+
+    const node = new EnemyRangedAttackNode('enemy_ranged_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.FollowPath);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('cooldownTimer > 0 → FAILURE 但 HoldPosition 保持', () => {
+    const world = makeRealWorld();
+    const enemy = makeRangedEnemy(world, 100, 100);
+    Attack.cooldownTimer[enemy] = 0.5;
+    const tower = makeTowerTarget(world, 200, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', tower);
+
+    const node = new EnemyRangedAttackNode('enemy_ranged_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.HoldPosition);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('成功 → SUCCESS + spawn Projectile + HoldPosition + cooldown', () => {
+    const world = makeRealWorld();
+    const enemy = makeRangedEnemy(world, 100, 100, { attackSpeed: 2.0 });
+    const tower = makeTowerTarget(world, 200, 100);
+    const ctx = makeCtx(world, enemy);
+    ctx.blackboard.set('current_target', tower);
+
+    const node = new EnemyRangedAttackNode('enemy_ranged_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    // spawn 红色 Circle projectile（200 px/s）
+    const projectiles = projectileQuery(world);
+    expect(projectiles.length).toBe(1);
+    const pid = projectiles[0]!;
+    expect(Projectile.sourceId[pid]).toBe(enemy);
+    expect(Projectile.targetId[pid]).toBe(tower);
+    expect(Projectile.speed[pid]).toBe(200);
+
+    expect(Movement.moveMode[enemy]).toBe(MoveModeVal.HoldPosition);
+    expect(Attack.targetId[enemy]).toBe(tower);
+    expect(Attack.cooldownTimer[enemy]).toBeCloseTo(0.5, 3);
   });
 });

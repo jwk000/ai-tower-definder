@@ -10,6 +10,7 @@ import {
   UnitTag,
   Tower,
   Movement,
+  MoveModeVal,
   Production,
   ResourceTypeVal,
   AlertMark,
@@ -1328,6 +1329,139 @@ export class LaserBeamNode extends ActionNode {
   }
 }
 
+/**
+ * EnemyMeleeAttackNode — 敌人近战攻击节点（design/23 §0.5 `enemy_melee_attack`）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: `current_target`（由 check_enemy_in_range 写入）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：
+ *   - cooldownTimer > 0 → 仅维持 HoldPosition → FAILURE
+ *   - 无 current_target → FollowPath + clear targetId → FAILURE
+ *   - target 已死 / 距离超 range → FollowPath + clear targetId → FAILURE
+ *   - 成功 → HoldPosition + doEnemyAttack(canAttackBuildings=false) → set targetId + cooldown → SUCCESS
+ *
+ * 副作用（与 EnemyAttackSystem.update + doAttack 等价）：
+ *   - applyDamageToTarget Physical 直伤 + Sound.play('enemy_attack')
+ *   - Movement.moveMode = HoldPosition 暂停沿路径移动
+ *
+ * 服务 enemy_basic / enemy_boss（近战敌人）。
+ */
+export class EnemyMeleeAttackNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined || targetId === 0) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    if ((Health.current[targetId] ?? 0) <= 0) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    const posX = Position.x[eid]!;
+    const posY = Position.y[eid]!;
+    const tX = Position.x[targetId]!;
+    const tY = Position.y[targetId]!;
+    const dx = tX - posX;
+    const dy = tY - posY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const range = Attack.range[eid] ?? 0;
+    if (dist > range) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
+    doEnemyAttack(world, eid, targetId, posX, posY, false);
+
+    Attack.targetId[eid] = targetId;
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    return NodeStatus.Success;
+  }
+}
+
+/**
+ * EnemyRangedAttackNode — 敌人远程攻击节点（design/23 §0.5 `enemy_ranged_attack`）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: `current_target`（由 check_enemy_in_range 写入）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：与 EnemyMeleeAttackNode 一致，但调用 doEnemyAttack(canAttackBuildings=true)
+ *
+ * 副作用（与 EnemyAttackSystem.update + doAttack ranged 路径等价）：
+ *   - spawnEnemyProjectile（红色 Circle / 200 px/s / Physical）
+ *   - Sound.play('mage_attack')
+ *   - Movement.moveMode = HoldPosition 暂停沿路径移动
+ *
+ * 服务 enemy_ranged（远程敌人，攻击建筑）。
+ */
+export class EnemyRangedAttackNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined || targetId === 0) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    if ((Health.current[targetId] ?? 0) <= 0) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    const posX = Position.x[eid]!;
+    const posY = Position.y[eid]!;
+    const tX = Position.x[targetId]!;
+    const tY = Position.y[targetId]!;
+    const dx = tX - posX;
+    const dy = tY - posY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const range = Attack.range[eid] ?? 0;
+    if (dist > range) {
+      Attack.targetId[eid] = 0;
+      Movement.moveMode[eid] = MoveModeVal.FollowPath;
+      return NodeStatus.Failure;
+    }
+
+    Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
+    doEnemyAttack(world, eid, targetId, posX, posY, true);
+
+    Attack.targetId[eid] = targetId;
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1574,6 +1708,10 @@ export class BehaviorTree {
         return new LightningChainNode(type, params);
       case 'laser_beam':
         return new LaserBeamNode(type, params);
+      case 'enemy_melee_attack':
+        return new EnemyMeleeAttackNode(type, params);
+      case 'enemy_ranged_attack':
+        return new EnemyRangedAttackNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 
