@@ -588,3 +588,205 @@ export function spawnMissileProjectile(
   const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
   world.addComponent(pid, Layer, { value: sourceLayer });
 }
+
+// ============================================================
+// P4 R1 — 非-missile 塔攻击工具函数（BT 节点依赖）
+// ============================================================
+//
+// 这 3 个函数将 AttackSystem 类的私有 spawnProjectile / doLightningAttack /
+// doLaserAttack 提取为模块级 export，供 BT 节点（SpawnProjectileTowerNode /
+// LightningChainNode / LaserBeamNode）调用。语义与原私有方法等价（damage 公式 /
+// 弹道视觉 / chain 衰减 / laser 多束逻辑保持一致），仅去除 `this` 依赖以便从
+// BehaviorTree.ts 直接 import。R6 完成后，AttackSystem.update 中的私有方法
+// 调用将被薄化为 no-op dispatch（类比 P3 R5 handleMissileTower）。
+
+/**
+ * 生成通用塔弹道投射物（design/23 §0.5 `spawn_projectile_tower` 节点核心副作用）。
+ *
+ * 服务 basic/cannon/ice/bat 4 塔。读 PROJ_VISUAL[towerTypeVal] 视觉配置 + TOWER_CONFIGS
+ * 修饰属性（splashRadius / slowPercent / stunDuration / freezeDuration / chainCount /
+ * chainRange / chainDecay），挂载 Projectile + Visual + Layer 组件。命中时由
+ * ProjectileSystem 执行 splash/slow/stun/freeze/chain 副作用。
+ *
+ * 与 AttackSystem.spawnProjectile 私有方法等价（R5 后私有路径将清零，此函数为唯一真理源）。
+ */
+export function spawnProjectile(
+  world: TowerWorld,
+  towerId: number,
+  targetId: number,
+  towerTypeVal: number,
+): void {
+  const visual = PROJ_VISUAL[towerTypeVal];
+  if (!visual) return;
+
+  const damage = getEffectiveDamage(towerId);
+  const fromX = Position.x[towerId]!;
+  const fromY = Position.y[towerId]!;
+  const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal]!;
+  const towerCfg = TOWER_CONFIGS[towerTypeEnum];
+
+  const pid = world.createEntity();
+
+  world.addComponent(pid, Position, { x: fromX, y: fromY });
+
+  world.addComponent(pid, Projectile, {
+    speed: visual.speed,
+    damage,
+    damageType: Attack.damageType[towerId],
+    targetId,
+    sourceId: towerId,
+    fromX,
+    fromY,
+    shape: visual.shape,
+    colorR: visual.colorR,
+    colorG: visual.colorG,
+    colorB: visual.colorB,
+    size: visual.size,
+    splashRadius: towerCfg?.splashRadius ?? 0,
+    stunDuration: towerCfg?.stunDuration ?? 0,
+    slowPercent: towerCfg?.slowPercent ?? 0,
+    slowMaxStacks: towerCfg?.slowMaxStacks ?? 0,
+    freezeDuration: towerCfg?.freezeDuration ?? 0,
+    chainCount: towerCfg?.chainCount ?? 0,
+    chainRange: towerCfg?.chainRange ?? 0,
+    chainDecay: towerCfg?.chainDecay ?? 0,
+    sourceTowerType: towerTypeVal,
+  });
+
+  world.addComponent(pid, Visual, {
+    shape: visual.shape,
+    colorR: visual.colorR,
+    colorG: visual.colorG,
+    colorB: visual.colorB,
+    size: visual.size,
+    alpha: 1,
+    outline: 0,
+    hitFlashTimer: 0,
+    idlePhase: 0,
+  });
+
+  // Inherit layer from source entity for render z-ordering (design/18 §5.2)
+  const sourceLayer = Layer.value[towerId] ?? LayerVal.Ground;
+  world.addComponent(pid, Layer, { value: sourceLayer });
+}
+
+/**
+ * 执行闪电链攻击（design/23 §0.5 `lightning_chain` 节点核心副作用）。
+ *
+ * 服务 lightning 塔。chainCount = baseChain + (level-1) 跳，每跳衰减 chainDecay，
+ * 每跳 spawn LightningBolt entity（视觉 0.5s）+ applyDamageToTarget 直接造成伤害。
+ * 首跳 Sound.play('lightning_hit') 避免噪音过载。
+ *
+ * 与 AttackSystem.doLightningAttack 私有方法等价。
+ */
+export function doLightningAttack(
+  world: TowerWorld,
+  towerId: number,
+  primaryId: number,
+  level: number,
+): void {
+  const config = TOWER_CONFIGS[TowerType.Lightning];
+  if (!config) return;
+
+  const baseDamage = getEffectiveDamage(towerId);
+  const chainCount = (config.chainCount ?? 3) + (level - 1);
+  const chainDecay = config.chainDecay ?? 0.2;
+  const chainRange = config.chainRange ?? 120;
+
+  const hit = new Set<number>();
+  let dmg = baseDamage;
+  let sourceId = towerId;
+  let targetId = primaryId;
+
+  for (let hop = 0; hop < chainCount; hop++) {
+    if (hit.has(targetId)) break;
+    hit.add(targetId);
+
+    if ((Health.current[targetId] ?? 0) > 0) {
+      const dmgType = Attack.damageType[towerId] ?? DamageTypeVal.Physical;
+      applyDamageToTarget(world, targetId, dmg, dmgType);
+    }
+
+    Visual.hitFlashTimer[targetId] = 0.12;
+
+    // LightningBolt entity（视觉 0.5s，RenderSystem 消费）
+    const bid = world.createEntity();
+    world.addComponent(bid, LightningBolt, {
+      sourceId,
+      targetId,
+      damage: 0,
+      duration: 0.5,
+      elapsed: 0,
+      chainIndex: hop,
+    });
+
+    if (hop === 0) Sound.play('lightning_hit');
+
+    sourceId = targetId;
+
+    // 寻找下一跳目标
+    if (hop < chainCount - 1) {
+      dmg *= (1 - chainDecay);
+
+      const originX = Position.x[targetId]!;
+      const originY = Position.y[targetId]!;
+      let nearestId = 0;
+      let nearestDist = chainRange;
+
+      const allMatches = potentialTargetQuery(world.world);
+      for (const eid of allMatches) {
+        if (hit.has(eid)) continue;
+        if (UnitTag.isEnemy[eid]! !== 1) continue;
+        if ((Health.current[eid] ?? 0) <= 0) continue;
+
+        const ex = Position.x[eid]!;
+        const ey = Position.y[eid]!;
+        const dx = ex - originX;
+        const dy = ey - originY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearestId = eid;
+        }
+      }
+      targetId = nearestId !== 0 ? nearestId : targetId;
+    }
+  }
+}
+
+/**
+ * 执行激光多束攻击（design/23 §0.5 `laser_beam` 节点核心副作用）。
+ *
+ * 服务 laser 塔。L1-2: 1 束 / L3-4: 2 束 / L5: 3 束（getLaserBeamCount）；
+ * 取 enemiesInRange 按距离排序前 N 束，每束 spawn LaserBeam entity（视觉 1.0s + DOT）。
+ * 实际持续伤害由 LaserBeamSystem 周期 tick。
+ *
+ * 与 AttackSystem.doLaserAttack 私有方法等价。
+ */
+export function getLaserBeamCount(level: number): number {
+  if (level >= 5) return 3;
+  if (level >= 3) return 2;
+  return 1;
+}
+
+export function doLaserAttack(
+  world: TowerWorld,
+  towerId: number,
+  enemiesInRange: Array<{ id: number; dist: number }>,
+  level: number,
+): void {
+  const beamCount = Math.min(getLaserBeamCount(level), enemiesInRange.length);
+  const damage = getEffectiveDamage(towerId);
+
+  for (let i = 0; i < beamCount; i++) {
+    const targetId = enemiesInRange[i]!.id;
+    const beamId = world.createEntity();
+    world.addComponent(beamId, LaserBeam, {
+      sourceId: towerId,
+      targetId,
+      damage,
+      duration: 1.0,
+      elapsed: 0,
+    });
+  }
+}

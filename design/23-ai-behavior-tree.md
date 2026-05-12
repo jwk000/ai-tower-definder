@@ -83,8 +83,15 @@
 | `select_missile_target` | — | — | `current_target_pos: {x,y,row,col}`, `current_target_score: float`, `current_target_enemy_count: int` | 调 evaluateMissileTarget 用地格评分（dist 0.35 + density 0.45 + tier 0.20）选最佳目标格；找到 → 写黑板 + SUCCESS；无目标 → 清黑板 + FAILURE。地格位置是「网格中心像素坐标」而非具体敌人 entity。已自动过滤飞行敌人（missileCfg.cantTargetFlying）和射程外格子（Attack.range[tower]） |
 | `charge_attack` | `charge_time: float=0.6` | `current_target_pos` | 维护 MissileCharge 组件（chargeElapsed/chargeTime/targetX/targetY/markEntityId） | 首次进入：无黑板目标 → FAILURE；spawn TargetingMark entity + 添加 MissileCharge 组件 → RUNNING。继续 tick：chargeElapsed += dt，未满 → RUNNING；满 → SUCCESS（保留 MissileCharge 等 launch 节点消费）。注：MissileCharge 组件被 RenderSystem 用于渲染蓄力期红色脉动光效，故 charge 状态必须落到 ECS 而非纯 blackboard |
 | `launch_missile_projectile` | — | — | 移除 MissileCharge 组件 + spawn missile projectile + 重置 Attack.cooldownTimer + 播 sound | 读 MissileCharge.targetX/Y/markEntityId（charge_attack 节点写的）→ spawnMissileProjectile（抛物线飞行 + AOE 由 ProjectileSystem 接管）+ Sound.play('tower_missile')；返回 SUCCESS。无 MissileCharge → FAILURE。AOE 130px / L5 中心 10% ×1.2 / 不命中飞行敌等行为仍在 ProjectileSystem.applySplash |
+| `spawn_projectile_tower` | — | `current_target`（被 check_enemy_in_range 写入） | `Attack.targetId`, `Attack.cooldownTimer` | 通用弹道塔发射节点（服务 basic/cannon/ice/bat 4 塔）。读 `blackboard.current_target` → 调 `spawnProjectile(world, eid, targetId, towerType)`（AttackSystem 导出）→ set `Attack.targetId = targetId` + `Attack.cooldownTimer = 1/attackSpeed` + `Sound.play(TOWER_SHOOT_SOUNDS[type])`；返回 SUCCESS。`cooldownTimer > 0` 或无 target 或 layer 不可达 → FAILURE。splash/slow/stun/freeze/lifeSteal 等弹道修饰由 TOWER_CONFIGS[type] 透传到 Projectile 组件，由 ProjectileSystem 命中时执行 |
+| `lightning_chain` | — | `current_target` | `Attack.targetId`, `Attack.cooldownTimer` | 闪电塔链式攻击节点。读 `blackboard.current_target` → 调 `doLightningAttack(world, eid, primaryId, level)`（AttackSystem 导出）→ chainCount = baseChain + (level-1) 跳，每跳衰减 chainDecay，每跳 spawn LightningBolt entity（视觉 0.5s）→ set cooldown + 首跳 Sound.play('lightning_hit')；返回 SUCCESS。`cooldownTimer > 0` 或无 target → FAILURE |
+| `laser_beam` | — | — | `Attack.cooldownTimer` | 激光塔多束节点。每帧自行扫描 `Attack.range[eid]` 内全部敌人按距离排序，取前 N 束（L1-2: 1束 / L3-4: 2束 / L5: 3束），调 `doLaserAttack(world, eid, enemiesInRange, level)` spawn LaserBeam entity（视觉 1.0s + DOT 持续伤害）→ set cooldown + Sound.play('laser_fire')；返回 SUCCESS。`cooldownTimer > 0` 或 range 内无敌 → FAILURE。注：本节点自行选目标不依赖 `current_target`（多束激光语义需扫全范围） |
+| `enemy_melee_attack` | — | `current_target` | `Attack.targetId`, `Attack.cooldownTimer`, `Movement.moveMode` | 敌人近战节点。读 `blackboard.current_target` → 验证 target alive + 距离 ≤ Attack.range → set `Movement.moveMode = HoldPosition` 暂停移动 → 调 `doEnemyAttack(...,canAttackBuildings=false)`（EnemyAttackSystem 导出）→ `applyDamageToTarget` 直接造成 Physical 伤害 + Sound.play('enemy_attack') → set cooldown + targetId；返回 SUCCESS。无 target / 超界 / target 已死 → 清 targetId + `Movement.moveMode = FollowPath` + FAILURE |
+| `enemy_ranged_attack` | — | `current_target` | `Attack.targetId`, `Attack.cooldownTimer`, `Movement.moveMode`, spawn projectile entity | 敌人远程节点。同 `enemy_melee_attack` 但执行 `doEnemyAttack(...,canAttackBuildings=true)` → spawn 红色 Circle projectile（速度 200 px/s, damage = atk × buff, Physical）+ Sound.play('mage_attack')；返回 SUCCESS。失败条件与 melee 一致 |
 
 > **三节点协作模式**: missile 行为按 `select → charge → launch` 三段拆分，每节点单一职责。`charge_attack` 用 MissileCharge ECS 组件作为「BT ↔ RenderSystem 通信总线」，与 `drop_bomb` 用 BombSystem、`aura_buff` 用 BuffSystem 的副作用模式一致（节点持有语义，专用系统执行渲染/物理副作用）。
+
+> **P4 攻击节点协作模式（5 个新节点）**: 6 非-missile 塔 + 3 敌人的 BT v1.0 attack 节点为死代码（实际由 AttackSystem/EnemyAttackSystem 接管）。P4 通过 5 个**能力节点**（`spawn_projectile_tower` / `lightning_chain` / `laser_beam` / `enemy_melee_attack` / `enemy_ranged_attack`）让 BT 真接管。各节点统一遵循：①读 `blackboard.current_target`（由 `check_enemy_in_range` 节点上游写入，§0.6 #1 目标稳定性原则）→②调 AttackSystem/EnemyAttackSystem 导出的工具函数（`spawnProjectile` / `doLightningAttack` / `doLaserAttack` / `doEnemyAttack`）→③节点自行 set `Attack.cooldownTimer = 1/attackSpeed` + targetId（与 missile launch 节点 cooldown 重置语义一致）。AttackSystem.update / EnemyAttackSystem.update 仅保留 `Attack.cooldownTimer -= dt` 的 tick 责任（line 139 + EnemyAttackSystem line 50），各塔 dispatch case 全部薄化为 no-op（类比 P3 handleMissileTower）。`laser_beam` 例外不读 `current_target`（多束语义需自扫全 range，由节点内部扫描）。
 
 ### 0.6 全局约定
 
@@ -116,6 +123,7 @@
 | `drop_bomb` | ✅ 已实现（P2 R1，依赖 BombSystem） | falloff 衰减留 P3 优化 |
 | `aura_buff` | ✅ 已实现（P2 R2，依赖 BuffSystem.addBuff + getEffectiveValue） | 替代 ShamanSystem.auraTargets 直改 Movement.speed 的旧实现 |
 | `select_missile_target` / `charge_attack` / `launch_missile_projectile` | ✅ 已实现（P3 R2-R5，b7217ef） | 三节点协作完成 TOWER_MISSILE_AI 0.1-stub → v1.0 升级；select 包装 evaluateMissileTarget，charge 维护 MissileCharge 组件（RenderSystem 依赖）+ cooldown 守卫，launch 包装 spawnMissileProjectile；AttackSystem.handleMissileTower 已薄化 no-op |
+| `spawn_projectile_tower` / `lightning_chain` / `laser_beam` / `enemy_melee_attack` / `enemy_ranged_attack` | 🚧 P4 R1 接口冻结，R2-R7 实装中 | 服务 6 非-missile 塔 + 3 敌人 BT 真接管；包装 AttackSystem 导出的 spawnProjectile/doLightningAttack/doLaserAttack + EnemyAttackSystem 导出的 doEnemyAttack；P4 R6 AttackSystem.update 薄化为 cooldown tick + no-op dispatch，问题⑦预期 P4 收尾解决 |
 | `boid_step` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
 > Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
@@ -155,7 +163,7 @@
 | ④ | **BuildSystem 陷阱/建筑无 AI 组件** — `createTrapEntity` / `createProductionEntity` 不挂载 AI 组件（已修复） | ✅ 已修 |
 | ⑤ | **缺少 4 套 AI 配置** — `tower_vine`, `tower_ballista`, `enemy_shaman`, `enemy_balloon` 已升 v1.0（P2 R3）；`tower_missile` P3 R5（b7217ef）三节点 v1.0 完成 | ✅ 5/5 已修 |
 | ⑥ | **6 个系统完全绕过行为树** — `BatSwarmSystem`, `ShamanSystem`, `HotAirBalloonSystem`, `TrapSystem`, `HealingSystem`, `ProductionSystem` 全部硬编码 AI 逻辑 | 🟡 P1 |
-| ⑦ | **AttackSystem / EnemyAttackSystem 覆盖 BT** — 塔和敌人的行为树 `attack` 节点是死代码，因为 AttackSystem 在同一帧内独立处理了所有攻击逻辑 | 🟡 P1 |
+| ⑦ | **AttackSystem / EnemyAttackSystem 覆盖 BT** — 塔和敌人的行为树 `attack` 节点是死代码，因为 AttackSystem 在同一帧内独立处理了所有攻击逻辑 | 🟡 P1（missile P3 R5 已修；P4 R1-R9 推进 6 非-missile 塔 + 3 敌迁移） |
 | ⑧ | **行为树多个节点未实现** — `parallel`, `repeater`, `cooldown`, `use_skill`, `heal`, `check_ally_in_range`, `produce_resource`, `check_cooldown` 均为存根或降级 | 🟢 P2 |
 | ⑨ | **双重创建路径** — `UnitFactory`（新）和 `BuildSystem`/`WaveSystem`（旧）均可创建同类型单位，AI 挂载行为不一致 | 🟢 P2 |
 
