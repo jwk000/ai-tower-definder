@@ -236,9 +236,9 @@ export class ProjectileSystem implements System {
     const chainDecay = Projectile.chainDecay[eid]!;
     const isChain = Projectile.isChain[eid] as number;
 
-    // -- Cannon: AOE splash + stun --
+    // -- Cannon / Missile: AOE splash + stun --
     if (splashRadius > 0) {
-      this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage, damageType);
+      this.applySplash(world, targetId, hitX, hitY, splashRadius, stunDuration, damage, damageType, sourceId, isMissile);
       Sound.play('cannon_hit');
     }
 
@@ -354,11 +354,30 @@ export class ProjectileSystem implements System {
     hitX: number, hitY: number,
     radius: number, stunDuration: number, damage: number,
     damageType: number,
+    sourceTowerId = 0,
+    isMissile = false,
   ): void {
     const splashDamage = damage * 0.6;
 
+    // v1.1 Missile: L5 thermobaric center-bonus + flying-immune
+    const missileCfg = isMissile ? TOWER_CONFIGS[TowerType.Missile] : undefined;
+    const towerLevel = isMissile && sourceTowerId > 0
+      ? (Tower.level[sourceTowerId] ?? 1)
+      : 1;
+    const centerBonusActive = isMissile && towerLevel >= 5;
+    const centerRadiusSq = centerBonusActive
+      ? (radius * (missileCfg?.centerBonusRadiusRatio ?? 0.1)) ** 2
+      : 0;
+    const centerMult = missileCfg?.centerBonusMultiplier ?? 1.0;
+    const cantTargetFlying = isMissile && missileCfg?.cantTargetFlying === true;
+
     for (const enemyId of enemyQuery(world.world)) {
       if (!isAlive(enemyId)) continue;
+
+      // Missile: skip flying enemies (ground explosion doesn't reach them)
+      if (cantTargetFlying && (Layer.value[enemyId] ?? LayerVal.Ground) === LayerVal.LowAir) {
+        continue;
+      }
 
       const ex = Position.x[enemyId];
       const ey = Position.y[enemyId];
@@ -366,18 +385,26 @@ export class ProjectileSystem implements System {
 
       const dx = ex - hitX;
       const dy = ey - hitY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const distSq = dx * dx + dy * dy;
+      const dist = Math.sqrt(distSq);
 
       if (dist > radius) continue;
 
-      // AOE damage (main target already took full damage)
+      // L5 thermobaric: center 10% radius ×1.2 damage bonus
+      const centerMultiplier = centerBonusActive && distSq <= centerRadiusSq ? centerMult : 1.0;
+
+      // AOE damage (main target already took full damage; for missile, primary target also gets bonus)
       if (enemyId !== sourceTargetId) {
-        applyDamageToTarget(world, enemyId, splashDamage, damageType);
+        applyDamageToTarget(world, enemyId, splashDamage * centerMultiplier, damageType);
 
         // Hit flash
         if (hasComponent(world.world, Visual, enemyId)) {
           Visual.hitFlashTimer[enemyId] = 0.12;
         }
+      } else if (isMissile && centerMultiplier > 1.0) {
+        // Missile primary target: bonus is on top of the full-damage hit already dealt at onHit()
+        const bonusDamage = damage * (centerMultiplier - 1.0);
+        applyDamageToTarget(world, enemyId, bonusDamage, damageType);
       }
 
       // Stun: skip bosses

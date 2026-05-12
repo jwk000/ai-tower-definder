@@ -209,6 +209,10 @@ export interface TowerConfig {
   // Ballista tower specific (piercing sniper)
   pierceCount?: number;
   armorPenetration?: number;
+  // Missile tower specific (v1.1 strategic weapon)
+  cantTargetFlying?: boolean;        // 不能命中飞行敌（地面爆炸不伤飞行）
+  centerBonusRadiusRatio?: number;   // L5+ 热压：中心加成半径占爆炸半径的比例
+  centerBonusMultiplier?: number;    // L5+ 热压：中心加成伤害倍数
 }
 
 // ---- Enemy ----

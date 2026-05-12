@@ -10,8 +10,10 @@
 // ============================================================
 
 import { TowerWorld } from '../core/World.js';
-import { Position, UnitTag, Attack } from '../core/components.js';
+import { Position, UnitTag, Attack, Layer, LayerVal } from '../core/components.js';
 import { RenderSystem } from '../systems/RenderSystem.js';
+import { TOWER_CONFIGS } from '../data/gameData.js';
+import { TowerType } from '../types/index.js';
 import type { MapConfig } from '../types/index.js';
 
 export interface MissileTargetResult {
@@ -43,12 +45,27 @@ export function evaluateMissileTarget(
 ): MissileTargetResult | null {
   if (enemyList.length === 0) return null;
 
+  // ---- v1.1: Filter out flying enemies (cantTargetFlying) ----
+  // Missile is a ground-explosion weapon; flying-layer enemies are immune.
+  const missileCfg = TOWER_CONFIGS[TowerType.Missile];
+  const cantTargetFlying = missileCfg?.cantTargetFlying === true;
+  const groundEnemyList = cantTargetFlying
+    ? enemyList.filter((eid) => (Layer.value[eid] ?? LayerVal.Ground) !== LayerVal.LowAir)
+    : enemyList;
+  if (groundEnemyList.length === 0) return null;
+
   // ---- Dynamic scene layout ----
   const TILE_SIZE      = map.tileSize;
   const MAP_COLS       = map.cols;
   const MAP_ROWS       = map.rows;
   const SCENE_OFFSET_X = RenderSystem.sceneOffsetX;
   const SCENE_OFFSET_Y = RenderSystem.sceneOffsetY;
+
+  // ---- Tower range (v1.1: 600px, no longer full-map) ----
+  const towerX = Position.x[towerId] ?? 0;
+  const towerY = Position.y[towerId] ?? 0;
+  const TOWER_RANGE = Attack.range[towerId] ?? missileCfg?.range ?? 600;
+  const TOWER_RANGE_SQ = TOWER_RANGE * TOWER_RANGE;
 
   // ---- Blast radius: read from tower's Attack component ----
   const towerSplashRadius = Attack.splashRadius[towerId];
@@ -76,7 +93,7 @@ export function evaluateMissileTarget(
   // ---- Collect all unique grid positions that have enemies ----
   const gridPositions = new Map<string, { row: number; col: number; enemies: number[] }>();
 
-  for (const enemyId of enemyList) {
+  for (const enemyId of groundEnemyList) {
     const ex = Position.x[enemyId]!;
     const ey = Position.y[enemyId]!;
     const { row, col } = pixelToGrid(ex, ey);
@@ -100,6 +117,11 @@ export function evaluateMissileTarget(
     const { row, col } = gridData;
     const { x: centerX, y: centerY } = gridToPixel(row, col);
 
+    // v1.1: Range filter — skip grid cells beyond tower range
+    const dxTower = centerX - towerX;
+    const dyTower = centerY - towerY;
+    if (dxTower * dxTower + dyTower * dyTower > TOWER_RANGE_SQ) continue;
+
     // Factor 1: Distance to base (0-1, closer = higher)
     const manhattanDist = Math.abs(row - BASE_ROW) + Math.abs(col - BASE_COL);
     const distanceScore = (MAX_PATH_DIST - manhattanDist) / MAX_PATH_DIST;
@@ -107,7 +129,7 @@ export function evaluateMissileTarget(
     // Factor 2 & 3: Count enemies in blast radius and sum tier weights
     let blastCount = 0;
     let blastTierSum = 0;
-    for (const enemyId of enemyList) {
+    for (const enemyId of groundEnemyList) {
       const ex = Position.x[enemyId]!;
       const ey = Position.y[enemyId]!;
       const dx = ex - centerX;

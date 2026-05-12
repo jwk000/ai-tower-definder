@@ -105,6 +105,28 @@ describe('塔配置 (TOWER_CONFIGS)', () => {
     expect(cfg.pierceCount).toBe(2);
     expect(cfg.cost).toBe(100);
   });
+
+  it('导弹塔 v1.1 — 战略武器（600px 大射程，非全图）', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Missile];
+    expect(cfg.cost).toBe(220);
+    expect(cfg.atk).toBe(90);
+    expect(cfg.attackSpeed).toBe(0.14);
+    expect(cfg.range, 'P0-#4: 射程必须为 600px，不再是 9999 全图').toBe(600);
+    expect(cfg.range, 'P0-#4: 射程不得 ≥ 9999').toBeLessThan(9999);
+    expect(cfg.damageType).toBe('physical');
+    expect(cfg.splashRadius).toBe(130);
+  });
+
+  it('导弹塔 v1.1 — 不能命中飞行敌', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Missile];
+    expect(cfg.cantTargetFlying, 'P0-#4: 导弹塔不能命中飞行敌').toBe(true);
+  });
+
+  it('导弹塔 v1.1 — L5 热压中心加成参数', () => {
+    const cfg = TOWER_CONFIGS[TowerType.Missile];
+    expect(cfg.centerBonusRadiusRatio, 'P0-#4: L5 热压中心半径占比 10%').toBe(0.1);
+    expect(cfg.centerBonusMultiplier, 'P0-#4: L5 热压中心伤害 ×1.2').toBe(1.2);
+  });
 });
 
 describe('敌人配置 (ENEMY_CONFIGS)', () => {
