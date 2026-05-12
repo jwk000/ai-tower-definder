@@ -231,6 +231,16 @@ export class Renderer {
     ctx.restore();
   }
 
+  /** Measure rendered width of a label (design-space pixels) at the given font size */
+  measureLabel(text: string, size: number = 16): number {
+    if (!text) return 0;
+    const prevFont = this.ctx.font;
+    this.ctx.font = getFont(size);
+    const w = this.ctx.measureText(text).width;
+    this.ctx.font = prevFont;
+    return w;
+  }
+
   get context(): CanvasRenderingContext2D {
     return this.ctx;
   }

@@ -116,6 +116,8 @@ const RANK_STAR_SIZE = 5;
 const RANK_STAR_COLOR = '#ffd700';
 const RANK_STAR_GAP = 2;
 const RANK_STAR_ROW_GAP = 2;
+const RANK_INSIGNIA_BLOCK_WIDTH = 14;
+const RANK_INSIGNIA_NAME_GAP = 4;
 
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
@@ -711,33 +713,42 @@ export class RenderSystem implements System {
       }
 
       // ========================================
-      // 3. Display name (above health bar)
+      // 3. Display name + (towers) rank insignia on the same horizontal line
+      //    Layout: [insignia][gap][name], centered around posX
       // ========================================
       const displayName = world.getDisplayName(eid);
-      if (displayName && isFinite(healthBarY)) {
-        const nameY = healthBarY - 10;  // above health bar
-        this.renderer.push({
-          shape: 'rect',
-          x: posX,
-          y: nameY,
-          size: 0.1,
-          h: 0.1,
-          color: '#ffffff',
-          alpha: 1,
-          label: displayName,
-          labelColor: '#ffffff',
-          labelSize: 12,
-          z: renderZ,
-        });
-      }
+      if (isFinite(healthBarY)) {
+        const nameY = healthBarY - 10;
+        const showInsignia = isTower && Tower.level[eid]! >= 1;
+        const nameLabelSize = 12;
+        const nameWidth = displayName
+          ? this.renderer.measureLabel(displayName, nameLabelSize)
+          : 0;
+        const insigniaWidth = showInsignia ? RANK_INSIGNIA_BLOCK_WIDTH : 0;
+        const gap = showInsignia && displayName ? RANK_INSIGNIA_NAME_GAP : 0;
+        const totalWidth = insigniaWidth + gap + nameWidth;
+        const blockLeft = posX - totalWidth / 2;
 
-      // ========================================
-      // 4a. Tower rank insignia (chevron shoulder marks, replaces diamond row)
-      // ========================================
-      if (isTower && isFinite(entityTop)) {
-        const towerLevel = Tower.level[eid]!;
-        if (towerLevel >= 1) {
-          this.drawTowerRankInsignia(posX, entityTop - 22, towerLevel, renderZ);
+        if (showInsignia) {
+          const insigniaCenterX = blockLeft + insigniaWidth / 2;
+          this.drawTowerRankInsignia(insigniaCenterX, nameY, Tower.level[eid]!, renderZ);
+        }
+
+        if (displayName) {
+          const nameCenterX = blockLeft + insigniaWidth + gap + nameWidth / 2;
+          this.renderer.push({
+            shape: 'rect',
+            x: nameCenterX,
+            y: nameY,
+            size: 0.1,
+            h: 0.1,
+            color: '#ffffff',
+            alpha: 1,
+            label: displayName,
+            labelColor: '#ffffff',
+            labelSize: nameLabelSize,
+            z: renderZ,
+          });
         }
       }
 
@@ -873,16 +884,20 @@ export class RenderSystem implements System {
     const starCount = Math.max(0, clampedLevel - 3);
 
     const rowH = RANK_CHEVRON_THICKNESS + RANK_CHEVRON_ROW_GAP;
+    const chevronBlockH = chevronCount * RANK_CHEVRON_THICKNESS + (chevronCount - 1) * RANK_CHEVRON_ROW_GAP;
+    const starBlockH = starCount > 0 ? RANK_STAR_ROW_GAP + RANK_STAR_SIZE : 0;
+    const totalH = chevronBlockH + starBlockH;
+    const blockTop = y - totalH / 2;
+
+    const firstChevronCenterY = blockTop + RANK_CHEVRON_THICKNESS / 2;
     for (let i = 0; i < chevronCount; i++) {
-      // Stack chevrons upward from anchor; row 0 is the bottom-most stripe
-      const chevronY = y - i * rowH;
-      this.drawSingleChevron(x, chevronY, z);
+      this.drawSingleChevron(x, firstChevronCenterY + i * rowH, z);
     }
 
     if (starCount > 0) {
       const starsTotalW = starCount * RANK_STAR_SIZE + (starCount - 1) * RANK_STAR_GAP;
       const starsStartX = x - starsTotalW / 2 + RANK_STAR_SIZE / 2;
-      const starsY = y + RANK_STAR_ROW_GAP + RANK_STAR_SIZE / 2;
+      const starsY = blockTop + chevronBlockH + RANK_STAR_ROW_GAP + RANK_STAR_SIZE / 2;
       for (let i = 0; i < starCount; i++) {
         this.renderer.push({
           shape: 'diamond',
