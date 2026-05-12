@@ -1967,6 +1967,18 @@ describe('ChargeAttackNode（导弹塔蓄力两阶段状态机）', () => {
     expect(node.tick(ctx)).toBe(NodeStatus.Success);
   });
 
+  it('Phase A: cooldown > 0 → FAILURE 不挂组件（装弹未完成时不开始新一轮蓄力）', () => {
+    const world = makeRealWorld();
+    const tower = makeMissileTower(world, 200, 200);
+    Attack.cooldownTimer[tower] = 3.0;
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target_pos', { x: 400, y: 300, row: 7, col: 10 });
+    const node = new ChargeAttackNode('charge_attack', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(hasComponent(world.world, MissileCharge, tower)).toBe(false);
+  });
+
   it('Phase B: 已挂组件时无视 blackboard（即使 current_target_pos 被清也继续蓄力）', () => {
     const world = makeRealWorld();
     const tower = makeMissileTower(world, 200, 200);

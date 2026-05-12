@@ -21,8 +21,6 @@ import type { MapConfig } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { Sound, type SfxKey } from '../utils/Sound.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
-import { evaluateMissileTarget } from './MissileTargeting.js';
-import { RenderSystem } from './RenderSystem.js';
 import type { WeatherSystem } from './WeatherSystem.js';
 import { getEffectiveValue } from './BuffSystem.js';
 
@@ -111,12 +109,6 @@ const chargingQuery = defineQuery([MissileCharge]);
 const targetingMarkQuery = defineQuery([TargetingMark, Position]);
 
 // ============================================================
-// Missile charging constants
-// ============================================================
-
-const MISSILE_CHARGE_TIME = 0.6; // seconds of charging before launch
-
-// ============================================================
 // AttackSystem — towers find nearest enemy and fire
 // ============================================================
 
@@ -154,7 +146,7 @@ export class AttackSystem implements System {
         continue;
       }
 
-      // Missile tower: grid-scoring target selection with charging phase
+      // Missile tower: BT v1.0 接管（TOWER_MISSILE_AI 三节点），AttackSystem 不干预
       if (towerTypeVal === 6) {
         this.handleMissileTower(world, eid, enemyList, dt);
         continue;
@@ -278,92 +270,18 @@ export class AttackSystem implements System {
 
   // ---- Missile Tower: charging + targeting mark + launch ----
 
+  /**
+   * @deprecated 自 P3 R5 起 BT v1.0 三节点 (select_missile_target /
+   * charge_attack / launch_missile_projectile) 完整接管导弹塔行为，
+   * 此方法薄化为 no-op 保持 line 158-161 dispatch 结构兼容（避免删除
+   * 引入级联改动）。R6 验证全绿后可整体删除 dispatch + 此方法。
+   */
   private handleMissileTower(
-    world: TowerWorld,
-    towerId: number,
-    enemyList: number[],
-    dt: number,
-  ): void {
-    // Check if tower is currently charging
-    const chargeElapsed = MissileCharge.chargeElapsed[towerId];
-
-    if (chargeElapsed !== undefined && chargeElapsed >= 0) {
-      // Tower is charging — tick charge timer
-      MissileCharge.chargeElapsed[towerId] = chargeElapsed + dt;
-
-      const totalCharge = MissileCharge.chargeTime[towerId]!;
-      if (MissileCharge.chargeElapsed[towerId]! >= totalCharge) {
-        // Charge complete — launch missile
-        const targetX = MissileCharge.targetX[towerId]!;
-        const targetY = MissileCharge.targetY[towerId]!;
-        const markId = MissileCharge.markEntityId[towerId]!;
-
-        // Remove charge component from tower
-        world.removeComponent(towerId, MissileCharge);
-
-        // Reset cooldown
-        Attack.cooldownTimer[towerId]! = 1 / Attack.attackSpeed[towerId]!;
-
-        // Create marker entity at target position (if not already exists)
-        let markEntityId = markId;
-        if (markId === 0) {
-          markEntityId = world.createEntity();
-          world.addComponent(markEntityId, Position, { x: targetX, y: targetY });
-        }
-
-        // Launch the missile
-        this.spawnMissileProjectile(world, towerId, markEntityId, targetX, targetY);
-
-        // Play launch sound
-        Sound.play('tower_missile');
-      }
-      return;
-    }
-
-    // Tower is not charging — check if ready to fire
-    // (cooldown already checked by caller)
-
-    // Evaluate best target position
-    const missileResult = evaluateMissileTarget(world, towerId, enemyList, this.map!);
-    if (!missileResult) return;
-
-    const { targetX, targetY, row, col } = missileResult;
-
-    // Create red targeting mark entity
-    const towerCfg = TOWER_CONFIGS[TowerType.Missile];
-    const blastRadius = towerCfg?.splashRadius ?? 120;
-
-    const markId = world.createEntity();
-    world.addComponent(markId, Position, { x: targetX, y: targetY });
-    world.addComponent(markId, TargetingMark, {
-      blastRadius: blastRadius * 0.5, // outer ring = 50% of blast radius
-      pulsePhase: 0,
-      ringRotation: 0,
-    });
-    // Add visual for rendering
-    world.addComponent(markId, Visual, {
-      shape: ShapeVal.Cross,
-      colorR: 0xff,
-      colorG: 0x17,
-      colorB: 0x44,
-      size: blastRadius,
-      alpha: 0.9,
-      outline: 0,
-      hitFlashTimer: 0,
-      idlePhase: 0,
-    });
-    // Targeting marks go in AboveGrid layer (below entities, above ground)
-    world.addComponent(markId, Layer, { value: LayerVal.AboveGrid });
-
-    // Start charging on the tower
-    world.addComponent(towerId, MissileCharge, {
-      chargeTime: MISSILE_CHARGE_TIME,
-      chargeElapsed: 0,
-      targetX,
-      targetY,
-      markEntityId: markId,
-    });
-  }
+    _world: TowerWorld,
+    _towerId: number,
+    _enemyList: number[],
+    _dt: number,
+  ): void {}
 
   // ---- Projectile ----
 

@@ -551,6 +551,7 @@ class TowerDefenderGame extends Game {
     this.aiSystem.registerAIConfigs(ALL_AI_CONFIGS);
     this.aiSystem.setWeatherProvider(() => this.weatherSystem.currentWeather);
     this.aiSystem.setSkillCaster((eid, skillId) => this.skillSystem.castSkill(this.world, eid, skillId));
+    this.aiSystem.setMapConfigProvider(() => this.currentMap);
 
     // Initialize debug manager
     this.debugManager = new DebugManager(this.world);

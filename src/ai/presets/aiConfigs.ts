@@ -555,28 +555,39 @@ export const TRAP_HEALING_AI: BehaviorTreeConfig = {
   }
 };
 
-// ==================== 桩配置（待完善节点后启用） ====================
-
-/** 导弹塔AI — 桩：全图射程 AOE（AttackSystem 接管实际逻辑） */
+/**
+ * 导弹塔AI — 大范围预判 + 蓄力 + 抛物线 AOE。
+ *
+ * 三节点串联（design/23 §0.5）：
+ *   1. select_missile_target — 全图地格评分（距离 0.35 + 密度 0.45 + tier 0.20），
+ *      过滤飞行敌（cantTargetFlying=true）+ 射程内（600px），写黑板 current_target_pos。
+ *   2. charge_attack — spawn 红色 TargetingMark 实体 + 挂 MissileCharge 组件 +
+ *      0.6 秒蓄力（RenderSystem 渲染蓄力脉冲）。
+ *   3. launch_missile_projectile — 发射抛物线导弹（PROJ_VISUAL[6]），
+ *     ProjectileSystem 飞向 mark + AOE 爆炸（splashRadius 130px）。
+ *
+ * AttackSystem.handleMissileTower 已薄化为 no-op（R5 切换）。
+ */
 export const TOWER_MISSILE_AI: BehaviorTreeConfig = {
   id: 'tower_missile',
-  name: '导弹塔AI（桩）',
-  description: '全图射程，由 AttackSystem 暂时接管',
-  version: '0.1-stub',
+  name: '导弹塔AI',
+  description: '全图地格评分 → 蓄力 → 抛物线 AOE（BT 接管完整流程）',
+  version: '1.0',
   root: {
     type: 'selector',
     children: [
       {
         type: 'sequence',
-        name: '攻击流程',
+        name: '蓄力发射流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: 2000 } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
-        ]
+          { type: 'select_missile_target' },
+          { type: 'charge_attack', params: { charge_time: 0.6 } },
+          { type: 'launch_missile_projectile' },
+        ],
       },
-      { type: 'wait', params: { duration: 0.5 } }
-    ]
-  }
+      { type: 'wait', params: { duration: 0.1 } },
+    ],
+  },
 };
 
 /**

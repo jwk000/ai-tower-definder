@@ -1066,20 +1066,22 @@ export class SelectMissileTargetNode extends ActionNode {
  *
  * 返回语义：
  *   - 首次进入（塔身无 MissileCharge 组件）：
+ *     · Attack.cooldownTimer > 0 → FAILURE（装弹未完成，等待下一帧；
+ *       cooldown 由 AISystem 每帧 tick 递减）
  *     · 无 current_target_pos → FAILURE
- *     · 有目标位置 → spawn 红色 TargetingMark 实体 + 挂 MissileCharge 组件 → RUNNING
+ *     · 装弹完毕且有目标 → spawn 红色 TargetingMark 实体 + 挂 MissileCharge 组件 → RUNNING
  *   - 持续 tick（塔身已有 MissileCharge 组件）：
  *     · chargeElapsed += dt；未满 → RUNNING；满 → SUCCESS
  *     · SUCCESS 时保留 MissileCharge 组件 + TargetingMark 实体，留给 LaunchMissileProjectileNode 消费
  *
  * 与原 AttackSystem.handleMissileTower 等价：保留 ECS 组件 + spawn mark + tick timer 三层逻辑。
+ * cooldown 自检对应原 AttackSystem.update line 148 `if cooldownTimer > 0 continue`。
  */
 export class ChargeAttackNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
     const eid = context.entityId;
     const world = context.world;
 
-    // Phase B: already charging — tick timer
     if (hasComponent(world.world, MissileCharge, eid)) {
       const elapsed = (MissileCharge.chargeElapsed[eid] ?? 0) + context.dt;
       MissileCharge.chargeElapsed[eid] = elapsed;
@@ -1087,7 +1089,8 @@ export class ChargeAttackNode extends ActionNode {
       return elapsed >= total ? NodeStatus.Success : NodeStatus.Running;
     }
 
-    // Phase A: first tick — need target from blackboard
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
     const targetPos = context.blackboard.get('current_target_pos') as
       | { x: number; y: number; row: number; col: number }
       | undefined;
