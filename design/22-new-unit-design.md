@@ -869,9 +869,141 @@ interface StructureLevel {
 
 ---
 
-> 版本: v1.1 | 日期: 2026-05-11 | 状态: 设计阶段
+# v3.0 卡牌化整合：20 敌 + 20 友阵容
+
+> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，将本文档 v1.1 的新单位与原有单位整合，形成 20 敌 + 20 友的完整阵容。本节是 v3.0 最终阵容清单的唯一来源。
+
+---
+
+## 8. 最终敌方阵容（20 种）
+
+> 详细数值见 [21-MDA §6 敌方数值](./21-mda-numerical-design.md#6-敌方单位数值重设计)。
+> 引入关卡见 [03-unit-data §9](./03-unit-data.md#9-v30-新增敌人13--20对应-8-关--终战)。
+
+| # | ID | 引入关 | 类型 | 关键机制 |
+|---|----|-------|------|---------|
+| 1 | `grunt` | L1 | 普通 | 基础步兵，沿路径攻击基地 |
+| 2 | `goblin_archer` | L1 | 普通（远程） | 远程攻击 100px |
+| 3 | `runner` | L1 | 普通 | 不攻击建筑，高速直冲基地 |
+| 4 | `wolf` | L2 | 普通 | 高速 + 群体出现 |
+| 5 | `wolf_rider` | L2 | 精英 | 高速冲刺 + `can_attack_buildings` |
+| 6 | `heavy` | L2 | 精英 | 近战可攻击建筑 |
+| 7 | `mage` | L3 | 精英 | 远程可攻击建筑 |
+| 8 | `poison_snake` | L3 | 普通 | 攻击带毒 (5s DOT) |
+| 9 | `healer_priest` | L3 | 精英 | 治疗周围敌人（威胁度**最高**） |
+| 10 | `bat_swarm` | L4 | LowAir | 飞行 + 群体（仅反空塔可击） |
+| 11 | `wisp` | L4 | LowAir | 飞行 + 出生 3s 隐形 |
+| 12 | `exploder` | L4 | 精英 | 死亡爆炸 AoE（仅 Player）|
+| 13 | `scattered_tentacle` | L5 | 普通 | 周期散开/聚拢，抗 AoE |
+| 14 | `summoner_skeleton` | L6 | 精英 | 死亡召唤 3 小骷髅 |
+| 15 | `shielded_warrior` | L6 | 精英 | 护盾未破时免疫伤害 |
+| 16 | `elite_exploder` | L7 | 精英 | 强化自爆 (150px / 100 DMG) |
+| 17 | `boss_commander` | L1-L8 关底之一 | BOSS | 召唤 + 阶段切换 |
+| 18 | `invisible_assassin` | L8 | 精英 | 出生 3s 内隐形 |
+| 19 | `reflective_golem` | L8 | 精英 | 反弹 30% 受到伤害 |
+| 20 | `abyss_lord` | L9 终战 | 终战 BOSS | 3 阶段切换 + 召唤 + 范围 DOT 大招 |
+
+> v1.1 文档 §3 中的"擂鼓手 / 铁甲巨兽 / 变异体"等敌人，作为 boss_commander / heavy / scattered_tentacle 的视觉变体融合到上述 20 种中。
+
+### 8.1 关底 Boss 配对
+
+| 关卡 | 关底 Boss | 来源 |
+|------|----------|------|
+| L1 | `boss_orc_chieftain` | 新增（关 1 兽人首领，boss_commander 的草原变体） |
+| L2 | `boss_wolf_king` | 新增（狼王，boss_commander 的森林变体） |
+| L3 | `boss_snake_queen` | 新增（毒蛇女王） |
+| L4 | `boss_yeti` | 新增（雪原巨人） |
+| L5 | `boss_sand_worm` | 新增（沙虫） |
+| L6 | `boss_skeleton_lord` | 新增（骷髅领主） |
+| L7 | `boss_fire_elemental` | 新增（火元素） |
+| L8 | `boss_dark_knight` | 新增（黑暗骑士） |
+| L9 | `abyss_lord` | 新增（深渊领主） |
+
+> 各 Boss 复用 `boss_commander` / `boss_beast` 的 BT 模板，仅修改数值 + 视觉。boss_commander_ai 行为树通用。
+
+---
+
+## 9. 最终我方阵容（20 种卡可部署单位）
+
+> 详细数值见 [21-MDA §4-§5](./21-mda-numerical-design.md#4-塔类单位数值重设计)、卡片配置见 [03-unit-data §8](./03-unit-data.md#8-卡牌目录v30-新增)。
+
+### 9.1 塔（7 种，卡牌部署）
+
+| # | UnitID | 卡稀有度 | 战术角色 |
+|---|--------|---------|---------|
+| 1 | `arrow_tower` | Common | 稳定单体输出 |
+| 2 | `cannon_tower` | Common | 群体控制 |
+| 3 | `ice_tower` | Rare | 战场减速 |
+| 4 | `lightning_tower` | Rare | 群怪清剿 |
+| 5 | `laser_tower` | Epic | 远程贯穿 |
+| 6 | `bat_tower` | Epic | 暗夜杀手 |
+| 7 | `missile_tower` | Legendary | 战略打击 |
+
+### 9.2 移动单位（6 种）
+
+| # | UnitID | 卡稀有度 | 战术角色 |
+|---|--------|---------|---------|
+| 8 | `shield_guard` | Common | 肉盾 |
+| 9 | `swordsman` | Common | 前排输出 |
+| 10 | `archer` | Common | 远程 DPS |
+| 11 | `priest` | Rare | 治疗支援 |
+| 12 | `engineer` | Rare | 修复辅助 |
+| 13 | `assassin` | Epic | 近战爆发 |
+
+### 9.3 生产/陷阱建筑（3 种）
+
+| # | UnitID | 卡稀有度 | 作用 |
+|---|--------|---------|------|
+| 14 | `gold_mine` | Common | 持续产金 |
+| 15 | `energy_crystal` | Rare | 下波 +3 E 或能量上限 +1 |
+| 16 | `spike_trap` | Common | 触发伤害 |
+
+### 9.4 法术卡（8 种，无 UnitID）
+
+| # | CardID | 稀有度 | 效果 |
+|---|--------|--------|------|
+| 17 | `fireball_spell` | Common | AoE 80 火焰伤害 |
+| 18 | `slow_spell` | Common | AoE 减速 |
+| 19 | `arrow_rain_spell` | Rare | AoE 5s 持续伤害 |
+| 20 | `heal_pulse_spell` | Rare | 全场我方治疗 |
+
+> 法术卡 17-20 是"我方阵容"的扩展部分。塔/兵/建筑/陷阱（16 个）+ 法术卡（4 个 Common/Rare 法术 + 4 个 Epic/Legendary 法术）共 24 张卡。
+
+### 9.5 完整卡池规模（开服默认）
+
+| 稀有度 | 卡数 | 说明 |
+|--------|------|------|
+| Common | 12 | 7 塔+兵+建筑基础卡 + 5 基础法术 |
+| Rare | 8 | 进阶塔+辅助兵+能量水晶 + 进阶法术 |
+| Epic | 6 | 高级塔+刺客+高级法术 |
+| Legendary | 4 | 战略塔+终极法术 |
+| **总计** | **30** | 满足"开局抽 12 张"的足够多样性 |
+
+> 开服默认解锁 6-8 张 Common 卡（详见 [13-save-system §1.2 默认初始状态](./13-save-system.md)），其余通过火花碎片解锁。
+
+---
+
+## 10. v1.1 章节兼容声明
+
+v3.0 整合后，本文档 §1-§7 的"7 新敌 + 6 新塔 + 3 新兵"设计**全部并入** §8/§9 的 20+20 阵容：
+
+| v1.1 原设计 | v3.0 处理 |
+|-----------|----------|
+| 擂鼓手 (boss 类增援) | 整合进 boss_commander 的关 1-3 变体 |
+| 铁甲巨兽 | 整合为 `heavy` 的精英变体 |
+| 变异体 | 整合为 `summoner_skeleton`（死亡召唤机制） |
+| 蜂群 | 整合为 `bat_swarm`（飞行群体） |
+| 幽影 | 整合为 `invisible_assassin` |
+| 镜像怪 | 整合为 `reflective_golem` |
+| 召唤师 boss | 整合为 `abyss_lord` 的阶段 2 召唤机制 |
+| 毒藤塔 / 号令塔 / 弩炮塔 / 路障 / 赏金塔 / 图腾塔 | v3.0 暂不收入开服卡池，作为「未来扩展卡」列入 [25 §13 后续扩展](./25-card-roguelike-refactor.md) |
+
+---
+
+> 版本: v3.0 整合 | 日期: 2026-05-12 | 状态: 阵容定稿
 >
 > **设计参考来源**：
-> - 现有设计文档：02-unit-system, 03-unit-data, 04-skill-buff-system, 05-combat-system, 19-missile-tower, 21-mda-numerical-design
+> - 现有设计文档：02-unit-system, 03-unit-data, 04-skill-buff-system, 05-combat-system, 19-missile-tower, 21-mda-numerical-design, 25-card-roguelike-refactor
 > - 经典塔防游戏：Kingdom Rush, Plants vs Zombies, Bloons TD 6, 保卫萝卜, 皇室战争
+> - 卡牌 Roguelike 参考：怪物火车, 月圆之夜, Slay the Spire
 > - 现有代码体系：src/types/index.ts, src/data/gameData.ts, src/core/components.ts, src/systems/*

@@ -193,3 +193,94 @@
 | 波次缩放 | [21 §8](./21-mda-numerical-design.md#8-波次难度曲线重校准) |
 | 天气矩阵 | [21 §9](./21-mda-numerical-design.md#9-天气系统数值优化) |
 | 技能与 Buff | [04-skill-buff-system.md](./04-skill-buff-system.md) |
+
+---
+
+## 8. 卡牌目录（v3.0 新增）
+
+> 数值见 [21-MDA §8 卡牌能量消耗与升级数值表](./21-mda-numerical-design.md)。
+> 卡牌实例化机制见 [02 §8 卡牌作为生成入口](./02-unit-system.md#8-卡牌作为生成入口v30-新增)。
+
+### 8.1 单位/建筑卡（指向已有 UnitConfig）
+
+| 卡 ID | 类型 | 稀有度 | 引用 UnitConfig | 备注 |
+|-------|------|--------|----------------|------|
+| `arrow_tower_card` | 建筑卡 | Common | `arrow_tower` | 基础远程塔 |
+| `cannon_tower_card` | 建筑卡 | Common | `cannon_tower` | 基础群伤塔 |
+| `ice_tower_card` | 建筑卡 | Rare | `ice_tower` | 控制塔 |
+| `lightning_tower_card` | 建筑卡 | Rare | `lightning_tower` | 链击塔 |
+| `laser_tower_card` | 建筑卡 | Epic | `laser_tower` | 贯穿塔 |
+| `bat_tower_card` | 建筑卡 | Epic | `bat_tower` | 暗夜塔 |
+| `missile_tower_card` | 建筑卡 | Legendary | `missile_tower` | 战略塔 |
+| `gold_mine_card` | 建筑卡 | Common | `gold_mine` | 经济卡 |
+| `energy_crystal_card` | 建筑卡 | Rare | `energy_crystal` | 能量水晶（旧 energy_tower 改名） |
+| `shield_guard_card` | 单位卡 | Common | `shield_guard` | 肉盾 |
+| `swordsman_card` | 单位卡 | Common | `swordsman` | 前排 |
+| `archer_card` | 单位卡 | Common | `archer` | 远程 |
+| `priest_card` | 单位卡 | Rare | `priest` | 治疗支援 |
+| `engineer_card` | 单位卡 | Rare | `engineer` | 修复辅助 |
+| `assassin_card` | 单位卡 | Epic | `assassin` | 爆发位 |
+| `spike_trap_card` | 建筑卡 | Common | `spike_trap` | 陷阱 |
+
+> **v3.0 重命名**：`energy_tower` → `energy_crystal`（能量水晶），效果改为「下波开始 +3 E」或「+1 能量上限」，不再是被动产出建筑。具体由 21-MDA 决定。
+
+### 8.2 法术卡（spellEffect 驱动，不指向 UnitConfig）
+
+| 卡 ID | 稀有度 | 类型 | 效果（简述） | 跨波保留 |
+|-------|--------|------|------------|---------|
+| `fireball_spell` | Common | AOE 伤害 | 目标区域 80 火焰伤害（半径 80） | ❌ |
+| `slow_spell` | Common | AOE 减速 | 目标区域所有敌人减速 50%，持续 3s | ❌ |
+| `arrow_rain_spell` | Rare | AOE 持续 | 目标区域 5s 内每秒 30 物理伤害 | ❌ |
+| `heal_pulse_spell` | Rare | AOE 治疗 | 我方单位全场 HP +100 | ❌ |
+| `freeze_all_spell` | Epic | 全屏控制 | 全屏敌人冰冻 2s | ❌ |
+| `meteor_spell` | Epic | 单点爆发 | 单格 300 火焰伤害 + 30% 范围 80 溅射 | ❌ |
+| `divine_protection_spell` | Legendary | 持续 buff | 大本营本波内伤害减免 50% | ✅（跨波保留） |
+| `summon_skeletons_spell` | Legendary | 召唤 | 召唤 5 个 30 HP / 8 ATK 骷髅兵 | ❌ |
+
+### 8.3 卡牌配置统一格式
+
+详见 [02 §8.3 CardConfig 字段](./02-unit-system.md#83-cardconfig-字段与-unitconfig-关联)。
+
+---
+
+## 9. v3.0 新增敌人（13 → 20，对应 8 关 + 终战）
+
+> 数值见 21-MDA §6 敌方单位数值（v3.0 扩展）。
+
+| 敌人 ID | 引入关 | 层级 | 关键机制 | 威胁优先级建议 |
+|---------|-------|------|---------|--------------|
+| `goblin_archer` | L1 | 普通 | 远程攻击 | 中（射程 100） |
+| `wolf` | L2 | 普通 | 高速 + 群体出现 | 低 |
+| `wolf_rider` | L2 | 精英 | 高速冲刺 + `can_attack_buildings` | 高 |
+| `poison_snake` | L3 | 普通 | 攻击带毒（5s DOT） | 中 |
+| `healer_priest` | L3 | 精英 | 治疗周围敌人 100 HP/s | **最高**（敌人优先级表标记） |
+| `bat_swarm` | L4 | LowAir | 飞行 + 群体 | 中（仅反空塔可击） |
+| `wisp` | L4 | LowAir | 飞行 + 隐形 3s（出生时） | 中 |
+| `scattered_tentacle` | L5 | 普通 | 周期散开/聚拢 + 抗 AoE | 中 |
+| `summoner_skeleton` | L6 | 精英 | 死亡召唤 3 小骷髅 | 高 |
+| `shielded_warrior` | L6 | 精英 | 护盾未破时免疫伤害 | 高（必须破盾） |
+| `elite_exploder` | L7 | 精英 | 强化自爆（半径 150 / 100 伤害） | 高 |
+| `invisible_assassin` | L8 | 精英 | 出生 3s 内隐形 | 高 |
+| `reflective_golem` | L8 | 精英 | 反弹 30% 受到伤害 | 中（避免高 ATK 集火） |
+
+外加旧版 7 个敌人（grunt / runner / heavy / mage / exploder / boss_commander / boss_beast）+ 新增终战 boss `abyss_lord` = **20 种敌人**。
+
+### 9.1 终战 Boss
+
+| Boss ID | 关卡 | 关键机制 |
+|---------|------|---------|
+| `abyss_lord` | L9 终战 | 3 阶段切换 + 阶段 1 召唤普通敌 + 阶段 2 召唤精英 + 阶段 3 范围 DOT 大招 |
+
+详见 21-MDA §6 与 22-new-unit-design。
+
+---
+
+## 10. v3.0 字段约定补充
+
+| 字段 | 适用 | 说明 |
+|------|------|------|
+| `enemyTargetPriority[]` | Enemy | 攻击优先级配置（详见 [02 §9](./02-unit-system.md#9-单位的-ai-行为优先级v30-新增敌方)） |
+| `cardId` | 单位实例（运行时） | 该实例由哪张卡生成（用于追溯） |
+| `instanceLevel` | 单位实例（运行时） | 实例当前等级（永久 base + 本局升级） |
+| `persistAcrossWaves` | CardConfig | 法术卡是否跨波保留 |
+| `removable` | CardConfig | 卡是否可在商店移除 |

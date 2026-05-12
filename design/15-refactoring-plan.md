@@ -357,4 +357,131 @@ boss_commander:
 | 新增关卡 | 编写TS代码 | 编写YAML配置（可随机） |
 | 渲染性能 | Canvas 2D瓶颈 | WebGL + 粒子优化 |
 | 测试覆盖 | 0% | 核心逻辑全覆盖 |
+
+---
+
+# 七、v3.0 卡牌化分阶段实施（追加）
+
+> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，将塔防游戏改造为「卡牌 + Roguelike 长征」。本节定义 v2.x → v3.0 的实施路线图。
+
+## 7.1 v3.0 改造目标
+
+| 维度 | v2.x（旧） | v3.0（新） |
+|------|-----------|----------|
+| 部署来源 | 工具栏按钮 + 金币 | 手牌区拖卡 + 能量 E |
+| 关卡组织 | 5 个独立关卡 | 8 关 + 终战，连闯式 Run |
+| 关间过渡 | 无 | 商店 vs 秘境二选一节点 |
+| meta 进展 | 三星 + 无尽 | 永久卡池 + 火花碎片 |
+| 存档 | LevelProgress + Endless | OngoingRun + CardCollection |
+
+## 7.2 实施分阶段
+
+### Phase A — 数据层与配置（1-2 周）
+
+**目标**：建立卡牌系统数据底座，不影响现有战斗。
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| 定义 `CardConfig` 接口 | `src/types/card.ts` | TypeScript 编译通过 |
+| 实现 `cardData.ts`（30 张开服卡） | `src/data/cardData.ts` | 卡片配置覆盖 21-MDA §8 |
+| 扩展存档结构到 v2.0 | `src/save/types.ts` + `migrate.ts` | v1.1 → v2.0 迁移测试通过 |
+| 实现 `CardCollection` / `PermanentUpgrades` 数据访问层 | `src/save/cardCollection.ts` | 单测通过 |
+| 实现 `OngoingRun` 数据访问层 | `src/save/ongoingRun.ts` | 单测通过 |
+
+### Phase B — 卡牌核心系统（2-3 周）
+
+**目标**：实现卡组、手牌、抽卡、出卡、弃牌堆五大核心机制。
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| `DeckSystem`（卡组管理） | `src/systems/DeckSystem.ts` | 抽 12 张、洗牌、弃牌堆 |
+| `HandSystem`（手牌管理） | `src/systems/HandSystem.ts` | 抽手牌、跨波保留、出卡 |
+| `EnergySystem`（能量管理） | `src/systems/EnergySystem.ts` | 每波 +5、上限 10、出卡扣除 |
+| `CardSpawnSystem`（卡 → 单位实例化） | `src/systems/CardSpawnSystem.ts` | 单位卡正确创建 Entity |
+| `SpellCastSystem`（法术卡执行） | `src/systems/SpellCastSystem.ts` | 法术效果正确生效 |
+| 卡牌随机抽取 PRNG | `src/utils/runRandom.ts` | 6 流隔离 |
+
+### Phase C — Run 框架与关间节点（2-3 周）
+
+**目标**：实现 Run 长征流程与关间节点。
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| `RunManager`（Run 生命周期） | `src/core/RunManager.ts` | 开 Run / 结算 Run / 失败重开 |
+| 大本营 HP 继承逻辑 | `src/save/ongoingRun.ts` | 跨关 HP 正确传递 |
+| `InterLevelNodeSystem`（关间节点） | `src/systems/InterLevelNodeSystem.ts` | 二选一面板 + 选择后正确路由 |
+| `ShopSystem`（商店） | `src/systems/ShopSystem.ts` | 4 商品 + 移除 + 刷新 |
+| `MysticSystem`（秘境事件） | `src/systems/MysticSystem.ts` | 12 事件池 + 效果生效 |
+| 关 1-8 + 终战 关卡数据 | `src/data/levelData.ts` | 难度乘数与 21-MDA §16 一致 |
+
+### Phase D — UI 改造（2 周）
+
+**目标**：手牌区 + 关间面板 + 商店 + 秘境 + 卡池界面。
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| 删除旧工具栏 UI | `src/ui/Toolbar.ts` → 弃用 | 旧按钮被手牌区替代 |
+| 新手牌区 UI（拖卡） | `src/ui/HandPanel.ts` | 拖卡 → 部署 / 释放完整流程 |
+| 关间节点面板 | `src/ui/InterLevelPanel.ts` | 二选一 UI |
+| 商店界面 | `src/ui/ShopPanel.ts` | 购卡 / 升级 / 移除 / 刷新 |
+| 秘境界面 | `src/ui/MysticPanel.ts` | 事件文本 + 多选项 |
+| 卡池界面（主菜单） | `src/ui/CardCollectionView.ts` | 解锁 / 升级卡 |
+| 永久升级面板 | `src/ui/PermanentUpgradeView.ts` | 5 类升级项 |
+| Run 结算界面 | `src/ui/RunResultPanel.ts` | 流派标签 + 碎片入账 |
+| 主菜单改造 | `src/ui/MainMenu.ts` | 删除关卡选择 + 无尽，加入 Run/卡池/升级 |
+
+### Phase E — 敌人与卡牌内容（2 周）
+
+**目标**：v3.0 新增敌人 + 关底 Boss + 终战 Boss。
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| 实现 6 种新敌人（healer_priest, scattered_tentacle, summoner_skeleton, shielded_warrior, invisible_assassin, reflective_golem 等） | `src/data/gameData.ts` | 数值与 21-MDA §6 一致 |
+| 实现 8 关底 Boss 数据 | `src/data/gameData.ts` | 复用 boss_commander_ai BT |
+| 实现终战 Boss `abyss_lord` | `src/data/gameData.ts` + 新 BT 节点 | 3 阶段切换正常 |
+| 敌方威胁度评分系统 | `src/systems/EnemyTargetSystem.ts` | 优先攻击 healer_priest |
+| 关 1-9 关卡数据（含波次配置） | `src/data/levelData.ts` | 难度曲线符合预期 |
+
+### Phase F — 测试与平衡（持续）
+
+| 任务 | 涉及文件 | 验收 |
+|------|---------|------|
+| 卡牌系统单元测试 | `tests/card.test.ts` | 全绿 |
+| Run 流程集成测试 | `tests/run.test.ts` | 全 9 关跑通 |
+| 经济节奏校验 | `tests/economy.test.ts` | 符合 21-MDA §18 |
+| 流派识别测试 | `tests/archetype.test.ts` | 4 种流派可成型 |
+| 存档迁移测试 | `tests/save-migration.test.ts` | v1.1 → v2.0 迁移成功 |
+| 手动平衡测试 | 人工 | Run 平均时长 30-45 分钟 |
+
+## 7.3 兼容性策略
+
+- **代码兼容**：保留 `Tower` / `Soldier` / `Enemy` 等 UnitConfig 概念不变，仅新增 CardConfig 层
+- **行为树兼容**：现有 23 / 24 行为树继续使用，新增 `enemyTargetPriority` 字段不破坏旧 BT
+- **数值兼容**：21-MDA §4-§9 旧数值表保留，新增 §12-§18 v3.0 数值表
+- **存档兼容**：v1.1 存档自动迁移到 v2.0，发放补偿碎片（详见 [13-save §6.2](./13-save-system.md#62-迁移注册表)）
+- **测试兼容**：旧测试中与单关 / 三星 / 无尽相关的 case 标记为 `.skip`，新测试覆盖 v3.0 功能
+
+## 7.4 风险与缓解
+
+| 风险 | 缓解策略 |
+|------|---------|
+| 玩家不喜欢 Roguelike 死亡惩罚 | 火花碎片让每次失败都有收获；初始解锁 6-8 张 Common 卡降低门槛 |
+| 卡组随机性导致玩家挫败 | 关间商店让玩家可补足关键卡 |
+| 30-45 分钟单局过长 | 关间存档点支持中断恢复 |
+| 卡池扩展数据膨胀 | CardConfig 与 UnitConfig 解耦，扩展只需新增配置 |
+| v1.1 旧存档无法迁移 | 提供"重置 + 补偿碎片"兜底；备份原存档可手动恢复 |
+
+## 7.5 Phase Gantt（参考）
+
+```
+周次:     1  2  3  4  5  6  7  8  9 10
+Phase A: ██████
+Phase B:       ██████████
+Phase C:                 ██████████
+Phase D:                          █████████
+Phase E:                                ███████
+Phase F:        ███████████████████████████ (持续)
+```
+
+总计：约 8-10 周（不含打磨期）。
 | 帧率（压力场景） | 30-45fps | 稳定60fps |

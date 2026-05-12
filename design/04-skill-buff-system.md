@@ -142,3 +142,55 @@
 - 高消耗技能: 25-30能量
 
 Boss技能不消耗玩家能量（由AI自主管理冷却）。
+
+---
+
+## 5. v3.0 法术卡子分类（追加）
+
+> 自 v3.0 起，玩家主动施放的技能全部以**法术卡**形式存在于卡牌系统中。本节定义法术卡的子分类。机制层面与 §2 预定义技能完全一致，仅是触发方式从"塔的主动技能"改为"手牌出卡"。
+>
+> 详细数值见 [21-MDA §12](./21-mda-numerical-design.md#12-能量-e-系统数值v30)；法术卡清单见 [03-unit-data §8](./03-unit-data.md#8-卡牌目录v30-新增)。
+
+### 5.1 法术卡按效果分类
+
+| 子分类 | 描述 | 典型代表 | 是否跨波保留 |
+|--------|------|---------|------------|
+| 即时伤害（AoE） | 在选定区域立即释放范围伤害 | `fireball_spell`, `meteor_spell` | ❌ |
+| 持续伤害（DoT/区域） | 在区域内持续若干秒造成伤害 | `arrow_rain_spell` | ❌ |
+| 控制（减速/冰冻） | 让敌人减速或暂停 | `slow_spell`, `freeze_all_spell` | ❌ |
+| 治疗 | 治疗我方单位或大本营 | `heal_pulse_spell` | ❌ |
+| 召唤 | 临时召唤友军单位 | `summon_skeletons_spell` | ❌ |
+| 防御（跨波） | 给予大本营或单位临时护盾 | `divine_protection_spell` | ✅ |
+
+### 5.2 法术卡执行接口
+
+法术卡通过 `SpellCastSystem` 执行，与塔主动技能的 `SkillSystem` 共享同一套效果原子：
+
+```ts
+type SpellEffect =
+  | { type: 'aoe_damage'; center: Vec2; radius: number; damage: number; damageType: DamageType }
+  | { type: 'dot_zone'; center: Vec2; radius: number; tickDamage: number; duration: number }
+  | { type: 'apply_buff'; targets: 'allies' | 'enemies' | 'allUnits'; buff: BuffSpec }
+  | { type: 'summon'; unitId: UnitID; count: number; position: Vec2; lifetime?: number }
+  | { type: 'heal'; targets: 'allies' | 'base'; amount: number }
+  | { type: 'shield'; targets: 'base' | 'allies'; absorbAmount: number; duration?: number };
+```
+
+每张法术卡的 CardConfig 中包含一个 `effects: SpellEffect[]` 数组，由 `SpellCastSystem` 顺序执行。
+
+### 5.3 法术卡能量消耗规则
+
+- **不消耗单位能量**：法术卡从玩家**能量 E 池**扣除（与 §4 单位技能能量分开）。
+- **不可与塔主动技能共用**：塔的内置主动技能（如冰塔光环、激光过载）仍走 §4 能量规则，独立于法术卡能量池。
+- **数值范围**：法术卡能量消耗 2-10，详见 [21-MDA §12.2](./21-mda-numerical-design.md#122-卡牌能量消耗表)。
+
+### 5.4 法术卡临时升级双轨
+
+法术卡支持两种本局内临时升级（沿用 v3.0 主流程规则）：
+
+| 升级类型 | 作用对象 | 持续时间 | 效果 |
+|---------|---------|---------|------|
+| 实例临时升级 | 该卡当前在手牌中的实例 | 出卡后消失 | 伤害 +30% / 范围 +10% |
+| 卡级临时升级 | 该卡 instanceLevel | 本局 Run 内永久（直到 Run 结束） | 每级累加 +30% 伤害 / +10% 范围 |
+
+> 法术卡死亡（出过一次）后**不回弃牌堆**，与 [25 §1.4 出卡流程](./25-card-roguelike-refactor.md#14-出卡流程) 一致。

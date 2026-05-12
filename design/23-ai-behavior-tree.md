@@ -378,4 +378,200 @@ T1.1 (统一ID) ──→ T1.2 (补齐配置)
 
 ---
 
-> 版本: v1.0 | 日期: 2026-05-12 | 基于审计结果编写
+## 六、v3.0 敌方威胁度评分扩展（追加）
+
+> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 与 [02-unit-system §9](./02-unit-system.md#9-敌方攻击优先级v30) 方案，敌方单位 AI 默认沿路径移动，但应能识别"高威胁目标"并主动停下攻击。本节定义威胁度评分机制及行为树扩展。
+>
+> 本节是 v3.0 敌方威胁度评分的唯一权威设计。
+
+### 6.1 设计动机
+
+v1.1 之前，敌方 AI 通常采用以下逻辑之一：
+- A) 完全无视塔/兵，沿路径直冲基地（仅 boss 例外）
+- B) 进入射程内的塔/兵不区分优先级，按距离最近一律攻击
+
+这导致两种问题：
+1. 玩家放置高威胁的辅助塔（如治疗塔、产钱塔）不会被敌人针对
+2. 敌人攻击行为缺乏"智能感"，无法体现单位个性
+
+v3.0 引入"威胁度评分"：敌人按可配置的优先级规则识别**最优攻击目标**，从而：
+- 治疗类辅助单位（如 priest）会被对应敌人优先攻击
+- 不同类型的敌人有不同的目标偏好（如 wolf_rider 偏好近战兵，mage 偏好塔）
+- 敌人能体现出"知道在打什么"的智能感
+
+### 6.2 威胁度评分接口
+
+#### 6.2.1 EnemyTargetPriority 配置字段
+
+每个敌方 `UnitConfig` 可携带 `enemyTargetPriority` 字段（详见 [02 §9.1](./02-unit-system.md#91-enemytargetpriority-字段)）：
+
+```ts
+interface EnemyTargetPriority {
+  // 是否启用威胁度评分（false 时纯走路径）
+  enabled: boolean;
+
+  // 评分扫描半径，0 表示仅在原攻击射程内扫描
+  scanRange?: number;
+
+  // 类型权重：对每个目标类型给予基础分
+  typeWeights?: Partial<Record<UnitTagKind, number>>;
+
+  // 标签权重：单位有特定 tag 时额外加分
+  tagWeights?: Partial<Record<string, number>>;
+
+  // 是否优先攻击带 buff 治疗属性的单位
+  preferHealers?: boolean;
+
+  // 距离衰减系数（0-1）：1 表示完全按距离反比，0 表示忽略距离
+  distanceFactor?: number;
+
+  // 切换阈值：当前目标分 / 最高分低于该值时切换
+  switchThreshold?: number;
+}
+```
+
+#### 6.2.2 评分公式
+
+```
+score(target) = baseTypeWeight + sumTagWeights + healerBonus * (target.hasHealAura ? 1 : 0)
+score *= max(0, 1 - distanceFactor * (distance / scanRange))
+```
+
+最终选定 `max(score)` 对应的单位为攻击目标。
+
+### 6.3 行为树节点扩展
+
+#### 6.3.1 新增节点 `ScoreSelectTarget`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `type` | `'ScoreSelectTarget'` | 节点类型 |
+| `range` | `number?` | 扫描半径（不填时取单位攻击射程） |
+| `priority` | `EnemyTargetPriority` | 评分规则（也可指向 UnitConfig 的 enemyTargetPriority） |
+| `setKey` | `string?` | Blackboard 存储键（默认 `'target'`） |
+
+行为：在 `range` 内扫描所有可攻击单位，按 6.2.2 公式计算分数，选最高分写入 Blackboard。如果没有任何可攻击目标，节点 Fail。
+
+#### 6.3.2 与现有 `SelectTarget` 节点的关系
+
+| 维度 | `SelectTarget`（旧） | `ScoreSelectTarget`（新） |
+|------|-------------------|------------------------|
+| 选择逻辑 | 取最近 / 最弱 / 最强 | 加权评分 |
+| 数据源 | 单一字段（distance/hp） | 多维（type/tag/heal/distance） |
+| 适用单位 | 简单敌人 / 塔 | 中高级敌人，关键 boss |
+
+向后兼容：现有单位 AI 配置不需要改动，继续用 `SelectTarget`。新增敌人才用 `ScoreSelectTarget`。
+
+### 6.4 v3.0 敌方 AI 配置示例
+
+#### 6.4.1 `mage`（远程法师）— 偏好优先攻击塔
+
+```yaml
+mage:
+  behavior:
+    ai_tree:
+      type: Sequence
+      children:
+        - type: ScoreSelectTarget
+          range: 200
+          priority:
+            enabled: true
+            scanRange: 200
+            typeWeights:
+              Tower: 100         # 塔加 100
+              Soldier: 30        # 兵加 30
+              Production: 10     # 生产建筑加 10
+            distanceFactor: 0.3
+            switchThreshold: 0.7
+          setKey: target
+        - type: MoveToTarget
+          stoppingDistance: 180
+        - type: AttackTarget
+          range: 200
+```
+
+#### 6.4.2 `wolf_rider`（狼骑兵）— 偏好近战单位
+
+```yaml
+wolf_rider:
+  behavior:
+    ai_tree:
+      type: Sequence
+      children:
+        - type: ScoreSelectTarget
+          range: 100
+          priority:
+            enabled: true
+            typeWeights:
+              Soldier: 80
+              Tower: 40
+            tagWeights:
+              "tank": 50          # 肉盾兵额外加 50
+              "ranged": -20       # 远程兵减 20（不喜欢追远程）
+            distanceFactor: 0.5
+          setKey: target
+        - type: Selector
+          children:
+            - type: AttackTarget
+              range: 30
+            - type: MoveToTarget
+              stoppingDistance: 30
+```
+
+#### 6.4.3 `boss_dark_knight`（关 8 Boss）— 优先击杀治疗单位
+
+```yaml
+boss_dark_knight:
+  behavior:
+    ai_tree:
+      type: Selector
+      children:
+        # 优先击杀治疗单位
+        - type: Sequence
+          children:
+            - type: ScoreSelectTarget
+              range: 300
+              priority:
+                enabled: true
+                preferHealers: true
+                healerBonus: 500       # 治疗单位极高优先
+                typeWeights:
+                  Soldier: 50
+                  Tower: 80
+                distanceFactor: 0.2
+              setKey: target
+            - type: AttackTarget
+              range: 60
+        # 其他单位
+        - type: SelectTarget
+          mode: nearest
+          setKey: target
+        - type: AttackTarget
+          range: 60
+```
+
+### 6.5 实现步骤
+
+| 步骤 | 涉及文件 | 说明 |
+|------|---------|------|
+| 1. 定义 `EnemyTargetPriority` 接口 | `src/types/ai.ts` | 类型声明 |
+| 2. `UnitConfig` 增加可选字段 | `src/types/unit.ts` | 不破坏旧配置 |
+| 3. 实现 `ScoreSelectTarget` BT 节点 | `src/ai/nodes/ScoreSelectTarget.ts` | 评分逻辑 |
+| 4. `UnitTag` 增加 tag 数组字段 | `src/components/UnitTag.ts` | 用于 tagWeights 查询 |
+| 5. 配置 v3.0 新敌人 AI | `src/data/gameData.ts` | mage/wolf_rider/healer_priest 等 |
+| 6. 单元测试覆盖评分公式 | `tests/scoreSelect.test.ts` | 数学边界 + 距离衰减 |
+| 7. BT 查看器显示当前评分 | `src/debug/BehaviorTreeViewer.ts` | 调试可视化 |
+
+### 6.6 验收标准（v3.0 扩展）
+
+- [ ] `EnemyTargetPriority` 接口完整定义且向后兼容
+- [ ] `ScoreSelectTarget` 节点单元测试覆盖所有评分维度
+- [ ] `mage` 在场景中优先攻击塔而非士兵（观察行为可验证）
+- [ ] `wolf_rider` 优先攻击近战单位
+- [ ] `boss_dark_knight` 优先击杀 priest
+- [ ] 不配置 `enemyTargetPriority` 的旧敌人行为不受影响
+- [ ] `BehaviorTreeViewer` 可显示当前评分排行
+
+---
+
+> 版本: v3.0 | 日期: 2026-05-12 | 基于审计结果 + 卡牌系统重构编写

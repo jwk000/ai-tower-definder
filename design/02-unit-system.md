@@ -1,12 +1,16 @@
 # 02 — 单位系统
 
 > 统一单位概念、配置驱动架构、动态行为规则
+>
+> **v3.0 扩展**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md)，**所有玩家可部署单位都从卡牌生成**。本文档保持 ECS 单位概念不变，新增「卡牌作为生成入口」说明（§8）。
 
 ---
 
 ## 1. 核心理念
 
 **一切皆单位**。塔是我方单位，敌人是敌方单位，可移动角色是我方单位，中立机关也是单位。它们的本质相同——都有一组属性、一组行为规则、一组视觉表现。**不同单位只是配置不同**。
+
+> **v3.0 补充**：在玩家可控的范围内，**单位实例由卡牌出牌时实例化**——卡牌是部署入口，单位是运行时实体。详见 §8。
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -353,3 +357,192 @@ spike_trap:
 - **实例是运行时对象**：从配置创建单位实例，实例独立运行
 - **规则是驱动**：运行时系统（RuleEngine）每帧检查并执行匹配的规则
 - **行为树是补充**：仅复杂AI使用，行为树节点本身也可引用生命周期规则
+
+---
+
+## 8. 卡牌作为生成入口（v3.0 新增）
+
+### 8.1 单位 vs 卡牌的概念边界
+
+| 概念 | 范围 | 持久性 | 数据来源 |
+|------|------|--------|---------|
+| **CardConfig（卡片配置）** | 设计时蓝图 | 静态配置文件 | `src/data/cards.ts`（新增）|
+| **CardInstance（卡片实例）** | 本局 Run 内 | 整局 Run | `ongoingRun.deck[]`（每张含临时等级） |
+| **UnitConfig（单位配置）** | 设计时蓝图 | 静态配置文件 | `src/data/gameData.ts`（保留） |
+| **Unit Entity（单位实例）** | 关内战场 | 关内生命周期 | ECS World（实时） |
+
+### 8.2 卡牌 → 单位 实例化流程
+
+```
+玩家出卡（拖卡到合法位置）
+   │
+   ▼
+1. 卡牌系统检查：能量足够？目标合法？
+   │
+   ▼
+2. 消耗能量 E
+   │
+   ▼
+3. 按卡牌类型分支：
+   │
+   ├─ 单位卡 / 建筑卡：
+   │     │
+   │     ▼
+   │  根据 cardConfig.spawnUnitId 实例化单位
+   │  - 读取 UnitConfig（与旧版完全相同）
+   │  - 创建 ECS Entity（带 Position/Render/Health/Attack 等组件）
+   │  - 应用本局临时等级（实例 baseLevel = card 实例等级）
+   │  - 该实例**死亡后不回弃牌堆**
+   │     │
+   │     ▼
+   │  卡片进入弃牌堆
+   │
+   └─ 法术卡：
+         │
+         ▼
+      根据 cardConfig.spellEffect 立即生效
+      - 不创建持久 Entity（瞬时效果 / 短暂 VFX 实体）
+      - 范围/数值由 cardConfig + 临时升级决定
+         │
+         ▼
+      卡片进入弃牌堆（除非 persistAcrossWaves=true）
+```
+
+### 8.3 CardConfig 字段（与 UnitConfig 关联）
+
+```typescript
+interface CardConfig {
+  id: string;                  // 卡 ID（如 'arrow_tower_card'）
+  name: string;                // 卡名（中文）
+  type: 'unit' | 'building' | 'spell';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+
+  energyCost: number;          // 出卡能量消耗
+  description: string;         // 卡片简介
+
+  // 单位/建筑卡：指向 UnitConfig
+  spawnUnitId?: string;        // 引用 src/data/gameData.ts 中的 unit ID
+
+  // 法术卡：效果配置
+  spellEffect?: SpellEffectConfig;
+
+  // 视觉
+  visual: {
+    artworkSymbol: string;     // 卡牌主图几何符号（80×60 区域）
+    bgTheme: string;           // 卡背主题色
+  };
+
+  // 升级路径（永久 + 临时）
+  upgradePath?: {
+    baseLevel: 1 | 2 | 3 | 4 | 5;
+    statsPerLevel: Partial<UnitStats>;  // 等级递增数值
+    spellEffectPerLevel?: SpellEffectConfig;
+  };
+
+  // 特殊标记
+  persistAcrossWaves?: boolean; // 法术卡是否跨波保留
+  removable?: boolean;          // 是否可在商店移除（默认 true）
+}
+```
+
+### 8.4 关键设计取舍
+
+- **卡牌不持有单位的运行时数据**——只持有"如何生成"的元信息
+- **临时升级影响实例化**——出卡时，引擎读取 CardInstance 的当前等级，把对应数值施加到新实例上
+- **场上实例死亡不回弃牌堆**——卡是"召唤令"，使用一次即弃
+- **法术卡的范围扩散逻辑等仍走 SkillSystem**——卡只是把目标格 + 等级传给现有 SkillSystem
+
+### 8.5 配置示例
+
+```yaml
+# 剑士卡 — 单位卡
+swordsman_basic:
+  id: swordsman_basic
+  name: 剑士
+  type: unit
+  rarity: common
+  energyCost: 2
+  description: "近战单位，对地面敌人造成中等伤害"
+  spawnUnitId: swordsman    # 引用既有的 swordsman UnitConfig
+  visual:
+    artworkSymbol: cross_sword
+    bgTheme: warm_red
+  upgradePath:
+    baseLevel: 1
+    statsPerLevel:
+      hp: 30           # 每级 +30 HP
+      atk: 4           # 每级 +4 ATK
+  removable: true
+
+# 火球术卡 — 法术卡
+fireball_spell:
+  id: fireball_spell
+  name: 火球术
+  type: spell
+  rarity: common
+  energyCost: 3
+  description: "对目标区域造成 80 火焰伤害，半径 80px"
+  spellEffect:
+    type: aoe_damage
+    damageType: fire
+    damage: 80
+    radius: 80
+    visualEffect: fireball_explosion
+  visual:
+    artworkSymbol: fireball
+    bgTheme: warm_red
+  upgradePath:
+    baseLevel: 1
+    spellEffectPerLevel:
+      damage: 30       # 每级 +30 damage
+  persistAcrossWaves: false
+  removable: true
+```
+
+---
+
+## 9. 单位的 AI 行为优先级（v3.0 新增·敌方）
+
+v3.0 引入「敌方单位攻击优先级」机制：敌人沿路径行进时，如果路径附近有高优先级目标，停下来攻击。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `enemyTargetPriority` | `EnemyTargetPriority[]` | 攻击优先级配置列表 |
+| `engagementRange` | `number` | 评估范围（px），默认 80 |
+| `disengagementRange` | `number` | 脱离范围（px），默认 120 |
+
+```typescript
+interface EnemyTargetPriority {
+  filter: {
+    category?: 'Tower' | 'Soldier' | 'Building' | 'Trap' | 'Objective';
+    tags?: string[];             // 如 ['healer', 'support']
+    threat?: 'high' | 'medium' | 'low';
+  };
+  weight: number;                // 0-100，越高越优先
+}
+```
+
+### 9.1 默认行为规则
+
+- 路径敌人默认 `targetSelection: follow_path + check_priority_target`
+- 评估范围内有匹配 priority 的目标 → 停下攻击
+- 该目标超出 disengagementRange 或被消灭 → 恢复 follow_path
+- 多个目标同时匹配 → 按 weight 加权随机选择（防止扎堆）
+
+### 9.2 示例
+
+```yaml
+# 远程刺客敌人 — 优先攻击我方治疗类塔/单位
+enemy_assassin:
+  enemyTargetPriority:
+    - filter: { category: Soldier, tags: [healer] }
+      weight: 100
+    - filter: { category: Tower, tags: [support] }
+      weight: 80
+    - filter: { category: Tower }
+      weight: 30
+  engagementRange: 90
+  disengagementRange: 130
+```
+
+详见 [23-ai-behavior-tree §X 威胁度评分扩展](./23-ai-behavior-tree.md)。

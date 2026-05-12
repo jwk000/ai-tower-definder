@@ -231,7 +231,9 @@ computeSceneLayout() → 使用动态 canvas 尺寸：
 | 覆盖层标题文字 | `anchor: middle-center, offset(0,-30)` | 屏幕中央偏上 |
 | 覆盖层副标题 | `anchor: middle-center, offset(0,20)` | 屏幕中央偏下 |
 
-### 4.4 关卡选择
+### 4.4 关卡选择（v1.1 旧版，v3.0 已替换）
+
+> v3.0 删除关卡选择界面，由主菜单"开始 Run"按钮替代。本节保留作历史参考。
 
 | 元素 | 锚点配置 | 说明 |
 |------|---------|------|
@@ -241,6 +243,103 @@ computeSceneLayout() → 使用动态 canvas 尺寸：
 | 无尽按钮 | `anchor: middle-center, offset(0, 300)` | 屏幕中央偏下 |
 | 返回按钮 | `anchor: bottom-left, offset(170, 0)` | 左下角 |
 | 重置按钮 | `anchor: bottom-right, offset(-170, 0)` | 右下角 |
+
+### 4.5 v3.0 卡牌系统锚点
+
+> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，v3.0 新增手牌区与关间面板，本节定义其锚点配置。
+
+#### 4.5.1 关内 HUD 扩展（替代旧工具栏）
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 能量条 | `anchor: top-left, offset(20, 50)`, `size: 200 × 24` | 主 HUD 下方左侧 |
+| 能量数字 | `anchor: top-left, offset(230, 52)` | 能量条右侧，显示 `current/max` |
+| 牌堆图标 | `anchor: bottom-right, offset(-200, -160)`, `size: 50 × 70` | 手牌区右侧上方 |
+| 弃牌堆图标 | `anchor: bottom-right, offset(-140, -160)`, `size: 50 × 70` | 牌堆右侧 |
+| 牌堆/弃牌数 | 跟随各自图标，offset(-25, 20) | 图标底部数字 |
+
+#### 4.5.2 手牌区（底部居中）
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 手牌区背景条 | `anchor: bottom-center, offset(0, -130)`, `size: 800 × 180` | 屏幕底部居中长条 |
+| 手牌卡片插槽 | 手牌区内**水平居中排列**，卡间距 16px | 最多 8 张，按当前手牌数动态居中 |
+| 单张卡尺寸 | `120 × 168` | 见 [16 §13.1](./16-art-assets-design.md#131-卡牌尺寸与基础规格) |
+| 卡牌锚点（容器内） | `anchor: middle-center, offset(0, 0)` | 卡牌中心对齐手牌区中心 |
+| 手牌区出现/隐藏 | 战斗阶段显示，关间阶段隐藏 | LayoutManager 监听 GamePhase |
+
+#### 4.5.3 关间节点二选一面板
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 节点面板背景 | `anchor: middle-center, offset(0, 0)`, `size: fullWidth × fullHeight` | 全屏半透明蒙层 |
+| 标题文本 | `anchor: middle-center, offset(0, -180)` | "选择前进路径" |
+| 商店选项卡 | `anchor: middle-center, offset(-160, 0)`, `size: 200 × 280` | 左侧 |
+| 秘境选项卡 | `anchor: middle-center, offset(160, 0)`, `size: 200 × 280` | 右侧 |
+
+#### 4.5.4 商店面板
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 商店全屏背景 | `anchor: middle-center, offset(0, 0)`, `size: 1200 × 700` | 居中大面板 |
+| 标题（含余额） | `anchor: top-center, offset(0, 30)` 相对于商店面板 | 顶部居中 |
+| 商品槽 1-4 | 4 个槽位水平排列，槽间距 20px，整组水平居中 | 中央区域 |
+| 单槽尺寸 | `140 × 200` | 详见 [16 §13.8.2](./16-art-assets-design.md#1382-商店面板视觉) |
+| 刷新按钮 | `anchor: bottom-right, offset(-200, -30)` 相对于商店面板 | 右下 |
+| 离开按钮 | `anchor: bottom-right, offset(-30, -30)` 相对于商店面板 | 右下角 |
+
+#### 4.5.5 秘境事件面板
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 秘境全屏背景 | `anchor: middle-center, offset(0, 0)`, `size: 800 × 600` | 居中中面板 |
+| 事件标题 | `anchor: top-center, offset(0, 30)` 相对于秘境面板 | 顶部 |
+| 事件插画区 | `anchor: top-center, offset(0, 80)`, `size: 600 × 200` | 标题下方 |
+| 事件描述文本 | `anchor: top-center, offset(0, 300)`, `size: 700 × 80` | 插画下方 |
+| 选项按钮组 | `anchor: bottom-center, offset(0, -30)`, 垂直排列，每按钮 700 × 60 | 底部 |
+
+#### 4.5.6 卡池界面（主菜单）
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 卡池全屏背景 | `anchor: top-left, offset(0, 0)`, `size: fullWidth × fullHeight` | 铺满 |
+| 顶部分类标签 | `anchor: top-center, offset(0, 60)` | 4 个稀有度过滤按钮 |
+| 碎片余额 | `anchor: top-right, offset(-30, 30)` | 右上角 |
+| 卡片网格 | `anchor: middle-center, offset(0, 30)`, 6 列 N 行 | 中央 |
+| 单卡尺寸 | `120 × 168`, 间距 20px | 同手牌卡 |
+| 返回按钮 | `anchor: bottom-left, offset(30, -30)` | 左下角 |
+
+#### 4.5.7 永久升级面板
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 面板背景 | `anchor: middle-center, offset(0, 0)`, `size: 800 × 500` | 居中 |
+| 标题 | `anchor: top-center, offset(0, 20)` | 顶部 |
+| 升级项行 | 垂直排列 5 行，每行 `60 × 760` | 5 类升级 |
+| 关闭按钮 | `anchor: top-right, offset(-20, 20)` 相对于面板 | 右上角 |
+
+#### 4.5.8 Run 结算面板
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 面板背景 | `anchor: middle-center, offset(0, 0)`, `size: 1000 × 600` | 居中 |
+| 标题（成功/失败） | `anchor: top-center, offset(0, 40)` | 顶部 |
+| 流派标签 | `anchor: top-center, offset(0, 100)` | 标题下方 |
+| 数据面板 | `anchor: middle-left, offset(80, 0)`, `size: 350 × 300` | 左侧 |
+| 碎片入账 | `anchor: middle-right, offset(-80, 0)`, `size: 350 × 200` | 右侧 |
+| 卡组回顾 | `anchor: bottom-center, offset(0, -120)`, `size: 800 × 100` | 底部上方 |
+| 重开/返回按钮 | `anchor: bottom-center, offset(0, -30)` | 底部 |
+
+#### 4.5.9 主菜单（v3.0 简化版）
+
+| 元素 | 锚点配置 | 说明 |
+|------|---------|------|
+| 游戏标题 | `anchor: top-center, offset(0, 100)` | 顶部 |
+| 开始 Run 按钮 | `anchor: middle-center, offset(0, -60)`, `size: 300 × 60` | 中央上方 |
+| 卡池按钮 | `anchor: middle-center, offset(0, 20)`, `size: 300 × 60` | 中央 |
+| 永久升级按钮 | `anchor: middle-center, offset(0, 100)`, `size: 300 × 60` | 中央下方 |
+| 碎片余额显示 | `anchor: top-right, offset(-30, 30)` | 右上角 |
+| 设置/退出按钮 | `anchor: bottom-right, offset(-30, -30)` | 右下角 |
 
 ---
 
