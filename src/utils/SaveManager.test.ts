@@ -320,4 +320,36 @@ describe('SaveManager v1.1', () => {
       expect(loaded).toEqual(sampleSnapshot);
     });
   });
+
+  describe('abandon 路径契约（验收：进入关卡显示配置金币）', () => {
+    const staleSnapshot = {
+      levelId: 1,
+      currentWave: 2,
+      gameTime: 30,
+      prngStates: { seed: 1, map: 0, wave: 0, drop: 0, decor: 0 },
+      economy: {
+        gold: 10,
+        energy: 0,
+        population: 0,
+        maxPopulation: 6,
+        refundMeta: [] as Array<[number, any]>,
+      },
+    };
+
+    it('用户主动 abandon 后再次进入同关卡，loadBattleSnapshot 返回 null（不会用 10G 覆盖配置 220G）', () => {
+      SaveManager.saveBattleSnapshot(staleSnapshot);
+      expect(SaveManager.loadBattleSnapshot()).not.toBeNull();
+
+      SaveManager.clearBattleSnapshot();
+
+      expect(SaveManager.loadBattleSnapshot()).toBeNull();
+    });
+
+    it('beforeunload 后未 abandon 直接重进，仍能恢复 snapshot（保留 design/13 意外恢复能力）', () => {
+      SaveManager.saveBattleSnapshot(staleSnapshot);
+      const restored = SaveManager.loadBattleSnapshot();
+      expect(restored).not.toBeNull();
+      expect(restored?.economy.gold).toBe(10);
+    });
+  });
 });

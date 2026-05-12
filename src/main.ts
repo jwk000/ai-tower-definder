@@ -174,6 +174,12 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private enterLevelSelect(): void {
+    // design/13 §2 + SaveManager.clearBattleSnapshot 注释：abandon 路径需清除快照。
+    // 仅当从 Battle 屏幕主动返回时视为 abandon；首次进入游戏（currentScreen 默认 LevelSelect）
+    // 必须保留 snapshot，以维持 beforeunload 意外退出后的恢复能力。
+    if (this.currentScreen === GameScreen.Battle) {
+      SaveManager.clearBattleSnapshot();
+    }
     this.currentScreen = GameScreen.LevelSelect;
     this.uninstallBeforeUnloadGuard();
     this.world.reset();
