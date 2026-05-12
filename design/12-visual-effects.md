@@ -203,3 +203,203 @@ PixiJS Stage
 | 同屏实体上限 | 200+ |
 | 同屏粒子 | 500+（ParticleContainer优化） |
 | 最低帧率 | 30fps（低端设备） |
+
+---
+
+## 9. 蝙蝠塔攻击动作设计
+
+> 蝙蝠塔攻击由独立的**蝙蝠群成员**（Bat Swarm Member）实体执行。每只蝙蝠在攻击敌人时需展现完整的生物攻击行为——锁定目标、俯冲、撕咬、吸血回弹。本章定义攻击动作的阶段划分、视觉规范、状态机扩展及代码集成要点。
+
+### 9.1 攻击阶段划分
+
+蝙蝠攻击动作分为**四个阶段**，总持续时间 = 攻击间隔（`1 / attackSpeed ≈ 1.33s`，L1 攻速 0.75/s）：
+
+```
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│   锁定蓄力    │   俯冲攻击    │   撕咬命中    │   回弹归巢    │
+│  (0% - 20%)  │  (20% - 60%) │  (60% - 75%) │  (75% - 100%)│
+│    ~0.27s    │    ~0.53s    │    ~0.20s    │    ~0.33s    │
+└──────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+**状态机**：`IDLE ⇄ ATTACK(Lock → Swoop → Bite → Return) → IDLE`
+
+攻击动作**不可打断**（除蝙蝠死亡外），且优先级高于 boid 集群运动——攻击中蝙蝠沿预设轨迹飞行，不参与 boid 位置计算。
+
+### 9.2 各阶段视觉规范
+
+#### 阶段1：锁定蓄力（Lock）`phase 0.00 – 0.20`
+
+蝙蝠在原位蓄力，锁定目标。
+
+| 参数 | 过渡 | 说明 |
+|------|------|------|
+| 翅膀拍打频率 | 3-6 Hz → 8-10 Hz | 逐渐加速 |
+| 翅膀展开角度 | 30°-70° → 45°-85° | 翼展逐步增大 |
+| 身体朝向 | 旋转对准目标 | `rotation` 指向 target |
+| 身体 alpha | 0.85 → 0.65 | 蓄力暗影感（加深紫色） |
+| 凝聚粒子 | 3-5 个暗影粒子向身体聚拢 | `#7b1fa2`, r=2-3, alpha 0→0.4 |
+
+**凝聚粒子实现**：每帧 lerp 粒子位置向蝙蝠身体中心靠拢，到达后随阶段切换消散。
+
+#### 阶段2：俯冲攻击（Swoop）`phase 0.20 – 0.60`
+
+蝙蝠沿弧线轨迹高速俯冲向目标。
+
+| 参数 | 值 |
+|------|-----|
+| 飞行轨迹 | 二次贝塞尔曲线：起点（蝙蝠位置）→ 弧顶（抬高 15-30px）→ 目标位置 |
+| 翅膀拍打频率 | 8-12 Hz 高频 |
+| 翅膀展开角度 | 45°-85° 大幅拍打 |
+| 身体 scale | 1.0 → 1.15（俯冲加速感） |
+| 位移速度 | 临时提升至 `batSpeed × 1.5` |
+| 拖尾粒子 | 每 0.05s 在身后生成 1 个暗影粒子（size 3→1, alpha 0.5→0, life 0.3s） |
+| 颜色 | `#7c4dff`（紫） |
+
+**俯冲贝塞尔曲线**：
+
+```typescript
+function getSwoopPosition(t: number, start: Vec2, target: Vec2, arcHeight: number): Vec2 {
+  const midX = (start.x + target.x) / 2;
+  const midY = Math.min(start.y, target.y) - arcHeight;
+  // 二次贝塞尔：B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+  return {
+    x: (1-t)*(1-t)*start.x + 2*(1-t)*t*midX + t*t*target.x,
+    y: (1-t)*(1-t)*start.y + 2*(1-t)*t*midY + t*t*target.y,
+  };
+}
+```
+
+#### 阶段3：撕咬命中（Bite）`phase 0.60 – 0.75`
+
+蝙蝠抵达目标，执行撕咬——**此阶段造成伤害并吸血**。
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| 翅膀展开角度 | 瞬间 90° | 爆发姿态 |
+| 身体 scale | 1.15 → 0.9 | 前冲→弹回 |
+| 獠牙图形 | 2 个红色三角（`#ff1744`, size=3） | 仅此阶段在嘴部绘制 |
+| 命中粒子 | 5-8 个紫色粒子爆散（r=2-4, v=60-120px/s, life 0.3s） | 目标位置 |
+| 吸血绿光 | 3-5 个绿色光点（`#69f0ae`, r=2-3）从目标飞回蝙蝠身体 | 持续 0.2s |
+| 受击闪白 | `hitFlashTimer = 0.1s` | 已有机制 |
+| 屏幕微震 | `amplitude=2, duration=0.05s` | 增强打击感 |
+
+**伤害时机**：`phase = 0.65` 时调用 `applyDamageToTarget()`（咬合瞬间），而非攻击起始。
+
+#### 阶段4：回弹归巢（Return）`phase 0.75 – 1.00`
+
+蝙蝠从目标回弹，返回 boid 集群位置，恢复正常。
+
+| 参数 | 过渡 | 说明 |
+|------|------|------|
+| 飞行轨迹 | 目标 → boid 归巢点 | 直线或微弧（弧高 5-10px） |
+| 翅膀拍打频率 | 8-10 Hz → 3-6 Hz | 逐渐减速归常 |
+| 翅膀展开角度 | 85° → 30°-70° | 逐步回缩 |
+| 身体 scale | 0.9 → 1.0 | 弹回复原 |
+| 吸血余光 | 身体叠加绿色辉光（`#69f0ae`, alpha 0.2→0, 0.3s） | 吸血成功反馈 |
+| 拖尾粒子 | 无 | 回程简洁 |
+
+### 9.3 动画状态扩展
+
+在 `BatSwarmSystem` 内部 `batAnimStates` Map 中新增以下字段：
+
+```typescript
+// 攻击状态（追加到现有 batAnimState）
+{
+  attackPhase:      number;   // 0-1 攻击进度（0=未攻击/待机）
+  isAttacking:      boolean;  // 是否正在执行攻击动作
+  attackTargetId:   number;   // 当前攻击目标 entity ID
+  attackTargetX:    number;   // 目标 X（攻击启动时快照）
+  attackTargetY:    number;   // 目标 Y
+  swoopStartX:      number;   // 俯冲起点 X
+  swoopStartY:      number;   // 俯冲起点 Y
+  swoopArcHeight:   number;   // 俯冲弧高（15-30 随机）
+  attackFlapSpeed:  number;   // 攻击加速拍打频率
+  boidReturnX:      number;   // 回弹归巢点 X（boid 位置快照）
+  boidReturnY:      number;   // 回弹归巢点 Y
+}
+
+// 阶段阈值
+const PHASE_LOCK_END   = 0.20;
+const PHASE_SWOOP_END  = 0.60;
+const PHASE_BITE_END   = 0.75;
+```
+
+### 9.4 代码集成要点
+
+**触发点**：`BatSwarmSystem.tryAttack()` 末尾新增攻击状态设置：
+
+```typescript
+// tryAttack() 中找到目标并 applyDamageToTarget() 后：
+const anim = batAnimStates.get(batId);
+if (anim) {
+  anim.isAttacking = true;
+  anim.attackPhase = 0;
+  anim.attackTargetId = targetId;
+  anim.attackTargetX = Position.x[targetId];
+  anim.attackTargetY = Position.y[targetId];
+  anim.swoopStartX = Position.x[batId];
+  anim.swoopStartY = Position.y[batId];
+  anim.swoopArcHeight = 15 + Math.random() * 15;  // 15-30px 随机弧高
+  anim.boidReturnX = boidTargetX;  // boid 集群计算的归巢位置
+  anim.boidReturnY = boidTargetY;
+  anim.attackFlapSpeed = anim.flapSpeed * 2.2;    // 加速至约 8-10 Hz
+}
+```
+
+**注意**：原有 `applyDamageToTarget()` 调用需**延迟**到 `phase = 0.65`（撕咬命中瞬间），而非攻击启动即刻造成伤害。这需要修改伤害时机——在动画更新循环中检测 phase 跨越 0.65 阈值时执行。
+
+**位置覆盖**：攻击期间用预设轨迹覆盖 boid 位置计算：
+
+```typescript
+if (anim.isAttacking && anim.attackPhase < 1) {
+  const p = anim.attackPhase;
+  if (p <= PHASE_LOCK_END) {
+    // 锁定：保持原位，仅更新朝向
+  } else if (p <= PHASE_SWOOP_END) {
+    // 俯冲：贝塞尔曲线
+    const t = (p - PHASE_LOCK_END) / (PHASE_SWOOP_END - PHASE_LOCK_END);
+    const pos = getSwoopPosition(t, swoopStart, target, anim.swoopArcHeight);
+    Position.x[batId] = pos.x;
+    Position.y[batId] = pos.y;
+  } else if (p <= PHASE_BITE_END) {
+    // 撕咬：锁定在目标位置
+    Position.x[batId] = anim.attackTargetX;
+    Position.y[batId] = anim.attackTargetY;
+  } else {
+    // 回弹：lerp 至归巢点
+    const t = (p - PHASE_BITE_END) / (1 - PHASE_BITE_END);
+    Position.x[batId] = lerp(anim.attackTargetX, anim.boidReturnX, t);
+    Position.y[batId] = lerp(anim.attackTargetY, anim.boidReturnY, t);
+  }
+}
+```
+
+**渲染改动**：`BatSwarmSystem.renderBat()` 根据 `attackPhase` 调整绘制参数：
+
+| 阶段 | wingAngle 系数 | bodyScale | 额外图形 |
+|------|---------------|-----------|---------|
+| 待机 | 1.0 | 1.0 | 无 |
+| 锁定 | 1.0→1.3 | 1.0 | 凝聚粒子 |
+| 俯冲 | 1.3→1.5 | 1.0→1.15 | 拖尾粒子 |
+| 撕咬 | 1.5→1.8→1.5 | 1.15→0.9 | 獠牙三角×2 + 命中粒子 |
+| 回弹 | 1.5→1.0 | 0.9→1.0 | 绿色吸血辉光 |
+
+**攻击完成重置**：`attackPhase ≥ 1.0` 时：
+```typescript
+anim.isAttacking = false;
+anim.attackPhase = 0;
+anim.flapSpeed = baselineFlapSpeed; // 恢复 3-6 Hz
+```
+
+### 9.5 性能考量
+
+| 指标 | 预估值 |
+|------|--------|
+| 单塔最大攻击蝙蝠数 | 4-6 只（L1=4, L3=5, L5=6） |
+| 峰值并发拖尾粒子 | ≤ 48 个（6 只 × 8 粒子） |
+| 峰值并发命中粒子 | ≤ 48 个（6 只 × 8 粒子） |
+| 贝塞尔计算 | ≤ 6 次/帧，CPU 可忽略 |
+| 预计帧开销 | < 0.1ms/帧 |
+
+粒子使用现有 `ParticleContainer` 或复用 `BloodParticleSystem` 粒子池，避免逐粒子 Draw Call。
