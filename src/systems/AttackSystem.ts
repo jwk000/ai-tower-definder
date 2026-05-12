@@ -41,8 +41,10 @@ const TOWER_TYPE_BY_ID: TowerType[] = [
   TowerType.Ballista,  // 9
 ];
 
-// Tower type → sound key lookup (index matches towerTypeVal)
-const TOWER_SHOOT_SOUNDS: SfxKey[] = [
+// Tower type → sound key lookup (index matches towerTypeVal).
+// Exported for BT nodes (SpawnProjectileTowerNode et al.) which must play
+// the matching SFX when firing — same as AttackSystem.update line 211.
+export const TOWER_SHOOT_SOUNDS: SfxKey[] = [
   'tower_arrow',     // 0
   'tower_cannon',    // 1
   'tower_ice',       // 2

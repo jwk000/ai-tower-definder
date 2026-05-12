@@ -29,7 +29,14 @@ import {
 import { spawnBomb } from '../systems/BombSystem.js';
 import { addBuff } from '../systems/BuffSystem.js';
 import { evaluateMissileTarget } from '../systems/MissileTargeting.js';
-import { spawnMissileProjectile } from '../systems/AttackSystem.js';
+import {
+  spawnMissileProjectile,
+  spawnProjectile,
+  doLightningAttack,
+  doLaserAttack,
+  TOWER_SHOOT_SOUNDS,
+} from '../systems/AttackSystem.js';
+import { doEnemyAttack } from '../systems/EnemyAttackSystem.js';
 import { Sound } from '../utils/Sound.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 
@@ -1178,6 +1185,54 @@ export class LaunchMissileProjectileNode extends ActionNode {
   }
 }
 
+/**
+ * SpawnProjectileTowerNode — 通用弹道塔发射（design/23 §0.5 `spawn_projectile_tower`）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: `current_target`（由 check_enemy_in_range 写入）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：
+ *   - cooldownTimer > 0 → FAILURE（与 AttackSystem.update line 140 等价的冷却守卫）
+ *   - 无 current_target / target 已死 → FAILURE
+ *   - 成功 → spawnProjectile + Sound.play + set targetId + reset cooldown → SUCCESS
+ *
+ * 副作用（与 AttackSystem.update line 207-234 通用 spawnProjectile 路径等价）：
+ *   - Projectile 实体（含 splash/slow/stun/freeze/lifeSteal 修饰，ProjectileSystem 命中执行）
+ *   - Attack.targetId = current_target
+ *   - Attack.cooldownTimer = 1 / attackSpeed
+ *   - Sound.play(TOWER_SHOOT_SOUNDS[towerTypeVal])
+ *
+ * 服务 basic/cannon/ice/bat 4 塔；lightning/laser 用各自专用节点（chain / multi-beam 语义不同）。
+ */
+export class SpawnProjectileTowerNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined || targetId === 0) return NodeStatus.Failure;
+    if ((Health.current[targetId] ?? 0) <= 0) return NodeStatus.Failure;
+
+    const towerTypeVal = Tower.towerType[eid];
+    if (towerTypeVal === undefined) return NodeStatus.Failure;
+
+    spawnProjectile(world, eid, targetId, towerTypeVal);
+    Sound.play(TOWER_SHOOT_SOUNDS[towerTypeVal] ?? 'tower_shoot');
+
+    Attack.targetId[eid] = targetId;
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1418,6 +1473,8 @@ export class BehaviorTree {
         return new ChargeAttackNode(type, params);
       case 'launch_missile_projectile':
         return new LaunchMissileProjectileNode(type, params);
+      case 'spawn_projectile_tower':
+        return new SpawnProjectileTowerNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 

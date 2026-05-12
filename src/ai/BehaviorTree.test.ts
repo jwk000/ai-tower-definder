@@ -55,6 +55,7 @@ import {
   SelectMissileTargetNode,
   ChargeAttackNode,
   LaunchMissileProjectileNode,
+  SpawnProjectileTowerNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -2102,6 +2103,175 @@ describe('LaunchMissileProjectileNode（导弹塔发射）', () => {
     expect(hasComponent(world.world, MissileCharge, tower)).toBe(true);
     expect(launchNode.tick(ctx)).toBe(NodeStatus.Success);
     expect(hasComponent(world.world, MissileCharge, tower)).toBe(false);
+    expect(projectileQuery(world).length).toBe(1);
+  });
+});
+
+describe('SpawnProjectileTowerNode（通用弹道塔发射 P4 R2）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  function makeBasicTower(world: TowerWorld, x: number, y: number, towerTypeVal: number = 0): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Attack, {
+      damage: 25,
+      attackSpeed: 1.2,
+      range: 200,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+    });
+    addComp(w, tower, Tower, {
+      towerType: towerTypeVal,
+      level: 1,
+      position: 0,
+      cost: 0,
+      maxLevel: 5,
+      upgradeCost: 0,
+      sellRefund: 0,
+    });
+    return tower;
+  }
+
+  function makeEnemy(world: TowerWorld, x: number, y: number, hp: number = 100): number {
+    const w = world.world;
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x, y });
+    addComp(w, enemy, Health, { current: hp, max: hp, armor: 0 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1, canAttackBuildings: 0 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+    return enemy;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  function projectileQuery(world: TowerWorld): number[] {
+    return defineQuery([Projectile])(world.world);
+  }
+
+  it('cooldownTimer > 0 → FAILURE（冷却守卫，与 AttackSystem.update line 140 等价）', () => {
+    const world = makeRealWorld();
+    const tower = makeBasicTower(world, 200, 200);
+    Attack.cooldownTimer[tower] = 0.5;
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(projectileQuery(world).length).toBe(0);
+    expect(Attack.cooldownTimer[tower]).toBe(0.5);
+  });
+
+  it('无 current_target → FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeBasicTower(world, 200, 200);
+    const ctx = makeCtx(world, tower);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('current_target 已死（hp ≤ 0）→ FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeBasicTower(world, 200, 200);
+    const enemy = makeEnemy(world, 250, 200, 0);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(projectileQuery(world).length).toBe(0);
+  });
+
+  it('成功路径 → SUCCESS + spawn Projectile + set targetId + reset cooldown（basic 塔）', () => {
+    const world = makeRealWorld();
+    const TOWER_TYPE_BASIC = 0;
+    const tower = makeBasicTower(world, 200, 200, TOWER_TYPE_BASIC);
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.targetId[tower]).toBe(enemy);
+    expect(Attack.cooldownTimer[tower]).toBeCloseTo(1 / 1.2, 3);
+
+    const projectiles = projectileQuery(world);
+    expect(projectiles.length).toBe(1);
+    const pid = projectiles[0]!;
+    expect(Projectile.sourceId[pid]).toBe(tower);
+    expect(Projectile.targetId[pid]).toBe(enemy);
+    expect(Projectile.damage[pid]).toBe(25);
+    expect(Projectile.sourceTowerType[pid]).toBe(TOWER_TYPE_BASIC);
+    expect(Position.x[pid]).toBe(200);
+    expect(Position.y[pid]).toBe(200);
+  });
+
+  it('cannon 塔：splashRadius 从 TOWER_CONFIGS 透传至弹道', () => {
+    const world = makeRealWorld();
+    const TOWER_TYPE_CANNON = 1;
+    const tower = makeBasicTower(world, 200, 200, TOWER_TYPE_CANNON);
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const projectiles = projectileQuery(world);
+    expect(projectiles.length).toBe(1);
+    const pid = projectiles[0]!;
+    expect(Projectile.sourceTowerType[pid]).toBe(TOWER_TYPE_CANNON);
+    expect(Projectile.splashRadius[pid]).toBeGreaterThan(0);
+  });
+
+  it('ice 塔：slowPercent 从 TOWER_CONFIGS 透传至弹道', () => {
+    const world = makeRealWorld();
+    const TOWER_TYPE_ICE = 2;
+    const tower = makeBasicTower(world, 200, 200, TOWER_TYPE_ICE);
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const projectiles = projectileQuery(world);
+    const pid = projectiles[0]!;
+    expect(Projectile.sourceTowerType[pid]).toBe(TOWER_TYPE_ICE);
+    expect(Projectile.slowPercent[pid]).toBeGreaterThan(0);
+  });
+
+  it('attackSpeed=0 时不重置 cooldown（防御性兜底，类比 launch 节点）', () => {
+    const world = makeRealWorld();
+    const tower = makeBasicTower(world, 200, 200);
+    Attack.attackSpeed[tower] = 0;
+    Attack.cooldownTimer[tower] = 5;
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    // cooldownTimer=5 > 0 直接 FAILURE（不进入主体逻辑）
+    const node = new SpawnProjectileTowerNode('spawn_projectile_tower', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(Attack.cooldownTimer[tower]).toBe(5);
+
+    // 重置 cooldown 后再 tick：因 attackSpeed=0 守卫不重置
+    Attack.cooldownTimer[tower] = 0;
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.cooldownTimer[tower]).toBe(0); // 未重置
     expect(projectileQuery(world).length).toBe(1);
   });
 });
