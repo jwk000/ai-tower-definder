@@ -158,9 +158,50 @@ export class UISystem implements System {
     private getTotalSpawned: (() => number) | null = null,
     private onRecycleEntity: ((entityId: number) => void) | null = null,
     private getWeatherName: (() => string) | null = null,
+    /**
+     * Live refund quote — P1-#11. UISystem uses this to display the *actual* refund
+     * amount and to disable the button when EconomySystem rejects (cooldown/combat).
+     * If null/undefined, falls back to a 50% estimate (legacy behaviour).
+     * Reason codes match EconomySystem.RefundReason ('ok' | 'misbuild' | 'cooldown'
+     * | 'combat_damage' | 'combat_attack').
+     */
+    private getRefundQuote: ((entityId: number) => { amount: number; reason: string } | null) | null = null,
   ) {}
 
   // ---- Selection getter/setter helpers (unchanged) ----
+
+  /**
+   * Resolve refund button display + enable state.
+   * P1-#11: prefer live quote from EconomySystem; fall back to 50% estimate when
+   * the quote callback isn't wired (e.g. legacy callers or unit-test harnesses).
+   *
+   * Reason → UI mapping:
+   *   'ok' / 'misbuild'  → enabled, show amount
+   *   'cooldown'         → disabled, show "建造中" (just built, too soon)
+   *   'combat_damage'    → disabled, show "受击中"
+   *   'combat_attack'    → disabled, show "战斗中"
+   *   null fallback      → enabled, show 50% estimate (legacy)
+   */
+  private resolveRefund(id: number, fallbackCost: number): { label: string; enabled: boolean; color: string } {
+    const quote = this.getRefundQuote?.(id) ?? null;
+    if (quote === null) {
+      const refund = Math.floor(fallbackCost * 0.5);
+      return { label: `回收${refund}G`, enabled: true, color: '#c62828' };
+    }
+    if (quote.reason === 'ok' || quote.reason === 'misbuild') {
+      return { label: `回收${quote.amount}G`, enabled: true, color: '#c62828' };
+    }
+    const reasonText: Record<string, string> = {
+      'cooldown': '建造中',
+      'combat_damage': '受击中',
+      'combat_attack': '战斗中',
+    };
+    return {
+      label: reasonText[quote.reason] ?? '不可回收',
+      enabled: false,
+      color: '#555555',
+    };
+  }
 
   get selectedTowerEntityId(): number | null {
     return this.selectedEntityType === 'tower' ? this.selectedEntityId : null;
@@ -832,9 +873,9 @@ export class UISystem implements System {
             });
           }
 
-          // Recycle button
+          // Recycle button — P1-#11 live quote
           const totalInvested = Tower.totalInvested[id] ?? config.cost;
-          const refund = Math.floor(totalInvested * 0.5);
+          const refundInfo = this.resolveRefund(id, totalInvested);
           const rbw = 65;
           const rbh = 20;
           const rbx = tx + tw / 2 - rbw - 10;
@@ -843,17 +884,17 @@ export class UISystem implements System {
             shape: 'rect',
             x: rbx + rbw / 2, y: rby + rbh / 2,
             size: rbw, h: rbh,
-            color: '#c62828',
+            color: refundInfo.color,
             alpha: 0.9,
             stroke: '#ffffff', strokeWidth: 1,
           });
           this.buttons.push({
             x: rbx, y: rby, w: rbw, h: rbh,
-            label: `回收${refund}G`,
-            color: '#c62828',
-            textColor: '#ffffff',
-            enabled: true,
-            onClick: () => { this.onRecycleEntity?.(id); },
+            label: refundInfo.label,
+            color: refundInfo.color,
+            textColor: refundInfo.enabled ? '#ffffff' : '#aaaaaa',
+            enabled: refundInfo.enabled,
+            onClick: () => { if (refundInfo.enabled) this.onRecycleEntity?.(id); },
           });
 
           // HP bar
@@ -897,8 +938,8 @@ export class UISystem implements System {
           color: '#aaaaaa', size: 14,
         });
 
-        // Recycle button
-        const refund = Math.floor((unitCost ?? 100) * 0.5);
+        // Recycle button — P1-#11 live quote
+        const refundInfo = this.resolveRefund(id, unitCost ?? 100);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;
@@ -907,17 +948,17 @@ export class UISystem implements System {
           shape: 'rect',
           x: rbx + rbw / 2, y: rby + rbh / 2,
           size: rbw, h: rbh,
-          color: '#c62828',
+          color: refundInfo.color,
           alpha: 0.9,
           stroke: '#ffffff', strokeWidth: 1,
         });
         this.buttons.push({
           x: rbx, y: rby, w: rbw, h: rbh,
-          label: `回收${refund}G`,
-          color: '#c62828',
-          textColor: '#ffffff',
-          enabled: true,
-          onClick: () => { this.onRecycleEntity?.(id); },
+          label: refundInfo.label,
+          color: refundInfo.color,
+          textColor: refundInfo.enabled ? '#ffffff' : '#aaaaaa',
+          enabled: refundInfo.enabled,
+          onClick: () => { if (refundInfo.enabled) this.onRecycleEntity?.(id); },
         });
 
         // HP bar
@@ -955,10 +996,10 @@ export class UISystem implements System {
           color: '#ffffff', size: 16,
         });
 
-        // Recycle button
+        // Recycle button — P1-#11 live quote
         const cfg = PRODUCTION_CONFIGS[prodResourceType === 0 ? ProductionType.GoldMine : ProductionType.EnergyTower];
         const prodCost = cfg?.cost ?? 65;
-        const refund = Math.floor(prodCost * 0.5);
+        const refundInfo = this.resolveRefund(id, prodCost);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;
@@ -967,17 +1008,17 @@ export class UISystem implements System {
           shape: 'rect',
           x: rbx + rbw / 2, y: rby + rbh / 2,
           size: rbw, h: rbh,
-          color: '#c62828',
+          color: refundInfo.color,
           alpha: 0.9,
           stroke: '#ffffff', strokeWidth: 1,
         });
         this.buttons.push({
           x: rbx, y: rby, w: rbw, h: rbh,
-          label: `回收${refund}G`,
-          color: '#c62828',
-          textColor: '#ffffff',
-          enabled: true,
-          onClick: () => { this.onRecycleEntity?.(id); },
+          label: refundInfo.label,
+          color: refundInfo.color,
+          textColor: refundInfo.enabled ? '#ffffff' : '#aaaaaa',
+          enabled: refundInfo.enabled,
+          onClick: () => { if (refundInfo.enabled) this.onRecycleEntity?.(id); },
         });
 
         // HP bar
@@ -1009,7 +1050,8 @@ export class UISystem implements System {
           color: '#ffffff', size: 16,
         });
 
-        const refund = 20;
+        // Recycle button — P1-#11 live quote (trap default cost=40)
+        const refundInfo = this.resolveRefund(id, 40);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;
@@ -1018,17 +1060,17 @@ export class UISystem implements System {
           shape: 'rect',
           x: rbx + rbw / 2, y: rby + rbh / 2,
           size: rbw, h: rbh,
-          color: '#c62828',
+          color: refundInfo.color,
           alpha: 0.9,
           stroke: '#ffffff', strokeWidth: 1,
         });
         this.buttons.push({
           x: rbx, y: rby, w: rbw, h: rbh,
-          label: `回收${refund}G`,
-          color: '#c62828',
-          textColor: '#ffffff',
-          enabled: true,
-          onClick: () => { this.onRecycleEntity?.(id); },
+          label: refundInfo.label,
+          color: refundInfo.color,
+          textColor: refundInfo.enabled ? '#ffffff' : '#aaaaaa',
+          enabled: refundInfo.enabled,
+          onClick: () => { if (refundInfo.enabled) this.onRecycleEntity?.(id); },
         });
       }
     }

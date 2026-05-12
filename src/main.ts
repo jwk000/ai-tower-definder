@@ -454,6 +454,11 @@ class TowerDefenderGame extends Game {
       () => this.waveSystem.totalSpawned,
       (entityId) => this.recycleEntity(entityId),
       () => this.weatherSystem.weatherName,
+      (entityId) => {
+        const curHp = Health.current[entityId] ?? 0;
+        const maxHp = Health.max[entityId] ?? 1;
+        return this.economy.computeRefund(entityId, curHp, maxHp);
+      },
     );
 
     // ---- Health system ----
