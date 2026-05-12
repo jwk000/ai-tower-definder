@@ -1,4 +1,4 @@
-import { NodeStatus, type BTNodeConfig, type BehaviorTreeConfig, type MapConfig } from '../types/index.js';
+import { NodeStatus, TowerType, type BTNodeConfig, type BehaviorTreeConfig, type MapConfig } from '../types/index.js';
 import { hasComponent } from 'bitecs';
 import type { TowerWorld } from '../core/World.js';
 import { getGlobalRandom } from '../utils/Random.js';
@@ -15,8 +15,13 @@ import {
   AlertMark,
   AlertMarkVal,
   Layer,
+  LayerVal,
   Faction,
   FactionVal,
+  MissileCharge,
+  TargetingMark,
+  Visual,
+  ShapeVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
   friendlyFighterQuery,
@@ -24,6 +29,7 @@ import {
 import { spawnBomb } from '../systems/BombSystem.js';
 import { addBuff } from '../systems/BuffSystem.js';
 import { evaluateMissileTarget } from '../systems/MissileTargeting.js';
+import { TOWER_CONFIGS } from '../data/gameData.js';
 
 // ============================================================
 // Query helpers for leaf nodes — find entities in the world
@@ -1047,6 +1053,80 @@ export class SelectMissileTargetNode extends ActionNode {
   }
 }
 
+/**
+ * ChargeAttackNode — 导弹塔蓄力（design/23 §0.5）
+ *
+ * 节点规格：
+ *   params: { charge_time?: number }  — 默认 0.6 秒
+ *   blackboard 输入: current_target_pos = {x,y,row,col}（由 SelectMissileTargetNode 写入）
+ *   blackboard 输出: 无（蓄力状态通过 MissileCharge ECS 组件管理，
+ *                    与 RenderSystem 蓄力视觉脉冲共用真理源）
+ *
+ * 返回语义：
+ *   - 首次进入（塔身无 MissileCharge 组件）：
+ *     · 无 current_target_pos → FAILURE
+ *     · 有目标位置 → spawn 红色 TargetingMark 实体 + 挂 MissileCharge 组件 → RUNNING
+ *   - 持续 tick（塔身已有 MissileCharge 组件）：
+ *     · chargeElapsed += dt；未满 → RUNNING；满 → SUCCESS
+ *     · SUCCESS 时保留 MissileCharge 组件 + TargetingMark 实体，留给 LaunchMissileProjectileNode 消费
+ *
+ * 与原 AttackSystem.handleMissileTower 等价：保留 ECS 组件 + spawn mark + tick timer 三层逻辑。
+ */
+export class ChargeAttackNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    // Phase B: already charging — tick timer
+    if (hasComponent(world.world, MissileCharge, eid)) {
+      const elapsed = (MissileCharge.chargeElapsed[eid] ?? 0) + context.dt;
+      MissileCharge.chargeElapsed[eid] = elapsed;
+      const total = MissileCharge.chargeTime[eid] ?? 0.6;
+      return elapsed >= total ? NodeStatus.Success : NodeStatus.Running;
+    }
+
+    // Phase A: first tick — need target from blackboard
+    const targetPos = context.blackboard.get('current_target_pos') as
+      | { x: number; y: number; row: number; col: number }
+      | undefined;
+    if (!targetPos) return NodeStatus.Failure;
+
+    const chargeTime = this.getParam<number>('charge_time', context, 0.6);
+
+    const towerCfg = TOWER_CONFIGS[TowerType.Missile];
+    const blastRadius = towerCfg?.splashRadius ?? 120;
+    const markId = world.createEntity();
+    world.addComponent(markId, Position, { x: targetPos.x, y: targetPos.y });
+    world.addComponent(markId, TargetingMark, {
+      blastRadius: blastRadius * 0.5, // outer ring = 50% of blast radius
+      pulsePhase: 0,
+      ringRotation: 0,
+    });
+    world.addComponent(markId, Visual, {
+      shape: ShapeVal.Cross,
+      colorR: 0xff,
+      colorG: 0x17,
+      colorB: 0x44,
+      size: blastRadius,
+      alpha: 0.9,
+      outline: 0,
+      hitFlashTimer: 0,
+      idlePhase: 0,
+    });
+    world.addComponent(markId, Layer, { value: LayerVal.AboveGrid });
+
+    world.addComponent(eid, MissileCharge, {
+      chargeTime,
+      chargeElapsed: 0,
+      targetX: targetPos.x,
+      targetY: targetPos.y,
+      markEntityId: markId,
+    });
+
+    return NodeStatus.Running;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1283,6 +1363,8 @@ export class BehaviorTree {
         return new AuraBuffNode(type, params);
       case 'select_missile_target':
         return new SelectMissileTargetNode(type, params);
+      case 'charge_attack':
+        return new ChargeAttackNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 
