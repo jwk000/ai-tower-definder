@@ -33,3 +33,8 @@ logs/
 coverage/
 snapshots/
 tmp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

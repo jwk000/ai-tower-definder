@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "clean": "rimraf dist",
@@ -16,6 +19,7 @@
     "release:preview": "npm run release && vite preview"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/js-yaml": "^4.0.9",
     "rimraf": "^6.0.0",
     "typescript": "^5.8.0",
