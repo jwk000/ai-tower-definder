@@ -5,6 +5,7 @@ import {
 } from '../core/components.js';
 import type { MapConfig } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
+import { getEffectiveValue } from './BuffSystem.js';
 
 interface CollisionResult {
   blocked: boolean;
@@ -72,11 +73,13 @@ export class MovementSystem implements System {
 
       if (segmentLen <= 0) continue;
 
-      const baseSpeed = Movement.speed[eid]!;
-const slowFactor = hasComponent(world.world, Slowed, eid)
-      ? Math.max(0.05, 1 - Slowed.percent[eid]! / 100)
-      : 1;
-      const speed = baseSpeed * slowFactor;
+      const rawSpeed = Movement.speed[eid]!;
+      const buff = getEffectiveValue(eid, 'speed');
+      const buffedSpeed = (rawSpeed + buff.absolute) * (1 + buff.percent / 100);
+      const slowFactor = hasComponent(world.world, Slowed, eid)
+        ? Math.max(0.05, 1 - Slowed.percent[eid]! / 100)
+        : 1;
+      const speed = buffedSpeed * slowFactor;
       const dist = speed * dt;
 
       let progress = Movement.progress[eid]!;

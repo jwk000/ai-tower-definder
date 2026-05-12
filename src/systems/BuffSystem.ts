@@ -345,6 +345,33 @@ export function removeBuff(eid: number, buffId: string): boolean {
 }
 
 /**
+ * Top-level helper — read aggregated buff effect on an entity by attribute.
+ *
+ * Mirrors `BuffSystem.getEffectiveValue` instance method but callable without
+ * holding the BuffSystem instance reference (consumers like MovementSystem /
+ * AttackSystem read this every frame; injecting BuffSystem everywhere is
+ * needless coupling when buffMap is module-scoped).
+ *
+ * Returns { absolute, percent } so the consumer composes the final value:
+ *   final = (base + absolute) * (1 + percent / 100)
+ */
+export function getEffectiveValue(eid: number, attribute: string): { absolute: number; percent: number } {
+  const entityBuffs = buffMap.get(eid);
+  if (!entityBuffs) return { absolute: 0, percent: 0 };
+
+  let absolute = 0;
+  let percent = 0;
+  for (const buff of entityBuffs.values()) {
+    if (buff.attribute === attribute) {
+      const stackValue = buff.value * buff.stacks;
+      if (buff.isPercent) percent += stackValue;
+      else absolute += stackValue;
+    }
+  }
+  return { absolute, percent };
+}
+
+/**
  * Read-only buff list for testing/UI. Returns a shallow copy.
  */
 export function getBuffs(eid: number): BuffData[] {

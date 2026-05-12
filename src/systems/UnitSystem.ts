@@ -13,6 +13,7 @@ import {
 import type { MapConfig } from '../types/index.js';
 import { TileType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
+import { getEffectiveValue } from './BuffSystem.js';
 
 // ============================================================
 // Collision exclusion — projectiles, death effects, traps pass through
@@ -118,7 +119,9 @@ export class UnitSystem implements System {
 
     if (dist <= 0.1) return;
 
-    const speed = Movement.speed[eid]!;
+    const rawSpeed = Movement.speed[eid]!;
+    const buff = getEffectiveValue(eid, 'speed');
+    const speed = (rawSpeed + buff.absolute) * (1 + buff.percent / 100);
     const moveDist = speed * dt;
     const stepX = (dx / dist) * Math.min(moveDist, dist);
     const stepY = (dy / dist) * Math.min(moveDist, dist);

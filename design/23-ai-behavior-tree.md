@@ -79,7 +79,7 @@
 | `on_target_dead_reselect` | `range: float`, `set_target: bool=true` | `current_target` | `current_target`(新目标) | 当前目标存活 → SUCCESS；目标死亡且能选到新目标 → SUCCESS；选不到 → FAILURE |
 | `boid_step` | `cohesion/separation/alignment/wanderJitter` 权重 | `boid_velocity` | 同左 | 每帧 RUNNING（boid 物理） |
 | `drop_bomb` | `damage: float`, `radius: float`, `cd: float`, `fall_speed: float=300`（`falloff` 暂未实现） | `current_target` | — | 调 spawnBomb（BombSystem），首次 tick 立即触发对齐气球出生即投弹；CD 未到 → FAILURE；CD 到 + 有目标 → spawnBomb + SUCCESS。ownerFaction 自动从 Faction 组件读，无 Faction 默认 Enemy |
-| `aura_buff` | `buff_id: string`, `range: float`, `faction: enum` | — | 范围内单位 `BuffStack` | 应用 Buff，永远 SUCCESS |
+| `aura_buff` | `buff_id: string`, `attribute: string='speed'`, `value: float`, `is_percent: bool=false`, `range: float`, `target_faction: enum='ally'`(ally/enemy/all), `duration: float=0.5` | — | 范围内符合阵营单位调 BuffSystem.addBuff（每帧 refresh duration） | 范围内有目标 → SUCCESS；无目标 → FAILURE。停止 tick 后 buff 自然衰减。faction 判断：有 Faction 组件取其值，否则按 UnitTag.isEnemy 兜底 |
 
 ### 0.6 全局约定
 
@@ -109,7 +109,8 @@
 | `ignore_invulnerable` | ✅ 已实现（批 3，依赖 blackboard.invulnerable_set） | invulnerable 数据源待 BuffSystem 提供 |
 | `check_layer` / `check_weather` | ✅ 已实现（b4de1e0） | — |
 | `drop_bomb` | ✅ 已实现（P2 R1，依赖 BombSystem） | falloff 衰减留 P3 优化 |
-| `boid_step` / `aura_buff` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
+| `aura_buff` | ✅ 已实现（P2 R2，依赖 BuffSystem.addBuff + getEffectiveValue） | 替代 ShamanSystem.auraTargets 直改 Movement.speed 的旧实现 |
+| `boid_step` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
 > Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
 

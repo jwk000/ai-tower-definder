@@ -17,6 +17,7 @@ import {
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { Sound } from '../utils/Sound.js';
+import { getEffectiveValue } from './BuffSystem.js';
 
 // ---- Constants ----
 
@@ -124,7 +125,9 @@ export class EnemyAttackSystem implements System {
     fromY: number,
     canAttackBuildings: boolean,
   ): void {
-    const damage = Attack.damage[sourceId]!;
+    const rawDamage = Attack.damage[sourceId]!;
+    const buff = getEffectiveValue(sourceId, 'atk');
+    const damage = (rawDamage + buff.absolute) * (1 + buff.percent / 100);
 
     if (canAttackBuildings) {
       // Ranged — spawn projectile

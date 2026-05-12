@@ -51,9 +51,11 @@ import {
   IgnoreInvulnerableNode,
   OnTargetDeadReselectNode,
   DropBombNode,
+  AuraBuffNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
+import { getEffectiveValue, clearAllBuffs } from '../systems/BuffSystem.js';
 import { NodeStatus } from '../types/index.js';
 import { TowerWorld } from '../core/World.js';
 
@@ -1536,5 +1538,166 @@ describe('DropBombNode（重力炸弹投放）', () => {
 
     expect(nodeA.tick(ctx)).toBe(NodeStatus.Success);
     expect(nodeB.tick(ctx)).toBe(NodeStatus.Success);
+  });
+});
+
+describe('AuraBuffNode（范围光环 buff）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  beforeEach(() => {
+    clearAllBuffs();
+  });
+
+  it('范围内同阵营单位 → SUCCESS + buff 生效', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+    addComp(w, shaman, Faction, { value: FactionVal.Enemy });
+
+    const ally = addEntity(w);
+    addComp(w, ally, Position, { x: 150, y: 100 });
+    addComp(w, ally, Faction, { value: FactionVal.Enemy });
+    addComp(w, ally, Health, { current: 100, max: 100 });
+    addComp(w, ally, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, shaman);
+    const node = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      attribute: 'speed',
+      value: 15,
+      range: 120,
+      target_faction: 'ally',
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const eff = getEffectiveValue(ally, 'speed');
+    expect(eff.absolute).toBe(15);
+    expect(eff.percent).toBe(0);
+  });
+
+  it('范围外目标不被 buff', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+    addComp(w, shaman, Faction, { value: FactionVal.Enemy });
+
+    const farAlly = addEntity(w);
+    addComp(w, farAlly, Position, { x: 1000, y: 100 });
+    addComp(w, farAlly, Faction, { value: FactionVal.Enemy });
+    addComp(w, farAlly, Health, { current: 100, max: 100 });
+    addComp(w, farAlly, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, shaman);
+    const node = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      value: 15,
+      range: 120,
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(getEffectiveValue(farAlly, 'speed').absolute).toBe(0);
+  });
+
+  it('target_faction=ally 排除敌对阵营', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+    addComp(w, shaman, Faction, { value: FactionVal.Enemy });
+
+    const playerUnit = addEntity(w);
+    addComp(w, playerUnit, Position, { x: 110, y: 100 });
+    addComp(w, playerUnit, Faction, { value: FactionVal.Player });
+    addComp(w, playerUnit, Health, { current: 100, max: 100 });
+    addComp(w, playerUnit, UnitTag, { isEnemy: 0 });
+
+    const ctx = makeContext(world, shaman);
+    const node = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      value: 15,
+      range: 120,
+      target_faction: 'ally',
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(getEffectiveValue(playerUnit, 'speed').absolute).toBe(0);
+  });
+
+  it('停止 tick 后 buff 自然衰减（duration 到期失效）', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+    addComp(w, shaman, Faction, { value: FactionVal.Enemy });
+
+    const ally = addEntity(w);
+    addComp(w, ally, Position, { x: 150, y: 100 });
+    addComp(w, ally, Faction, { value: FactionVal.Enemy });
+    addComp(w, ally, Health, { current: 100, max: 100 });
+    addComp(w, ally, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, shaman);
+    const node = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      value: 15,
+      range: 120,
+      duration: 0.5,
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(getEffectiveValue(ally, 'speed').absolute).toBe(15);
+  });
+
+  it('is_percent=true → buff 累加到 percent 而非 absolute', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+    addComp(w, shaman, Faction, { value: FactionVal.Enemy });
+
+    const ally = addEntity(w);
+    addComp(w, ally, Position, { x: 150, y: 100 });
+    addComp(w, ally, Faction, { value: FactionVal.Enemy });
+    addComp(w, ally, Health, { current: 100, max: 100 });
+    addComp(w, ally, UnitTag, { isEnemy: 1 });
+
+    const ctx = makeContext(world, shaman);
+    const node = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura_pct',
+      value: 20,
+      is_percent: true,
+      range: 120,
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const eff = getEffectiveValue(ally, 'speed');
+    expect(eff.absolute).toBe(0);
+    expect(eff.percent).toBe(20);
+  });
+
+  it('value=0 或 range=0 → FAILURE（参数无效兜底）', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const shaman = addEntity(w);
+    addComp(w, shaman, Position, { x: 100, y: 100 });
+
+    const ctx = makeContext(world, shaman);
+    const nodeBadRange = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      value: 15,
+      range: 0,
+    });
+    expect(nodeBadRange.tick(ctx)).toBe(NodeStatus.Failure);
+
+    const nodeBadValue = new AuraBuffNode('aura_buff', {
+      buff_id: 'shaman_aura',
+      value: 0,
+      range: 120,
+    });
+    expect(nodeBadValue.tick(ctx)).toBe(NodeStatus.Failure);
   });
 });

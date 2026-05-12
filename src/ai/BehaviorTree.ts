@@ -22,6 +22,7 @@ import {
   friendlyFighterQuery,
 } from '../core/components.js';
 import { spawnBomb } from '../systems/BombSystem.js';
+import { addBuff } from '../systems/BuffSystem.js';
 
 // ============================================================
 // Query helpers for leaf nodes — find entities in the world
@@ -911,6 +912,87 @@ export class DropBombNode extends ActionNode {
   }
 }
 
+/**
+ * AuraBuffNode — 范围光环 buff，对应 design/23 §0.5 aura_buff
+ *
+ * 每 tick 扫描范围内符合阵营的单位，通过 BuffSystem.addBuff 刷新 buff。
+ * addBuff 对重复 id 仅刷新 duration（不重置 stacks），保证单源叠加正确。
+ *
+ * 返回语义：
+ *   - 范围内有合法目标 → 至少刷一个 buff → SUCCESS
+ *   - 范围内无目标 → FAILURE（让选择器跳到 fallback 分支）
+ *
+ * 参数：
+ *   buff_id (string, required)         buff 唯一 id（同源 shaman 共享 → 推荐 'shaman_aura'）
+ *   attribute (string, default 'speed') 影响属性
+ *   value (number, required)            buff 数值
+ *   is_percent (bool, default false)    数值/百分比
+ *   range (number, required)            光环半径 px
+ *   target_faction (string, default 'ally')  'ally'/'enemy'/'all' - 阵营过滤
+ *   duration (number, default 0.5)      每帧刷新窗口（留 dt 抖动 buffer）
+ */
+export class AuraBuffNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const sx = Position.x[eid];
+    const sy = Position.y[eid];
+    if (sx === undefined || sy === undefined) return NodeStatus.Failure;
+
+    const buffId = this.getParam<string>('buff_id', context, '');
+    if (!buffId) return NodeStatus.Failure;
+
+    const attribute = this.getParam<string>('attribute', context, 'speed');
+    const value = this.getParam<number>('value', context, 0);
+    const isPercent = this.getParam<boolean>('is_percent', context, false);
+    const range = this.getParam<number>('range', context, 0);
+    const duration = this.getParam<number>('duration', context, 0.5);
+    const targetFaction = this.getParam<string>('target_faction', context, 'ally');
+
+    if (range <= 0 || value === 0) return NodeStatus.Failure;
+
+    const selfFaction = hasComponent(context.world.world, Faction, eid)
+      ? (Faction.value[eid] as number)
+      : FactionVal.Enemy;
+
+    const candidates = enemyTargetQuery(context.world.world);
+    const r2 = range * range;
+    let buffed = 0;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const tid = candidates[i]!;
+      if (Health.current[tid]! <= 0) continue;
+
+      const tFaction = hasComponent(context.world.world, Faction, tid)
+        ? (Faction.value[tid] as number)
+        : (UnitTag.isEnemy[tid] === 1 ? FactionVal.Enemy : FactionVal.Player);
+
+      if (targetFaction === 'ally' && tFaction !== selfFaction) continue;
+      if (targetFaction === 'enemy' && tFaction === selfFaction) continue;
+
+      const tx = Position.x[tid]!;
+      const ty = Position.y[tid]!;
+      const dx = tx - sx;
+      const dy = ty - sy;
+      if (dx * dx + dy * dy > r2) continue;
+
+      addBuff(context.world, tid, {
+        id: buffId,
+        sourceId: eid,
+        attribute,
+        value,
+        isPercent,
+        duration,
+        stacks: 1,
+        maxStacks: 1,
+        appliedAt: 0,
+      });
+      buffed++;
+    }
+
+    return buffed > 0 ? NodeStatus.Success : NodeStatus.Failure;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1143,6 +1225,8 @@ export class BehaviorTree {
         return new OnTargetDeadReselectNode(type, params);
       case 'drop_bomb':
         return new DropBombNode(type, params);
+      case 'aura_buff':
+        return new AuraBuffNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 

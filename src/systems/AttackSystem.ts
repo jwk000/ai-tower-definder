@@ -24,6 +24,7 @@ import { applyDamageToTarget } from '../utils/damageUtils.js';
 import { evaluateMissileTarget } from './MissileTargeting.js';
 import { RenderSystem } from './RenderSystem.js';
 import type { WeatherSystem } from './WeatherSystem.js';
+import { getEffectiveValue } from './BuffSystem.js';
 
 // ============================================================
 // TowerType numeric ID → enum mapping (ui8 values)
@@ -375,7 +376,7 @@ export class AttackSystem implements System {
     const visual = PROJ_VISUAL[towerTypeVal];
     if (!visual) return;
 
-    const damage = Attack.damage[towerId];
+    const damage = this.getDamage(towerId);
     const fromX = Position.x[towerId];
     const fromY = Position.y[towerId];
     const towerTypeEnum = TOWER_TYPE_BY_ID[towerTypeVal]!;
@@ -433,7 +434,7 @@ export class AttackSystem implements System {
     const visual = PROJ_VISUAL[6]; // missile visual
     if (!visual) return;
 
-    const damage = Attack.damage[towerId]!;
+    const damage = this.getDamage(towerId);
     const fromX = Position.x[towerId]!;
     const fromY = Position.y[towerId]!;
     const towerCfg = TOWER_CONFIGS[TowerType.Missile];
@@ -488,7 +489,9 @@ export class AttackSystem implements System {
   // ---- Damage ----
 
   private getDamage(eid: number): number {
-    return Attack.damage[eid]!;
+    const raw = Attack.damage[eid]!;
+    const buff = getEffectiveValue(eid, 'atk');
+    return (raw + buff.absolute) * (1 + buff.percent / 100);
   }
 
   // ---- Layer reachability ----

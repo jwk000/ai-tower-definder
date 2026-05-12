@@ -2,6 +2,7 @@ import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { Position, Health, Movement, UnitTag, AI, Visual } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { EnemyType } from '../types/index.js';
+import { addBuff } from './BuffSystem.js';
 
 /** AI config ID for Shaman enemies（与 ALL_AI_CONFIGS 注册顺序一致：enemy_shaman = 17） */
 const SHAMAN_AI_ID = 17;
@@ -34,9 +35,6 @@ export class ShamanSystem implements System {
 
   /** Heal flash timers (eid → seconds remaining) */
   private healFlashTimers: Map<number, number> = new Map();
-
-  /** Entities currently under aura (eid → original Movement.speed before bonus) */
-  private auraTargets: Map<number, number> = new Map();
 
   update(world: TowerWorld, dt: number): void {
     const w = world.world;
@@ -146,25 +144,20 @@ export class ShamanSystem implements System {
       }
     }
 
-    // ---- Apply / remove aura speed buffs ----
-
-    // Remove buff from enemies that left aura range
-    for (const [eid, originalSpeed] of this.auraTargets) {
-      if (!currentAuraSet.has(eid)) {
-        Movement.speed[eid] = originalSpeed;
-        Movement.currentSpeed[eid] = originalSpeed;
-        this.auraTargets.delete(eid);
-      }
-    }
-
-    // Apply buff to enemies that entered aura range
+    // 每帧 refresh：停止 refresh 即自然衰减消失。
+    // duration=0.5s 留 dt 抖动 buffer（详见 design/22-buff-system.md）。
     for (const eid of currentAuraSet) {
-      if (!this.auraTargets.has(eid)) {
-        const originalSpeed = Movement.speed[eid]!;
-        this.auraTargets.set(eid, originalSpeed);
-        Movement.speed[eid] = originalSpeed + auraSpeedBonus;
-        Movement.currentSpeed[eid] = originalSpeed + auraSpeedBonus;
-      }
+      addBuff(world, eid, {
+        id: 'shaman_aura',
+        sourceId: -1,
+        attribute: 'speed',
+        value: auraSpeedBonus,
+        isPercent: false,
+        duration: 0.5,
+        stacks: 1,
+        maxStacks: 1,
+        appliedAt: 0,
+      });
     }
 
     // ---- Update heal flash timers (alpha pulse) ----
