@@ -8,12 +8,12 @@ import type { BehaviorTreeConfig } from '../../types/index.js';
 
 // ==================== 塔类AI ====================
 
-/** 基础塔AI - 攻击范围内敌人 */
+/** 基础塔AI v2.0 - 攻击范围内敌人（design/23 §0.5 BT 真接管） */
 export const TOWER_BASIC_AI: BehaviorTreeConfig = {
   id: 'tower_basic',
   name: '基础塔AI',
   description: '攻击范围内最近的敌人',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -22,7 +22,7 @@ export const TOWER_BASIC_AI: BehaviorTreeConfig = {
         name: '攻击流程',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'spawn_projectile_tower', params: {} }
         ]
       },
       {
@@ -33,12 +33,12 @@ export const TOWER_BASIC_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 炮塔AI - 范围攻击 */
+/** 炮塔AI v2.0 - 范围攻击（溅射由 SpawnProjectileTowerNode 按 towerType 内部处理） */
 export const TOWER_CANNON_AI: BehaviorTreeConfig = {
   id: 'tower_cannon',
   name: '炮塔AI',
   description: '攻击范围内敌人，有溅射效果',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -47,7 +47,7 @@ export const TOWER_CANNON_AI: BehaviorTreeConfig = {
         name: '攻击流程',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy', splash: true } }
+          { type: 'spawn_projectile_tower', params: {} }
         ]
       },
       {
@@ -58,12 +58,12 @@ export const TOWER_CANNON_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 冰塔AI - 减速敌人 */
+/** 冰塔AI v2.0 - 减速敌人（slow 由 SpawnProjectileTowerNode 按 towerType 透传） */
 export const TOWER_ICE_AI: BehaviorTreeConfig = {
   id: 'tower_ice',
   name: '冰塔AI',
   description: '攻击范围内敌人，附带减速效果',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -72,7 +72,7 @@ export const TOWER_ICE_AI: BehaviorTreeConfig = {
         name: '攻击流程',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy', effect: 'slow' } }
+          { type: 'spawn_projectile_tower', params: {} }
         ]
       },
       {
@@ -83,12 +83,12 @@ export const TOWER_ICE_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 闪电塔AI - 链式攻击 */
+/** 闪电塔AI v2.0 - 链式攻击（lightning_chain 节点专管） */
 export const TOWER_LIGHTNING_AI: BehaviorTreeConfig = {
   id: 'tower_lightning',
   name: '闪电塔AI',
   description: '攻击范围内敌人，可链式弹射',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -97,7 +97,7 @@ export const TOWER_LIGHTNING_AI: BehaviorTreeConfig = {
         name: '攻击流程',
         children: [
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy', chain: true } }
+          { type: 'lightning_chain', params: {} }
         ]
       },
       {
@@ -108,12 +108,12 @@ export const TOWER_LIGHTNING_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 激光塔AI - 穿透攻击 */
+/** 激光塔AI v2.0 - 多束自扫（laser_beam 节点自扫范围，不依赖 current_target） */
 export const TOWER_LASER_AI: BehaviorTreeConfig = {
   id: 'tower_laser',
   name: '激光塔AI',
-  description: '攻击范围内敌人，光束穿透路径上所有敌人',
-  version: '1.0',
+  description: '范围内多束自扫，L1-2:1束 / L3-4:2束 / L5:3束',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -121,8 +121,7 @@ export const TOWER_LASER_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy', pierce: true } }
+          { type: 'laser_beam', params: {} }
         ]
       },
       {
@@ -133,12 +132,12 @@ export const TOWER_LASER_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 蝙蝠塔AI - 暗夜攻击 + 生命偷取 */
+/** 蝙蝠塔AI v2.0 - 暗夜攻击（lifeSteal 由 SpawnProjectileTowerNode 按 towerType 透传） */
 export const TOWER_BAT_AI: BehaviorTreeConfig = {
   id: 'tower_bat',
   name: '蝙蝠塔AI',
   description: '仅在夜晚/雾天攻击，附带生命偷取',
-  version: '1.0',
+  version: '2.0',
   root: {
     type: 'selector',
     children: [
@@ -148,7 +147,7 @@ export const TOWER_BAT_AI: BehaviorTreeConfig = {
         children: [
           { type: 'check_weather', params: { allowed: ['night', 'fog'] } },
           { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy', lifeSteal: 0.3 } }
+          { type: 'spawn_projectile_tower', params: {} }
         ]
       },
       {
