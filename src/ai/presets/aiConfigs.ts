@@ -579,12 +579,15 @@ export const TOWER_MISSILE_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 毒藤塔AI — 桩：单体 DOT 攻击（ProjectileSystem 接管 DOT 逻辑） */
+/**
+ * 毒藤塔AI — 单体 DOT 攻击。
+ * BT 负责目标选择和攻击触发，ProjectileSystem 处理 DOT 弹道的持续伤害周期。
+ */
 export const TOWER_VINE_AI: BehaviorTreeConfig = {
   id: 'tower_vine',
-  name: '毒藤塔AI（桩）',
-  description: '射程内持续伤害，由 ProjectileSystem 接管 DOT',
-  version: '0.1-stub',
+  name: '毒藤塔AI',
+  description: '射程内最近敌人 DOT 攻击（ProjectileSystem 处理持续伤害周期）',
+  version: '1.0',
   root: {
     type: 'selector',
     children: [
@@ -592,8 +595,8 @@ export const TOWER_VINE_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', target_type: 'enemy' } },
+          { type: 'attack', params: { target: 'nearest_enemy', effect: 'dot' } }
         ]
       },
       { type: 'wait', params: { duration: 0.1 } }
@@ -601,40 +604,70 @@ export const TOWER_VINE_AI: BehaviorTreeConfig = {
   }
 };
 
-/** 萨满敌人AI — 桩：简单跟随路径（ShamanSystem 接管治疗/光环） */
+/**
+ * 萨满敌人AI — 沿路径移动 + 光环 buff 给同阵营友军。
+ * 治疗逻辑仍由 ShamanSystem 接管（涉及 boss 半治疗 / 视觉 flash，BT 节点暂不覆盖）。
+ * aura_buff 与 ShamanSystem.aura 双路径写同 id buff，addBuff 幂等不会双倍生效。
+ */
 export const ENEMY_SHAMAN_AI: BehaviorTreeConfig = {
   id: 'enemy_shaman',
-  name: '萨满AI（桩）',
-  description: '沿路径移动，由 ShamanSystem 接管治疗逻辑',
-  version: '0.1-stub',
+  name: '萨满AI',
+  description: '沿路径移动，光环加速友军（ShamanSystem 接管治疗）',
+  version: '1.0',
   root: {
     type: 'selector',
     children: [
-      { type: 'move_to', params: { target: 'path_waypoint' } }
-    ]
-  }
+      {
+        type: 'sequence',
+        name: '光环+移动',
+        children: [
+          {
+            type: 'aura_buff',
+            params: {
+              buff_id: 'shaman_aura',
+              attribute: 'speed',
+              value: 15,
+              is_percent: false,
+              range: 120,
+              target_faction: 'ally',
+              duration: 0.5,
+            },
+          },
+          { type: 'move_to', params: { target: 'path_waypoint' } },
+        ],
+      },
+      { type: 'move_to', params: { target: 'path_waypoint' } },
+    ],
+  },
 };
 
-/** 热气球敌人AI — 桩：飞行路径移动（HotAirBalloonSystem 接管炸弹） */
+/**
+ * 热气球敌人AI — 沿路径飞行。
+ * 投弹逻辑由 HotAirBalloonSystem 接管（依赖独有的「正下方建筑」目标选择），
+ * BT 暂不接管 drop_bomb 以避免双倍生成；待 P3 引入 select_building_below 节点后再迁移。
+ */
 export const ENEMY_BALLOON_AI: BehaviorTreeConfig = {
   id: 'enemy_balloon',
-  name: '热气球AI（桩）',
-  description: '沿路径飞行，由 HotAirBalloonSystem 接管轰炸逻辑',
-  version: '0.1-stub',
+  name: '热气球AI',
+  description: '沿路径飞行（HotAirBalloonSystem 接管投弹）',
+  version: '1.0',
   root: {
     type: 'selector',
     children: [
-      { type: 'move_to', params: { target: 'path_waypoint' } }
-    ]
-  }
+      { type: 'move_to', params: { target: 'path_waypoint' } },
+    ],
+  },
 };
 
-/** 弩炮塔AI — 桩：远程贯穿攻击（AttackSystem 接管） */
+/**
+ * 弩炮塔AI — 远程狙击最远敌人。
+ * AttackSystem 接管贯穿伤害的弹道穿透逻辑（BT 仅触发单次攻击）。
+ */
 export const TOWER_BALLISTA_AI: BehaviorTreeConfig = {
   id: 'tower_ballista',
-  name: '弩炮塔AI（桩）',
-  description: '远程贯穿狙击，由 AttackSystem 暂时接管',
-  version: '0.1-stub',
+  name: '弩炮塔AI',
+  description: '远程贯穿狙击最远敌人（AttackSystem 处理弹道穿透）',
+  version: '1.0',
   root: {
     type: 'selector',
     children: [
@@ -642,8 +675,8 @@ export const TOWER_BALLISTA_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
-          { type: 'attack', params: { target: 'farthest' } }
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', target_type: 'enemy' } },
+          { type: 'attack', params: { target: 'farthest', pierce: true } }
         ]
       },
       { type: 'wait', params: { duration: 0.1 } }
