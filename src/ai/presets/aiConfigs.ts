@@ -21,7 +21,7 @@ export const TOWER_BASIC_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', set_target: true } },
           { type: 'spawn_projectile_tower', params: {} }
         ]
       },
@@ -46,7 +46,7 @@ export const TOWER_CANNON_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', set_target: true } },
           { type: 'spawn_projectile_tower', params: {} }
         ]
       },
@@ -71,7 +71,7 @@ export const TOWER_ICE_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', set_target: true } },
           { type: 'spawn_projectile_tower', params: {} }
         ]
       },
@@ -96,7 +96,7 @@ export const TOWER_LIGHTNING_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '攻击流程',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', set_target: true } },
           { type: 'lightning_chain', params: {} }
         ]
       },
@@ -146,7 +146,7 @@ export const TOWER_BAT_AI: BehaviorTreeConfig = {
         name: '攻击流程',
         children: [
           { type: 'check_weather', params: { allowed: ['night', 'fog'] } },
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'check_enemy_in_range', params: { range: '${attack_range}', set_target: true } },
           { type: 'spawn_projectile_tower', params: {} }
         ]
       },
