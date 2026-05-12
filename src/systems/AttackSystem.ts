@@ -174,7 +174,7 @@ export class AttackSystem implements System {
           targetId = 0;
         } else {
           const tLayer = Layer.value[targetId] ?? LayerVal.Ground;
-          if (!this.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) {
+          if (!AttackSystem.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) {
             targetId = 0;
           } else {
             const dx = Position.x[targetId]! - tx;
@@ -194,7 +194,7 @@ export class AttackSystem implements System {
 
         for (const enemyId of enemyList) {
           const tLayer = Layer.value[enemyId] ?? LayerVal.Ground;
-          if (!this.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) continue;
+          if (!AttackSystem.canAttackLayer(attackerLayer, tLayer, attackerIsRanged)) continue;
 
           const ex = Position.x[enemyId]!;
           const ey = Position.y[enemyId]!;
@@ -495,23 +495,26 @@ export class AttackSystem implements System {
 
   /**
    * Check whether an attacker at `attackerLayer` can target a unit at `targetLayer`.
+   *
+   * 对应设计 design/18-layer-system.md §5.2 攻击目标可达性矩阵:
    * - 近战 (isRanged=false): only AboveGrid + Ground
    * - 远程 (isRanged=true): AboveGrid + Ground + LowAir
-   * - LowAir attackers: can attack all ≤ LowAir
+   * - LowAir attackers (蝙蝠、飞行敌): can attack all ≤ LowAir
+   * - Abyss/BelowGrid/Space: 默认放行 (未来扩展点)
+   *
+   * P1-#12: 提为 static 便于纯函数单测覆盖。
    */
-  private canAttackLayer(attackerLayer: number, targetLayer: number, isRanged: boolean): boolean {
-    // Ground-attached attacker (towers, soldiers)
+  static canAttackLayer(attackerLayer: number, targetLayer: number, isRanged: boolean): boolean {
     if (attackerLayer === LayerVal.Ground || attackerLayer === LayerVal.AboveGrid) {
-      if (isRanged) {
-        return targetLayer <= LayerVal.LowAir;
-      }
-      return targetLayer <= LayerVal.AboveGrid;
+      if (targetLayer === LayerVal.Ground || targetLayer === LayerVal.AboveGrid) return true;
+      if (targetLayer === LayerVal.LowAir) return isRanged;
+      return false;
     }
-    // LowAir attacker (bats, flying enemies)
     if (attackerLayer === LayerVal.LowAir) {
-      return targetLayer <= LayerVal.LowAir;
+      return targetLayer === LayerVal.Ground
+        || targetLayer === LayerVal.AboveGrid
+        || targetLayer === LayerVal.LowAir;
     }
-    // Unknown layer — allow by default
     return true;
   }
 
