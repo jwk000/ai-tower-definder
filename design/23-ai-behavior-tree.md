@@ -115,7 +115,7 @@
 | `check_layer` / `check_weather` | ✅ 已实现（b4de1e0） | — |
 | `drop_bomb` | ✅ 已实现（P2 R1，依赖 BombSystem） | falloff 衰减留 P3 优化 |
 | `aura_buff` | ✅ 已实现（P2 R2，依赖 BuffSystem.addBuff + getEffectiveValue） | 替代 ShamanSystem.auraTargets 直改 Movement.speed 的旧实现 |
-| `select_missile_target` / `charge_attack` / `launch_missile_projectile` | ⏳ P3 R2-R4 实装中 | 三节点协作完成 TOWER_MISSILE_AI 0.1-stub → v1.0 升级；select 包装 evaluateMissileTarget，charge 维护 MissileCharge 组件（RenderSystem 依赖），launch 包装 spawnMissileProjectile |
+| `select_missile_target` / `charge_attack` / `launch_missile_projectile` | ✅ 已实现（P3 R2-R5，b7217ef） | 三节点协作完成 TOWER_MISSILE_AI 0.1-stub → v1.0 升级；select 包装 evaluateMissileTarget，charge 维护 MissileCharge 组件（RenderSystem 依赖）+ cooldown 守卫，launch 包装 spawnMissileProjectile；AttackSystem.handleMissileTower 已薄化 no-op |
 | `boid_step` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
 > Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
@@ -127,7 +127,7 @@
 | `tower_basic` / `tower_cannon` / `tower_ice` / `tower_lightning` / `tower_laser` / `tower_bat` | ✅ v1.0 | 基础塔 BT 全套已实现 |
 | `tower_vine` | ✅ v1.0（P2 R3） | BT 选目标 + 攻击触发；ProjectileSystem 处理 DOT 持续伤害周期 |
 | `tower_ballista` | ✅ v1.0（P2 R3） | BT 选最远目标 + 攻击触发；AttackSystem 处理弹道穿透 |
-| `tower_missile` | 🔄 P3 进行中 | 三节点接口已冻结（§0.5）：select_missile_target / charge_attack / launch_missile_projectile；R2-R4 分批实装，目标 v1.0 |
+| `tower_missile` | ✅ v1.0（P3 R5，b7217ef） | 三节点接管：select_missile_target → charge_attack → launch_missile_projectile；AttackSystem.handleMissileTower 已薄化为 no-op，BT 完整接管选目标 / 蓄力 / 发射 / cooldown 重置全流程 |
 | `enemy_basic` / `enemy_ranged` / `enemy_boss` | ✅ v1.0 | 基础敌人 BT 全套已实现 |
 | `enemy_shaman` | ✅ v1.0（P2 R3） | move_to + aura_buff 节点；治疗逻辑仍在 ShamanSystem 接管（涉及 boss 半治疗 / 视觉 flash，留 P3） |
 | `enemy_balloon` | ✅ v1.0（P2 R3） | 仅 move_to；drop_bomb 因「正下方建筑」目标选择无对应 BT 节点，HotAirBalloonSystem 继续接管，待 P3 引入 select_building_below 节点后再迁移 |
@@ -135,7 +135,7 @@
 | `building_production` | ✅ v1.0 | 资源生产建筑 BT |
 | `trap_damage` / `trap_healing` | ✅ v1.0 | 陷阱 BT |
 
-> P2 R3 完成后，**14/15 AI 配置已达 v1.0**（仅 `tower_missile` 因复杂度保 stub）。所有 v1.0 配置：BT 描述单位行为语义；部分行为（DOT 周期、弹道穿透、boss 半治疗、正下方建筑选择）由专门系统接管的实现细节，已在各配置 docstring 中明确说明。
+> P3 R5 完成后，**15/15 AI 配置全部达 v1.0**。所有 v1.0 配置：BT 描述单位行为语义；部分行为（DOT 周期、弹道穿透、boss 半治疗、正下方建筑选择）由专门系统接管的实现细节，已在各配置 docstring 中明确说明。导弹塔三节点（select_missile_target / charge_attack / launch_missile_projectile）是 BT 接管复杂战术单位的范例：BT 描述「选目标→蓄力→发射」时序，MissileCharge 组件作为 BT↔RenderSystem 通信总线，ProjectileSystem 负责抛物线+AOE 物理。
 
 ---
 
@@ -153,7 +153,7 @@
 | ② | **UnitSystem 硬编码 AI** — 士兵的攻击选目标、追击移动全部在 `UnitSystem.ts` 中硬编码，与 `AISystem` 行为树并行运行（已修复） | ✅ 已修 |
 | ③ | **缺少 `move_towards` BT 节点** — 士兵 AI 配置引用的 `move_towards` 节点未实现，静默降级为 0.1s Wait（已修复） | ✅ 已修 |
 | ④ | **BuildSystem 陷阱/建筑无 AI 组件** — `createTrapEntity` / `createProductionEntity` 不挂载 AI 组件（已修复） | ✅ 已修 |
-| ⑤ | **缺少 4 套 AI 配置** — `tower_vine`, `tower_ballista`, `enemy_shaman`, `enemy_balloon` 已升 v1.0（P2 R3）；`tower_missile` P3 三节点接口已冻结（§0.5），R2-R4 分批实装中 | 🔄 4/5 已修 + P3 进行中 |
+| ⑤ | **缺少 4 套 AI 配置** — `tower_vine`, `tower_ballista`, `enemy_shaman`, `enemy_balloon` 已升 v1.0（P2 R3）；`tower_missile` P3 R5（b7217ef）三节点 v1.0 完成 | ✅ 5/5 已修 |
 | ⑥ | **6 个系统完全绕过行为树** — `BatSwarmSystem`, `ShamanSystem`, `HotAirBalloonSystem`, `TrapSystem`, `HealingSystem`, `ProductionSystem` 全部硬编码 AI 逻辑 | 🟡 P1 |
 | ⑦ | **AttackSystem / EnemyAttackSystem 覆盖 BT** — 塔和敌人的行为树 `attack` 节点是死代码，因为 AttackSystem 在同一帧内独立处理了所有攻击逻辑 | 🟡 P1 |
 | ⑧ | **行为树多个节点未实现** — `parallel`, `repeater`, `cooldown`, `use_skill`, `heal`, `check_ally_in_range`, `produce_resource`, `check_cooldown` 均为存根或降级 | 🟢 P2 |
