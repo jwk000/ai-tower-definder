@@ -10,7 +10,7 @@ export class Game {
   renderer: Renderer;
   onPostRender: (() => void) | null = null;
   onUpdate: ((dt: number) => void) | null = null;
-  onAfterUpdate: (() => void) | null = null;
+  onAfterUpdate: ((dt: number) => void) | null = null;
 
   /** Game speed multiplier (1.0 = normal, 2.0 = double) */
   gameSpeed: number = 1.0;
@@ -74,7 +74,7 @@ export class Game {
           }
           this.world.cleanupDeadEntities();
         }
-        this.onAfterUpdate?.();
+        this.onAfterUpdate?.(rawDt * this.gameSpeed);
       } else {
         this.world.update(0);
       }
