@@ -287,6 +287,7 @@ export class WaveSystem implements System {
       isEnemy: 1,
       rewardGold: config.rewardGold,
       canAttackBuildings: config.canAttackBuildings ? 1 : 0,
+      atk: config.atk,
     });
     this.world.addComponent(eid, Visual, {
       shape: 1, // ShapeVal.Circle

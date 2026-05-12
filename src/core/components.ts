@@ -512,6 +512,7 @@ export const UnitTag = defineComponent({
   rewardEnergy: Types.f32,    // 击杀奖励能量
   popCost: Types.ui8,         // 人口占用
   cost: Types.f32,            // 造价
+  atk: Types.f32,             // 攻击力（敌人到达基地的伤害源；同步自配置 atk）
 });
 
 // ============================================================

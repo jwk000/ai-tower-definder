@@ -138,14 +138,21 @@ export class MovementSystem implements System {
     }
   }
 
-  /** Deal damage to base and destroy enemy that reached the end */
+  /**
+   * Deal damage to base and destroy enemy that reached the end.
+   *
+   * Damage source = UnitTag.atk (synced from ENEMY_CONFIGS[type].atk at spawn time).
+   * Do NOT read `Attack.damage[eid]` here: bitecs TypedArray returns 0 (not undefined)
+   * for entities without the Attack component (e.g. Grunt with attackRange=0),
+   * which would silently neutralize all base damage from melee path-enders.
+   */
   private onReachEnd(world: TowerWorld, eid: number): void {
-    const damage = Attack.damage[eid] ?? 10;
+    const damage = UnitTag.atk[eid] ?? 0;
 
     const bases = this.baseQuery(world.world);
     for (let i = 0; i < bases.length; i++) {
       const baseId = bases[i]!;
-      if (UnitTag.isEnemy[baseId] === 1) continue; // skip enemy health entities
+      if (UnitTag.isEnemy[baseId] === 1) continue;
       Health.current[baseId]! -= damage;
       if (Health.current[baseId]! < 0) Health.current[baseId]! = 0;
     }
