@@ -1233,6 +1233,54 @@ export class SpawnProjectileTowerNode extends ActionNode {
   }
 }
 
+/**
+ * LightningChainNode — 闪电塔链式攻击（design/23 §0.5 `lightning_chain`）
+ *
+ * 节点规格：
+ *   params: 无
+ *   blackboard 输入: `current_target`（由 check_enemy_in_range 写入）
+ *   blackboard 输出: 无
+ *
+ * 返回语义：
+ *   - cooldownTimer > 0 → FAILURE
+ *   - 无 current_target / target 已死 → FAILURE
+ *   - 成功 → doLightningAttack（chainCount 跳 + 衰减 + LightningBolt 视觉）
+ *           + Sound.play('tower_lightning') + set targetId + reset cooldown → SUCCESS
+ *
+ * 副作用（与 AttackSystem.update line 216-217 doLightningAttack 路径等价）：
+ *   - chainCount = TOWER_CONFIGS.chainCount + (level-1) 跳；每跳衰减 chainDecay；
+ *     每跳 spawn LightningBolt entity（视觉 0.5s）+ applyDamageToTarget
+ *   - 首跳 Sound.play('lightning_hit')（在 doLightningAttack 内部）
+ *   - 节点层 Sound.play('tower_lightning')（发射音，与命中音独立）
+ *
+ * 服务 lightning 塔（towerType=3 / TowerType.Lightning）。
+ */
+export class LightningChainNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const world = context.world;
+
+    if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
+
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined || targetId === 0) return NodeStatus.Failure;
+    if ((Health.current[targetId] ?? 0) <= 0) return NodeStatus.Failure;
+
+    const level = Tower.level[eid] ?? 1;
+
+    doLightningAttack(world, eid, targetId, level);
+    Sound.play('tower_lightning');
+
+    Attack.targetId[eid] = targetId;
+    const attackSpeed = Attack.attackSpeed[eid];
+    if (attackSpeed && attackSpeed > 0) {
+      Attack.cooldownTimer[eid] = 1 / attackSpeed;
+    }
+
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1475,6 +1523,8 @@ export class BehaviorTree {
         return new LaunchMissileProjectileNode(type, params);
       case 'spawn_projectile_tower':
         return new SpawnProjectileTowerNode(type, params);
+      case 'lightning_chain':
+        return new LightningChainNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 

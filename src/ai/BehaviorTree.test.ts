@@ -56,10 +56,11 @@ import {
   ChargeAttackNode,
   LaunchMissileProjectileNode,
   SpawnProjectileTowerNode,
+  LightningChainNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
-import { MissileCharge, TargetingMark, Projectile } from '../core/components.js';
+import { MissileCharge, TargetingMark, Projectile, LightningBolt } from '../core/components.js';
 import { getEffectiveValue, clearAllBuffs } from '../systems/BuffSystem.js';
 import { NodeStatus } from '../types/index.js';
 import { TowerWorld } from '../core/World.js';
@@ -2273,5 +2274,153 @@ describe('SpawnProjectileTowerNode（通用弹道塔发射 P4 R2）', () => {
     expect(node.tick(ctx)).toBe(NodeStatus.Success);
     expect(Attack.cooldownTimer[tower]).toBe(0); // 未重置
     expect(projectileQuery(world).length).toBe(1);
+  });
+});
+
+describe('LightningChainNode（闪电塔链式攻击 P4 R3）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  const TOWER_TYPE_LIGHTNING = 3;
+
+  function makeLightningTower(world: TowerWorld, x: number, y: number, level: number = 1): number {
+    const w = world.world;
+    const tower = addEntity(w);
+    addComp(w, tower, Position, { x, y });
+    addComp(w, tower, Attack, {
+      damage: 30,
+      attackSpeed: 1.0,
+      range: 200,
+      damageType: 0,
+      isRanged: 1,
+      cooldownTimer: 0,
+    });
+    addComp(w, tower, Tower, {
+      towerType: TOWER_TYPE_LIGHTNING,
+      level,
+      position: 0,
+      cost: 0,
+      maxLevel: 5,
+      upgradeCost: 0,
+      sellRefund: 0,
+    });
+    return tower;
+  }
+
+  function makeEnemy(world: TowerWorld, x: number, y: number, hp: number = 200): number {
+    const w = world.world;
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x, y });
+    addComp(w, enemy, Health, { current: hp, max: hp, armor: 0 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1, canAttackBuildings: 0 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+    return enemy;
+  }
+
+  function makeCtx(towerWorld: TowerWorld, eid: number): AIContext {
+    return {
+      entityId: eid,
+      world: towerWorld,
+      dt: 0.1,
+      blackboard: new Map(),
+    };
+  }
+
+  function boltQuery(world: TowerWorld): number[] {
+    return defineQuery([LightningBolt])(world.world);
+  }
+
+  it('cooldownTimer > 0 → FAILURE（冷却守卫）', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    Attack.cooldownTimer[tower] = 0.5;
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(boltQuery(world).length).toBe(0);
+  });
+
+  it('无 current_target → FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    const ctx = makeCtx(world, tower);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(boltQuery(world).length).toBe(0);
+  });
+
+  it('current_target 已死 → FAILURE', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    const enemy = makeEnemy(world, 250, 200, 0);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(boltQuery(world).length).toBe(0);
+  });
+
+  it('成功路径 → SUCCESS + spawn LightningBolt + set targetId + reset cooldown（单敌）', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.targetId[tower]).toBe(enemy);
+    expect(Attack.cooldownTimer[tower]).toBeCloseTo(1 / 1.0, 3);
+
+    // 单敌场景：第一跳命中后没有其他链目标，命中至少 1 个 LightningBolt
+    const bolts = boltQuery(world);
+    expect(bolts.length).toBeGreaterThanOrEqual(1);
+    const firstBolt = bolts[0]!;
+    expect(LightningBolt.sourceId[firstBolt]).toBe(tower);
+    expect(LightningBolt.targetId[firstBolt]).toBe(enemy);
+    expect(LightningBolt.duration[firstBolt]).toBe(0.5);
+  });
+
+  it('多敌场景 → chain 跳跃至范围内最近敌人（链衰减验证）', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    const primaryEnemy = makeEnemy(world, 250, 200);
+    const chainHopEnemy1 = makeEnemy(world, 280, 200);
+    const chainHopEnemy2 = makeEnemy(world, 310, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', primaryEnemy);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    // L1 chainCount = baseChain (TOWER_CONFIGS.lightning.chainCount) 跳
+    // 应该 spawn 多个 LightningBolt（每跳一个）
+    const bolts = boltQuery(world);
+    expect(bolts.length).toBeGreaterThanOrEqual(2);
+
+    // 第一跳必须从 tower 出发命中 primaryEnemy
+    const firstBolt = bolts.find(b => LightningBolt.sourceId[b] === tower);
+    expect(firstBolt).toBeDefined();
+    expect(LightningBolt.targetId[firstBolt!]).toBe(primaryEnemy);
+  });
+
+  it('attackSpeed=0 时不重置 cooldown（防御性兜底）', () => {
+    const world = makeRealWorld();
+    const tower = makeLightningTower(world, 200, 200);
+    Attack.attackSpeed[tower] = 0;
+    const enemy = makeEnemy(world, 250, 200);
+    const ctx = makeCtx(world, tower);
+    ctx.blackboard.set('current_target', enemy);
+
+    const node = new LightningChainNode('lightning_chain', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(Attack.cooldownTimer[tower]).toBe(0);
+    expect(boltQuery(world).length).toBeGreaterThanOrEqual(1);
   });
 });
