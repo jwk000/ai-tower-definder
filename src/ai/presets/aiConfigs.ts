@@ -274,15 +274,17 @@ export const SOLDIER_GENERIC_AI: BehaviorTreeConfig = {
   root: {
     type: 'selector',
     children: [
-      // State 1: COMBAT — 在攻击范围内直接攻击
+      // State 1: COMBAT — current_target 存活且在攻击范围内
+      // design/24 §6: on_target_dead_reselect 同帧 reselect，消除 COMBAT→ALERT→COMBAT 1 帧空窗
       {
         type: 'sequence',
         name: '战斗',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'on_target_dead_reselect', params: { range: '${alert_range}', set_target: true } },
+          { type: 'check_current_target_in_range', params: { range: '${attack_range}' } },
           { type: 'set_state', params: { state: 'combat' } },
           { type: 'show_alert_mark', params: { blink: false } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'attack', params: { target: 'current_target' } }
         ]
       },
       // State 2: ALERT — 在警戒范围内追击敌人
@@ -333,10 +335,11 @@ export const SOLDIER_BASIC_AI: BehaviorTreeConfig = {
         type: 'sequence',
         name: '战斗',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'on_target_dead_reselect', params: { range: '${alert_range}', set_target: true } },
+          { type: 'check_current_target_in_range', params: { range: '${attack_range}' } },
           { type: 'set_state', params: { state: 'combat' } },
           { type: 'show_alert_mark', params: { blink: false } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'attack', params: { target: 'current_target' } }
         ]
       },
       {
@@ -390,15 +393,16 @@ export const SOLDIER_TANK_AI: BehaviorTreeConfig = {
           { type: 'use_skill', params: { skill_id: 'taunt' } }
         ]
       },
-      // State 1: COMBAT
+      // State 1: COMBAT — current_target 驱动，同帧 reselect（design/24 §6）
       {
         type: 'sequence',
         name: '战斗',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'on_target_dead_reselect', params: { range: '${alert_range}', set_target: true } },
+          { type: 'check_current_target_in_range', params: { range: '${attack_range}' } },
           { type: 'set_state', params: { state: 'combat' } },
           { type: 'show_alert_mark', params: { blink: false } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'attack', params: { target: 'current_target' } }
         ]
       },
       // State 2: ALERT
@@ -455,15 +459,16 @@ export const SOLDIER_DPS_AI: BehaviorTreeConfig = {
           { type: 'use_skill', params: { skill_id: 'whirlwind' } }
         ]
       },
-      // State 1: COMBAT
+      // State 1: COMBAT — current_target 驱动，同帧 reselect（design/24 §6）
       {
         type: 'sequence',
         name: '战斗',
         children: [
-          { type: 'check_enemy_in_range', params: { range: '${attack_range}' } },
+          { type: 'on_target_dead_reselect', params: { range: '${alert_range}', set_target: true } },
+          { type: 'check_current_target_in_range', params: { range: '${attack_range}' } },
           { type: 'set_state', params: { state: 'combat' } },
           { type: 'show_alert_mark', params: { blink: false } },
-          { type: 'attack', params: { target: 'nearest_enemy' } }
+          { type: 'attack', params: { target: 'current_target' } }
         ]
       },
       // State 2: ALERT

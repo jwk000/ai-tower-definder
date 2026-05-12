@@ -2,7 +2,7 @@
 
 > 我方可移动单位（统称"士兵"）的AI行为：警戒/追击/战斗/游荡 状态机设计
 >
-> 版本: v1.0 | 日期: 2026-05-12 | 状态: 设计阶段
+> 版本: v2.1 | 日期: 2026-05-12 | 状态: §6.2 行为树已实装（4 套士兵 AI）
 
 ---
 
@@ -389,7 +389,7 @@ wander:
 3. 缺少警戒视觉反馈节点
 4. 移动和攻击在同一 Selector 中，可能导致"移动但永远到不了"的死循环
 
-### 6.2 新版士兵行为树设计
+### 6.2 新版士兵行为树设计（✅ 已实装于 `src/ai/presets/aiConfigs.ts` 的 SOLDIER_GENERIC_AI / SOLDIER_BASIC_AI / SOLDIER_TANK_AI / SOLDIER_DPS_AI 四套配置）
 
 ```json
 // 新版: soldier_generic (所有士兵的通用AI)

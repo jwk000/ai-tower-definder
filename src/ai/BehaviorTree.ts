@@ -546,6 +546,11 @@ export class AttackNode extends ActionNode {
       return AI.targetId[context.entityId] ?? 0;
     }
 
+    if (targetParam === 'current_target') {
+      const t = context.blackboard.get('current_target') as number | undefined;
+      return t ?? 0;
+    }
+
     if (targetParam === 'nearest_enemy') {
       const enemies = context.blackboard.get('found_enemies') as number[] | undefined;
       if (enemies && enemies.length > 0) {

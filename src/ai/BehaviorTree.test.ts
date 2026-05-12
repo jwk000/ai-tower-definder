@@ -1259,3 +1259,150 @@ describe('OnTargetDeadReselectNode', () => {
     expect(ctx.blackboard.get('current_target')).toBe(near);
   });
 });
+
+describe('AttackNode（target: current_target）', () => {
+  it('从 blackboard.current_target 解析目标，士兵直接伤害', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 100, max: 100 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, PlayerOwned, {});
+    addComp(w, soldier, AI, { configId: 9, targetId: 0, lastUpdateTime: 0, updateInterval: 0.1, active: 1 });
+    addComp(w, soldier, Attack, { damage: 20, attackSpeed: 1, range: 50, damageType: 0, isRanged: 0, cooldownTimer: 0 });
+
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x: 120, y: 100 });
+    addComp(w, enemy, Health, { current: 80, max: 80 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', enemy);
+
+    const ctx = makeContext(world, soldier, 0.1, bb);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    const status = node.tick(ctx);
+
+    expect(status).toBe(NodeStatus.Success);
+    if (UnitTag.isEnemy[soldier] !== 1 && Tower.towerType[soldier] === undefined) {
+      expect(Health.current[enemy]).toBe(60);
+    } else {
+      expect(Attack.targetId[soldier]).toBe(enemy);
+    }
+  });
+
+  it('blackboard.current_target 不存在 — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 100, max: 100 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, Attack, { damage: 20, attackSpeed: 1, range: 50, damageType: 0, isRanged: 0, cooldownTimer: 0 });
+
+    const ctx = makeContext(world, soldier);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('current_target 已死亡 — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 100, max: 100 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, Attack, { damage: 20, attackSpeed: 1, range: 50, damageType: 0, isRanged: 0, cooldownTimer: 0 });
+
+    const dead = addEntity(w);
+    addComp(w, dead, Position, { x: 120, y: 100 });
+    addComp(w, dead, Health, { current: 0, max: 80 });
+    addComp(w, dead, UnitTag, { isEnemy: 1 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', dead);
+
+    const ctx = makeContext(world, soldier, 0.1, bb);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('士兵 COMBAT 同帧 reselect + attack（design/24 §6 集成）', () => {
+  /**
+   * 集成场景：复刻士兵 COMBAT 分支的真实节点链
+   *   [on_target_dead_reselect → check_current_target_in_range → attack(current_target)]
+   * 验证：当 current_target 死亡时，sequence 能在同一帧内
+   *   1) 由 on_target_dead_reselect 把 blackboard.current_target 切换到附近活敌
+   *   2) check_current_target_in_range 通过
+   *   3) attack(current_target) 命中新目标
+   * 这是 design/24 §6 "消除 1 帧空窗" 的核心契约。
+   */
+  it('current_target 死亡 → 同帧 reselect 范围内活敌 + attack 命中', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 100, max: 100 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, PlayerOwned, {});
+    addComp(w, soldier, AI, { configId: 9, targetId: 0, lastUpdateTime: 0, updateInterval: 0.1, active: 1 });
+    addComp(w, soldier, Attack, { damage: 25, attackSpeed: 1, range: 60, damageType: 0, isRanged: 0, cooldownTimer: 0 });
+
+    const dead = addEntity(w);
+    addComp(w, dead, Position, { x: 110, y: 100 });
+    addComp(w, dead, Health, { current: 0, max: 80 });
+    addComp(w, dead, UnitTag, { isEnemy: 1 });
+
+    const alive = addEntity(w);
+    addComp(w, alive, Position, { x: 140, y: 100 });
+    addComp(w, alive, Health, { current: 100, max: 100 });
+    addComp(w, alive, UnitTag, { isEnemy: 1 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', dead);
+
+    const ctx = makeContext(world, soldier, 0.1, bb);
+
+    const reselect = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 150, set_target: true });
+    const inRange = new CheckCurrentTargetInRangeNode('check_current_target_in_range', { range: 60 });
+    const attack = new AttackNode('attack', { target: 'current_target' });
+
+    expect(reselect.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(alive);
+
+    expect(inRange.tick(ctx)).toBe(NodeStatus.Success);
+
+    expect(attack.tick(ctx)).toBe(NodeStatus.Success);
+    if (UnitTag.isEnemy[soldier] !== 1 && Tower.towerType[soldier] === undefined) {
+      expect(Health.current[alive]).toBe(75);
+    } else {
+      expect(Attack.targetId[soldier]).toBe(alive);
+    }
+  });
+
+  it('current_target 死亡 + 范围内无候选 → reselect FAILURE，COMBAT 分支断开（不进 attack）', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 100, max: 100 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, Attack, { damage: 25, attackSpeed: 1, range: 60, damageType: 0, isRanged: 0, cooldownTimer: 0 });
+
+    const dead = addEntity(w);
+    addComp(w, dead, Position, { x: 110, y: 100 });
+    addComp(w, dead, Health, { current: 0, max: 80 });
+    addComp(w, dead, UnitTag, { isEnemy: 1 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', dead);
+
+    const ctx = makeContext(world, soldier, 0.1, bb);
+    const reselect = new OnTargetDeadReselectNode('on_target_dead_reselect', { range: 80, set_target: true });
+
+    expect(reselect.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+});

@@ -88,6 +88,8 @@
 3. **范围继承**: 节点 params 中以 `${var}` 引用单位配置字段（如 `${attack_range}`、`${alert_range}`、`${move_range}`），实现侧必须支持此模板插值。
 4. **远程兵 alert/attack 半径抖动防护**: 当 `alert_range ≤ attack_range × 1.2` 时，`move_towards` 节点的 `arrive_dist` 自动改为 `attack_range × 0.9`，确保进入射程后停下而非贴脸。
 5. **超界保护**: 所有 `move_towards` 必须传 `max_range`（士兵传 `${move_range}`，敌人传 `Infinity`）。超界时返回 FAILURE，触发上层 selector 转入 RETURN。
+6. **节点适用阵营约束**: `on_target_dead_reselect` 当前实现仅作用于我方单位（`UnitTag.isEnemy=0`）——节点内部搜索 `isEnemy=1` 的敌人作为重选候选。**敌人 AI 不应使用此节点**，敌人的目标重选由 `check_enemy_in_range` 每帧重搜兜底（敌人攻击模型不依赖 `current_target` 持久化）。若未来需要敌人版重选，应新增 `on_target_dead_reselect_enemy` 或为节点增加 `target_faction` 参数。
+7. **`attack` 节点 target 解析**: `target` 参数支持 4 种取值：`"self.target"`（读 `Attack.targetId[eid]`）/ `"current_target"`（读 `blackboard.current_target`）/ `"nearest_enemy"`（读 `blackboard.found_enemies[0]` 或回退到 `findNearestEnemy`）/ 直接传 entity id。士兵 COMBAT 分支统一使用 `"current_target"` 以保证 §0.6 #1 目标稳定性。
 
 ### 0.7 节点实现进度表
 
