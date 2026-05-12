@@ -38,3 +38,4 @@ tmp/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+.tmp-debug
