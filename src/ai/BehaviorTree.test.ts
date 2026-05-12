@@ -10,7 +10,7 @@
  * - ProduceResourceNode（资源生产）
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createWorld, addEntity, addComponent } from 'bitecs';
+import { createWorld, addEntity, addComponent, defineQuery } from 'bitecs';
 import type { World as BitecsWorld } from 'bitecs';
 import {
   Position,
@@ -25,6 +25,9 @@ import {
   PlayerOwned,
   Layer,
   LayerVal,
+  Bomb,
+  Faction,
+  FactionVal,
 } from '../core/components.js';
 import {
   AttackNode,
@@ -47,6 +50,7 @@ import {
   TriggerTrapNode,
   IgnoreInvulnerableNode,
   OnTargetDeadReselectNode,
+  DropBombNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -1404,5 +1408,133 @@ describe('士兵 COMBAT 同帧 reselect + attack（design/24 §6 集成）', () 
 
     expect(reselect.tick(ctx)).toBe(NodeStatus.Failure);
     expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+});
+
+describe('DropBombNode（重力炸弹投放）', () => {
+  function makeRealWorld(): TowerWorld {
+    return new TowerWorld();
+  }
+
+  it('无 current_target → FAILURE，不生成炸弹', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 200, y: 100 });
+    addComp(w, balloon, Faction, { value: FactionVal.Enemy });
+
+    const ctx = makeContext(world, balloon);
+    const node = new DropBombNode('drop_bomb', { damage: 50, radius: 60, cd: 3 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('首次 tick 立即触发 → SUCCESS（对齐气球出生即投弹的旧行为）', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 200, y: 100 });
+    addComp(w, balloon, Faction, { value: FactionVal.Enemy });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 200, y: 500 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, balloon, 0.1, bb);
+    const node = new DropBombNode('drop_bomb', { damage: 50, radius: 60, cd: 3 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('CD 到 + 有目标 → SUCCESS，生成带 Bomb 组件的实体', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 200, y: 100 });
+    addComp(w, balloon, Faction, { value: FactionVal.Enemy });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 220, y: 480 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, balloon, 5.0, bb);
+    const node = new DropBombNode('drop_bomb', {
+      damage: 50,
+      radius: 60,
+      cd: 3,
+      fall_speed: 250,
+    });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const bombs = defineQuery([Bomb])(w);
+    expect(bombs.length).toBe(1);
+    const bombId = bombs[0]!;
+    expect(Position.x[bombId]).toBe(200);
+    expect(Position.y[bombId]).toBe(100);
+    expect(Bomb.targetY[bombId]).toBe(480);
+    expect(Bomb.radius[bombId]).toBe(60);
+    expect(Bomb.fallSpeed[bombId]).toBe(250);
+    expect(Bomb.ownerFaction[bombId]).toBe(FactionVal.Enemy);
+  });
+
+  it('SUCCESS 后再次 tick（dt 不足 cd）→ FAILURE（CD 隔离）', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 200, y: 100 });
+    addComp(w, balloon, Faction, { value: FactionVal.Enemy });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 220, y: 480 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, balloon, 5.0, bb);
+    const node = new DropBombNode('drop_bomb', { damage: 50, radius: 60, cd: 3 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const ctx2 = makeContext(world, balloon, 1.0, bb);
+    expect(node.tick(ctx2)).toBe(NodeStatus.Failure);
+  });
+
+  it('无 Faction 组件 → 默认 ownerFaction=Enemy（气球当前数据兼容）', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 100, y: 80 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 100, y: 500 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, balloon, 5.0, bb);
+    const node = new DropBombNode('drop_bomb', { damage: 30, radius: 40, cd: 2 });
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    const bombs = defineQuery([Bomb])(w);
+    expect(bombs.length).toBeGreaterThan(0);
+    const newest = bombs[bombs.length - 1]!;
+    expect(Bomb.ownerFaction[newest]).toBe(FactionVal.Enemy);
+  });
+
+  it('节点 ID 隔离 — 不同 nodeId 的 CD 独立计时', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const balloon = addEntity(w);
+    addComp(w, balloon, Position, { x: 200, y: 100 });
+    addComp(w, balloon, Faction, { value: FactionVal.Enemy });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 220, y: 480 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, balloon, 5.0, bb);
+    const nodeA = new DropBombNode('drop_bomb_A', { damage: 50, radius: 60, cd: 3 });
+    const nodeB = new DropBombNode('drop_bomb_B', { damage: 70, radius: 80, cd: 3 });
+
+    expect(nodeA.tick(ctx)).toBe(NodeStatus.Success);
+    expect(nodeB.tick(ctx)).toBe(NodeStatus.Success);
   });
 });

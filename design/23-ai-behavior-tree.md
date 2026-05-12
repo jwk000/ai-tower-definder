@@ -78,7 +78,7 @@
 | `trigger_trap` | `damage: float`, `radius: float`, `cd: float` | — | `Cooldown` | CD 未到 → FAILURE；触发后 → SUCCESS |
 | `on_target_dead_reselect` | `range: float`, `set_target: bool=true` | `current_target` | `current_target`(新目标) | 当前目标存活 → SUCCESS；目标死亡且能选到新目标 → SUCCESS；选不到 → FAILURE |
 | `boid_step` | `cohesion/separation/alignment/wanderJitter` 权重 | `boid_velocity` | 同左 | 每帧 RUNNING（boid 物理） |
-| `drop_bomb` | `damage: float`, `radius: float`, `falloff: float` | `current_target` | — | 调用 BombSystem，CD 未到 → FAILURE；否则 SUCCESS |
+| `drop_bomb` | `damage: float`, `radius: float`, `cd: float`, `fall_speed: float=300`（`falloff` 暂未实现） | `current_target` | — | 调 spawnBomb（BombSystem），首次 tick 立即触发对齐气球出生即投弹；CD 未到 → FAILURE；CD 到 + 有目标 → spawnBomb + SUCCESS。ownerFaction 自动从 Faction 组件读，无 Faction 默认 Enemy |
 | `aura_buff` | `buff_id: string`, `range: float`, `faction: enum` | — | 范围内单位 `BuffStack` | 应用 Buff，永远 SUCCESS |
 
 ### 0.6 全局约定
@@ -108,7 +108,8 @@
 | `trigger_trap` | ✅ 已实现（批 3） | — |
 | `ignore_invulnerable` | ✅ 已实现（批 3，依赖 blackboard.invulnerable_set） | invulnerable 数据源待 BuffSystem 提供 |
 | `check_layer` / `check_weather` | ✅ 已实现（b4de1e0） | — |
-| `boid_step` / `drop_bomb` / `aura_buff` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
+| `drop_bomb` | ✅ 已实现（P2 R1，依赖 BombSystem） | falloff 衰减留 P3 优化 |
+| `boid_step` / `aura_buff` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
 > Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
 

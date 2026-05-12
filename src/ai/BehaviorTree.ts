@@ -1,4 +1,5 @@
 import { NodeStatus, type BTNodeConfig, type BehaviorTreeConfig } from '../types/index.js';
+import { hasComponent } from 'bitecs';
 import type { TowerWorld } from '../core/World.js';
 import { getGlobalRandom } from '../utils/Random.js';
 import {
@@ -14,10 +15,13 @@ import {
   AlertMark,
   AlertMarkVal,
   Layer,
+  Faction,
+  FactionVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
   friendlyFighterQuery,
 } from '../core/components.js';
+import { spawnBomb } from '../systems/BombSystem.js';
 
 // ============================================================
 // Query helpers for leaf nodes — find entities in the world
@@ -846,6 +850,67 @@ export class OnTargetDeadReselectNode extends ActionNode {
   }
 }
 
+/**
+ * DropBombNode — 投放重力炸弹（气球/未来塔投弹）
+ *
+ * 节点规格（design/23 §0.5 line 81）：
+ *   params: damage / radius / cd / fall_speed?
+ *   blackboard 输入: current_target（必需，用其 Position.y 作为引爆高度）
+ *   blackboard 输出: 无（CD 状态用 __n${nodeId}_cd_* 隔离）
+ *
+ * 返回语义：
+ *   - 无 current_target 或目标无 Position → FAILURE
+ *   - CD 未到 → FAILURE
+ *   - CD 到 + 有目标 → spawnBomb + SUCCESS（重置 CD）
+ *
+ * ownerFaction 自动从执行者的 Faction 组件读；无 Faction 默认 Enemy（兼容气球当前数据）。
+ *
+ * 注：design/23 §0.5 还列了 `falloff: float`，当前 BombSystem 半径内统一伤害，
+ * falloff 未实现，参数若传入会被忽略。等 P3 优化（21 数值表当前无衰减需求）。
+ */
+export class DropBombNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const eid = context.entityId;
+    const px = Position.x[eid];
+    const py = Position.y[eid];
+    if (px === undefined || py === undefined) return NodeStatus.Failure;
+
+    const target = context.blackboard.get('current_target') as number | undefined;
+    if (target === undefined) return NodeStatus.Failure;
+    const ty = Position.y[target];
+    if (ty === undefined) return NodeStatus.Failure;
+
+    const cd = this.getParam<number>('cd', context, 3.0);
+    const cdRemainingKey = `__n${this.nodeId}_cd_remaining`;
+    const cdRemaining = ((context.blackboard.get(cdRemainingKey) as number | undefined) ?? 0) - context.dt;
+    if (cdRemaining > 0) {
+      context.blackboard.set(cdRemainingKey, cdRemaining);
+      return NodeStatus.Failure;
+    }
+
+    const damage = this.getParam<number>('damage', context, 50);
+    const radius = this.getParam<number>('radius', context, 60);
+    const fallSpeed = this.getParam<number>('fall_speed', context, 300);
+
+    const ownerFaction = hasComponent(context.world.world, Faction, eid)
+      ? (Faction.value[eid] as number)
+      : FactionVal.Enemy;
+
+    spawnBomb(context.world, {
+      fromX: px,
+      fromY: py,
+      targetY: ty,
+      damage,
+      radius,
+      ownerFaction,
+      fallSpeed,
+    });
+
+    context.blackboard.set(cdRemainingKey, cd);
+    return NodeStatus.Success;
+  }
+}
+
 /** 等待动作 */
 export class WaitNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
@@ -1076,6 +1141,8 @@ export class BehaviorTree {
         return new TriggerTrapNode(type, params);
       case 'on_target_dead_reselect':
         return new OnTargetDeadReselectNode(type, params);
+      case 'drop_bomb':
+        return new DropBombNode(type, params);
       case 'ignore_invulnerable':
         return new IgnoreInvulnerableNode(type, childNodes[0]!, params);
 
