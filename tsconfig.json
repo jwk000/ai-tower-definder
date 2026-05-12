@@ -17,18 +17,17 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@core/*": ["src/core/*"],
-      "@components/*": ["src/components/*"],
-      "@systems/*": ["src/systems/*"],
-      "@data/*": ["src/data/*"],
-      "@ui/*": ["src/ui/*"],
-      "@render/*": ["src/render/*"],
-      "@input/*": ["src/input/*"],
-      "@utils/*": ["src/utils/*"],
-      "@types/*": ["src/types/*"]
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@components/*": ["./src/components/*"],
+      "@systems/*": ["./src/systems/*"],
+      "@data/*": ["./src/data/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@render/*": ["./src/render/*"],
+      "@input/*": ["./src/input/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@types/*": ["./src/types/*"]
     }
   },
   "include": ["src"]
