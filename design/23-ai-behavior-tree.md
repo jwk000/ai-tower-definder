@@ -80,6 +80,11 @@
 | `boid_step` | `cohesion/separation/alignment/wanderJitter` 权重 | `boid_velocity` | 同左 | 每帧 RUNNING（boid 物理） |
 | `drop_bomb` | `damage: float`, `radius: float`, `cd: float`, `fall_speed: float=300`（`falloff` 暂未实现） | `current_target` | — | 调 spawnBomb（BombSystem），首次 tick 立即触发对齐气球出生即投弹；CD 未到 → FAILURE；CD 到 + 有目标 → spawnBomb + SUCCESS。ownerFaction 自动从 Faction 组件读，无 Faction 默认 Enemy |
 | `aura_buff` | `buff_id: string`, `attribute: string='speed'`, `value: float`, `is_percent: bool=false`, `range: float`, `target_faction: enum='ally'`(ally/enemy/all), `duration: float=0.5` | — | 范围内符合阵营单位调 BuffSystem.addBuff（每帧 refresh duration） | 范围内有目标 → SUCCESS；无目标 → FAILURE。停止 tick 后 buff 自然衰减。faction 判断：有 Faction 组件取其值，否则按 UnitTag.isEnemy 兜底 |
+| `select_missile_target` | — | — | `current_target_pos: {x,y,row,col}`, `current_target_score: float`, `current_target_enemy_count: int` | 调 evaluateMissileTarget 用地格评分（dist 0.35 + density 0.45 + tier 0.20）选最佳目标格；找到 → 写黑板 + SUCCESS；无目标 → 清黑板 + FAILURE。地格位置是「网格中心像素坐标」而非具体敌人 entity。已自动过滤飞行敌人（missileCfg.cantTargetFlying）和射程外格子（Attack.range[tower]） |
+| `charge_attack` | `charge_time: float=0.6` | `current_target_pos` | 维护 MissileCharge 组件（chargeElapsed/chargeTime/targetX/targetY/markEntityId） | 首次进入：无黑板目标 → FAILURE；spawn TargetingMark entity + 添加 MissileCharge 组件 → RUNNING。继续 tick：chargeElapsed += dt，未满 → RUNNING；满 → SUCCESS（保留 MissileCharge 等 launch 节点消费）。注：MissileCharge 组件被 RenderSystem 用于渲染蓄力期红色脉动光效，故 charge 状态必须落到 ECS 而非纯 blackboard |
+| `launch_missile_projectile` | — | — | 移除 MissileCharge 组件 + spawn missile projectile + 重置 Attack.cooldownTimer + 播 sound | 读 MissileCharge.targetX/Y/markEntityId（charge_attack 节点写的）→ spawnMissileProjectile（抛物线飞行 + AOE 由 ProjectileSystem 接管）+ Sound.play('tower_missile')；返回 SUCCESS。无 MissileCharge → FAILURE。AOE 130px / L5 中心 10% ×1.2 / 不命中飞行敌等行为仍在 ProjectileSystem.applySplash |
+
+> **三节点协作模式**: missile 行为按 `select → charge → launch` 三段拆分，每节点单一职责。`charge_attack` 用 MissileCharge ECS 组件作为「BT ↔ RenderSystem 通信总线」，与 `drop_bomb` 用 BombSystem、`aura_buff` 用 BuffSystem 的副作用模式一致（节点持有语义，专用系统执行渲染/物理副作用）。
 
 ### 0.6 全局约定
 
@@ -110,6 +115,7 @@
 | `check_layer` / `check_weather` | ✅ 已实现（b4de1e0） | — |
 | `drop_bomb` | ✅ 已实现（P2 R1，依赖 BombSystem） | falloff 衰减留 P3 优化 |
 | `aura_buff` | ✅ 已实现（P2 R2，依赖 BuffSystem.addBuff + getEffectiveValue） | 替代 ShamanSystem.auraTargets 直改 Movement.speed 的旧实现 |
+| `select_missile_target` / `charge_attack` / `launch_missile_projectile` | ⏳ P3 R2-R4 实装中 | 三节点协作完成 TOWER_MISSILE_AI 0.1-stub → v1.0 升级；select 包装 evaluateMissileTarget，charge 维护 MissileCharge 组件（RenderSystem 依赖），launch 包装 spawnMissileProjectile |
 | `boid_step` | ⏳ 未实现 | Phase 3（特殊单位迁移时再做） |
 
 > Phase 4 节点已全部落地（Q1-Q3 批 1/1.5/2/3）。架构关键修复：节点级状态（RepeaterNode 计数 / CooldownNode CD / OnceNode fired）已迁移到 blackboard，按 nodeId 隔离，解决多实体共享 BT 实例时的状态串扰（aad2237）。`ignore_invulnerable` 通过约定 `blackboard.invulnerable_set: Set<number>` 实现，等待 BuffSystem 维护该集合；`check_cooldown` 留作 stub，等到 SkillSystem 与 BT 进一步联动时接入。
@@ -121,7 +127,7 @@
 | `tower_basic` / `tower_cannon` / `tower_ice` / `tower_lightning` / `tower_laser` / `tower_bat` | ✅ v1.0 | 基础塔 BT 全套已实现 |
 | `tower_vine` | ✅ v1.0（P2 R3） | BT 选目标 + 攻击触发；ProjectileSystem 处理 DOT 持续伤害周期 |
 | `tower_ballista` | ✅ v1.0（P2 R3） | BT 选最远目标 + 攻击触发；AttackSystem 处理弹道穿透 |
-| `tower_missile` | ⚠️ 0.1-stub | 蓄力 / 抛物线 / 冲击波逻辑复杂，留 P3（依赖 MissileTargeting helper 抽象为 BT 节点） |
+| `tower_missile` | 🔄 P3 进行中 | 三节点接口已冻结（§0.5）：select_missile_target / charge_attack / launch_missile_projectile；R2-R4 分批实装，目标 v1.0 |
 | `enemy_basic` / `enemy_ranged` / `enemy_boss` | ✅ v1.0 | 基础敌人 BT 全套已实现 |
 | `enemy_shaman` | ✅ v1.0（P2 R3） | move_to + aura_buff 节点；治疗逻辑仍在 ShamanSystem 接管（涉及 boss 半治疗 / 视觉 flash，留 P3） |
 | `enemy_balloon` | ✅ v1.0（P2 R3） | 仅 move_to；drop_bomb 因「正下方建筑」目标选择无对应 BT 节点，HotAirBalloonSystem 继续接管，待 P3 引入 select_building_below 节点后再迁移 |
@@ -147,7 +153,7 @@
 | ② | **UnitSystem 硬编码 AI** — 士兵的攻击选目标、追击移动全部在 `UnitSystem.ts` 中硬编码，与 `AISystem` 行为树并行运行（已修复） | ✅ 已修 |
 | ③ | **缺少 `move_towards` BT 节点** — 士兵 AI 配置引用的 `move_towards` 节点未实现，静默降级为 0.1s Wait（已修复） | ✅ 已修 |
 | ④ | **BuildSystem 陷阱/建筑无 AI 组件** — `createTrapEntity` / `createProductionEntity` 不挂载 AI 组件（已修复） | ✅ 已修 |
-| ⑤ | **缺少 4 套 AI 配置** — `tower_vine`, `tower_ballista`, `enemy_shaman`, `enemy_balloon` 已升 v1.0（P2 R3）；`tower_missile` 复杂蓄力/抛物线逻辑保 stub 待 P3 | ✅ 4/5 已修 |
+| ⑤ | **缺少 4 套 AI 配置** — `tower_vine`, `tower_ballista`, `enemy_shaman`, `enemy_balloon` 已升 v1.0（P2 R3）；`tower_missile` P3 三节点接口已冻结（§0.5），R2-R4 分批实装中 | 🔄 4/5 已修 + P3 进行中 |
 | ⑥ | **6 个系统完全绕过行为树** — `BatSwarmSystem`, `ShamanSystem`, `HotAirBalloonSystem`, `TrapSystem`, `HealingSystem`, `ProductionSystem` 全部硬编码 AI 逻辑 | 🟡 P1 |
 | ⑦ | **AttackSystem / EnemyAttackSystem 覆盖 BT** — 塔和敌人的行为树 `attack` 节点是死代码，因为 AttackSystem 在同一帧内独立处理了所有攻击逻辑 | 🟡 P1 |
 | ⑧ | **行为树多个节点未实现** — `parallel`, `repeater`, `cooldown`, `use_skill`, `heal`, `check_ally_in_range`, `produce_resource`, `check_cooldown` 均为存根或降级 | 🟢 P2 |
