@@ -140,6 +140,36 @@ export class SelectorNode extends CompositeNode {
   }
 }
 
+export class ParallelNode extends CompositeNode {
+  tick(context: AIContext): NodeStatus {
+    const successPolicy = (this.params['successPolicy'] as string) ?? 'requireAll';
+    const failurePolicy = (this.params['failurePolicy'] as string) ?? 'requireOne';
+
+    let successCount = 0;
+    let failureCount = 0;
+    let runningCount = 0;
+
+    for (const child of this.children) {
+      const status = child.tick(context);
+      if (status === NodeStatus.Success) successCount++;
+      else if (status === NodeStatus.Failure) failureCount++;
+      else runningCount++;
+    }
+
+    const failed = failurePolicy === 'requireOne'
+      ? failureCount >= 1
+      : failureCount >= this.children.length;
+    if (failed) return NodeStatus.Failure;
+
+    const succeeded = successPolicy === 'requireOne'
+      ? successCount >= 1
+      : successCount >= this.children.length;
+    if (succeeded) return NodeStatus.Success;
+
+    return runningCount > 0 ? NodeStatus.Running : NodeStatus.Failure;
+  }
+}
+
 // ============================================================
 // 装饰节点
 // ============================================================
@@ -159,6 +189,75 @@ export class InverterNode extends DecoratorNode {
     const status = this.child.tick(context);
     if (status === NodeStatus.Success) return NodeStatus.Failure;
     if (status === NodeStatus.Failure) return NodeStatus.Success;
+    return status;
+  }
+}
+
+export class RepeaterNode extends DecoratorNode {
+  private iterations = 0;
+
+  tick(context: AIContext): NodeStatus {
+    const count = (this.params['count'] as number) ?? -1;
+
+    const status = this.child.tick(context);
+    if (status === NodeStatus.Running) return NodeStatus.Running;
+    if (status === NodeStatus.Failure) {
+      this.iterations = 0;
+      return NodeStatus.Failure;
+    }
+
+    this.iterations++;
+    if (count >= 0 && this.iterations >= count) {
+      this.iterations = 0;
+      return NodeStatus.Success;
+    }
+    return NodeStatus.Running;
+  }
+}
+
+export class UntilFailNode extends DecoratorNode {
+  tick(context: AIContext): NodeStatus {
+    const status = this.child.tick(context);
+    if (status === NodeStatus.Failure) return NodeStatus.Success;
+    return NodeStatus.Running;
+  }
+}
+
+export class AlwaysSucceedNode extends DecoratorNode {
+  tick(context: AIContext): NodeStatus {
+    const status = this.child.tick(context);
+    if (status === NodeStatus.Running) return NodeStatus.Running;
+    return NodeStatus.Success;
+  }
+}
+
+export class CooldownNode extends DecoratorNode {
+  private lastSuccessTime = -Infinity;
+  private elapsed = 0;
+
+  tick(context: AIContext): NodeStatus {
+    this.elapsed += context.dt;
+    const seconds = (this.params['seconds'] as number) ?? 0;
+    if (this.elapsed - this.lastSuccessTime < seconds) {
+      return NodeStatus.Failure;
+    }
+    const status = this.child.tick(context);
+    if (status === NodeStatus.Success) {
+      this.lastSuccessTime = this.elapsed;
+    }
+    return status;
+  }
+}
+
+export class OnceNode extends DecoratorNode {
+  private fired = false;
+
+  tick(context: AIContext): NodeStatus {
+    if (this.fired) return NodeStatus.Failure;
+    const status = this.child.tick(context);
+    if (status === NodeStatus.Success) {
+      this.fired = true;
+    }
     return status;
   }
 }
@@ -748,24 +847,21 @@ export class BehaviorTree {
       case 'selector':
         return new SelectorNode(type, childNodes, params);
       case 'parallel':
-        // TODO: implement parallel node
-        return new SequenceNode(type, childNodes, params);
+        return new ParallelNode(type, childNodes, params);
 
       // Decorator nodes
       case 'inverter':
         return new InverterNode(type, childNodes[0]!, params);
       case 'repeater':
-        // TODO: implement repeater node
-        return childNodes[0] ?? new WaitNode(type, params);
+        return new RepeaterNode(type, childNodes[0]!, params);
       case 'until_fail':
-        // TODO: implement until fail node
-        return childNodes[0] ?? new WaitNode(type, params);
+        return new UntilFailNode(type, childNodes[0]!, params);
       case 'always_succeed':
-        // TODO: implement always succeed node
-        return childNodes[0] ?? new WaitNode(type, params);
+        return new AlwaysSucceedNode(type, childNodes[0]!, params);
       case 'cooldown':
-        // TODO: implement cooldown node
-        return childNodes[0] ?? new WaitNode(type, params);
+        return new CooldownNode(type, childNodes[0]!, params);
+      case 'once':
+        return new OnceNode(type, childNodes[0]!, params);
 
       // Condition nodes
       case 'check_hp':

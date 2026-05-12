@@ -31,6 +31,13 @@ import {
   CheckAllyInRangeNode,
   HealNode,
   ProduceResourceNode,
+  ParallelNode,
+  RepeaterNode,
+  UntilFailNode,
+  AlwaysSucceedNode,
+  CooldownNode,
+  OnceNode,
+  BTNode,
   type AIContext,
 } from './BehaviorTree.js';
 import { NodeStatus } from '../types/index.js';
@@ -515,5 +522,244 @@ describe('ProduceResourceNode（资源生产）', () => {
 
     // bitecs 默认值为 0，accumulator 不增长，节点无害通过
     expect(status).toBe(NodeStatus.Success);
+  });
+});
+
+// ============================================================
+// Phase 4 批 1: 装饰节点 / Parallel
+// ============================================================
+
+/** Stub 子节点：按预设脚本返回状态，用于隔离测试装饰节点 */
+class StubNode extends BTNode {
+  public ticks = 0;
+  constructor(private readonly script: NodeStatus[] | NodeStatus) {
+    super('stub', {});
+  }
+  override tick(_context: AIContext): NodeStatus {
+    this.ticks++;
+    if (Array.isArray(this.script)) {
+      const idx = Math.min(this.ticks - 1, this.script.length - 1);
+      return this.script[idx]!;
+    }
+    return this.script;
+  }
+}
+
+function emptyCtx(dt = 0.1): AIContext {
+  const world = makeWorld();
+  return makeContext(world, addEntity(world.world), dt);
+}
+
+describe('ParallelNode（并行节点）', () => {
+  it('requireAll/requireOne — 全部 SUCCESS 才返回 SUCCESS', () => {
+    const a = new StubNode(NodeStatus.Success);
+    const b = new StubNode(NodeStatus.Success);
+    const node = new ParallelNode('parallel', [a, b], {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Success);
+    expect(a.ticks).toBe(1);
+    expect(b.ticks).toBe(1);
+  });
+
+  it('默认策略下任一 FAILURE 即 FAILURE', () => {
+    const a = new StubNode(NodeStatus.Success);
+    const b = new StubNode(NodeStatus.Failure);
+    const node = new ParallelNode('parallel', [a, b], {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Failure);
+    expect(a.ticks).toBe(1);
+    expect(b.ticks).toBe(1);
+  });
+
+  it('successPolicy=requireOne — 任一 SUCCESS 即 SUCCESS', () => {
+    const a = new StubNode(NodeStatus.Failure);
+    const b = new StubNode(NodeStatus.Success);
+    const node = new ParallelNode('parallel', [a, b], {
+      successPolicy: 'requireOne',
+      failurePolicy: 'requireAll',
+    });
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Success);
+  });
+
+  it('failurePolicy=requireAll — 全部失败才失败', () => {
+    const a = new StubNode(NodeStatus.Failure);
+    const b = new StubNode(NodeStatus.Running);
+    const node = new ParallelNode('parallel', [a, b], {
+      successPolicy: 'requireAll',
+      failurePolicy: 'requireAll',
+    });
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Running);
+  });
+
+  it('有 RUNNING 且未达成 success/failure — 返回 RUNNING', () => {
+    const a = new StubNode(NodeStatus.Success);
+    const b = new StubNode(NodeStatus.Running);
+    const node = new ParallelNode('parallel', [a, b], {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Running);
+  });
+});
+
+describe('RepeaterNode（重复节点）', () => {
+  it('count=3 — 3 次 SUCCESS 后返回 SUCCESS', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new RepeaterNode('repeater', child, { count: 3 });
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(child.ticks).toBe(3);
+  });
+
+  it('count=-1 — 无限重复，永远 RUNNING', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new RepeaterNode('repeater', child, { count: -1 });
+    const ctx = emptyCtx();
+    for (let i = 0; i < 20; i++) {
+      expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    }
+    expect(child.ticks).toBe(20);
+  });
+
+  it('子节点 FAILURE — 立即 FAILURE 并重置计数', () => {
+    const child = new StubNode([NodeStatus.Success, NodeStatus.Failure, NodeStatus.Success]);
+    const node = new RepeaterNode('repeater', child, { count: 5 });
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+  });
+
+  it('子节点 RUNNING — 透传 RUNNING 不计入次数', () => {
+    const child = new StubNode([
+      NodeStatus.Running,
+      NodeStatus.Success,
+      NodeStatus.Success,
+    ]);
+    const node = new RepeaterNode('repeater', child, { count: 2 });
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+});
+
+describe('UntilFailNode', () => {
+  it('子节点 SUCCESS — 返回 RUNNING（继续 loop）', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new UntilFailNode('until_fail', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Running);
+  });
+
+  it('子节点 FAILURE — 返回 SUCCESS（终结）', () => {
+    const child = new StubNode(NodeStatus.Failure);
+    const node = new UntilFailNode('until_fail', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Success);
+  });
+
+  it('子节点 RUNNING — 返回 RUNNING', () => {
+    const child = new StubNode(NodeStatus.Running);
+    const node = new UntilFailNode('until_fail', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Running);
+  });
+});
+
+describe('AlwaysSucceedNode', () => {
+  it('子节点 SUCCESS — 返回 SUCCESS', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new AlwaysSucceedNode('always_succeed', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Success);
+  });
+
+  it('子节点 FAILURE — 转为 SUCCESS', () => {
+    const child = new StubNode(NodeStatus.Failure);
+    const node = new AlwaysSucceedNode('always_succeed', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Success);
+  });
+
+  it('子节点 RUNNING — 透传 RUNNING', () => {
+    const child = new StubNode(NodeStatus.Running);
+    const node = new AlwaysSucceedNode('always_succeed', child, {});
+    expect(node.tick(emptyCtx())).toBe(NodeStatus.Running);
+  });
+});
+
+describe('CooldownNode', () => {
+  it('seconds=1.0 — SUCCESS 后 CD 内返回 FAILURE，CD 后再次执行', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new CooldownNode('cooldown', child, { seconds: 1.0 });
+    const ctx = emptyCtx(0.3); // dt=0.3
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success); // elapsed=0.3
+    expect(child.ticks).toBe(1);
+
+    // CD 内：elapsed 0.6 → 0.9，距离上次成功 0.3 → 0.6，<1.0
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure); // elapsed=0.6, gap=0.3
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure); // elapsed=0.9, gap=0.6
+    expect(child.ticks).toBe(1); // 子节点未被 tick
+
+    // 第 4 次：elapsed=1.2, gap=0.9 仍 <1.0 → FAILURE
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure); // elapsed=1.2, gap=0.9
+    // 第 5 次：elapsed=1.5, gap=1.2 ≥1.0 → 重新放行
+    expect(node.tick(ctx)).toBe(NodeStatus.Success); // elapsed=1.5
+    expect(child.ticks).toBe(2);
+  });
+
+  it('seconds=0 — 永远放行', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new CooldownNode('cooldown', child, { seconds: 0 });
+    const ctx = emptyCtx(0.1);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(child.ticks).toBe(3);
+  });
+
+  it('子节点 FAILURE — 不计入 CD（仅 SUCCESS 才设置 lastSuccessTime）', () => {
+    const child = new StubNode([
+      NodeStatus.Failure,
+      NodeStatus.Failure,
+      NodeStatus.Success,
+    ]);
+    const node = new CooldownNode('cooldown', child, { seconds: 1.0 });
+    const ctx = emptyCtx(0.5);
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure); // elapsed=0.5，child failure
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure); // elapsed=1.0，child failure
+    expect(node.tick(ctx)).toBe(NodeStatus.Success); // elapsed=1.5，child success
+    expect(child.ticks).toBe(3);
+  });
+});
+
+describe('OnceNode', () => {
+  it('首次 SUCCESS 后永远返回 FAILURE', () => {
+    const child = new StubNode(NodeStatus.Success);
+    const node = new OnceNode('once', child, {});
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(child.ticks).toBe(1);
+  });
+
+  it('子节点 FAILURE — 透传，状态不锁定', () => {
+    const child = new StubNode([
+      NodeStatus.Failure,
+      NodeStatus.Failure,
+      NodeStatus.Success,
+      NodeStatus.Success,
+    ]);
+    const node = new OnceNode('once', child, {});
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('子节点 RUNNING — 透传，状态不锁定', () => {
+    const child = new StubNode([NodeStatus.Running, NodeStatus.Success]);
+    const node = new OnceNode('once', child, {});
+    const ctx = emptyCtx();
+    expect(node.tick(ctx)).toBe(NodeStatus.Running);
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
   });
 });
