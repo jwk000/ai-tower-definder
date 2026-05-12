@@ -437,6 +437,18 @@ export class BuildSystem implements System {
       idlePhase: 0,
     });
 
+    // UnitTag — AISystem 查询需要（统一冷却 tick 依赖此组件，与 trap/production 一致）
+    world.addComponent(eid, UnitTag, {
+      isEnemy: 0,
+      isBoss: 0,
+      isRanged: 1,
+      canAttackBuildings: 0,
+      rewardGold: 0,
+      rewardEnergy: 0,
+      popCost: 0,
+      cost: config.cost,
+    });
+
     // AI
     const aiId = AI_CONFIG_ID[this.getTowerAIConfigId(tt)] ?? 0;
     world.addComponent(eid, AI, {
