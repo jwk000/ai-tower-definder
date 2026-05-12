@@ -43,6 +43,56 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
+### UI 死区规范（P2-#20 修复 v1.1）
+
+> **旧版问题**：旧代码 `main.ts` 中"x < 160 / y < 60 不路由建造点击"硬编码在事件分发处，新增 UI 区域时容易遗漏。需要规范化为 UI 区域配置。
+
+#### UI 死区 = 玩家点击不应触发地图建造的区域
+
+死区由 UI 区域的实际位置和尺寸**动态计算**，不允许硬编码：
+
+```typescript
+interface UIDeadZone {
+  region: string;          // 区域名（如 'top_hud', 'bottom_panel'）
+  hitTest: (x: number, y: number) => boolean;  // 命中测试
+}
+
+const UI_DEAD_ZONES: UIDeadZone[] = [
+  {
+    region: 'top_hud',
+    hitTest: (x, y) => y < LayoutManager.scaleY(HUD_HEIGHT),  // 默认 HUD_HEIGHT=60
+  },
+  {
+    region: 'bottom_panel',
+    hitTest: (x, y) => y > LayoutManager.viewportH - LayoutManager.scaleY(PANEL_HEIGHT),
+  },
+  {
+    region: 'tooltip_overlay',
+    hitTest: (x, y) => SelectedInfoPanel.contains(x, y),  // 选中信息面板动态判定
+  },
+  // 暂停菜单、结算面板等覆盖层自带"全屏死区"
+];
+
+function isInUIDeadZone(x: number, y: number): boolean {
+  return UI_DEAD_ZONES.some(zone => zone.hitTest(x, y));
+}
+```
+
+#### 事件分发流程
+
+```
+pointerDown(x, y)
+  → if (isInUIDeadZone(x, y)) → 由 UISystem 处理点击
+  → else → 由 BuildSystem / SelectSystem 处理（地图建造、单位选中等）
+```
+
+#### UI 死区的优先级
+
+1. 模态覆盖层（暂停菜单、胜利/失败面板）→ 100% 拦截所有点击
+2. 工具栏按钮（建造按钮、技能图标）→ 100% 拦截
+3. HUD（顶部金币/能量条等）→ 仅展示，拦截但不响应
+4. 信息面板（选中实体后弹出）→ 在其边界内拦截
+
 ### 区域划分与精确尺寸
 
 | 区域 | 内容 | 尺寸 | 位置 |

@@ -81,6 +81,59 @@ level_01:
         positions: random_empty_tiles
 ```
 
+### 2.3 随机种子与可复现性（P2-#16 修复 v1.1）
+
+> **设计目标**：随机初始化必须可复现，便于（1）测试 bug 复现；（2）玩家分享挑战种子；（3）速通竞速。
+
+#### 2.3.1 种子来源
+
+| 模式 | 种子规则 |
+|------|----------|
+| **关卡模式（首次进入）** | `seed = hash(levelId + difficultyMultiplier + Date.now())`，写入当前 run 的元数据 |
+| **关卡模式（重玩）** | UI 提供 "新种子" / "上次种子" 选项；默认新种子 |
+| **无尽模式** | 与关卡同；存档保留 `lastSeed` 和 `bestSeed` |
+| **每日挑战**（未来扩展） | `seed = hash(date + levelId)`，全球同种子 |
+
+#### 2.3.2 PRNG 实现要求
+
+- 必须使用**确定性 PRNG**（mulberry32 / xoshiro128++ / pcg32）
+- **禁止使用** `Math.random()` 在游戏逻辑中
+- PRNG 状态保存在 Game 实例中，不能全局共享（不同模块独立流）
+- Replay 系统（未来）只需保存 `seed` + 玩家操作序列，可完全复现
+
+```typescript
+// 实现示例
+class GameRandom {
+  private state: number;
+  constructor(seed: number) {
+    this.state = seed | 0;  // 确保 32-bit 整数
+  }
+  next(): number {                       // [0, 1)
+    let t = (this.state += 0x6D2B79F5) | 0;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  nextInt(min: number, max: number): number {  // [min, max)
+    return Math.floor(this.next() * (max - min)) + min;
+  }
+  pick<T>(arr: T[]): T {
+    return arr[this.nextInt(0, arr.length)];
+  }
+}
+```
+
+#### 2.3.3 多流隔离
+
+| 流 | 用途 | 种子派生 |
+|---|------|---------|
+| `mapRandom` | 地图/天气/禁用塔/中立单位 | `seed` |
+| `waveRandom` | 波次内敌人选择/特殊规则触发 | `seed ^ 0xWAVE` |
+| `dropRandom` | 击杀掉落/宝箱 | `seed ^ 0xDROP` |
+| `decorRandom` | 装饰物位置（纯视觉，可与逻辑分流） | `seed ^ 0xDECO` |
+
+> **理由**：玩家行为不应影响"未来同种子的同一波次敌人配置"。
+
 ---
 
 ## 3. 5个关卡
