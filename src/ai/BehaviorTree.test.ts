@@ -23,6 +23,8 @@ import {
   ResourceTypeVal,
   AI,
   PlayerOwned,
+  Layer,
+  LayerVal,
 } from '../core/components.js';
 import {
   AttackNode,
@@ -37,6 +39,10 @@ import {
   AlwaysSucceedNode,
   CooldownNode,
   OnceNode,
+  CheckCurrentTargetAliveNode,
+  CheckCurrentTargetInRangeNode,
+  CheckLayerNode,
+  CheckWeatherNode,
   BTNode,
   type AIContext,
 } from './BehaviorTree.js';
@@ -812,6 +818,192 @@ describe('OnceNode', () => {
     const ctx = emptyCtx();
     expect(node.tick(ctx)).toBe(NodeStatus.Running);
     expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('CheckCurrentTargetAliveNode', () => {
+  it('current_target 未设置 — FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    const node = new CheckCurrentTargetAliveNode('check_current_target_alive', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('target 存活 — SUCCESS', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    const target = addEntity(w);
+    addComp(w, target, Health, { current: 50, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetAliveNode('check_current_target_alive', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target')).toBe(target);
+  });
+
+  it('target 死亡 — FAILURE 并清除 current_target', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    const target = addEntity(w);
+    addComp(w, target, Health, { current: 0, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetAliveNode('check_current_target_alive', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+});
+
+describe('CheckCurrentTargetInRangeNode', () => {
+  it('target 在 range 内 — SUCCESS', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    addComp(w, self, Attack, { range: 50 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 130, y: 100 });
+    addComp(w, target, Health, { current: 50, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetInRangeNode('check_current_target_in_range', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('target 超出 range — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    addComp(w, self, Attack, { range: 20 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 200, y: 200 });
+    addComp(w, target, Health, { current: 50, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetInRangeNode('check_current_target_in_range', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('显式 range 参数覆盖 Attack.range', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    addComp(w, self, Attack, { range: 20 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 150, y: 100 });
+    addComp(w, target, Health, { current: 50, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetInRangeNode('check_current_target_in_range', { range: 100 });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('target 死亡 — FAILURE 并清除', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const self = addEntity(w);
+    addComp(w, self, Position, { x: 100, y: 100 });
+    addComp(w, self, Attack, { range: 100 });
+    const target = addEntity(w);
+    addComp(w, target, Position, { x: 110, y: 100 });
+    addComp(w, target, Health, { current: 0, max: 100 });
+
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', target);
+    const ctx = makeContext(world, self, 0.1, bb);
+    const node = new CheckCurrentTargetInRangeNode('check_current_target_in_range', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target')).toBe(false);
+  });
+});
+
+describe('CheckLayerNode', () => {
+  it('单值匹配 — SUCCESS', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Layer, { value: LayerVal.LowAir });
+    const ctx = makeContext(world, eid);
+    const node = new CheckLayerNode('check_layer', { layer: LayerVal.LowAir });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('单值不匹配 — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Layer, { value: LayerVal.Ground });
+    const ctx = makeContext(world, eid);
+    const node = new CheckLayerNode('check_layer', { layer: LayerVal.LowAir });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('数组匹配 — SUCCESS（命中任一即可）', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Layer, { value: LayerVal.LowAir });
+    const ctx = makeContext(world, eid);
+    const node = new CheckLayerNode('check_layer', { layer: [LayerVal.Ground, LayerVal.LowAir] });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('缺失 Layer 组件 — FAILURE', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    const ctx = makeContext(world, eid);
+    const node = new CheckLayerNode('check_layer', { layer: LayerVal.Ground });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+});
+
+describe('CheckWeatherNode', () => {
+  it('单值匹配 — SUCCESS', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx: AIContext = { ...makeContext(world, eid), getWeather: () => 'rain' };
+    const node = new CheckWeatherNode('check_weather', { weather: 'rain' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('单值不匹配 — FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx: AIContext = { ...makeContext(world, eid), getWeather: () => 'sunny' };
+    const node = new CheckWeatherNode('check_weather', { weather: 'rain' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+  });
+
+  it('数组匹配 — SUCCESS', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx: AIContext = { ...makeContext(world, eid), getWeather: () => 'fog' };
+    const node = new CheckWeatherNode('check_weather', { weather: ['fog', 'night'] });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+  });
+
+  it('缺失 getWeather provider — FAILURE', () => {
+    const world = makeWorld();
+    const eid = addEntity(world.world);
+    const ctx = makeContext(world, eid);
+    const node = new CheckWeatherNode('check_weather', { weather: 'rain' });
     expect(node.tick(ctx)).toBe(NodeStatus.Failure);
   });
 });

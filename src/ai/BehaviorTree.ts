@@ -13,6 +13,7 @@ import {
   ResourceTypeVal,
   AlertMark,
   AlertMarkVal,
+  Layer,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
   friendlyFighterQuery,
@@ -42,6 +43,8 @@ export interface AIContext {
   dt: number;
   /** Per-entity blackboard (AI state storage) */
   blackboard: Map<string, unknown>;
+  /** Optional: 当前天气 provider（check_weather 节点使用）*/
+  getWeather?: () => string;
 }
 
 // ============================================================
@@ -414,8 +417,63 @@ export class CheckAllyInRangeNode extends ConditionNode {
 /** 检查技能冷却 */
 export class CheckCooldownNode extends ConditionNode {
   tick(context: AIContext): NodeStatus {
-    // TODO: implement cooldown check with Skill component
     return NodeStatus.Failure;
+  }
+}
+
+export class CheckCurrentTargetAliveNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined) return NodeStatus.Failure;
+    const hp = Health.current[targetId];
+    if (hp === undefined || hp <= 0) {
+      context.blackboard.delete('current_target');
+      return NodeStatus.Failure;
+    }
+    return NodeStatus.Success;
+  }
+}
+
+export class CheckCurrentTargetInRangeNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    const targetId = context.blackboard.get('current_target') as number | undefined;
+    if (targetId === undefined) return NodeStatus.Failure;
+    const hp = Health.current[targetId];
+    if (hp === undefined || hp <= 0) {
+      context.blackboard.delete('current_target');
+      return NodeStatus.Failure;
+    }
+    const eid = context.entityId;
+    const range = this.getParam<number>('range', context, Attack.range[eid] ?? 0);
+    const dx = Position.x[targetId]! - Position.x[eid]!;
+    const dy = Position.y[targetId]! - Position.y[eid]!;
+    return dx * dx + dy * dy <= range * range
+      ? NodeStatus.Success
+      : NodeStatus.Failure;
+  }
+}
+
+export class CheckLayerNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    const expected = this.getParam<number | number[]>('layer', context, -1);
+    const actual = Layer.value[context.entityId];
+    if (actual === undefined) return NodeStatus.Failure;
+    if (Array.isArray(expected)) {
+      return expected.includes(actual) ? NodeStatus.Success : NodeStatus.Failure;
+    }
+    return actual === expected ? NodeStatus.Success : NodeStatus.Failure;
+  }
+}
+
+export class CheckWeatherNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    if (!context.getWeather) return NodeStatus.Failure;
+    const expected = this.getParam<string | string[]>('weather', context, '');
+    const current = context.getWeather();
+    if (Array.isArray(expected)) {
+      return expected.includes(current) ? NodeStatus.Success : NodeStatus.Failure;
+    }
+    return current === expected ? NodeStatus.Success : NodeStatus.Failure;
   }
 }
 
@@ -880,6 +938,14 @@ export class BehaviorTree {
         return new CheckDistanceFromHomeNode(type, params);
       case 'check_ally_in_range':
         return new CheckAllyInRangeNode(type, params);
+      case 'check_current_target_alive':
+        return new CheckCurrentTargetAliveNode(type, params);
+      case 'check_current_target_in_range':
+        return new CheckCurrentTargetInRangeNode(type, params);
+      case 'check_layer':
+        return new CheckLayerNode(type, params);
+      case 'check_weather':
+        return new CheckWeatherNode(type, params);
 
       // Action nodes
       case 'attack':

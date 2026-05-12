@@ -28,6 +28,13 @@ export class AISystem implements System {
   /** 每个实体的黑板 (AI私有状态): 实体ID → key-value存储 */
   private blackboards: Map<number, Map<string, unknown>> = new Map();
 
+  /** 可选: 当前天气 provider，供 check_weather 节点使用 */
+  private weatherProvider?: () => string;
+
+  setWeatherProvider(fn: () => string): void {
+    this.weatherProvider = fn;
+  }
+
   /** 性能统计 */
   private stats = {
     totalUpdates: 0,
@@ -131,8 +138,9 @@ export class AISystem implements System {
       const context: AIContext = {
         entityId: eid,
         world,
-        dt: AI.lastUpdateTime[eid]!, // 传递累积的时间供行为树节点使用
+        dt: AI.lastUpdateTime[eid]!,
         blackboard,
+        ...(this.weatherProvider ? { getWeather: this.weatherProvider } : {}),
       };
 
       // 执行行为树
