@@ -35,6 +35,7 @@ import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
 import { SaveManager } from './utils/SaveManager.js';
 import { initGlobalRandom, getGlobalRandom, generateSeed } from './utils/Random.js';
+import { registerDamageObserver, clearDamageObservers } from './utils/damageUtils.js';
 import { Sound } from './utils/Sound.js';
 import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
@@ -240,6 +241,13 @@ class TowerDefenderGame extends Game {
     this.economy = new EconomySystem();
     this.economy.gold = config.startingGold;
 
+    // P1-#11: hook damage events to refund combat-guard tracker
+    clearDamageObservers();
+    registerDamageObserver((targetId, sourceId, _actual) => {
+      this.economy.notifyDamaged(targetId);
+      if (sourceId !== undefined) this.economy.notifyAttacked(sourceId);
+    });
+
     // ---- Wave system ----
     this.waveSystem = new WaveSystem(
       this.world, map, config.waves,
@@ -270,6 +278,7 @@ class TowerDefenderGame extends Game {
       map,
       () => this.phase,
       (amount) => this.economy.spendGold(amount),
+      (eid, cost) => this.economy.registerBuild(eid, cost),
     );
 
     if (config.availableTowers.length > 0 && config.availableTowers[0]) {
@@ -939,6 +948,9 @@ class TowerDefenderGame extends Game {
 
     // Display name for overhead HUD
     this.world.setDisplayName(id, config.name);
+
+    // P1-#11: register for refund tracking
+    this.economy.registerBuild(id, config.cost);
   }
 
   // ================================================================
@@ -961,52 +973,54 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private recycleEntity(entityId: number): void {
-    const tw = this.world.world;
-    let refund = 0;
+    const meta = this.economy.getRefundMeta(entityId);
+    const currentHp = Health.current[entityId] ?? 1;
+    const maxHp = Health.max[entityId] ?? 1;
 
-    // Check if it's a tower
-    const towerTypeNum = Tower.towerType[entityId];
-    if (towerTypeNum !== undefined) {
-      const tt = TOWER_TYPE_BY_ID[towerTypeNum];
-      const towerCfg = tt ? TOWER_CONFIGS[tt] : undefined;
-      const invested = Tower.totalInvested[entityId] ?? towerCfg?.cost ?? 0;
-      refund = Math.floor(invested * 0.5);
-      // If bat tower, destroy all its bats first
-      if (BatTower.maxBats[entityId] !== undefined) {
-        // Iterate all entities and check BatSwarmMember.parentId
-        for (let eid = 1; eid < Position.x.length; eid++) {
-          if (BatSwarmMember.parentId[eid] === entityId) {
-            this.world.destroyEntity(eid);
-          }
+    let refund = 0;
+    if (meta) {
+      const result = this.economy.computeRefund(entityId, currentHp, maxHp);
+      if (result.amount <= 0) {
+        // P1-#11: refund blocked (cooldown / combat guard) — no action, no destruction
+        Sound.play('ui_error');
+        return;
+      }
+      refund = result.amount;
+    } else {
+      // Legacy fallback for entities not yet registered (traps, etc.) — keep 50%
+      const towerTypeNum = Tower.towerType[entityId];
+      if (towerTypeNum !== undefined) {
+        const invested = Tower.totalInvested[entityId] ?? 0;
+        refund = Math.floor(invested * 0.5);
+      } else if (UnitTag.isEnemy[entityId] === 0 && UnitTag.popCost[entityId] !== undefined) {
+        refund = Math.floor((UnitTag.cost[entityId] ?? 0) * 0.5);
+      } else if (Trap.damagePerSecond[entityId] !== undefined) {
+        refund = Math.floor(40 * 0.5);
+      } else if (Production.rate[entityId] !== undefined) {
+        const prodLevel = Production.level[entityId] ?? 1;
+        const cfg = PRODUCTION_CONFIGS[
+          Production.resourceType[entityId] === 0 ? ProductionType.GoldMine : ProductionType.EnergyTower
+        ];
+        if (cfg) {
+          let invested = cfg.cost;
+          for (let i = 0; i < prodLevel - 1; i++) invested += cfg.upgradeCosts[i] ?? 0;
+          refund = Math.floor(invested * 0.5);
         }
       }
     }
-    // Check if it's a player unit
-    else if (UnitTag.isEnemy[entityId] === 0 && UnitTag.popCost[entityId] !== undefined) {
-      refund = Math.floor((UnitTag.cost[entityId] ?? 0) * 0.5);
-    }
-    // Check if it's a trap
-    else if (Trap.damagePerSecond[entityId] !== undefined) {
-      refund = Math.floor(40 * 0.5);
-    }
-    // Check if it's a production building
-    else if (Production.rate[entityId] !== undefined) {
-      const prodLevel = Production.level[entityId] ?? 1;
-      const cfg = PRODUCTION_CONFIGS[
-        Production.resourceType[entityId] === 0 ? ProductionType.GoldMine : ProductionType.EnergyTower
-      ];
-      if (cfg) {
-        let invested = cfg.cost;
-        for (let i = 0; i < prodLevel - 1; i++) {
-          invested += cfg.upgradeCosts[i] ?? 0;
+
+    // Tower-specific cleanup: destroy bats first
+    if (BatTower.maxBats[entityId] !== undefined) {
+      for (let eid = 1; eid < Position.x.length; eid++) {
+        if (BatSwarmMember.parentId[eid] === entityId) {
+          this.world.destroyEntity(eid);
         }
-        refund = Math.floor(invested * 0.5);
       }
     }
 
     this.economy.addGold(refund);
+    this.economy.clearRefundMeta(entityId);
 
-    // Release population for units
     if (UnitTag.isEnemy[entityId] === 0 && UnitTag.popCost[entityId] !== undefined) {
       this.economy.releaseUnit(UnitTag.popCost[entityId]!);
     }

@@ -3,6 +3,76 @@ import { UnitTag } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { Sound } from '../utils/Sound.js';
 
+// ============================================================
+// P1-#11 — Refund mechanics (design/06-economy-system.md §4)
+// ============================================================
+
+/** Per-entity refund metadata tracked side-channel to avoid component bloat. */
+export interface RefundMeta {
+  /** Game-time seconds when entity was built. */
+  buildTime: number;
+  /** Game-time of last damage taken (-Infinity = never). */
+  lastDamageTime: number;
+  /** Game-time of last attack made (-Infinity = never). */
+  lastAttackTime: number;
+  /** Whether entity has ever taken damage or attacked. */
+  everInCombat: boolean;
+  /** Refund ratio for this entity (default 0.5; barricade/structure may differ). */
+  refundRatio: number;
+  /** Total invested gold (build + all upgrades). */
+  totalCost: number;
+}
+
+const BUILD_COOLDOWN = 3.0;
+const COMBAT_GUARD = 2.0;
+const MISBUILD_WINDOW = 5.0;
+const MISBUILD_REFUND_RATIO = 0.9;
+const DEFAULT_REFUND_RATIO = 0.5;
+const GOLD_CAP = 999_999;
+
+/** Reason returned alongside refund amount, for UI hints. */
+export type RefundReason = 'ok' | 'misbuild' | 'cooldown' | 'combat_damage' | 'combat_attack' | 'unknown';
+
+export interface RefundCalcInput {
+  currentTime: number;
+  meta: RefundMeta;
+  currentHp: number;
+  maxHp: number;
+}
+
+export interface RefundCalcResult {
+  amount: number;
+  reason: RefundReason;
+}
+
+/**
+ * Pure refund formula (design §4.3) — no world access, fully unit-testable.
+ *
+ *   if (age < 3s) → reject (cooldown)
+ *   if (damaged within 2s) → reject (combat damage)
+ *   if (attacked within 2s) → reject (combat attack)
+ *   if (age < 5s && !everInCombat) → 90% misbuild refund
+ *   else → totalCost × refundRatio × (currentHp / maxHp)
+ */
+export function calculateRefund(input: RefundCalcInput): RefundCalcResult {
+  const { currentTime, meta, currentHp, maxHp } = input;
+  const age = currentTime - meta.buildTime;
+
+  if (age < BUILD_COOLDOWN) return { amount: 0, reason: 'cooldown' };
+  if (currentTime - meta.lastDamageTime < COMBAT_GUARD) return { amount: 0, reason: 'combat_damage' };
+  if (currentTime - meta.lastAttackTime < COMBAT_GUARD) return { amount: 0, reason: 'combat_attack' };
+
+  if (age < MISBUILD_WINDOW && !meta.everInCombat) {
+    return { amount: Math.floor(meta.totalCost * MISBUILD_REFUND_RATIO), reason: 'misbuild' };
+  }
+
+  const hpRatio = maxHp > 0 ? Math.max(0, Math.min(1, currentHp / maxHp)) : 1;
+  return {
+    amount: Math.floor(meta.totalCost * meta.refundRatio * hpRatio),
+    reason: 'ok',
+  };
+}
+
 export class EconomySystem implements System {
   readonly name = 'EconomySystem';
 
@@ -17,6 +87,56 @@ export class EconomySystem implements System {
 
   endlessScore: number = 0;
   isEndless: boolean = false;
+
+  /** Game-time accumulator (seconds since battle start). */
+  gameTime: number = 0;
+
+  /** Side-channel refund metadata by entity ID. */
+  private refundMeta = new Map<number, RefundMeta>();
+
+  registerBuild(entityId: number, totalCost: number, refundRatio: number = DEFAULT_REFUND_RATIO): void {
+    this.refundMeta.set(entityId, {
+      buildTime: this.gameTime,
+      lastDamageTime: -Infinity,
+      lastAttackTime: -Infinity,
+      everInCombat: false,
+      refundRatio,
+      totalCost,
+    });
+  }
+
+  addUpgradeCost(entityId: number, upgradeCost: number): void {
+    const meta = this.refundMeta.get(entityId);
+    if (meta) meta.totalCost += upgradeCost;
+  }
+
+  notifyDamaged(entityId: number): void {
+    const meta = this.refundMeta.get(entityId);
+    if (!meta) return;
+    meta.lastDamageTime = this.gameTime;
+    meta.everInCombat = true;
+  }
+
+  notifyAttacked(entityId: number): void {
+    const meta = this.refundMeta.get(entityId);
+    if (!meta) return;
+    meta.lastAttackTime = this.gameTime;
+    meta.everInCombat = true;
+  }
+
+  getRefundMeta(entityId: number): RefundMeta | undefined {
+    return this.refundMeta.get(entityId);
+  }
+
+  clearRefundMeta(entityId: number): void {
+    this.refundMeta.delete(entityId);
+  }
+
+  computeRefund(entityId: number, currentHp: number, maxHp: number): RefundCalcResult {
+    const meta = this.refundMeta.get(entityId);
+    if (!meta) return { amount: 0, reason: 'unknown' };
+    return calculateRefund({ currentTime: this.gameTime, meta, currentHp, maxHp });
+  }
 
   addEndlessKillScore(enemyGoldReward: number, waveNumber: number): void {
     if (!this.isEndless) return;
@@ -81,8 +201,9 @@ export class EconomySystem implements System {
     }
   }
 
-  update(_world: TowerWorld, _dt: number): void {
-    this.gold += this.pendingGold;
+  update(_world: TowerWorld, dt: number): void {
+    this.gameTime += dt;
+    this.gold = Math.min(GOLD_CAP, this.gold + this.pendingGold);
     this.pendingGold = 0;
     this.energy += this.pendingEnergy;
     this.pendingEnergy = 0;

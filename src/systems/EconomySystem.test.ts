@@ -7,7 +7,7 @@
  * - design/06-economy-system.md §7 起始资源
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { EconomySystem } from './EconomySystem.js';
+import { EconomySystem, calculateRefund, type RefundMeta } from './EconomySystem.js';
 
 describe('EconomySystem', () => {
   let economy: EconomySystem;
@@ -162,6 +162,151 @@ describe('EconomySystem', () => {
       economy.addGold(10);
       economy.update(null as any, 0);
       expect(economy.gold).toBe(280); // 220 + 50 + 10
+    });
+  });
+
+  // ============================================================
+  // P1-#11 — 回收机制 (design/06-economy-system.md §4.3)
+  // ============================================================
+  describe('P1-#11 calculateRefund 纯函数', () => {
+    const baseMeta = (overrides: Partial<RefundMeta> = {}): RefundMeta => ({
+      buildTime: 0,
+      lastDamageTime: -Infinity,
+      lastAttackTime: -Infinity,
+      everInCombat: false,
+      refundRatio: 0.5,
+      totalCost: 100,
+      ...overrides,
+    });
+
+    it('建造冷却内 (age<3s) 拒绝退款', () => {
+      const r = calculateRefund({ currentTime: 2, meta: baseMeta(), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(0);
+      expect(r.reason).toBe('cooldown');
+    });
+
+    it('刚过冷却且未参战 → 误建 90% 退款', () => {
+      const r = calculateRefund({ currentTime: 3, meta: baseMeta(), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(90);
+      expect(r.reason).toBe('misbuild');
+    });
+
+    it('参战过且 age<5s → 不再享受 misbuild 退款，按 ok 计算', () => {
+      const r = calculateRefund({ currentTime: 4, meta: baseMeta({ everInCombat: true, lastDamageTime: -10 }), currentHp: 100, maxHp: 100 });
+      expect(r.reason).toBe('ok');
+      expect(r.amount).toBe(50);
+    });
+
+    it('age>=5s 且满血 → 50% × 100% = 50', () => {
+      const r = calculateRefund({ currentTime: 6, meta: baseMeta({ everInCombat: true, lastDamageTime: -10 }), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(50);
+      expect(r.reason).toBe('ok');
+    });
+
+    it('半血 → 退款按 hpRatio 缩减', () => {
+      const r = calculateRefund({ currentTime: 6, meta: baseMeta({ everInCombat: true, lastDamageTime: -10 }), currentHp: 50, maxHp: 100 });
+      expect(r.amount).toBe(25); // 100 * 0.5 * 0.5
+    });
+
+    it('刚受伤 (combat_damage<2s) 拒绝退款', () => {
+      const r = calculateRefund({ currentTime: 10, meta: baseMeta({ everInCombat: true, lastDamageTime: 9 }), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(0);
+      expect(r.reason).toBe('combat_damage');
+    });
+
+    it('刚攻击 (combat_attack<2s) 拒绝退款', () => {
+      const r = calculateRefund({ currentTime: 10, meta: baseMeta({ everInCombat: true, lastAttackTime: 9 }), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(0);
+      expect(r.reason).toBe('combat_attack');
+    });
+
+    it('combat guard 过去 2s 后可退款', () => {
+      const r = calculateRefund({ currentTime: 12, meta: baseMeta({ everInCombat: true, lastDamageTime: 9 }), currentHp: 100, maxHp: 100 });
+      expect(r.reason).toBe('ok');
+      expect(r.amount).toBe(50);
+    });
+
+    it('maxHp=0 时按 100% hpRatio 处理 (除零保护)', () => {
+      const r = calculateRefund({ currentTime: 6, meta: baseMeta({ everInCombat: true, lastDamageTime: -10 }), currentHp: 0, maxHp: 0 });
+      expect(r.amount).toBe(50);
+    });
+
+    it('refundRatio=1.0 (路障/特殊) → 全额退款', () => {
+      const r = calculateRefund({ currentTime: 6, meta: baseMeta({ everInCombat: true, lastDamageTime: -10, refundRatio: 1.0 }), currentHp: 100, maxHp: 100 });
+      expect(r.amount).toBe(100);
+    });
+  });
+
+  describe('P1-#11 EconomySystem 集成', () => {
+    const tick = (econ: EconomySystem, seconds: number) => econ.update(null as any, seconds);
+
+    it('未注册实体 computeRefund → unknown 且 amount=0', () => {
+      const r = economy.computeRefund(999, 100, 100);
+      expect(r.amount).toBe(0);
+      expect(r.reason).toBe('unknown');
+    });
+
+    it('registerBuild 后立即回收被冷却拒绝', () => {
+      economy.registerBuild(1, 100);
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('cooldown');
+    });
+
+    it('registerBuild 后等 4 秒 → misbuild 90 退款', () => {
+      economy.registerBuild(1, 100);
+      tick(economy, 4);
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('misbuild');
+      expect(r.amount).toBe(90);
+    });
+
+    it('notifyDamaged 标记 everInCombat 并阻断退款', () => {
+      economy.registerBuild(1, 100);
+      tick(economy, 4);
+      economy.notifyDamaged(1);
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('combat_damage');
+    });
+
+    it('notifyAttacked 进入战斗状态后 5s 外按 ok 退款', () => {
+      economy.registerBuild(1, 100);
+      tick(economy, 1);
+      economy.notifyAttacked(1);
+      tick(economy, 6); // age=7s, attack 6s 前
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('ok');
+      expect(r.amount).toBe(50);
+    });
+
+    it('addUpgradeCost 累计 totalCost 影响退款额', () => {
+      economy.registerBuild(1, 100);
+      economy.addUpgradeCost(1, 50);
+      tick(economy, 4);
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.amount).toBe(Math.floor(150 * 0.9)); // 135
+    });
+
+    it('addUpgradeCost 对未注册实体静默忽略', () => {
+      expect(() => economy.addUpgradeCost(999, 50)).not.toThrow();
+    });
+
+    it('clearRefundMeta 移除后 computeRefund → unknown', () => {
+      economy.registerBuild(1, 100);
+      economy.clearRefundMeta(1);
+      const r = economy.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('unknown');
+    });
+
+    it('GOLD_CAP=999999 限制 update 后累加上限', () => {
+      economy.gold = 999_900;
+      economy.addGold(200);
+      tick(economy, 0);
+      expect(economy.gold).toBe(999_999);
+    });
+
+    it('未注册实体 notifyDamaged/notifyAttacked 静默忽略', () => {
+      expect(() => economy.notifyDamaged(999)).not.toThrow();
+      expect(() => economy.notifyAttacked(999)).not.toThrow();
     });
   });
 });

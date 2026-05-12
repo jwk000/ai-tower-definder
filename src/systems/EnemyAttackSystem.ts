@@ -133,7 +133,7 @@ export class EnemyAttackSystem implements System {
     } else {
       // Melee — direct damage (enemies deal physical damage)
       Sound.play('enemy_attack');
-      applyDamageToTarget(world, targetId, damage, DamageTypeVal.Physical);
+      applyDamageToTarget(world, targetId, damage, DamageTypeVal.Physical, sourceId);
     }
   }
 

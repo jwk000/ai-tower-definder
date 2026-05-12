@@ -13,6 +13,22 @@ import { Health, DamageTypeVal } from '../core/components.js';
 import { calcPhysicalDamage, calcMagicDamage } from './combatFormulas.js';
 
 /**
+ * P1-#11: Observers for damage events. Used by EconomySystem to track
+ * combat-damaged entities (refund guard). Source may be undefined for
+ * environmental damage (e.g. exploder self-damage).
+ */
+export type DamageObserver = (targetId: number, sourceId: number | undefined, actualDamage: number) => void;
+const damageObservers: DamageObserver[] = [];
+
+export function registerDamageObserver(observer: DamageObserver): void {
+  damageObservers.push(observer);
+}
+
+export function clearDamageObservers(): void {
+  damageObservers.length = 0;
+}
+
+/**
  * 对目标实体应用伤害，自动计算护甲/魔抗减伤。
  *
  * @param world     ECS世界实例
@@ -26,6 +42,7 @@ export function applyDamageToTarget(
   targetId: number,
   rawDamage: number,
   damageType: number,
+  sourceId?: number,
 ): number {
   if (rawDamage <= 0) return 0;
 
@@ -46,6 +63,13 @@ export function applyDamageToTarget(
   // 应用伤害
   const current = Health.current[targetId] ?? 0;
   Health.current[targetId] = current - actualDamage;
+
+  // P1-#11: notify observers (EconomySystem refund guard, future telemetry)
+  if (actualDamage > 0 && damageObservers.length > 0) {
+    for (let i = 0; i < damageObservers.length; i++) {
+      damageObservers[i]!(targetId, sourceId, actualDamage);
+    }
+  }
 
   return actualDamage;
 }

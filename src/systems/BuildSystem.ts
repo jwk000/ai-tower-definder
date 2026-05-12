@@ -150,6 +150,8 @@ export class BuildSystem implements System {
   private map: MapConfig;
   private getPhase: () => GamePhase;
   private spendGold: (amount: number) => boolean;
+  /** Called after a build entity is successfully created, with the cost spent. P1-#11. */
+  private onBuilt: ((entityId: number, cost: number) => void) | undefined;
 
   // —— 每帧由 update() 注入 ——
   private _world: TowerWorld | null = null;
@@ -161,10 +163,12 @@ export class BuildSystem implements System {
     map: MapConfig,
     getPhase: () => GamePhase,
     spendGold: (amount: number) => boolean,
+    onBuilt?: (entityId: number, cost: number) => void,
   ) {
     this.map = map;
     this.getPhase = getPhase;
     this.spendGold = spendGold;
+    this.onBuilt = onBuilt;
   }
 
   // ==========================================================
@@ -302,6 +306,7 @@ export class BuildSystem implements System {
     if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
 
     const eid = this.createTowerEntity(world, x, y, row, col, tt);
+    this.onBuilt?.(eid, config.cost);
     this.cancelDrag();
     return eid;
   }
@@ -311,6 +316,7 @@ export class BuildSystem implements System {
     if (!this.spendGold(TRAP_COST)) { this.cancelDrag(); return false; }
 
     const eid = this.createTrapEntity(world, x, y, row, col);
+    this.onBuilt?.(eid, TRAP_COST);
     this.cancelDrag();
     return eid;
   }
@@ -325,6 +331,7 @@ export class BuildSystem implements System {
     if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
 
     const eid = this.createProductionEntity(world, x, y, row, col, pt);
+    this.onBuilt?.(eid, config.cost);
     this.cancelDrag();
     return eid;
   }
