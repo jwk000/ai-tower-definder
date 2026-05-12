@@ -138,6 +138,34 @@ export class EconomySystem implements System {
     return calculateRefund({ currentTime: this.gameTime, meta, currentHp, maxHp });
   }
 
+  /** Snapshot all refund metadata for persistence (design/13 §1 battleSnapshot). */
+  serializeRefundMeta(): Array<[number, RefundMeta]> {
+    return Array.from(this.refundMeta.entries());
+  }
+
+  /**
+   * Overwrite refund metadata from a previously serialized snapshot.
+   *
+   * JSON cannot represent ±Infinity (becomes null after round-trip). We coerce
+   * null/undefined timestamps back to -Infinity to preserve "never happened" semantics
+   * critical to combat-guard correctness (a NaN comparison would always be false,
+   * silently disabling the refund-abuse guard).
+   */
+  deserializeRefundMeta(entries: Array<[number, RefundMeta]>): void {
+    this.refundMeta.clear();
+    for (const [eid, raw] of entries) {
+      const meta: RefundMeta = {
+        buildTime: typeof raw.buildTime === 'number' ? raw.buildTime : 0,
+        lastDamageTime: typeof raw.lastDamageTime === 'number' ? raw.lastDamageTime : -Infinity,
+        lastAttackTime: typeof raw.lastAttackTime === 'number' ? raw.lastAttackTime : -Infinity,
+        everInCombat: !!raw.everInCombat,
+        refundRatio: typeof raw.refundRatio === 'number' ? raw.refundRatio : 0.5,
+        totalCost: typeof raw.totalCost === 'number' ? raw.totalCost : 0,
+      };
+      this.refundMeta.set(eid, meta);
+    }
+  }
+
   addEndlessKillScore(enemyGoldReward: number, waveNumber: number): void {
     if (!this.isEndless) return;
     this.endlessScore += enemyGoldReward * waveNumber;

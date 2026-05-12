@@ -309,4 +309,73 @@ describe('EconomySystem', () => {
       expect(() => economy.notifyAttacked(999)).not.toThrow();
     });
   });
+
+  // ============================================================
+  // P2-#17 v1.1 第 2 轮 — RefundMeta 序列化 (design/13 §1)
+  // ============================================================
+  describe('serializeRefundMeta / deserializeRefundMeta', () => {
+    it('空状态序列化为空数组', () => {
+      expect(economy.serializeRefundMeta()).toEqual([]);
+    });
+
+    it('序列化包含所有已注册实体的元数据', () => {
+      economy.registerBuild(1, 100);
+      economy.registerBuild(2, 200, 0.7);
+      const snapshot = economy.serializeRefundMeta();
+      expect(snapshot.length).toBe(2);
+      const eids = snapshot.map(([eid]) => eid).sort();
+      expect(eids).toEqual([1, 2]);
+    });
+
+    it('反序列化恢复完整状态可被 computeRefund 读取', () => {
+      economy.registerBuild(1, 100);
+      economy.update(null as any, 4); // gameTime=4, age=4 → misbuild window
+      const snapshot = economy.serializeRefundMeta();
+
+      const restored = new EconomySystem();
+      restored.update(null as any, 4); // align gameTime
+      restored.deserializeRefundMeta(snapshot);
+
+      const r = restored.computeRefund(1, 100, 100);
+      expect(r.reason).toBe('misbuild');
+      expect(r.amount).toBe(90);
+    });
+
+    it('反序列化清空旧元数据', () => {
+      economy.registerBuild(1, 100);
+      const restored = new EconomySystem();
+      restored.registerBuild(99, 999);
+      restored.deserializeRefundMeta(economy.serializeRefundMeta());
+      expect(restored.getRefundMeta(99)).toBeUndefined();
+      expect(restored.getRefundMeta(1)).toBeDefined();
+    });
+
+    it('反序列化把 null/undefined 时间戳还原为 -Infinity (JSON 往返保护)', () => {
+      const snapshotFromJson = [
+        [42, {
+          buildTime: 10,
+          lastDamageTime: null as any,
+          lastAttackTime: undefined as any,
+          everInCombat: false,
+          refundRatio: 0.5,
+          totalCost: 100,
+        }],
+      ] as Array<[number, any]>;
+      economy.deserializeRefundMeta(snapshotFromJson);
+      const meta = economy.getRefundMeta(42)!;
+      expect(meta.lastDamageTime).toBe(-Infinity);
+      expect(meta.lastAttackTime).toBe(-Infinity);
+    });
+
+    it('反序列化深拷贝避免共享引用', () => {
+      economy.registerBuild(1, 100);
+      const snapshot = economy.serializeRefundMeta();
+      const restored = new EconomySystem();
+      restored.deserializeRefundMeta(snapshot);
+
+      economy.notifyDamaged(1);
+      const restoredMeta = restored.getRefundMeta(1)!;
+      expect(restoredMeta.everInCombat).toBe(false); // 不受原对象后续变化影响
+    });
+  });
 });

@@ -260,4 +260,64 @@ describe('SaveManager v1.1', () => {
       expect(ca).toBe(cb);
     });
   });
+
+  // ============================================================
+  // P2-#17 v1.1 第 2 轮 — BattleSnapshot 持久化 (design/13 §1)
+  // ============================================================
+  describe('BattleSnapshot', () => {
+    // JSON 不能往返 ±Infinity (序列化为 null)，因此 sample 使用有限数值确保 deep-equal
+    const sampleSnapshot = {
+      levelId: 2,
+      currentWave: 3,
+      gameTime: 45.5,
+      prngStates: { seed: 12345, map: 1, wave: 2, drop: 3, decor: 4 },
+      economy: {
+        gold: 500,
+        energy: 80,
+        population: 4,
+        maxPopulation: 6,
+        refundMeta: [[10, { buildTime: 0, lastDamageTime: 0, lastAttackTime: 0, everInCombat: false, refundRatio: 0.5, totalCost: 100 }]] as Array<[number, any]>,
+      },
+    };
+
+    it('无快照时 loadBattleSnapshot → null', () => {
+      expect(SaveManager.loadBattleSnapshot()).toBeNull();
+    });
+
+    it('saveBattleSnapshot + loadBattleSnapshot 往返一致', () => {
+      SaveManager.saveBattleSnapshot(sampleSnapshot);
+      const loaded = SaveManager.loadBattleSnapshot();
+      expect(loaded).toEqual(sampleSnapshot);
+    });
+
+    it('battleSnapshot 参与 checksum，篡改后被检测', () => {
+      SaveManager.saveBattleSnapshot(sampleSnapshot);
+      const raw = JSON.parse(store[SaveManager.KEY]!);
+      raw.battleSnapshot.economy.gold = 999_999;
+      store[SaveManager.KEY] = JSON.stringify(raw);
+      const data = SaveManager.load();
+      expect(data.unlockedLevels).toBe(1); // 损坏 → 默认值
+      expect(data.battleSnapshot).toBeUndefined();
+    });
+
+    it('clearBattleSnapshot 移除快照但保留其他存档字段', () => {
+      SaveManager.unlockLevel(3);
+      SaveManager.saveBattleSnapshot(sampleSnapshot);
+      SaveManager.clearBattleSnapshot();
+      const data = SaveManager.load();
+      expect(data.battleSnapshot).toBeUndefined();
+      expect(data.unlockedLevels).toBe(3);
+    });
+
+    it('clearBattleSnapshot 在无快照时静默忽略', () => {
+      expect(() => SaveManager.clearBattleSnapshot()).not.toThrow();
+    });
+
+    it('正常存档操作不影响已存在的 battleSnapshot', () => {
+      SaveManager.saveBattleSnapshot(sampleSnapshot);
+      SaveManager.unlockLevel(4);
+      const loaded = SaveManager.loadBattleSnapshot();
+      expect(loaded).toEqual(sampleSnapshot);
+    });
+  });
 });

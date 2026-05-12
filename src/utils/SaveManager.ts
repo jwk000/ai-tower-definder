@@ -20,8 +20,36 @@ export interface SaveData {
   levelStars: Record<number, number>;
   highScores: Record<number, number>;
   totalGold: number;
+  battleSnapshot?: BattleSnapshot;
   checksum?: string;
   updatedAt?: number;
+}
+
+/**
+ * Runtime mid-battle snapshot for resume-from-crash (design/13 §1 battleSnapshot).
+ *
+ * Captures: PRNG stream states (deterministic re-play) + EconomySystem refund metadata
+ * + economy scalars + accumulated game time. Level identity + currentWave allow
+ * the loader to re-seed the same battle session and restore economy invariants.
+ */
+export interface BattleSnapshot {
+  levelId: number;
+  currentWave: number;
+  gameTime: number;
+  prngStates: {
+    seed: number;
+    map: number;
+    wave: number;
+    drop: number;
+    decor: number;
+  };
+  economy: {
+    gold: number;
+    energy: number;
+    population: number;
+    maxPopulation: number;
+    refundMeta: Array<[number, any]>;
+  };
 }
 
 export const CURRENT_VERSION = '1.1.0';
@@ -187,7 +215,7 @@ export class SaveManager {
   /** Ensure all required fields are present with sane defaults (defensive load). */
   private static normalize(data: any): SaveData {
     const defaults = SaveManager.getDefaults();
-    return {
+    const out: SaveData = {
       version: data.version ?? defaults.version,
       unlockedLevels: typeof data.unlockedLevels === 'number' ? data.unlockedLevels : defaults.unlockedLevels,
       levelStars: { ...defaults.levelStars, ...(data.levelStars ?? {}) },
@@ -196,6 +224,8 @@ export class SaveManager {
       checksum: data.checksum,
       updatedAt: data.updatedAt,
     };
+    if (data.battleSnapshot) out.battleSnapshot = data.battleSnapshot;
+    return out;
   }
 
   static unlockLevel(levelId: number): void {
@@ -213,6 +243,28 @@ export class SaveManager {
       data.levelStars[levelId] = stars;
     }
     SaveManager.save(data);
+  }
+
+  /** Persist a mid-battle snapshot into the main save under `battleSnapshot`. */
+  static saveBattleSnapshot(snapshot: BattleSnapshot): void {
+    const data = SaveManager.load();
+    data.battleSnapshot = snapshot;
+    SaveManager.save(data);
+  }
+
+  /** Retrieve the current battle snapshot, or null if none stored. */
+  static loadBattleSnapshot(): BattleSnapshot | null {
+    const data = SaveManager.load();
+    return data.battleSnapshot ?? null;
+  }
+
+  /** Remove the current battle snapshot (call on battle victory/defeat/abandon). */
+  static clearBattleSnapshot(): void {
+    const data = SaveManager.load();
+    if (data.battleSnapshot) {
+      delete data.battleSnapshot;
+      SaveManager.save(data);
+    }
   }
 
   /** Reset with manual backup snapshot (timestamped). */
