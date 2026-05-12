@@ -23,6 +23,8 @@ import {
   Visual,
   Attack,
   DamageTypeVal,
+  Category,
+  CategoryVal,
 } from '../core/components.js';
 import { MovementSystem } from './MovementSystem.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -50,6 +52,15 @@ function makeBase(world: TowerWorld, hp: number = 100): number {
   const eid = world.createEntity();
   world.addComponent(eid, Position, { x: 0, y: 0 });
   world.addComponent(eid, Health, { current: hp, max: hp, armor: 0, magicResist: 0 });
+  world.addComponent(eid, Category, { value: CategoryVal.Objective });
+  return eid;
+}
+
+function makeTower(world: TowerWorld, hp: number = 80): number {
+  const eid = world.createEntity();
+  world.addComponent(eid, Position, { x: 100, y: 100 });
+  world.addComponent(eid, Health, { current: hp, max: hp, armor: 0, magicResist: 0 });
+  world.addComponent(eid, Category, { value: CategoryVal.Tower });
   return eid;
 }
 
@@ -164,8 +175,6 @@ describe('MovementSystem — 基地伤害（onReachEnd）', () => {
   });
 
   it('敌人自身（带 UnitTag.isEnemy=1+Health）不会因 baseQuery 命中而被自伤', () => {
-    // 这是回归保护：onReachEnd 内部的 baseQuery 是 [Position, Health]，
-    // 敌人自己也匹配。必须靠 UnitTag.isEnemy === 1 跳过。
     const base = makeBase(world, 100);
     const enemy = makeEnemyAtEnd(world, { atk: 50, withAttackComponent: false });
     const enemyHp0 = Health.current[enemy];
@@ -174,5 +183,17 @@ describe('MovementSystem — 基地伤害（onReachEnd）', () => {
 
     expect(Health.current[base]).toBe(50);
     expect(Health.current[enemy], '敌人不应被自己的到达伤害击中').toBe(enemyHp0);
+  });
+
+  it('友方塔/建筑（Category != Objective）不会因 baseQuery 命中而被基地伤害误伤', () => {
+    const base = makeBase(world, 100);
+    const tower = makeTower(world, 80);
+    const towerHp0 = Health.current[tower];
+    makeEnemyAtEnd(world, { atk: 30, withAttackComponent: false });
+
+    system.update(world, 0.016);
+
+    expect(Health.current[base], '基地正常扣血').toBe(70);
+    expect(Health.current[tower], '塔不应因敌人到达基地而掉血').toBe(towerHp0);
   });
 });

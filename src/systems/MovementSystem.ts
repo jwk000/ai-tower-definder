@@ -1,7 +1,7 @@
 import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
 import {
   Position, Movement, Health, UnitTag, Stunned, Frozen, Slowed, MoveModeVal,
-  Visual, Attack, Projectile, DeathEffect, Trap,
+  Visual, Attack, Projectile, DeathEffect, Trap, Category, CategoryVal,
 } from '../core/components.js';
 import type { MapConfig } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
@@ -23,8 +23,8 @@ export class MovementSystem implements System {
   private movingQuery = defineQuery([Position, Movement, UnitTag]);
   /** Query: all entities with physical presence (for collision detection) */
   private collisionQuery = defineQuery([Position, Visual]);
-  /** Query: base / friendly health entities (for base damage on enemy reach-end) */
-  private baseQuery = defineQuery([Position, Health]);
+  /** Query: base objective entities (Category.Objective) for damage on enemy reach-end */
+  private baseQuery = defineQuery([Position, Health, Category]);
 
   constructor(private map: MapConfig) {}
 
@@ -152,7 +152,7 @@ export class MovementSystem implements System {
     const bases = this.baseQuery(world.world);
     for (let i = 0; i < bases.length; i++) {
       const baseId = bases[i]!;
-      if (UnitTag.isEnemy[baseId] === 1) continue;
+      if (Category.value[baseId] !== CategoryVal.Objective) continue;
       Health.current[baseId]! -= damage;
       if (Health.current[baseId]! < 0) Health.current[baseId]! = 0;
     }
