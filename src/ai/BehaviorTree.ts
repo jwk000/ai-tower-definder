@@ -14,6 +14,7 @@ import {
   AlertMarkVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
+  friendlyFighterQuery,
 } from '../core/components.js';
 
 // ============================================================
@@ -272,6 +273,38 @@ export class CheckEnemyInRangeNode extends ConditionNode {
   }
 }
 
+/** 检查范围内友方单位 */
+export class CheckAllyInRangeNode extends ConditionNode {
+  tick(context: AIContext): NodeStatus {
+    const range = this.getParam<number>('range', context, 100);
+    const count = this.getParam<number>('count', context, 1);
+    const allies = this.findTargetsInRange(context, range);
+    if (allies.length >= count) {
+      context.blackboard.set('found_allies', allies);
+      return NodeStatus.Success;
+    }
+    return NodeStatus.Failure;
+  }
+  private findTargetsInRange(context: AIContext, range: number): number[] {
+    const { world, entityId } = context;
+    const px = Position.x[entityId]!;
+    const py = Position.y[entityId]!;
+    const candidates = friendlyFighterQuery(world.world);
+    const results: number[] = [];
+    for (const id of candidates) {
+      if (id === entityId) continue;
+      if (Health.current[id]! <= 0) continue;
+      const tx = Position.x[id]!;
+      const ty = Position.y[id]!;
+      const dx = tx - px;
+      const dy = ty - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= range) results.push(id);
+    }
+    return results;
+  }
+}
+
 /** 检查技能冷却 */
 export class CheckCooldownNode extends ConditionNode {
   tick(context: AIContext): NodeStatus {
@@ -286,67 +319,59 @@ export class CheckCooldownNode extends ConditionNode {
 export class AttackNode extends ActionNode {
   tick(context: AIContext): NodeStatus {
     const targetParam = this.getParam<string>('target', context, 'nearest_enemy');
-    const targetId = this.resolveTarget(targetParam, context);
-
-    if (targetId === 0) {
-      return NodeStatus.Failure;
-    }
-
+    const damageType = this.getParam<string>('damage_type', context, 'direct');
     const eid = context.entityId;
     const attackDmg = Attack.damage[eid];
-    const attackRange = Attack.range[eid];
     const atkSpeed = Attack.attackSpeed[eid];
-
     if (attackDmg === undefined) return NodeStatus.Failure;
 
-    // Get target position
+    // all_in_range: 攻击 check_enemy_in_range 已找到的所有敌人
+    if (targetParam === 'all_in_range') {
+      const enemies = context.blackboard.get('found_enemies') as number[] | undefined;
+      if (!enemies || enemies.length === 0) return NodeStatus.Failure;
+      const cooldown = Attack.cooldownTimer[eid]!;
+      if (cooldown > 0) return NodeStatus.Failure;
+      Attack.cooldownTimer[eid] = 1 / atkSpeed!;
+      for (const tid of enemies) {
+        if (Health.current[tid]! <= 0) continue;
+        Health.current[tid]! -= damageType === 'dot' ? attackDmg * context.dt : attackDmg;
+      }
+      AI.targetId[eid] = enemies[0]!;
+      return NodeStatus.Success;
+    }
+
+    // ---- 单目标攻击 ----
+    const targetId = this.resolveTarget(targetParam, context);
+    if (targetId === 0) return NodeStatus.Failure;
+    const attackRange = Attack.range[eid];
     const targetX = Position.x[targetId];
     const targetY = Position.y[targetId];
     const targetHp = Health.current[targetId];
-
-    if (targetX === undefined || targetHp! <= 0) {
-      return NodeStatus.Failure;
+    if (targetX === undefined || targetHp! <= 0) return NodeStatus.Failure;
+    if (attackRange !== undefined) {
+      const dx = targetX - Position.x[eid]!;
+      const dy = targetY! - Position.y[eid]!;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > attackRange) return NodeStatus.Failure;
     }
-
-    // Check range
-    const dx = targetX - Position.x[eid]!;
-    const dy = targetY! - Position.y[eid]!;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist > attackRange!) {
-      return NodeStatus.Failure;
-    }
-
-    // Check cooldown
     const cooldown = Attack.cooldownTimer[eid]!;
     if (cooldown <= 0) {
-      // Reset cooldown
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
-
       const isEnemy = UnitTag.isEnemy[eid] === 1;
       const isTower = Tower.towerType[eid] !== undefined;
-
       if (isEnemy) {
-        // 敌人：委托 EnemyAttackSystem 执行（弹道/伤害/移动控制）
         Attack.targetId[eid] = targetId;
       } else if (isTower) {
-        // 塔：委托 AttackSystem 执行（弹道/激光/链击等）
         Attack.targetId[eid] = targetId;
       } else {
-        // 士兵/玩家单位：直接造成伤害
-        Health.current[targetId]! -= attackDmg;
-        // 敌方反击：将伤害来源设为敌人目标
+        Health.current[targetId]! -= damageType === 'dot' ? attackDmg * context.dt : attackDmg;
         if (UnitTag.isEnemy[targetId] === 1 && Attack.damage[targetId] !== undefined) {
           Attack.targetId[targetId] = eid;
         }
       }
-
-      // Set target for rendering
       AI.targetId[eid] = targetId;
-
       return NodeStatus.Success;
     }
-
     return NodeStatus.Failure;
   }
 
@@ -393,6 +418,23 @@ export class AttackNode extends ActionNode {
     }
 
     return nearestId;
+  }
+}
+
+/** 治疗友方单位 — 治疗 blackboard 的 found_allies */
+export class HealNode extends ActionNode {
+  tick(context: AIContext): NodeStatus {
+    const amount = this.getParam<number>('amount', context, 10);
+    const allies = context.blackboard.get('found_allies') as number[] | undefined;
+    if (!allies || allies.length === 0) return NodeStatus.Failure;
+    for (const aid of allies) {
+      const hp = Health.current[aid];
+      const maxHp = Health.max[aid];
+      if (hp !== undefined && maxHp !== undefined && hp > 0) {
+        Health.current[aid] = Math.min(maxHp, hp + amount * context.dt);
+      }
+    }
+    return NodeStatus.Success;
   }
 }
 
@@ -732,6 +774,8 @@ export class BehaviorTree {
         return new CheckCooldownNode(type, params);
       case 'check_distance_from_home':
         return new CheckDistanceFromHomeNode(type, params);
+      case 'check_ally_in_range':
+        return new CheckAllyInRangeNode(type, params);
 
       // Action nodes
       case 'attack':
@@ -742,6 +786,8 @@ export class BehaviorTree {
         return new MoveTowardsNode(type, params);
       case 'produce_resource':
         return new ProduceResourceNode(type, params);
+      case 'heal':
+        return new HealNode(type, params);
       case 'wait':
         return new WaitNode(type, params);
       case 'set_state':
