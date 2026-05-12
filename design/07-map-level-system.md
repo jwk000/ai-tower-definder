@@ -64,7 +64,7 @@ level_01:
   fixed:
     map: plains_zigzag
     waves: l1_waves
-    startingGold: 200
+    startingGold: 220
     
   random:
     weatherPool: [Sunny, Rain]

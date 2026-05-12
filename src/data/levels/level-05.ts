@@ -206,7 +206,7 @@ export const LEVEL_05: LevelConfig = {
   sceneDescription: '远古要塞的深处，敌人的主力部队已全面占领此地。石墙与石柱形成迷宫走廊，所有敌人类型全部登场。第10波和第15波指挥官亲自率队冲锋。五路精英混编，是对防御体系的终极考验。',
   map: MAP,
   waves: WAVES,
-  startingGold: 400,
+  startingGold: 380,
   availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile],
   availableUnits: [],
   unlockStarsRequired: 0,

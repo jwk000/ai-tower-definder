@@ -172,7 +172,7 @@ export const LEVEL_02: LevelConfig = {
   sceneDescription: '古代商路的沙漠遗迹。沙漠掠夺者、沙岩铠甲兵和沙漠术士据守此地。第6波强盗头目现身，第12波沙虫巨兽压阵。岩石限制了防御塔的布置。',
   map: MAP,
   waves: WAVES,
-  startingGold: 250,
+  startingGold: 260,
   availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Laser],
   availableUnits: [],
   unlockStarsRequired: 0,

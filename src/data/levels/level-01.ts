@@ -164,7 +164,7 @@ export const LEVEL_01: LevelConfig = {
   sceneDescription: '村庄郊外的草原。哥布林步兵、侦察兵和萨满从这条路发起进攻。第5波会出现哥布林指挥官，第10波巨兽将亲自出马。',
   map: MAP,
   waves: WAVES,
-  startingGold: 200,
+  startingGold: 220,
   availableTowers: [TowerType.Arrow, TowerType.Cannon],
   availableUnits: [],
   unlockStarsRequired: 0,

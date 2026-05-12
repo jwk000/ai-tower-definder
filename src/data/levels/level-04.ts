@@ -197,7 +197,7 @@ export const LEVEL_04: LevelConfig = {
   sceneDescription: '活火山脚下的炼狱之地。熔岩河将大地割裂，火元素步兵和熔岩巨像在灼热的道路上推进。第10波炎魔将领现身，第15波熔核巨兽是最终考验。熔岩裂缝不可建造。',
   map: MAP,
   waves: WAVES,
-  startingGold: 350,
+  startingGold: 340,
   availableTowers: [TowerType.Arrow, TowerType.Cannon, TowerType.Lightning, TowerType.Laser, TowerType.Missile],
   availableUnits: [],
   unlockStarsRequired: 0,
