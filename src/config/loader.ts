@@ -176,7 +176,7 @@ export async function loadLevelConfigs(): Promise<LevelConfig[]> {
  *
  * Returns an empty array if no card YAMLs are present (Phase A1.1 placeholder).
  */
-export async function loadAllCardConfigs(): Promise<CardConfig[]> {
+export function loadAllCardConfigsSync(): CardConfig[] {
   const configs: CardConfig[] = [];
 
   const cardPaths = Object.keys(yamlModules).filter((p) => p.startsWith('./cards/'));
@@ -222,4 +222,8 @@ export async function loadAllCardConfigs(): Promise<CardConfig[]> {
   }
 
   return configs;
+}
+
+export async function loadAllCardConfigs(): Promise<CardConfig[]> {
+  return loadAllCardConfigsSync();
 }

@@ -71,6 +71,7 @@ import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
 
 // ---- v3.0 Roguelike RunContext —— Phase A3 集成层 ----
 import { createRunContext, startWaveEffect, endWaveEffect } from './unit-system/RunContext.js';
+import { loadAllCardConfigsSync } from './config/loader.js';
 
 // ---- Debug system imports ----
 import { DebugManager } from './debug/DebugManager.js';
@@ -1259,6 +1260,11 @@ this.world.registerSystem(this.weatherSystem);
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 if (!canvas) throw new Error('Canvas element not found');
+
+// Phase A4-YAML: 启动期同步装载所有卡牌 YAML 到 cardConfigRegistry，
+// 使 initBattle 里 createRunContext 能拿到非空 registry 抽出 12 张开局卡组。
+// 同步语义来自 import.meta.glob({ eager: true })，详见 src/config/loader.ts。
+loadAllCardConfigsSync();
 
 const game = new TowerDefenderGame(canvas);
 game.start();

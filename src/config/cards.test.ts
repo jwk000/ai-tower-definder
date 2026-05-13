@@ -9,7 +9,7 @@
  * TDD 阶段: A1.2 — 实现 6 塔 + 6 兵的卡牌 YAML 配置
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { loadAllCardConfigs } from './loader.js';
+import { loadAllCardConfigs, loadAllCardConfigsSync } from './loader.js';
 import { cardConfigRegistry } from './cardRegistry.js';
 import { unitConfigRegistry, type UnitConfig } from './registry.js';
 
@@ -163,5 +163,23 @@ describe('A1.2 卡牌 YAML 配置 (6 塔 + 6 兵)', () => {
         expect(id.endsWith('_card'), `${id} 应以 _card 结尾`).toBe(true);
       }
     });
+  });
+});
+
+describe('A4-YAML loadAllCardConfigsSync 同步装载契约', () => {
+  it('sync 与 async 加载结果等价（同一份 registry 内容）', () => {
+    cardConfigRegistry.clear();
+    const syncConfigs = loadAllCardConfigsSync();
+    expect(syncConfigs.length).toBeGreaterThanOrEqual(12);
+    for (const { id } of ALL_A12_CARDS) {
+      expect(cardConfigRegistry.get(id), `sync 加载后 ${id} 应存在`).toBeDefined();
+    }
+  });
+
+  it('main 启动场景：同步调用后立即能拿到非空 registry（不需 await）', () => {
+    cardConfigRegistry.clear();
+    expect(cardConfigRegistry.getAll().length).toBe(0);
+    loadAllCardConfigsSync();
+    expect(cardConfigRegistry.getAll().length).toBeGreaterThanOrEqual(12);
   });
 });
