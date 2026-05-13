@@ -30,6 +30,13 @@ import {
   PlayerOwned,
 } from '../core/components.js';
 
+export function computeEnergyBarRatio(current: number, max: number): number {
+  if (max <= 0) return 0;
+  if (current <= 0) return 0;
+  if (current >= max) return 1;
+  return current / max;
+}
+
 // ============================================================
 // TowerType numeric ID → enum mapping (matches BuildSystem)
 // ============================================================
@@ -406,6 +413,46 @@ export class UISystem implements System {
     return LayoutManager.toDesignX(LayoutManager.viewportW / 2);
   }
 
+  private renderEnergyBar(): void {
+    const runContext = this._world?.runContext;
+    if (!runContext) return;
+    const energy = runContext.energy;
+    const current = energy.current;
+    const max = energy.max;
+    const ratio = computeEnergyBarRatio(current, max);
+
+    const barX = 20;
+    const barY = 50;
+    const barW = 200;
+    const barH = 24;
+
+    this.renderer.push({
+      shape: 'rect',
+      x: barX + barW / 2, y: barY + barH / 2,
+      size: barW, h: barH,
+      color: '#0d1b2a',
+      alpha: 0.85,
+      stroke: '#1e88e5', strokeWidth: 1,
+    });
+
+    const fillW = barW * ratio;
+    if (fillW > 0) {
+      this.renderer.push({
+        shape: 'rect',
+        x: barX + fillW / 2, y: barY + barH / 2,
+        size: fillW, h: barH,
+        color: '#1e88e5',
+        alpha: 0.9,
+      });
+    }
+
+    this.infos.push({
+      x: barX + barW + 10, y: barY + barH / 2,
+      text: `◇ ${current}/${max}`,
+      color: '#bbdefb', size: 16,
+    });
+  }
+
   private buildTopHUD(phase: GamePhase): void {
     const world = this._world;
     const gold = this.getGold();
@@ -484,6 +531,11 @@ export class UISystem implements System {
         });
       }
     }
+
+    // v3.0 roguelike: 顶部能量条（手牌系统能量资源）
+    // 锚点 top-left offset(20,50), size 200×24（design/20 §4.5.1）
+    // 数据源 world.runContext.energy.{current,cap}；runContext 未装配时静默跳过
+    this.renderEnergyBar();
 
     const currentlyPaused = this.isPaused?.() ?? false;
 
