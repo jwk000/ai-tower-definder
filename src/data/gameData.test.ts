@@ -252,6 +252,24 @@ describe('单位配置 (UNIT_CONFIGS)', () => {
     expect(cfg.splashRadius).toBe(96);
     expect(cfg.skillId).toBe('whirlwind');
   });
+
+  it('盾卫升级数据 — 3 级 + 嘲讽容量 [1,1] (2→3→4)', () => {
+    const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
+    expect(cfg.maxLevel).toBe(3);
+    expect(cfg.upgradeCosts).toEqual([40, 60]);
+    expect(cfg.upgradeHpBonus).toEqual([120, 180]);
+    expect(cfg.upgradeAtkBonus).toEqual([2, 3]);
+    expect(cfg.upgradeTauntCapacityBonus).toEqual([1, 1]);
+  });
+
+  it('剑士升级数据 — 3 级 + 无嘲讽容量增量', () => {
+    const cfg = UNIT_CONFIGS[UnitType.Swordsman];
+    expect(cfg.maxLevel).toBe(3);
+    expect(cfg.upgradeCosts).toEqual([40, 60]);
+    expect(cfg.upgradeHpBonus).toEqual([60, 90]);
+    expect(cfg.upgradeAtkBonus).toEqual([6, 10]);
+    expect(cfg.upgradeTauntCapacityBonus).toBeUndefined();
+  });
 });
 
 describe('生产建筑配置 (PRODUCTION_CONFIGS)', () => {
