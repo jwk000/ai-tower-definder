@@ -28,6 +28,7 @@ import {
 // Import component definitions — these are needed by systems that
 // reference the component stores when calling addComponent / query.
 import * as components from '../core/components.js';
+import type { UnitVisualParts } from '../types/index.js';
 
 // Debug logging
 import { entityCreated, entityDestroyed, componentAdded, componentRemoved } from '../utils/debugLog.js';
@@ -67,6 +68,18 @@ export class TowerWorld {
 
   /** Entity display names (eid → name string) — used by RenderSystem for overhead HUD */
   private displayNames = new Map<number, string>();
+
+  private unitVisualPartsTable: UnitVisualParts[] = [];
+
+  registerUnitVisualParts(parts: UnitVisualParts): number {
+    this.unitVisualPartsTable.push(parts);
+    return this.unitVisualPartsTable.length;
+  }
+
+  getUnitVisualParts(id: number): UnitVisualParts | undefined {
+    if (id <= 0) return undefined;
+    return this.unitVisualPartsTable[id - 1];
+  }
 
   // ---- Entity Lifecycle ----
 
@@ -156,6 +169,7 @@ export class TowerWorld {
   reset(): void {
     this.deadEntities.clear();
     this.displayNames.clear();
+    this.unitVisualPartsTable.length = 0;
     this.systems.length = 0;
     // Remove all existing entities from current world before creating a new one
     const allEntities = getAllEntities(this.world);

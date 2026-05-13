@@ -153,7 +153,26 @@ export const Visual = defineComponent({
   alpha: Types.f32,      // 透明度 (0-1)
   outline: Types.ui8,    // 是否有描边 (0/1)
   hitFlashTimer: Types.f32, // 受击闪白计时器
-  idlePhase: Types.f32,     // 待机动画相位
+  idlePhase: Types.f32,     // 待机动画相位 (projectile 复用为飞行角度)
+
+  // ---- 可移动单位视觉增强字段 ----
+  // 设计文档: design/15-refactoring-plan.md, AGENTS.md (单位形象重设计)
+  /** 朝向：-1 = 面朝左, +1 = 面朝右（仅 X 轴翻转，不做 360° 旋转）。默认 1。 */
+  facing: Types.f32,
+  /** 移动晃动相位（弧度）：MovementSystem 根据实际位移累加，渲染层用 sin(bobPhase) 计算 bob/sway 偏移 */
+  bobPhase: Types.f32,
+  /** 待机呼吸相位（秒）：RenderSystem 每帧累加，用于 ±2% 缩放呼吸 */
+  breathPhase: Types.f32,
+  /** 攻击动画剩余时长（秒）：AttackSystem 触发时设为 attackAnimDuration，渲染层用于挥砍角度插值 */
+  attackAnimTimer: Types.f32,
+  /** 攻击动画总时长（秒），用于插值归一化。0 = 不绘制武器挥砍动作 */
+  attackAnimDuration: Types.f32,
+  /**
+   * 视觉部件配置索引（关联 World.unitVisualParts 表）。
+   * 0 = 无配置（按基础 shape 单层绘制，兼容塔/敌人/特效）
+   * 非 0 = 渲染层走 composite 多部件路径，绘制身体 + 装备 + 武器 + 眼睛
+   */
+  partsId: Types.ui16,
 });
 
 // ============================================================

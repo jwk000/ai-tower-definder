@@ -10,7 +10,7 @@ import { TowerWorld, System, defineQuery, hasComponent } from '../core/World.js'
 import { Renderer } from '../render/Renderer.js';
 import { LayoutManager } from '../ui/LayoutManager.js';
 import { TileType, TowerType } from '../types/index.js';
-import type { MapConfig, SceneLayout, ShapeType, CompositePart, UpgradeVisualConfig } from '../types/index.js';
+import type { MapConfig, SceneLayout, ShapeType, CompositePart, UpgradeVisualConfig, UnitVisualParts } from '../types/index.js';
 import {
   Position,
   Visual,
@@ -294,6 +294,132 @@ export class RenderSystem implements System {
         shape: 'circle', x: px, y: py, size: 6,
         color: '#ff1744', alpha: 1, z: 4,
       });
+    }
+  }
+
+  /**
+   * 士兵 composite 渲染：身体 + 装饰部件 + 眼睛 + 武器，应用 bob/breath/挥砍动画。
+   *
+   * 绘制顺序（z 自下而上）：武器光晕 → 身体（带 breathing scale）→ bodyParts → 武器 → 眼睛
+   * facing 决定 X 翻转；attackAnimTimer/Duration 驱动武器摆角；bobPhase 决定 bobY 偏移；breathPhase 决定身体 scale
+   */
+  private drawSoldierComposite(
+    eid: number,
+    posX: number,
+    posY: number,
+    drawSize: number,
+    color: string,
+    alpha: number,
+    strokeColor: string | undefined,
+    strokeW: number | undefined,
+    z: number,
+    parts: UnitVisualParts,
+  ): void {
+    const facing: number = (Visual.facing[eid] ?? 1) >= 0 ? 1 : -1;
+    const bobPhase = Visual.bobPhase[eid] ?? 0;
+    const breathPhase = Visual.breathPhase[eid] ?? 0;
+    const attackDur = Visual.attackAnimDuration[eid] ?? 0;
+    const attackTimer = Visual.attackAnimTimer[eid] ?? 0;
+
+    const bobY = Math.sin(bobPhase) * 2;
+    const swayX = Math.sin(bobPhase * 0.5) * 0.6 * facing;
+    const breathScale = 1 + Math.sin(breathPhase) * 0.04;
+    const bodySize = drawSize * breathScale;
+
+    const bodyX = posX + swayX;
+    const bodyY = posY + bobY;
+
+    const swingProgress = attackDur > 0 && attackTimer > 0
+      ? 1 - attackTimer / attackDur
+      : 0;
+    const swingOffset = Math.sin(swingProgress * Math.PI);
+
+    const shape: ShapeType = shapeValToString(Visual.shape[eid]!);
+
+    if (parts.weapon) {
+      const w = parts.weapon;
+      const glowColor = w.glowColor;
+      const glowRadius = w.glowRadius;
+      if (glowColor !== undefined && glowRadius !== undefined && glowRadius > 0) {
+        const ax = bodyX + w.anchorX * facing;
+        const ay = bodyY + w.anchorY;
+        const glowAlpha = (w.glowAlpha ?? 0.4) * (0.85 + 0.15 * Math.sin(Date.now() * 0.008));
+        this.renderer.push({
+          shape: 'circle',
+          x: ax + (w.length * 0.5) * facing,
+          y: ay,
+          size: glowRadius * 2,
+          color: glowColor,
+          alpha: glowAlpha,
+          z: z - 1,
+        });
+      }
+    }
+
+    this.renderer.push({
+      shape,
+      x: bodyX, y: bodyY,
+      size: bodySize,
+      color,
+      alpha,
+      stroke: strokeColor,
+      strokeWidth: strokeW,
+      z,
+    });
+
+    if (parts.bodyParts) {
+      for (const part of parts.bodyParts) {
+        this.renderer.push({
+          shape: part.shape,
+          x: bodyX + part.offsetX * facing,
+          y: bodyY + part.offsetY,
+          size: part.size,
+          h: part.h,
+          color: part.color,
+          alpha: part.alpha ?? 1,
+          stroke: part.stroke,
+          strokeWidth: part.strokeWidth,
+          rotation: part.rotation,
+          z,
+        });
+      }
+    }
+
+    if (parts.weapon) {
+      const w = parts.weapon;
+      const ax = bodyX + w.anchorX * facing;
+      const ay = bodyY + w.anchorY;
+      const angle = (w.restAngle + swingOffset * w.swingAngle) * facing;
+      const midX = ax + Math.cos(angle) * (w.length * 0.5) * facing;
+      const midY = ay + Math.sin(angle) * (w.length * 0.5);
+      this.renderer.push({
+        shape: 'rect',
+        x: midX,
+        y: midY,
+        size: w.length,
+        h: w.width,
+        color: w.color,
+        alpha: 1,
+        stroke: w.stroke,
+        strokeWidth: w.strokeWidth,
+        rotation: angle,
+        z: z + 1,
+      });
+    }
+
+    if (parts.eyes) {
+      const e = parts.eyes;
+      const eyeOffsetX = e.offsetX ?? drawSize * 0.18;
+      const eyeOffsetY = e.offsetY ?? -drawSize * 0.12;
+      const eyeY = bodyY + eyeOffsetY;
+      const leftX = bodyX - eyeOffsetX;
+      const rightX = bodyX + eyeOffsetX;
+      if (e.scleraRadius && e.scleraRadius > 0) {
+        this.renderer.push({ shape: 'circle', x: leftX, y: eyeY, size: e.scleraRadius * 2, color: e.scleraColor ?? '#ffffff', alpha: 1, z: z + 2 });
+        this.renderer.push({ shape: 'circle', x: rightX, y: eyeY, size: e.scleraRadius * 2, color: e.scleraColor ?? '#ffffff', alpha: 1, z: z + 2 });
+      }
+      this.renderer.push({ shape: 'circle', x: leftX, y: eyeY, size: e.pupilRadius * 2, color: e.pupilColor, alpha: 1, z: z + 3 });
+      this.renderer.push({ shape: 'circle', x: rightX, y: eyeY, size: e.pupilRadius * 2, color: e.pupilColor, alpha: 1, z: z + 3 });
     }
   }
 
@@ -700,7 +826,17 @@ export class RenderSystem implements System {
       // ========================================
       // 1. Entity body (bottom layer — drawn first)
       // ========================================
-      pushCmd();
+      const unitPartsId = Visual.partsId[eid] ?? 0;
+      if (isUnit && unitPartsId !== 0) {
+        const parts = world.getUnitVisualParts(unitPartsId);
+        if (parts) {
+          this.drawSoldierComposite(eid, posX, posY, drawSize, displayColor, displayAlpha, strokeColor, strokeW, renderZ, parts);
+        } else {
+          pushCmd();
+        }
+      } else {
+        pushCmd();
+      }
 
       // ========================================
       // 2. Composite geometry extra parts (L3-L5 towers)

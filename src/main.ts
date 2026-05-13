@@ -7,6 +7,7 @@ import { AttackSystem } from './systems/AttackSystem.js';
 import { BatSwarmSystem } from './systems/BatSwarmSystem.js';
 import { LaserBeamSystem } from './systems/LaserBeamSystem.js';
 import { UnitSystem } from './systems/UnitSystem.js';
+import { UnitAnimationSystem } from './systems/UnitAnimationSystem.js';
 import { ProjectileSystem } from './systems/ProjectileSystem.js';
 import { SkillSystem } from './systems/SkillSystem.js';
 import { BuffSystem } from './systems/BuffSystem.js';
@@ -45,7 +46,7 @@ import { Sound } from './utils/Sound.js';
 import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS, UNIT_TYPE_BY_ID, UNIT_ID_BY_TYPE } from './data/gameData.js';
-import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
+import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig, type ShapeType } from './types/index.js';
 
 // ---- bitecs component stores ----
 import {
@@ -106,6 +107,18 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     g: parseInt(h.slice(2, 4), 16),
     b: parseInt(h.slice(4, 6), 16),
   };
+}
+
+function shapeTypeToVal(shape: ShapeType): ShapeVal {
+  switch (shape) {
+    case 'rect': return ShapeVal.Rect;
+    case 'circle': return ShapeVal.Circle;
+    case 'triangle': return ShapeVal.Triangle;
+    case 'diamond': return ShapeVal.Diamond;
+    case 'hexagon': return ShapeVal.Hexagon;
+    case 'arrow': return ShapeVal.Arrow;
+    default: return ShapeVal.Rect;
+  }
 }
 
 class TowerDefenderGame extends Game {
@@ -578,6 +591,7 @@ class TowerDefenderGame extends Game {
     const bombSystem = new BombSystem();
     this.batSwarmSystem = new BatSwarmSystem(this.weatherSystem, this.renderer);
     const unitSystem = new UnitSystem(map);
+    const unitAnimationSystem = new UnitAnimationSystem();
     const projectileSystem = new ProjectileSystem(map);
 
     this.skillSystem = new SkillSystem(
@@ -775,6 +789,7 @@ this.world.registerSystem(this.weatherSystem);
     this.world.registerSystem(this.buildSystem);
     this.world.registerSystem(this.decorationSystem);  // background + decorations — before entity render
     this.world.registerSystem(this.screenShakeSystem);  // screen shake offset — before render
+    this.world.registerSystem(unitAnimationSystem);
     this.world.registerSystem(renderSystem);
     this.world.registerSystem(lightningBoltSystem); // direct canvas draw — after buffered render
     this.world.registerSystem(this.uiSystem);
@@ -1099,8 +1114,12 @@ this.world.registerSystem(this.weatherSystem);
 
     // Visual
     const rgb = hexToRgb(config.color);
+    const shapeVal = shapeTypeToVal(config.shape ?? 'rect');
+    const partsId = config.visualParts
+      ? this.world.registerUnitVisualParts(config.visualParts)
+      : 0;
     this.world.addComponent(id, Visual, {
-      shape: ShapeVal.Circle,
+      shape: shapeVal,
       colorR: rgb.r,
       colorG: rgb.g,
       colorB: rgb.b,
@@ -1109,6 +1128,12 @@ this.world.registerSystem(this.weatherSystem);
       outline: 1,
       hitFlashTimer: 0,
       idlePhase: 0,
+      facing: 1,
+      bobPhase: 0,
+      breathPhase: Math.random() * Math.PI * 2,
+      attackAnimTimer: 0,
+      attackAnimDuration: config.attackAnimDuration ?? 0.3,
+      partsId,
     });
 
     // AI component — based on unit type

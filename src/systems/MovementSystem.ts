@@ -135,6 +135,13 @@ export class MovementSystem implements System {
         Position.x[eid] = newX;
         Position.y[eid] = newY;
       }
+
+      const stepDx = Position.x[eid]! - posX;
+      if (stepDx > 0.05) Visual.facing[eid] = 1;
+      else if (stepDx < -0.05) Visual.facing[eid] = -1;
+      if (Math.abs(stepDx) > 0.05) {
+        Visual.bobPhase[eid] = ((Visual.bobPhase[eid] ?? 0) + speed * dt * 0.08) % (Math.PI * 2);
+      }
     }
   }
 

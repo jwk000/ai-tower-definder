@@ -316,6 +316,12 @@ export interface UnitConfig {
   upgradeHpBonus?: readonly number[]; // 每级升级增加的最大 HP
   upgradeAtkBonus?: readonly number[]; // 每级升级增加的攻击力
   upgradeTauntCapacityBonus?: readonly number[]; // 每级升级增加的嘲讽容量（与 tauntCapacityPerLevel 二选一；优先此字段）
+  /** 基础几何形状：'circle' / 'rect' / 'hexagon' 等。默认 'rect'（士兵历史上是方块） */
+  shape?: ShapeType;
+  /** 视觉部件配置（眼睛/武器/身体细节）— 不填则只画基础 shape，无装饰 */
+  visualParts?: UnitVisualParts;
+  /** 攻击动画时长（秒）— 用于挥砍/拉弓等武器动作。默认 0.3 秒；0 则不播放武器挥砍 */
+  attackAnimDuration?: number;
 }
 
 // ---- Production ----
@@ -502,11 +508,74 @@ export interface CompositePart {
   offsetX: number;   // relative to entity center
   offsetY: number;   // relative to entity center
   size: number;
+  /** Rect height (defaults to size = square). Ignored for non-rect shapes. */
+  h?: number;
   color: string;
   alpha?: number;
   stroke?: string;
   strokeWidth?: number;
   rotation?: number;
+}
+
+/**
+ * 可移动单位的视觉部件配置 — 描述身体之上的装饰元素（眼睛、武器、肩甲等）。
+ *
+ * 渲染规则（详见 RenderSystem.drawSoldierComposite）：
+ * - eyes：两个对称圆点，pupil 描绘瞳孔；位置随 facing 沿 X 轴翻转
+ * - weapon：从单位 anchor 偏移出发的矩形武器，攻击时沿 pivot 旋转挥砍
+ * - bodyParts：附加身体几何（围巾/护甲条纹等），随 facing 翻转
+ * - bobbing/breathing 由 RenderSystem 统一应用，无需在配置中指定
+ */
+export interface UnitVisualParts {
+  /** 眼睛：两个对称圆点，沿单位 X 轴对称分布 */
+  eyes?: {
+    /** 眼睛距单位中心的 X 偏移（绝对像素，左右对称）；默认 size * 0.18 */
+    offsetX?: number;
+    /** 眼睛距单位中心的 Y 偏移（向上为负）；默认 -size * 0.12 */
+    offsetY?: number;
+    /** 眼白/巩膜半径，0 表示不画眼白只画瞳孔 */
+    scleraRadius?: number;
+    /** 眼白颜色，默认 #ffffff */
+    scleraColor?: string;
+    /** 瞳孔半径 */
+    pupilRadius: number;
+    /** 瞳孔颜色 */
+    pupilColor: string;
+  };
+
+  /**
+   * 武器：单根矩形 + 可选光晕，相对单位 anchor（默认右手 = size * 0.45, -size * 0.05）。
+   * 旋转 pivot 固定在 anchor 处，挥砍角度从 restAngle 摆向 swingAngle。
+   */
+  weapon?: {
+    /** 武器在单位坐标系中的 anchor X（相对中心，朝向为右，正值=右） */
+    anchorX: number;
+    /** 武器在单位坐标系中的 anchor Y（向上为负） */
+    anchorY: number;
+    /** 武器长度（沿其自身轴向） */
+    length: number;
+    /** 武器宽度 */
+    width: number;
+    /** 武器颜色 */
+    color: string;
+    /** 武器描边颜色 */
+    stroke?: string;
+    /** 武器描边宽度 */
+    strokeWidth?: number;
+    /** 武器静止时绕 anchor 的旋转角度（弧度，0 = 水平向右，向下旋转为正） */
+    restAngle: number;
+    /** 攻击挥砍最大角度（弧度），动画从 restAngle 平滑摆向 restAngle + swingAngle 后回弹 */
+    swingAngle: number;
+    /** 武器发光颜色（绘制在武器下层做光晕），undefined = 不发光 */
+    glowColor?: string;
+    /** 发光半径（覆盖整把武器的圆形光晕） */
+    glowRadius?: number;
+    /** 发光透明度，默认 0.4 */
+    glowAlpha?: number;
+  };
+
+  /** 附加身体部件（肩甲、围巾、徽记等），跟随 facing 翻转 */
+  bodyParts?: CompositePart[];
 }
 
 /** Per-level upgrade visual configuration */

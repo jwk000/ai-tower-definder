@@ -155,6 +155,7 @@ export class UnitSystem implements System {
     // Entity collision + avoidance
     const collision = this.checkEntityCollision(world, eid, newX, newY, radius);
 
+    let finalDx = 0;
     if (collision.blocked) {
       const avoidance = this.findAvoidance(
         world, eid, px, py, radius, moveTargetX, moveTargetY,
@@ -188,6 +189,7 @@ export class UnitSystem implements System {
             if (!recheck.blocked) {
               Position.x[eid] = avoidX;
               Position.y[eid] = avoidY;
+              finalDx = avoidX - px;
             }
           }
         }
@@ -195,6 +197,19 @@ export class UnitSystem implements System {
     } else {
       Position.x[eid] = newX;
       Position.y[eid] = newY;
+      finalDx = newX - px;
+    }
+
+    this.advanceLocomotionAnim(eid, finalDx, speed, dt);
+  }
+
+  private advanceLocomotionAnim(eid: number, dx: number, speed: number, dt: number): void {
+    if (dx > 0.05) Visual.facing[eid] = 1;
+    else if (dx < -0.05) Visual.facing[eid] = -1;
+    const moving = Math.abs(dx) > 0.05;
+    if (moving) {
+      // 0.08 rad·s / px·s → 速度 80 px/s 时约 6.4 rad/s（≈ 1 步/秒）
+      Visual.bobPhase[eid] = ((Visual.bobPhase[eid] ?? 0) + speed * dt * 0.08) % (Math.PI * 2);
     }
   }
 

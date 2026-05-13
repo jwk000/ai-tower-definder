@@ -7,6 +7,7 @@ import {
   Position,
   Health,
   Attack,
+  Visual,
   UnitTag,
   Tower,
   Movement,
@@ -619,6 +620,12 @@ export class AttackNode extends ActionNode {
         Health.current[targetId]! -= primaryDamage;
         if (UnitTag.isEnemy[targetId] === 1 && Attack.damage[targetId] !== undefined) {
           Attack.targetId[targetId] = eid;
+        }
+        if (Visual.partsId[eid]! !== 0) {
+          Visual.attackAnimTimer[eid] = Visual.attackAnimDuration[eid]!;
+          const tdx = Position.x[targetId]! - Position.x[eid]!;
+          if (tdx > 0.5) Visual.facing[eid] = 1;
+          else if (tdx < -0.5) Visual.facing[eid] = -1;
         }
         // 旋风斩 / 远程 splash：soldier 拥有 splashRadius > 0 → 以自身为中心命中周围 9 格
         // 二次伤害 60%（与塔系 splash 一致，避免 AOE 单位过强）
