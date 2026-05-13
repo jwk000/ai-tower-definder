@@ -321,8 +321,9 @@ export class RenderSystem implements System {
     const attackDur = Visual.attackAnimDuration[eid] ?? 0;
     const attackTimer = Visual.attackAnimTimer[eid] ?? 0;
 
-    const bobY = Math.sin(bobPhase) * 2;
-    const swayX = Math.sin(bobPhase * 0.5) * 0.6 * facing;
+    const floating = parts.bobStyle === 'floating';
+    const bobY = floating ? Math.sin(bobPhase) * 4 : Math.sin(bobPhase) * 2;
+    const swayX = floating ? 0 : Math.sin(bobPhase * 0.5) * 0.6 * facing;
     const breathScale = 1 + Math.sin(breathPhase) * 0.04;
     const bodySize = drawSize * breathScale;
 

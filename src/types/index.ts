@@ -582,6 +582,13 @@ export interface UnitVisualParts {
 
   /** 附加身体部件（肩甲、围巾、徽记等），跟随 facing 翻转 */
   bodyParts?: CompositePart[];
+
+  /**
+   * 移动晃动风格：
+   * - 'walking'（默认）：地面单位 — 浅 Y bob (±2px) + X 摇摆 (±0.6px)
+   * - 'floating'：空中单位 — 较深 Y bob (±4px)，无 X 摇摆（气球类）
+   */
+  bobStyle?: 'walking' | 'floating';
 }
 
 /** Per-level upgrade visual configuration */

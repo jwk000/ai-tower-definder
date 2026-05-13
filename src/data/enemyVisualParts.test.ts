@@ -77,6 +77,7 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
     const enemies: EnemyType[] = [
       EnemyType.Grunt, EnemyType.Runner, EnemyType.Exploder,
       EnemyType.Heavy, EnemyType.Juggernaut,
+      EnemyType.Mage, EnemyType.Shaman, EnemyType.HotAirBalloon,
     ];
 
     enemies.forEach((type) => {
@@ -138,6 +139,73 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
     it('瞳孔为红色（凶猛威胁感）', () => {
       const pupilColor = cfg.visualParts?.eyes?.pupilColor ?? '';
       expect(pupilColor.toLowerCase()).toMatch(/^#(d|e|f)/);
+    });
+  });
+
+  describe('Mage 法师', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Mage];
+
+    it('应该配置 visualParts（法杖发蓝光 + 法师帽斗篷）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+      expect(cfg.visualParts?.bodyParts).toBeDefined();
+    });
+
+    it('武器有蓝色光晕（魔法主题）', () => {
+      const w = cfg.visualParts?.weapon;
+      expect(w?.glowColor?.toLowerCase()).toMatch(/^#(0|1|2|3|4|5|6)/);
+      expect(w?.glowRadius ?? 0).toBeGreaterThan(0);
+    });
+
+    it('包含 triangle bodyPart（法师帽）', () => {
+      const triangles = (cfg.visualParts?.bodyParts ?? []).filter((p) => p.shape === 'triangle');
+      expect(triangles.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('eyes scleraRadius === 0（闭眼冥想感）', () => {
+      expect(cfg.visualParts?.eyes?.scleraRadius).toBe(0);
+    });
+  });
+
+  describe('Shaman 萨满', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Shaman];
+
+    it('应该配置 visualParts（法杖绿光 + 头骨 + 黄瞳）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+    });
+
+    it('武器光晕为绿色（治疗主题）', () => {
+      const glow = cfg.visualParts?.weapon?.glowColor?.toLowerCase() ?? '';
+      expect(glow).toMatch(/^#(4|5|6|7|8)/);
+    });
+
+    it('瞳孔为黄色（神秘部族感）', () => {
+      const pupilColor = cfg.visualParts?.eyes?.pupilColor?.toLowerCase() ?? '';
+      expect(pupilColor).toMatch(/^#(f|e)/);
+    });
+  });
+
+  describe('HotAirBalloon 热气球', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.HotAirBalloon];
+
+    it('应该配置 visualParts（无眼睛 + 无武器 + 浮空风格）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.eyes).toBeUndefined();
+      expect(cfg.visualParts?.weapon).toBeUndefined();
+      expect(cfg.visualParts?.bodyParts).toBeDefined();
+    });
+
+    it('bobStyle 为 floating（Y 方向飘浮，无 X 摇摆）', () => {
+      expect(cfg.visualParts?.bobStyle).toBe('floating');
+    });
+
+    it('attackAnimDuration === 0（无近战武器，禁用挥砍）', () => {
+      expect(cfg.attackAnimDuration).toBe(0);
+    });
+
+    it('bodyParts 至少 4 个（绳索 + 篮子 + 炸弹 + 火焰组合）', () => {
+      expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(4);
     });
   });
 });
