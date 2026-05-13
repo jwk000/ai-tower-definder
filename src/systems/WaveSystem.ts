@@ -83,6 +83,8 @@ export class WaveSystem implements System {
     private getPhase: () => GamePhase,
     private setPhase: (phase: GamePhase) => void,
     private onWaveComplete?: () => void,
+    /** v3.0 Roguelike: 每波正式开始时触发（设置 Battle phase 之后）。用于 RunContext.startWaveEffect。 */
+    private onWaveStart?: () => void,
   ) {
     this.world = world;
     this.waves = waves;
@@ -151,6 +153,7 @@ export class WaveSystem implements System {
       this.totalInWave = wave.enemies.reduce((sum, g) => sum + g.count, 0);
       this.waveActive = true;
       this.setPhase(GamePhase.Battle);
+      this.onWaveStart?.();
       return;
     }
 
@@ -171,6 +174,7 @@ export class WaveSystem implements System {
     this.totalInWave = wave.enemies.reduce((sum, g) => sum + g.count, 0);
     this.waveActive = true;
     this.setPhase(GamePhase.Battle);
+    this.onWaveStart?.();
   }
 
   update(world: TowerWorld, dt: number): void {

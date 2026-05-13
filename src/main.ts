@@ -69,6 +69,9 @@ import { LifecycleSystem } from './systems/LifecycleSystem.js';
 import { UnitFactory } from './systems/UnitFactory.js';
 import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
 
+// ---- v3.0 Roguelike RunContext —— Phase A3 集成层 ----
+import { createRunContext, startWaveEffect, endWaveEffect } from './unit-system/RunContext.js';
+
 // ---- Debug system imports ----
 import { DebugManager } from './debug/DebugManager.js';
 
@@ -307,10 +310,15 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private initBattle(config: LevelConfig): void {
-    initGlobalRandom(generateSeed());
+    const runSeed = generateSeed();
+    initGlobalRandom(runSeed);
     this.battleGameTime = 0;
     this.snapshotTimer = 0;
     this.lastSnapshotWave = 0;
+
+    // Phase A3: 装配 v3.0 卡牌 Roguelike 运行时上下文（容错：cardConfigRegistry
+    // 为空时 deck 留空，不阻塞旧建造流程）
+    this.world.attachRunContext(createRunContext({ seed: runSeed }));
 
     const map = config.map;
     this.currentMap = map;
@@ -362,7 +370,15 @@ class TowerDefenderGame extends Game {
       (p) => { this.phase = p; },
       () => {
         this.weatherSystem.onWaveEnd();
+        // Phase A3: 波末调度卡牌系统弃手牌（persist 卡跨波保留）
+        const ctx = this.world.runContext;
+        if (ctx) endWaveEffect(ctx);
         this.saveCurrentBattle('wave-end');
+      },
+      // Phase A3: 波首调度卡牌系统补能量 + 满手牌
+      () => {
+        const ctx = this.world.runContext;
+        if (ctx) startWaveEffect(ctx);
       },
     );
 
