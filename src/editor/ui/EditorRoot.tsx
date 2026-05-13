@@ -49,8 +49,30 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     void editor.saveCurrent();
   };
 
+  const onDuplicate = async (): Promise<void> => {
+    if (view.currentId === null) return;
+    const suggested = `${view.currentId}_copy`;
+    const newId = window.prompt('输入新关卡 ID（小写、数字、下划线、连字符）:', suggested);
+    if (newId === null) return;
+    const trimmed = newId.trim();
+    if (trimmed === '') return;
+    const result = await editor.duplicate(view.currentId, trimmed);
+    if (result.ok) {
+      await editor.refreshList();
+    }
+  };
+
+  const onDelete = async (id: string): Promise<void> => {
+    if (!window.confirm(`确定删除关卡 "${id}"？\n（文件会移到 .editor-trash/ 回收站）`)) return;
+    const result = await editor.delete(id);
+    if (result.ok) {
+      await editor.refreshList();
+    }
+  };
+
   const showEditor = view.currentId !== null && view.currentContent !== null;
   const canSave = showEditor && view.isDirty && view.status !== 'saving';
+  const canDuplicate = view.currentId !== null;
 
   return (
     <div class="editor-root" style={rootStyle} data-testid="editor-root">
@@ -68,7 +90,19 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
 
       <div style={bodyStyle}>
         <section style={listSectionStyle}>
-          <h3 style={sectionTitleStyle}>关卡列表</h3>
+          <div style={listToolbarStyle}>
+            <h3 style={sectionTitleStyle}>关卡列表</h3>
+            <button
+              type="button"
+              onClick={() => { void onDuplicate(); }}
+              disabled={!canDuplicate}
+              style={{ ...duplicateButtonStyle, opacity: canDuplicate ? 1 : 0.4, cursor: canDuplicate ? 'pointer' : 'not-allowed' }}
+              data-testid="editor-duplicate"
+              title={canDuplicate ? '复制当前关卡' : '请先选中一个关卡'}
+            >
+              + 复制
+            </button>
+          </div>
           {view.list.length === 0 ? (
             <p style={{ color: '#888', fontSize: 13 }}>
               {view.status === 'loading' ? '加载中…' : '暂无关卡（请检查 src/config/levels/）'}
@@ -78,7 +112,7 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
               {view.list.map((entry) => {
                 const active = entry.id === view.currentId;
                 return (
-                  <li key={entry.id}>
+                  <li key={entry.id} style={listItemRowStyle}>
                     <button
                       type="button"
                       onClick={() => onPickLevel(entry.id)}
@@ -87,6 +121,15 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                     >
                       <span style={{ color: '#e0e0e0' }}>{entry.id}</span>
                       <span style={{ color: '#666', fontSize: 12, marginLeft: 8 }}>{entry.filename}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { void onDelete(entry.id); }}
+                      style={deleteButtonStyle}
+                      data-testid={`editor-delete-${entry.id}`}
+                      title="删除（移到回收站）"
+                    >
+                      🗑
                     </button>
                   </li>
                 );
@@ -222,7 +265,7 @@ const listStyle = {
 };
 
 const listItemButtonStyle = {
-  width: '100%',
+  flex: 1,
   padding: '8px 12px',
   border: '1px solid #2a2a3a',
   borderRadius: 4,
@@ -230,6 +273,38 @@ const listItemButtonStyle = {
   textAlign: 'left' as const,
   cursor: 'pointer',
   color: '#e0e0e0',
+};
+
+const listToolbarStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+};
+
+const duplicateButtonStyle = {
+  background: '#2a3a5a',
+  border: '1px solid #3a4a7a',
+  color: '#fff',
+  padding: '4px 10px',
+  borderRadius: 4,
+  fontSize: 12,
+};
+
+const listItemRowStyle = {
+  display: 'flex',
+  alignItems: 'stretch',
+  gap: 4,
+};
+
+const deleteButtonStyle = {
+  background: 'transparent',
+  border: '1px solid #2a2a3a',
+  color: '#a04a4a',
+  padding: '0 8px',
+  borderRadius: 4,
+  fontSize: 14,
+  cursor: 'pointer',
 };
 
 const editToolbarStyle = {

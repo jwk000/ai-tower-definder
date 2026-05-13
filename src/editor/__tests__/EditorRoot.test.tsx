@@ -199,4 +199,136 @@ describe('EditorRoot integration (happy-dom)', () => {
     findByTestId<HTMLButtonElement>(host, 'editor-close')!.click();
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('duplicate button: prompts for new id, calls editor.duplicate, refreshes list', async () => {
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('level_03');
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': [
+          { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }, { id: 'level_03', filename: 'level_03.yaml' }] } },
+        ],
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+        'POST /__editor/levels/level_01/dup': { status: 200, body: { id: 'level_03', mtime: 200 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const dupBtn = findByTestId<HTMLButtonElement>(host, 'editor-duplicate');
+    expect(dupBtn).not.toBeNull();
+    expect(dupBtn!.disabled).toBe(false);
+    dupBtn!.click();
+    await tick(); await tick();
+
+    expect(promptSpy).toHaveBeenCalledOnce();
+    expect(findByTestId(host, 'editor-level-item-level_03')).not.toBeNull();
+    promptSpy.mockRestore();
+  });
+
+  it('duplicate button is disabled when no level is selected', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({ 'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } } }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    const dupBtn = findByTestId<HTMLButtonElement>(host, 'editor-duplicate');
+    expect(dupBtn!.disabled).toBe(true);
+  });
+
+  it('duplicate: cancelling prompt does not call editor.duplicate', async () => {
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue(null);
+    const dupSpy = vi.fn();
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    (editor as unknown as { duplicate: typeof editor.duplicate }).duplicate = dupSpy as never;
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-duplicate')!.click();
+    await tick();
+    expect(dupSpy).not.toHaveBeenCalled();
+    promptSpy.mockRestore();
+  });
+
+  it('delete button: confirm then DELETE, refresh list, clear current', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': [
+          { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }, { id: 'level_02', filename: 'level_02.yaml' }] } },
+          { status: 200, body: { levels: [{ id: 'level_02', filename: 'level_02.yaml' }] } },
+        ],
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+        'DELETE /__editor/levels/level_01': { status: 200, body: { id: 'level_01', trashed: 'level_01.iso.yaml' } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const delBtn = findByTestId<HTMLButtonElement>(host, 'editor-delete-level_01');
+    expect(delBtn).not.toBeNull();
+    delBtn!.click();
+    await tick(); await tick();
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(editor.currentId).toBe(null);
+    expect(findByTestId(host, 'editor-level-item-level_01')).toBeNull();
+    expect(findByTestId(host, 'editor-level-item-level_02')).not.toBeNull();
+    confirmSpy.mockRestore();
+  });
+
+  it('delete: cancelling confirm does not call editor.delete', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const delSpy = vi.fn();
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+      }),
+      baseUrl: '/__editor',
+    });
+    (editor as unknown as { delete: typeof editor.delete }).delete = delSpy as never;
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-delete-level_01')!.click();
+    await tick();
+    expect(delSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('duplicate failure surfaces in error banner', async () => {
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('level_existing');
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+        'POST /__editor/levels/level_01/dup': { status: 409, body: { error: 'target_exists' } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-duplicate')!.click();
+    await tick(); await tick();
+
+    const banner = findByTestId(host, 'editor-error');
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toMatch(/target_exists/);
+    promptSpy.mockRestore();
+  });
 });
