@@ -1,4 +1,4 @@
-import { TowerWorld, type System, defineQuery } from '../core/World.js';
+import { TowerWorld, type System, defineQuery, entityExists, hasComponent } from '../core/World.js';
 import {
   Position,
   Attack,
@@ -95,7 +95,7 @@ const PROJ_VISUAL: Record<number, ProjectileVisual> = {
   3: { speed: 600, shape: ShapeVal.Triangle, colorR: LIGHTNING_COLOR[0], colorG: LIGHTNING_COLOR[1], colorB: LIGHTNING_COLOR[2], size: 10 },
   4: { speed: 500, shape: ShapeVal.Circle,   colorR: LASER_COLOR[0],    colorG: LASER_COLOR[1],    colorB: LASER_COLOR[2],    size: 8 },
   5: { speed: 350, shape: ShapeVal.Triangle, colorR: BAT_COLOR[0],      colorG: BAT_COLOR[1],      colorB: BAT_COLOR[2],      size: 10 },
-  6: { speed: 280, shape: ShapeVal.Arrow,    colorR: 0xff,              colorG: 0x17,              colorB: 0x44,              size: 24 },
+  6: { speed: 280, shape: ShapeVal.Arrow,    colorR: 0x1a,              colorG: 0x1a,              colorB: 0x1a,              size: 40 },
   7: { speed: 280, shape: ShapeVal.Circle,   colorR: 0x66,              colorG: 0xbb,              colorB: 0x6a,              size: 8 },
   8: { speed: 0,   shape: ShapeVal.Circle,   colorR: 0,                 colorG: 0,                 colorB: 0,                 size: 0 },
   9: { speed: 500, shape: ShapeVal.Arrow,    colorR: BALLISTA_COLOR[0], colorG: BALLISTA_COLOR[1], colorB: BALLISTA_COLOR[2], size: 30 },
@@ -159,7 +159,6 @@ export class AttackSystem implements System {
     const marks = targetingMarkQuery(world.world);
     if (marks.length === 0) return;
 
-    // Collect all targeting mark IDs referenced by charging towers
     const referencedMarks = new Set<number>();
     const charging = chargingQuery(world.world);
     for (const towerId of charging) {
@@ -169,16 +168,18 @@ export class AttackSystem implements System {
       }
     }
 
-    // Also preserve marks targeted by active missile projectiles
-    for (let eid = 1; eid < Projectile.sourceTowerType.length; eid++) {
-      if (Projectile.sourceTowerType[eid] !== 6) continue;
-      const tgt = Projectile.targetId[eid];
+    // Walk live projectile entities via the active query (NOT the raw typed array —
+    // bitecs leaves stale data on destroyed eids, which would keep marks alive forever).
+    for (const pid of projectileQueryForCleanup(world.world)) {
+      if (!entityExists(world.world, pid)) continue;
+      if (!hasComponent(world.world, Projectile, pid)) continue;
+      if (Projectile.sourceTowerType[pid] !== 6) continue;
+      const tgt = Projectile.targetId[pid];
       if (tgt !== undefined && tgt !== 0) {
         referencedMarks.add(tgt);
       }
     }
 
-    // Destroy targeting marks not referenced by any charging tower or active missile
     for (const markId of marks) {
       if (!referencedMarks.has(markId)) {
         world.destroyEntity(markId);

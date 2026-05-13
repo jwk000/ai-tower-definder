@@ -239,53 +239,129 @@ export class RenderSystem implements System {
   }
 
   // ============================================
-  // TargetingMark rendering (red crosshair + rotating ring on ground)
+  // TargetingMark rendering — concentric rings + crosshair
   // ============================================
+  // Visual: 3 concentric rings (outer = blast radius, middle = 60%, inner = 25%) + 4-arm
+  // crosshair extending past the outer ring. All red, pulsing alpha. Marker is destroyed
+  // on missile impact (ProjectileSystem.onHit) so it disappears together with the boom.
   private drawTargetingMarks(world: TowerWorld, dt: number): void {
     const entities = targetingMarkQuery(world.world);
     for (const eid of entities) {
       const px = Position.x[eid]!;
       const py = Position.y[eid]!;
       const blastRadius = TargetingMark.blastRadius[eid]!;
+      if (blastRadius <= 0) continue;
 
-      // Advance timing
       TargetingMark.pulsePhase[eid]! += dt;
-      TargetingMark.ringRotation[eid]! += dt * (2 * Math.PI / 1.2);
-
       const pulsePhase = TargetingMark.pulsePhase[eid]!;
-      const ringRot = TargetingMark.ringRotation[eid]!;
+      const pulse = 0.75 + 0.25 * Math.sin(pulsePhase * 10);
 
-      // Pulsing alpha: oscillates between 0.5 – 1.0
-      const pulseAlpha = 0.75 + 0.25 * Math.sin(pulsePhase * 12);
+      const outerR = blastRadius;
+      const midR = blastRadius * 0.6;
+      const innerR = blastRadius * 0.25;
 
-      // ---- Red crosshair (two lines crossing at center) ----
-      // Vertical line
-      this.renderer.push({ shape: 'rect', x: px, y: py, size: 2, h: 24, color: '#ff1744', alpha: pulseAlpha, z: 4 });
-      // Horizontal line
-      this.renderer.push({ shape: 'rect', x: px, y: py, size: 24, h: 2, color: '#ff1744', alpha: pulseAlpha, z: 4 });
+      this.renderer.push({
+        shape: 'circle', x: px, y: py, size: outerR * 2,
+        color: 'transparent', alpha: 0.55 * pulse,
+        stroke: '#ff1744', strokeWidth: 3, z: 4,
+      });
+      this.renderer.push({
+        shape: 'circle', x: px, y: py, size: midR * 2,
+        color: 'transparent', alpha: 0.7 * pulse,
+        stroke: '#ff1744', strokeWidth: 2, z: 4,
+      });
+      this.renderer.push({
+        shape: 'circle', x: px, y: py, size: innerR * 2,
+        color: 'transparent', alpha: 0.85 * pulse,
+        stroke: '#d50000', strokeWidth: 2, z: 4,
+      });
 
-      // ---- Center dot ----
-      this.renderer.push({ shape: 'circle', x: px, y: py, size: 8, color: '#ff0000', alpha: 1, z: 4 });
+      const crossLen = outerR * 1.15;
+      const crossThick = 2;
+      this.renderer.push({
+        shape: 'rect', x: px, y: py,
+        size: crossThick, h: crossLen * 2,
+        color: '#ff1744', alpha: 0.85 * pulse, z: 4,
+      });
+      this.renderer.push({
+        shape: 'rect', x: px, y: py,
+        size: crossLen * 2, h: crossThick,
+        color: '#ff1744', alpha: 0.85 * pulse, z: 4,
+      });
 
-      // ---- Rotating ring ----
-      if (blastRadius > 0) {
-        // Ring outline (stroke only, no fill)
-        this.renderer.push({
-          shape: 'circle', x: px, y: py, size: blastRadius * 2,
-          color: 'transparent', alpha: 0.6, stroke: '#d50000', strokeWidth: 2, z: 4,
-        });
-        // Ring tick marks (4 dots rotating around the ring)
-        for (let i = 0; i < 4; i++) {
-          const angle = ringRot + (i * Math.PI) / 2;
-          const tx = px + Math.cos(angle) * blastRadius;
-          const ty = py + Math.sin(angle) * blastRadius;
-          this.renderer.push({
-            shape: 'circle', x: tx, y: ty, size: 5,
-            color: '#d50000', alpha: 0.9, z: 4,
-          });
-        }
-      }
+      this.renderer.push({
+        shape: 'circle', x: px, y: py, size: 6,
+        color: '#ff1744', alpha: 1, z: 4,
+      });
     }
+  }
+
+  // ============================================
+  // Missile projectile rendering — black body + red warhead + blue trail + orange glow
+  // ============================================
+  // Drawn 4-layer back-to-front (each at projectile's z):
+  //   1) outer orange-red glow halo (pulsing)
+  //   2) blue exhaust trail (3 fading dots behind, sized by velocity angle)
+  //   3) black missile body (rotated rect aligned with flight direction)
+  //   4) red warhead (diamond at the front tip)
+  private drawMissileProjectile(eid: number, posX: number, posY: number): void {
+    const angle = Visual.idlePhase[eid] ?? 0;
+    const size = Visual.size[eid] ?? 40;
+    const layerVal = Layer.value[eid] ?? LayerVal.Ground;
+    const z = LAYER_TO_Z[layerVal] ?? 5;
+
+    const bodyLen = size;
+    const bodyW = Math.max(6, size * 0.32);
+
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    const pulse = 0.85 + 0.15 * Math.sin(Date.now() * 0.012);
+    this.renderer.push({
+      shape: 'circle', x: posX, y: posY, size: size * 1.6 * pulse,
+      color: '#ff5722', alpha: 0.22, z,
+    });
+    this.renderer.push({
+      shape: 'circle', x: posX, y: posY, size: size * 1.0 * pulse,
+      color: '#ff8a50', alpha: 0.35, z,
+    });
+
+    for (let i = 1; i <= 3; i++) {
+      const dist = bodyLen * 0.45 + i * bodyLen * 0.45;
+      const tx = posX - cos * dist;
+      const ty = posY - sin * dist;
+      const tAlpha = 0.7 - i * 0.18;
+      const tSize = bodyW * (1.4 - i * 0.25);
+      this.renderer.push({
+        shape: 'circle', x: tx, y: ty, size: tSize * 1.8,
+        color: '#40c4ff', alpha: tAlpha * 0.4, z,
+      });
+      this.renderer.push({
+        shape: 'circle', x: tx, y: ty, size: tSize,
+        color: '#82e9ff', alpha: tAlpha, z,
+      });
+    }
+
+    this.renderer.push({
+      shape: 'rect', x: posX, y: posY,
+      size: bodyLen, h: bodyW,
+      color: '#111111', alpha: 1,
+      stroke: '#3a3a3a', strokeWidth: 1,
+      rotation: angle, z,
+    });
+
+    const headLen = bodyLen * 0.4;
+    const tipX = posX + cos * (bodyLen * 0.5 + headLen * 0.5);
+    const tipY = posY + sin * (bodyLen * 0.5 + headLen * 0.5);
+    this.renderer.push({
+      shape: 'diamond', x: tipX, y: tipY,
+      size: bodyW * 1.4,
+      color: '#ff1744', alpha: 1, z,
+    });
+    this.renderer.push({
+      shape: 'circle', x: tipX, y: tipY, size: bodyW * 0.55,
+      color: '#ffcdd2', alpha: 0.9, z,
+    });
   }
 
   // ============================================
@@ -366,6 +442,13 @@ export class RenderSystem implements System {
       const isTrap = hasComponent(world.world, Trap, eid);
       const isUnit = hasComponent(world.world, Category, eid) && Category.value[eid] === CategoryVal.Soldier;
       const isProduction = hasComponent(world.world, Production, eid);
+
+      // ---- Missile projectile: dedicated multi-layer visual (glow + black body + red head + blue trail) ----
+      // sourceTowerType=6 (Missile) gets a fully custom render path. Bypasses the generic arrow render.
+      if (isProjectile && Projectile.sourceTowerType[eid] === 6) {
+        this.drawMissileProjectile(eid, posX, posY);
+        continue;
+      }
 
       // ---- Buff/status flags (computed once) ----
       const hasFrozen = hasComponent(world.world, Frozen, eid);
