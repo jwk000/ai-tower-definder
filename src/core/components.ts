@@ -554,6 +554,24 @@ export const UnitTag = defineComponent({
 });
 
 // ============================================================
+// v3.0 卡牌 Roguelike — Energy 组件（出卡能量，singleton）
+//
+// 设计文档: design/25-card-roguelike-refactor.md §4 能量系统
+// 验收: design/14-acceptance-criteria.md §3.3
+//
+// 一个 Run 只挂一个 Energy 实体（meta singleton），由 EnergySystem 管理。
+// 卡组/手牌/Run 状态因含动态字符串数组，不适合 bitecs SoA 存储，
+// 改放普通 TS 类（见 src/unit-system/）。
+// ============================================================
+
+/** 关内出卡能量（v3.0 卡牌系统专用，与 EconomySystem.energy 旧字段分离） */
+export const Energy = defineComponent({
+  current: Types.f32,
+  max: Types.f32,           // 默认 10，永久升级可达 12
+  regenPerWave: Types.f32,  // 每波开始恢复量，默认 5
+});
+
+// ============================================================
 // 场景装饰 — 动态环境生物 + 微动动画
 // ============================================================
 
