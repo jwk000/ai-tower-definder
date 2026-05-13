@@ -227,6 +227,28 @@ describe('LevelEditor: lastError', () => {
     expect(editor.lastError).toMatch(/not_found/);
   });
 
+  it('is populated after duplicate fails', async () => {
+    const fetchImpl = makeFetch({
+      'POST /__editor/levels/level_01/dup': { status: 409, body: { error: 'target_exists' } },
+    });
+    const editor = makeEditor(fetchImpl);
+    const result = await editor.duplicate('level_01', 'level_02');
+    expect(result.ok).toBe(false);
+    expect(editor.lastError).toMatch(/target_exists/);
+    expect(editor.status).toBe('error');
+  });
+
+  it('is populated after delete fails', async () => {
+    const fetchImpl = makeFetch({
+      'DELETE /__editor/levels/level_01': { status: 404, body: { error: 'not_found' } },
+    });
+    const editor = makeEditor(fetchImpl);
+    const result = await editor.delete('level_01');
+    expect(result.ok).toBe(false);
+    expect(editor.lastError).toMatch(/not_found/);
+    expect(editor.status).toBe('error');
+  });
+
   it('is populated after saveCurrent fails (and cleared on subsequent success)', async () => {
     const fetchImpl = makeFetch({
       'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },

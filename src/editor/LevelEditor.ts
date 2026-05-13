@@ -143,12 +143,16 @@ export class LevelEditor extends EventTarget {
         body: JSON.stringify({ targetId }),
       });
       if (!resp.ok) {
-        return { ok: false, error: await this.readError(resp) };
+        const err = await this.readError(resp);
+        this.failWith(err);
+        return { ok: false, error: err };
       }
       const payload = (await resp.json()) as { id: string; mtime: number };
       return { ok: true, value: payload };
     } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : 'fetch_failed' };
+      const msg = err instanceof Error ? err.message : 'fetch_failed';
+      this.failWith(msg);
+      return { ok: false, error: msg };
     }
   }
 
@@ -158,7 +162,9 @@ export class LevelEditor extends EventTarget {
         method: 'DELETE',
       });
       if (!resp.ok) {
-        return { ok: false, error: await this.readError(resp) };
+        const err = await this.readError(resp);
+        this.failWith(err);
+        return { ok: false, error: err };
       }
       const payload = (await resp.json()) as { id: string };
       if (this._currentId === id) {
@@ -170,7 +176,9 @@ export class LevelEditor extends EventTarget {
       }
       return { ok: true, value: payload };
     } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : 'fetch_failed' };
+      const msg = err instanceof Error ? err.message : 'fetch_failed';
+      this.failWith(msg);
+      return { ok: false, error: msg };
     }
   }
 
