@@ -2,7 +2,7 @@
 
 > 我方可移动单位（统称"士兵"）的AI行为：警戒/追击/战斗/游荡 状态机设计
 >
-> 版本: v2.1 | 日期: 2026-05-12 | 状态: §6.2 行为树已实装（4 套士兵 AI）
+> 版本: v2.2 | 日期: 2026-05-13 | 状态: §6.2 行为树已实装（4 套士兵 AI）；§10 嘲讽 + §11 AOE + §12 升级已落地
 
 ---
 
@@ -17,6 +17,9 @@
 7. [组件与数据变更](#7-组件与数据变更)
 8. [数值参考](#8-数值参考)
 9. [验收标准](#9-验收标准)
+10. [嘲讽机制（v2.2）](#10-嘲讽机制v22)
+11. [AOE 溅射机制（v2.2）](#11-aoe-溅射机制v22)
+12. [士兵升级系统（v2.2）](#12-士兵升级系统v22)
 
 ---
 
@@ -649,9 +652,188 @@ private aggroTable: Map<number, { targetId: number; expireTime: number; totalDam
 
 ---
 
-> 版本: v1.0 | 日期: 2026-05-12 | 状态: 设计阶段
+## 10. 嘲讽机制（v2.2）
+
+### 10.1 设计目标
+
+让坦克型士兵（盾卫）能够**主动吸引敌人攻击自身**，把伤害从脆弱后排（剑士、远程兵、塔）转移过来，形成「肉盾保护输出」的经典战术分工。
+
+### 10.2 核心规则
+
+| 规则 | 定义 |
+|------|------|
+| 嘲讽容量 (`tauntCapacity`) | 一个嘲讽源**同时能吸引**的敌人数量，存于 `Attack.tauntCapacity` (ui8) |
+| 当前被锁定数 (`attackerCount`) | 当前以该单位为目标的敌人计数，存于 `Attack.attackerCount` (ui8)，引用计数维护 |
+| 嘲讽源 | `tauntCapacity > 0` 的单位（盾卫=2，剑士=1） |
+| 饱和嘲讽源 | `attackerCount >= tauntCapacity` 的嘲讽源 |
+
+### 10.3 敌方目标选择优先级
+
+`CheckEnemyInRangeNode.findTargetsInRange` 对候选目标按 `(tauntGroup, distSq)` 排序：
+
+| tauntGroup | 含义 | 优先级 |
+|-----------|------|--------|
+| 0 | 可用嘲讽源（未饱和） | 最高 |
+| 1 | 非嘲讽源（`tauntCapacity === 0`） | 中 |
+| 2 | 饱和嘲讽源（`attackerCount >= tauntCapacity`） | 最低 |
+
+排序结果：先 group asc，组内再 distSq asc。同组距离最近的优先被攻击。
+
+**`selfAlreadyOnTarget` 防抖**：若敌人当前目标已是该嘲讽源，视为「可用」（即使表面饱和），防止饱和瞬间脱锁导致频繁切换。
+
+### 10.4 引用计数维护
+
+为保证 `attackerCount` 与实际指向的敌人数量一致，所有 `Attack.targetId` 写入必须经过统一接口：
+
+- **`setEnemyTarget(eid, newTargetId)`** (`BehaviorTree.ts`)：
+  - 若旧 targetId ≠ new：调用 `releaseTaunt(oldTargetId)`（自减，clamp ≥0）+ `acquireTaunt(newTargetId)`（自增，clamp ≤255）
+  - 仅对嘲讽源（`tauntCapacity > 0`）操作，非嘲讽源 no-op
+  - 注意：`setEnemyTarget` 必须在 cooldown check **之前**调用，避免冷却中目标已锁定但引用未变
+
+- **`LifecycleSystem.onDeath`**：单位死亡时，遍历所有敌人，把指向死者的 `Attack.targetId` 清零；同步释放对应嘲讽源的引用。防止 bitecs entity slot 复用导致的幽灵引用。
+
+### 10.5 数值（v2.2 落地版）
+
+| 单位 | `tauntCapacity` 基础 | `tauntCapacityPerLevel`（缺省 0） | `upgradeTauntCapacityBonus`（优先） | 实际表现 |
+|------|-------|------|-------|---------|
+| 盾卫 | 2 | 1 | `[1, 1]` | Lv1=2 / Lv2=3 / Lv3=4 |
+| 剑士 | 1 | – | – | 固定 1（升级不变） |
+
+> `upgradeTauntCapacityBonus` 数组优先于 `tauntCapacityPerLevel`，提供按级精确控制；当未配置数组时回退到 perLevel 标量。
+
+---
+
+## 11. AOE 溅射机制（v2.2）
+
+### 11.1 设计目标
+
+剑士作为「DPS + 单嘲讽」定位，其唯一群体输出能力是攻击时附带**周围 9 格** AOE 溅射伤害——既补偿了无法多目标嘲讽的劣势，也强化了对密集敌群的清除能力。
+
+### 11.2 核心规则
+
+| 字段 | 来源 | 定义 |
+|------|------|------|
+| `splashRadius` (px) | `UnitConfig.splashRadius` → `Attack.splashRadius` | >0 时启用，0 关闭 |
+| 溅射中心 | **攻击者自身坐标**（非命中点） | 与「以剑士为中心 9 格旋风」语义对齐 |
+| 溅射系数 | 0.6 | 周围目标承受 60% 主目标伤害 |
+| 主目标 | 触发本次攻击的目标 | 不重复计算溅射伤害 |
+
+### 11.3 9 格覆盖证明
+
+格子大小 = 64px。
+要覆盖 3×3 共 9 格，需覆盖到对角格的中心：
+- 对角距离 = √2 × 64 ≈ 90.51 px
+- 选择 `splashRadius = 96px`，余量 5.49px，保证对角格不被裁掉
+
+### 11.4 实现位置
+
+`BehaviorTree.AttackNode` 中 soldier 分支：在主目标伤害结算后，若 `splashRadius > 0`：
+
+1. 以攻击者自身 (`Position.x/y`) 为中心
+2. 遍历 `enemyQuery` 所有存活敌人
+3. 距离平方 ≤ `splashRadius²` 且 ≠ 主目标 → 应用 `damage × 0.6`（受 defense 减免，与 `ProjectileSystem.applySplash` 对齐）
+
+### 11.5 数值
+
+| 单位 | `splashRadius` | 9 格覆盖 |
+|------|---------------|---------|
+| 剑士 | 96 | ✅ 含对角 |
+| 盾卫 | – | 无 AOE |
+
+---
+
+## 12. 士兵升级系统（v2.2）
+
+### 12.1 设计目标
+
+让玩家可在战局中投入额外金币提升士兵战力——
+- **盾卫**：升级主要扩展嘲讽容量，强化肉盾上限
+- **剑士**：升级强化 HP 与单体爆发，更适合切后排或抗反击
+
+升级流程与塔升级（`upgradeTower`）对齐，复用 UI / 经济交互模式。
+
+### 12.2 数据模型
+
+#### `UnitTag` 扩展字段（`src/core/components.ts`）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `level` | ui8 | 当前等级 1-N；敌人保持 1 不升级 |
+| `maxLevel` | ui8 | 等级上限，源自 `UnitConfig.maxLevel`（默认 3） |
+| `totalInvested` | f32 | 累计投入金币（基础造价 + 全部升级费），用于回收按比例退款 |
+| `unitTypeNum` | ui8 | UnitType 数值化索引，与 `UNIT_TYPE_BY_ID` 对应；用于升级时反查 `UnitConfig` |
+
+#### `UnitConfig` 扩展字段（`src/types/index.ts`）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `maxLevel` | `number?` | 等级上限，默认 3 |
+| `upgradeCosts` | `readonly number[]?` | 各级升级金币 `[1→2, 2→3, ...]`，长度 = `maxLevel - 1` |
+| `upgradeHpBonus` | `readonly number[]?` | 每级最大 HP 增量 |
+| `upgradeAtkBonus` | `readonly number[]?` | 每级 ATK 增量 |
+| `upgradeTauntCapacityBonus` | `readonly number[]?` | 每级嘲讽容量增量（优先于 `tauntCapacityPerLevel`） |
+
+### 12.3 升级流程（`main.ts:upgradeUnit`）
+
+1. 校验：玩家单位、当前等级 < 上限
+2. `costIdx = level - 1`，读 `upgradeCosts[costIdx]`，不存在 → 中止
+3. `economy.spendGold(cost)`，失败 → 中止（不扣资源）
+4. `UnitTag.level++`、`UnitTag.totalInvested += cost`
+5. 应用增量：
+   - `Health.max += hpBonus`、`Health.current += hpBonus`（满血回升）
+   - `Attack.damage += atkBonus`
+   - `Attack.tauntCapacity += (upgradeTauntCapacityBonus[costIdx] ?? tauntCapacityPerLevel ?? 0)`，clamp ≤ 255
+6. `Visual.hitFlashTimer = 0.2`（视觉反馈）+ `Sound.play('upgrade')`
+
+### 12.4 UI 交互（`UISystem.ts` 单位 tooltip）
+
+- 顶部信息行新增 `Lv.X/N` 显示当前等级
+- 在文字行下方（y+72）添加升级按钮，金币不足时按钮置灰
+- 回收按钮顺移至 y+96，HP 条同步位移
+- 单位 tooltip 高度 130 → 140，容纳新按钮
+- 主入口：`onUpgradeUnit` 回调，由 `main.ts` 注入 `upgradeUnit` 闭包
+
+### 12.5 数值（v2.2 落地版）
+
+#### 盾卫（坦克路线 — 嘲讽扩容）
+
+| 等级 | 升级费 | HP 累计 | ATK 累计 | 嘲讽容量 |
+|------|-------|---------|---------|---------|
+| 1 | – | 400 | 6 | 2 |
+| 2 | 40 G | 520 | 8 | 3 |
+| 3 | 60 G | 700 | 11 | 4 |
+
+#### 剑士（DPS 路线 — 单嘲讽 + AOE）
+
+| 等级 | 升级费 | HP 累计 | ATK 累计 | 嘲讽容量 |
+|------|-------|---------|---------|---------|
+| 1 | – | 180 | 20 | 1 |
+| 2 | 40 G | 240 | 26 | 1 |
+| 3 | 60 G | 330 | 36 | 1 |
+
+> 剑士升级不增加 `tauntCapacity`（无 `upgradeTauntCapacityBonus`，`tauntCapacityPerLevel` 缺省 0）。
+
+### 12.6 反查机制（`unitTypeNum`）
+
+升级时需要从 `entityId` 反查 `UnitConfig`。方案：
+- `gameData.ts` 提供 `UNIT_TYPE_BY_ID: readonly UnitType[]` 与 `UNIT_ID_BY_TYPE: Record<UnitType, number>`
+- `spawnUnitAt` 时把 `UNIT_ID_BY_TYPE[type]` 写入 `UnitTag.unitTypeNum`
+- `main.resolveUnitConfig(eid)` 通过 `UNIT_TYPE_BY_ID[UnitTag.unitTypeNum[eid]]` 反查
+
+### 12.7 验收标准
+
+- [ ] 盾卫 Lv1→Lv2 后 `tauntCapacity = 3`，Lv2→Lv3 后 `= 4`
+- [ ] 剑士升级后 `tauntCapacity` 仍为 1
+- [ ] 满级单位升级按钮隐藏
+- [ ] 金币不足时升级按钮置灰且点击无效
+- [ ] 升级后 HP 上限提升且当前 HP 同步增长（不出现「升完级却接近死亡」反直觉）
+- [ ] `UnitTag.totalInvested` 在每次升级后累加，回收时按 `EconomySystem.computeRefund` 比例退款
+
+---
+
+> 版本: v2.2 | 日期: 2026-05-13 | 状态: §10 嘲讽 + §11 AOE + §12 升级已落地（commits `41cdd97` / `4456993` / `0375ced` / `235192c` / `e70c532`）
 >
 > **设计依据**：
-> - 现有设计文档: `02-unit-system.md` (单位系统/行为规则), `05-combat-system.md` (战斗数值)
-> - 现有代码: `src/systems/UnitSystem.ts`, `src/systems/EnemyAttackSystem.ts`, `src/systems/AISystem.ts`, `src/ai/BehaviorTree.ts`, `src/ai/presets/aiConfigs.ts`
-> - 经典参考: Kingdom Rush 兵营单位（集结/反击）、皇室战争 单位AI（警戒/追击/返回）
+> - 现有设计文档: `02-unit-system.md` (单位系统/行为规则), `05-combat-system.md` (战斗数值), `23-ai-behavior-tree.md` (BT 节点规格)
+> - 现有代码: `src/systems/UnitSystem.ts`, `src/systems/EnemyAttackSystem.ts`, `src/systems/AISystem.ts`, `src/ai/BehaviorTree.ts`, `src/ai/presets/aiConfigs.ts`, `src/systems/LifecycleSystem.ts`, `src/main.ts:upgradeUnit`
+> - 经典参考: Kingdom Rush 兵营单位（集结/反击/嘲讽）、皇室战争 单位AI（警戒/追击/返回）、《魔兽世界》坦克嘲讽机制（threat / fixate）
