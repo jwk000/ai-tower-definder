@@ -1,9 +1,10 @@
 # 25 - 卡牌化 + Roguelike 长征改造方案
 
-> 版本: v0.4 | 日期: 2026-05-13 | 状态: **✅ 已批准，进入实施（v3.0 权威方案）**
+> 版本: v0.5 | 日期: 2026-05-13 | 状态: **🚧 Phase A 集成层已落地（A1+A2+A3 完成），Phase B 待启动**
 > 同步影响文档（已落地）：01/02/03/04/06/07/08/09/10/13/14/15/16/20/21/22/23（详见 §10.1 影响清单）。本文档为 v3.0 单一权威来源（Single Source of Truth），如发现其它文档与本文档冲突，以本文档为准并将冲突视为 BUG 提交修复。
 
 **变更记录**
+- v0.4 → v0.5：§11 新增 §11.1「实施进度快照」记录 Phase A1+A2+A3 已落地的 6 流 PRNG / 4 个事件驱动管理器（Energy/Deck/Hand/RunManager）/ RunContext 集成层契约枢纽 / World.attachRunContext / main.initBattle 装配 / WaveSystem 波次钩子；累计 749/749 测试 0 回归。状态从「已批准」升为「Phase A 集成层已落地」；§14.1 追加 A1+A2+A3 验收条目。
 - v0.3 → v0.4：状态升级为「已批准，进入实施」；§11 Phase A 验收改为直接搭 8 关骨架；§0 补充 baseHp 字段保留说明；§12 七个开放问题全部回填默认决策结果。
 - v0.2 → v0.3：**大本营更名为「水晶」**。水晶逻辑：无敌（免疫所有伤害）、对进入攻击范围内的敌人秒杀（无视护盾/无敌/Boss 除外），每次秒杀消耗 1 HP；HP=0 即破碎，Run 失败。视觉：红色水晶悬浮 + 辉光呼吸；死亡时碎裂成粒子飘散消失。详见 §6.2「水晶机制」、16-art §13.13、12-vfx §10。
 - v0.1 → v0.2：根据评审意见调整 — 删除无尽模式 / 金币改为本局 Run 货币（关间商店与秘境消耗）/ 关内出卡资源改为「能量 E」/ 删除波间 3 选 1 改为关间二选一（商店或秘境）/ 手牌默认 4 上限 8 / 技能卡双轨（实例升级 + 卡级升级）/ 跨波保留手牌
@@ -707,6 +708,57 @@ Run 结束（无论胜负）按到达关卡发放火花碎片：
 - 水晶实体替代旧大本营（§6.2 机制）
 - **验收**：能连续跑通至少前 3 关 + 抵达终战入口，全程用卡牌部署、消耗能量、水晶 HP 继承生效
 
+#### §11.1 实施进度快照（2026-05-13 更新）
+
+**已落地（Phase A1 + A2 + A3）—— 累计 749/749 测试 0 回归，build 1.20s 全过**
+
+| 子阶段 | 范围 | 关键产出文件 | commit |
+|---|---|---|---|
+| **A1** PRNG 多流扩展 | 6 流（wave/drop/deco/loot/deck/mystic）独立种子，互不污染 | `src/utils/Random.ts` + 16 测试 | `e529d07` |
+| **A2** 4 个事件驱动管理器 | 单一职责，事件入参，纯函数返回新状态 | | |
+| ─ EnergySystem | 关内能量轨：上限/恢复/扣减/事件流 | `src/unit-system/EnergySystem.ts` + 23 测试 | `5538fe1` |
+| ─ DeckSystem | 三堆（抽/手/弃）管理：抽牌、弃牌、洗牌、查容 | `src/unit-system/DeckSystem.ts` + 17 测试 | `1d556a3` |
+| ─ HandSystem | 手牌 4 默认 / 8 上限，HandState 字段对齐 | `src/unit-system/HandSystem.ts` + 20 测试 | `e5f08e3` |
+| ─ RunManager | Run 生命周期 + 12 张开局卡组抽取（60/25/12/3 权重 + 保底） | `src/unit-system/RunManager.ts` + 23 测试 | `085dad2` |
+| **A3** 集成层 | 把 4 管理器串成一个可调度的整体 | | |
+| ─ RunContext 契约枢纽 | `createRunContext(seed)` 一站式装配 / `startWaveEffect` / `endWaveEffect` / `playCard` 三步事务（手牌检查→能量检查→扣能量+离手+spell入弃牌堆） | `src/unit-system/RunContext.ts` + 18 测试 | `5b6d043` |
+| ─ World 接入 | `TowerWorld.runContext` + `attachRunContext()` / `detachRunContext()` / `reset()` 清空 | `src/core/World.ts` | `b7a56d7` |
+| ─ main.initBattle 装配 | 生成 runSeed → createRunContext → world.attachRunContext | `src/main.ts` initBattle() | `dd6755d` |
+| ─ WaveSystem 钩子 | ctor 新增 `onWaveStart?` 回调；波首 `startWaveEffect` 补能量+满手牌；波末 `endWaveEffect` 按 `persistAcrossWaves` 弃手牌（在 weather.onWaveEnd 之后、saveCurrentBattle 之前，保证存档为弃牌后状态） | `src/systems/WaveSystem.ts` | `dd6755d` |
+
+**Phase A 集成层架构图**
+
+```
+main.initBattle
+  ├─ initGlobalRandom(runSeed)            ← Phase A1（6 流 PRNG）
+  └─ world.attachRunContext(createRunContext({seed: runSeed}))
+                                          ← Phase A3（一站式装配）
+       ├─ EnergySystem                    ← Phase A2
+       ├─ DeckSystem                      ← Phase A2
+       ├─ HandSystem                      ← Phase A2
+       └─ RunManager                      ← Phase A2
+
+WaveSystem.startWave()  →  onWaveStart?.()  →  startWaveEffect(ctx)
+  ├─ 恢复能量到 cap
+  └─ 抽牌到 hand 满
+
+WaveSystem.endWave()  →  onWaveComplete?.()  →  endWaveEffect(ctx)
+  └─ 按卡 persistAcrossWaves 决定弃手牌
+
+UI / SpellCastSystem / CardSpawnSystem (Phase B)
+                       │
+                       └─ playCard(ctx, instanceId)  ← 三步事务（手牌→能量→执行）
+```
+
+**容错策略（important）**：`cardConfigRegistry` 启动时为空（main.ts 未调 `loadAllCardConfigs()`），RunContext 已容错处理（deck 留空不抛错）。Phase A4 异步加载 YAML 后再改严格。期间旧 BuildSystem 金币塔逻辑保留作 fallback，不破坏 v1.x 测试。
+
+**待办（Phase A4 收尾 + Phase B 入口）**：
+- A4 UI 装配：手牌区组件、能量条、抽牌堆/弃牌堆计数、拖卡交互（接 `playCard`）
+- A4 YAML 加载：`loadAllCardConfigs()` 接入 main 启动流程，registry 填充 30 张开服卡
+- B1 法术卡 SpellCastSystem：实装 spell 类卡牌的目标选择/区域结算（接 `playCard` 的 spell 分支）
+- B2 单位卡 CardSpawnSystem：实装单位卡的战场放置（与旧 BuildSystem 协调或替换）
+- B3 InterLevelNode（关间面板）：商店 / 秘境二选一 UI + 逻辑
+
 ### 阶段 B：Run 长征流程闭环 — 1 周
 - 完整跑通 9 关 Run 流程（开 Run → 8 关 → 终战 → Run 结算）
 - Run 失败从第 1 关重开（保留永久解锁）
@@ -778,6 +830,9 @@ Run 结束（无论胜负）按到达关卡发放火花碎片：
 - [x] §12 七个开放问题已全部敲定为最终决策
 - [x] 影响清单中的 17 个文档已同步至 v3.0（详见 README.md 状态表）
 - [x] Phase A 验收口径已调整为「直接搭 8 关骨架」（§11）
+- [x] Phase A1 完成：PRNG 6 流扩展 + 16 测试（commit `e529d07`）
+- [x] Phase A2 完成：Energy / Deck / Hand / RunManager 四管理器 + 共 83 测试（commits `5538fe1` / `1d556a3` / `e5f08e3` / `085dad2`）
+- [x] Phase A3 完成：RunContext 契约枢纽 + World 接入 + main.initBattle 装配 + WaveSystem 波次钩子（commits `5b6d043` / `b7a56d7` / `dd6755d`）；累计 749/749 测试 0 回归 + build 1.20s 全过
 
 ### 14.2 实施前自检清单（PR 提交前逐项核对）
 
