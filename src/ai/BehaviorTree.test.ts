@@ -294,7 +294,7 @@ describe('AttackNode（委派 vs 直接伤害）', () => {
     expect(Attack.targetId[enemy]).toBe(soldier);
   });
 
-  it('士兵：直接造成伤害（或委派 — 取决于 entity ID 是否与 Tower 冲突）', () => {
+  it('士兵：直接造成伤害', () => {
     const soldier = addEntity(w);
     addComp(w, soldier, Position, { x: 100, y: 100 });
     addComp(w, soldier, Health, { current: 100, max: 100 });
@@ -316,14 +316,7 @@ describe('AttackNode（委派 vs 直接伤害）', () => {
     const status = node.tick(ctx);
 
     expect(status).toBe(NodeStatus.Success);
-    // 士兵：非 enemy、非 tower → 应直接造成伤害
-    // 若 bitecs 脏数据导致误判为 tower，则委派（targetId 被设置但 HP 不变）
-    if (UnitTag.isEnemy[soldier] !== 1 && Tower.towerType[soldier] === undefined) {
-      expect(Health.current[enemy]).toBe(35);
-    } else {
-      // 委派模式：HP 不变，targetId 被设置
-      expect(Attack.targetId[soldier]).toBe(enemy);
-    }
+    expect(Health.current[enemy]).toBe(35);
   });
 });
 
@@ -1301,11 +1294,7 @@ describe('AttackNode（target: current_target）', () => {
     const status = node.tick(ctx);
 
     expect(status).toBe(NodeStatus.Success);
-    if (UnitTag.isEnemy[soldier] !== 1 && Tower.towerType[soldier] === undefined) {
-      expect(Health.current[enemy]).toBe(60);
-    } else {
-      expect(Attack.targetId[soldier]).toBe(enemy);
-    }
+    expect(Health.current[enemy]).toBe(60);
   });
 
   it('blackboard.current_target 不存在 — FAILURE', () => {
@@ -1391,11 +1380,7 @@ describe('士兵 COMBAT 同帧 reselect + attack（design/24 §6 集成）', () 
     expect(inRange.tick(ctx)).toBe(NodeStatus.Success);
 
     expect(attack.tick(ctx)).toBe(NodeStatus.Success);
-    if (UnitTag.isEnemy[soldier] !== 1 && Tower.towerType[soldier] === undefined) {
-      expect(Health.current[alive]).toBe(75);
-    } else {
-      expect(Attack.targetId[soldier]).toBe(alive);
-    }
+    expect(Health.current[alive]).toBe(75);
   });
 
   it('current_target 死亡 + 范围内无候选 → reselect FAILURE，COMBAT 分支断开（不进 attack）', () => {
@@ -2836,5 +2821,223 @@ describe('EnemyRangedAttackNode（敌人远程 P4 R7）', () => {
     expect(Movement.moveMode[enemy]).toBe(MoveModeVal.HoldPosition);
     expect(Attack.targetId[enemy]).toBe(tower);
     expect(Attack.cooldownTimer[enemy]).toBeCloseTo(0.5, 3);
+  });
+});
+
+describe('嘲讽机制（design/24 §10 — taunt sort / saturation / self-anchor）', () => {
+  function makeEnemyCandidate(world: TowerWorld, x: number, y: number): number {
+    const w = world.world;
+    const e = addEntity(w);
+    addComp(w, e, Position, { x, y });
+    addComp(w, e, Health, { current: 100, max: 100 });
+    addComp(w, e, UnitTag, { isEnemy: 1 });
+    addComp(w, e, Attack, { damage: 5, attackSpeed: 1, range: 40, cooldownTimer: 0, targetId: 0 });
+    return e;
+  }
+  function makeTauntSoldier(world: TowerWorld, x: number, y: number, tauntCapacity: number, attackerCount: number = 0): number {
+    const w = world.world;
+    const s = addEntity(w);
+    addComp(w, s, Position, { x, y });
+    addComp(w, s, Health, { current: 200, max: 200 });
+    addComp(w, s, UnitTag, { isEnemy: 0 });
+    addComp(w, s, Attack, { damage: 5, attackSpeed: 1, range: 40, tauntCapacity, attackerCount, targetId: 0 });
+    return s;
+  }
+  function makeNonTauntSoldier(world: TowerWorld, x: number, y: number): number {
+    const w = world.world;
+    const s = addEntity(w);
+    addComp(w, s, Position, { x, y });
+    addComp(w, s, Health, { current: 100, max: 100 });
+    addComp(w, s, UnitTag, { isEnemy: 0 });
+    addComp(w, s, Attack, { damage: 5, attackSpeed: 1, range: 40, tauntCapacity: 0, attackerCount: 0, targetId: 0 });
+    return s;
+  }
+
+  it('优先选择可用嘲讽源 — 即使非嘲讽源更近', () => {
+    const world = makeWorld();
+    const w = world.world;
+    const enemy = makeEnemyCandidate(world, 100, 100);
+    const shieldGuard = makeTauntSoldier(world, 160, 100, 2, 0);
+    const sword = makeNonTauntSoldier(world, 110, 100);
+    void w; void sword;
+
+    const ctx = makeContext(world, enemy);
+    const node = new CheckEnemyInRangeNode('check', { range: 200, target_type: 'soldier' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const found = ctx.blackboard.get('found_enemies') as number[];
+    expect(found[0]).toBe(shieldGuard);
+  });
+
+  it('饱和嘲讽源沉底 — 排在非嘲讽源之后', () => {
+    const world = makeWorld();
+    const enemy = makeEnemyCandidate(world, 100, 100);
+    const saturated = makeTauntSoldier(world, 110, 100, 2, 2);
+    const normal = makeNonTauntSoldier(world, 160, 100);
+
+    const ctx = makeContext(world, enemy);
+    const node = new CheckEnemyInRangeNode('check', { range: 200, target_type: 'soldier' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const found = ctx.blackboard.get('found_enemies') as number[];
+    expect(found[0]).toBe(normal);
+    expect(found[1]).toBe(saturated);
+  });
+
+  it('selfAlreadyOnTarget 防抖 — 自己已锁定的饱和嘲讽源仍视为可用', () => {
+    const world = makeWorld();
+    const enemy = makeEnemyCandidate(world, 100, 100);
+    const sat = makeTauntSoldier(world, 110, 100, 2, 2);
+    const normal = makeNonTauntSoldier(world, 160, 100);
+    Attack.targetId[enemy] = sat;
+
+    const ctx = makeContext(world, enemy);
+    const node = new CheckEnemyInRangeNode('check', { range: 200, target_type: 'soldier' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const found = ctx.blackboard.get('found_enemies') as number[];
+    expect(found[0]).toBe(sat);
+    expect(found[1]).toBe(normal);
+  });
+
+  it('多个可用嘲讽源 — 同组按距离排序', () => {
+    const world = makeWorld();
+    const enemy = makeEnemyCandidate(world, 100, 100);
+    const farTank = makeTauntSoldier(world, 180, 100, 2, 0);
+    const nearTank = makeTauntSoldier(world, 120, 100, 2, 0);
+
+    const ctx = makeContext(world, enemy);
+    const node = new CheckEnemyInRangeNode('check', { range: 200, target_type: 'soldier' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    const found = ctx.blackboard.get('found_enemies') as number[];
+    expect(found[0]).toBe(nearTank);
+    expect(found[1]).toBe(farTank);
+  });
+});
+
+describe('剑士 AOE 溅射（design/24 §11 — 9 格 / splashRadius=96）', () => {
+  function makeSwordsman(world: TowerWorld, x: number, y: number, damage: number = 20, splashRadius: number = 96): number {
+    const w = world.world;
+    const s = addEntity(w);
+    addComp(w, s, Position, { x, y });
+    addComp(w, s, Health, { current: 180, max: 180 });
+    addComp(w, s, UnitTag, { isEnemy: 0 });
+    addComp(w, s, Attack, {
+      damage,
+      attackSpeed: 1,
+      range: 64,
+      splashRadius,
+      cooldownTimer: 0,
+      targetId: 0,
+    });
+    return s;
+  }
+  function makeEnemy(world: TowerWorld, x: number, y: number, hp: number = 100): number {
+    const w = world.world;
+    const e = addEntity(w);
+    addComp(w, e, Position, { x, y });
+    addComp(w, e, Health, { current: hp, max: hp });
+    addComp(w, e, UnitTag, { isEnemy: 1 });
+    return e;
+  }
+
+  it('主目标受全额伤害，对角格敌人受 60% 溅射', () => {
+    const world = makeWorld();
+    const sword = makeSwordsman(world, 100, 100, 20);
+    const mainTarget = makeEnemy(world, 132, 100);
+    const diagonal = makeEnemy(world, 164, 164);
+
+    const ctx = makeContext(world, sword);
+    ctx.blackboard.set('current_target', mainTarget);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    expect(Health.current[mainTarget]).toBe(80);
+    expect(Health.current[diagonal]).toBe(88);
+  });
+
+  it('远离 splashRadius 的敌人不受溅射', () => {
+    const world = makeWorld();
+    const sword = makeSwordsman(world, 100, 100, 20);
+    const mainTarget = makeEnemy(world, 132, 100);
+    const farAway = makeEnemy(world, 300, 300);
+
+    const ctx = makeContext(world, sword);
+    ctx.blackboard.set('current_target', mainTarget);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    node.tick(ctx);
+
+    expect(Health.current[mainTarget]).toBe(80);
+    expect(Health.current[farAway]).toBe(100);
+  });
+
+  it('splashRadius=0 不触发 AOE — 仅主目标受伤', () => {
+    const world = makeWorld();
+    const guard = makeSwordsman(world, 100, 100, 20, 0);
+    const mainTarget = makeEnemy(world, 132, 100);
+    const adjacent = makeEnemy(world, 100, 132);
+
+    const ctx = makeContext(world, guard);
+    ctx.blackboard.set('current_target', mainTarget);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    node.tick(ctx);
+
+    expect(Health.current[mainTarget]).toBe(80);
+    expect(Health.current[adjacent]).toBe(100);
+  });
+
+  it('主目标不被溅射重复计算 — 只受全额，不叠加 60%', () => {
+    const world = makeWorld();
+    const sword = makeSwordsman(world, 100, 100, 20);
+    const mainTarget = makeEnemy(world, 132, 100);
+
+    const ctx = makeContext(world, sword);
+    ctx.blackboard.set('current_target', mainTarget);
+    const node = new AttackNode('attack', { target: 'current_target' });
+    node.tick(ctx);
+
+    expect(Health.current[mainTarget]).toBe(80);
+  });
+});
+
+describe('LifecycleSystem 死亡清理（design/24 §10.4 — attackerCount 防泄漏）', () => {
+  it('士兵死亡后 — 所有指向它的敌人 Attack.targetId 被清零', async () => {
+    const { LifecycleSystem } = await import('../systems/LifecycleSystem.js');
+    const world = new TowerWorld();
+    const w = world.world;
+
+    const soldier = addEntity(w);
+    addComp(w, soldier, Position, { x: 100, y: 100 });
+    addComp(w, soldier, Health, { current: 0, max: 200 });
+    addComp(w, soldier, UnitTag, { isEnemy: 0 });
+    addComp(w, soldier, Attack, { damage: 5, attackSpeed: 1, range: 40, tauntCapacity: 2, attackerCount: 2 });
+
+    const enemy1 = addEntity(w);
+    addComp(w, enemy1, Position, { x: 110, y: 100 });
+    addComp(w, enemy1, Health, { current: 100, max: 100 });
+    addComp(w, enemy1, UnitTag, { isEnemy: 1 });
+    addComp(w, enemy1, Attack, { damage: 5, attackSpeed: 1, range: 40, targetId: soldier });
+
+    const enemy2 = addEntity(w);
+    addComp(w, enemy2, Position, { x: 90, y: 100 });
+    addComp(w, enemy2, Health, { current: 100, max: 100 });
+    addComp(w, enemy2, UnitTag, { isEnemy: 1 });
+    addComp(w, enemy2, Attack, { damage: 5, attackSpeed: 1, range: 40, targetId: soldier });
+
+    const otherSoldier = addEntity(w);
+    addComp(w, otherSoldier, Position, { x: 200, y: 100 });
+    addComp(w, otherSoldier, Health, { current: 100, max: 100 });
+    addComp(w, otherSoldier, UnitTag, { isEnemy: 0 });
+    addComp(w, otherSoldier, Attack, { damage: 5, attackSpeed: 1, range: 40 });
+
+    const enemy3 = addEntity(w);
+    addComp(w, enemy3, Position, { x: 210, y: 100 });
+    addComp(w, enemy3, Health, { current: 100, max: 100 });
+    addComp(w, enemy3, UnitTag, { isEnemy: 1 });
+    addComp(w, enemy3, Attack, { damage: 5, attackSpeed: 1, range: 40, targetId: otherSoldier });
+
+    const sys = new LifecycleSystem();
+    sys.update(world, 0.1);
+
+    expect(Attack.targetId[enemy1]).toBe(0);
+    expect(Attack.targetId[enemy2]).toBe(0);
+    expect(Attack.targetId[enemy3]).toBe(otherSoldier);
   });
 });
