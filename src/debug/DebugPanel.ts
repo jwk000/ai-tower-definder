@@ -118,6 +118,11 @@ export class DebugPanel {
     return titleBar;
   }
 
+  setActions(actions: DebugAction[]): void {
+    this.actions = actions;
+    this.renderActionButtons();
+  }
+
   private renderActionButtons(): void {
     this.listContainer.innerHTML = '';
     this.buttons = [];

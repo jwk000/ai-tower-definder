@@ -147,7 +147,7 @@ class TowerDefenderGame extends Game {
   private unitFactory!: UnitFactory;
 
   // ---- Debug system ----
-  private debugManager: DebugManager;
+  public debugManager: DebugManager;
 
   private unitDragId: number | null = null;
   private defeatSfxPlayed = false;
@@ -1268,6 +1268,23 @@ loadAllCardConfigsSync();
 
 const game = new TowerDefenderGame(canvas);
 game.start();
+
+if (import.meta.env.DEV) {
+  void (async () => {
+    const { bootstrapEditor, attachF2Hotkey } = await import('./editor/index.js');
+    const { LevelEditor } = await import('./editor/LevelEditor.js');
+    const { mountEditorRoot } = await import('./editor/mount.js');
+    const host = document.createElement('div');
+    host.id = 'level-editor-host';
+    document.body.appendChild(host);
+    const levelEditor = new LevelEditor({ fetch: window.fetch.bind(window), baseUrl: '/__editor' });
+    const handle = bootstrapEditor({ game, hostElement: host, levelEditor, mountUi: mountEditorRoot });
+    attachF2Hotkey(handle, window);
+    game.debugManager.setOpenLevelEditorCallback(() => handle.open());
+    (window as unknown as Record<string, unknown>).levelEditor = levelEditor;
+    (window as unknown as Record<string, unknown>).editorHandle = handle;
+  })();
+}
 
 window.addEventListener('resize', () => game.resize());
 (window as unknown as Record<string, unknown>).game = game;

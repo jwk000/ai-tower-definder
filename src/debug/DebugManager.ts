@@ -59,6 +59,11 @@ export class DebugManager {
     this.onLevelProgressChangedFn = cb;
   }
 
+  setOpenLevelEditorCallback(cb: () => void): void {
+    this.onOpenLevelEditorFn = cb;
+    this.debugPanel.setActions(this.buildActions());
+  }
+
   registerAIConfigs(configs: BehaviorTreeConfig[]): void {
     for (const config of configs) {
       this.aiConfigs.set(config.id, config);
