@@ -21,6 +21,7 @@ import {
   FactionVal,
   MissileCharge,
   TargetingMark,
+  BuildingTower,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
   friendlyFighterQuery,
@@ -47,6 +48,49 @@ import { TOWER_CONFIGS } from '../data/gameData.js';
 // Reuse pre-defined queries from components.ts:
 //   enemyTargetQuery  → Position + Health + UnitTag (filter for isEnemy)
 //   towerTargetQuery  → Position + Tower + Attack
+
+// ============================================================
+// 嘲讽容量维护工具（盾卫/剑士战术差异化）
+// ------------------------------------------------------------
+// 模型：每个士兵 Attack.tauntCapacity 表示同时可吸引的敌人上限；
+//       Attack.attackerCount 是当前实际锁定该士兵作为目标的敌人计数。
+// 维护：仅 EnemyMeleeAttackNode / EnemyRangedAttackNode 写 enemy 的 Attack.targetId，
+//       因此所有 ++/-- 集中在这两处通过 setEnemyTarget() 完成；
+//       目标死亡或脱离 range 触发 release，新锁定触发 acquire。
+// 数据一致性：clamp 在 [0, 255] (u8) 范围；超过上限的并发增量不破坏存储，
+//       仅在 CheckEnemyInRangeNode 的"可用容量"判断上呈现"饱和"语义。
+// ============================================================
+
+/** 释放该 soldier 上的一次嘲讽占用（仅嘲讽源 tauntCapacity>0 才计数） */
+function releaseTaunt(soldierId: number): void {
+  if (soldierId === 0) return;
+  const cap = Attack.tauntCapacity[soldierId];
+  if (cap === undefined || cap === 0) return;
+  const cur = Attack.attackerCount[soldierId] ?? 0;
+  Attack.attackerCount[soldierId] = cur > 0 ? cur - 1 : 0;
+}
+
+/** 在该 soldier 上获取一次嘲讽占用（仅嘲讽源 tauntCapacity>0 才计数） */
+function acquireTaunt(soldierId: number): void {
+  if (soldierId === 0) return;
+  const cap = Attack.tauntCapacity[soldierId];
+  if (cap === undefined || cap === 0) return;
+  const cur = Attack.attackerCount[soldierId] ?? 0;
+  // clamp 在 u8 上限以下，超过 cap 不阻止（饱和后的目标选择由 CheckEnemyInRangeNode 排序兜底）
+  Attack.attackerCount[soldierId] = cur < 255 ? cur + 1 : 255;
+}
+
+/**
+ * 设置敌人的当前目标（处理嘲讽 acquire/release 转换）。
+ * 调用方负责后续 Attack.targetId[eid] 的实际写入 — 此函数仅维护引用计数。
+ */
+function setEnemyTarget(enemyId: number, newTargetId: number): void {
+  const prev = Attack.targetId[enemyId] ?? 0;
+  if (prev === newTargetId) return;
+  if (prev !== 0) releaseTaunt(prev);
+  if (newTargetId !== 0) acquireTaunt(newTargetId);
+  Attack.targetId[enemyId] = newTargetId;
+}
 
 /**
  * AI上下文 — 行为树执行时的环境信息 (bitecs-optimized)
@@ -366,14 +410,15 @@ export class CheckEnemyInRangeNode extends ConditionNode {
     const { world, entityId } = context;
     const px = Position.x[entityId]!;
     const py = Position.y[entityId]!;
-    const results: number[] = [];
+    // 候选元组：[id, distSq, tauntGroup]
+    // tauntGroup 仅用于 soldier 目标的优先级排序：0=可用嘲讽源 1=非嘲讽源 2=饱和嘲讽源
+    const scored: Array<[number, number, number]> = [];
 
     let candidateIds: readonly number[];
 
     if (targetType === 'tower') {
       candidateIds = towerTargetQuery(world.world);
     } else {
-      // For 'soldier', 'any', or default: query enemies
       candidateIds = enemyTargetQuery(world.world);
     }
 
@@ -381,14 +426,12 @@ export class CheckEnemyInRangeNode extends ConditionNode {
       if (id === entityId) continue;
       if (Health.current[id]! <= 0) continue;
 
-      // Filter by type if needed
       if (targetType === 'tower') {
-        // towerTargetQuery already filters for Tower component
+        // 建造中的塔免疫敌人锁定
+        if (hasComponent(world.world, BuildingTower, id)) continue;
       } else if (targetType === 'soldier') {
-        // soldier = player-owned fighters, exclude enemies
         if (UnitTag.isEnemy[id] === 1) continue;
       } else {
-        // 'any' or default: only enemies
         if (UnitTag.isEnemy[id] !== 1) continue;
       }
 
@@ -396,14 +439,31 @@ export class CheckEnemyInRangeNode extends ConditionNode {
       const ty = Position.y[id]!;
       const dx = tx - px;
       const dy = ty - py;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const distSq = dx * dx + dy * dy;
 
-      if (dist <= range) {
-        results.push(id);
+      if (distSq <= range * range) {
+        let tauntGroup = 1;
+        if (targetType === 'soldier') {
+          const cap = Attack.tauntCapacity[id] ?? 0;
+          if (cap > 0) {
+            const cur = Attack.attackerCount[id] ?? 0;
+            // 自己已是该 soldier 的攻击者时，视为"可用"（保持锁定，不被排序挤出）
+            const selfAlreadyOnTarget = Attack.targetId[entityId] === id;
+            tauntGroup = (cur < cap || selfAlreadyOnTarget) ? 0 : 2;
+          } else {
+            tauntGroup = 1;
+          }
+        }
+        scored.push([id, distSq, tauntGroup]);
       }
     }
 
-    return results;
+    scored.sort((a, b) => {
+      if (a[2] !== b[2]) return a[2] - b[2];
+      return a[1] - b[1];
+    });
+
+    return scored.map((s) => s[0]);
   }
 }
 
@@ -1343,13 +1403,13 @@ export class EnemyMeleeAttackNode extends ActionNode {
 
     const targetId = context.blackboard.get('current_target') as number | undefined;
     if (targetId === undefined || targetId === 0) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
 
     if ((Health.current[targetId] ?? 0) <= 0) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
@@ -1363,18 +1423,18 @@ export class EnemyMeleeAttackNode extends ActionNode {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const range = Attack.range[eid] ?? 0;
     if (dist > range) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
 
     Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+    setEnemyTarget(eid, targetId);
 
     if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
 
     doEnemyAttack(world, eid, targetId, posX, posY, false);
 
-    Attack.targetId[eid] = targetId;
     const attackSpeed = Attack.attackSpeed[eid];
     if (attackSpeed && attackSpeed > 0) {
       Attack.cooldownTimer[eid] = 1 / attackSpeed;
@@ -1408,13 +1468,13 @@ export class EnemyRangedAttackNode extends ActionNode {
 
     const targetId = context.blackboard.get('current_target') as number | undefined;
     if (targetId === undefined || targetId === 0) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
 
     if ((Health.current[targetId] ?? 0) <= 0) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
@@ -1428,18 +1488,18 @@ export class EnemyRangedAttackNode extends ActionNode {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const range = Attack.range[eid] ?? 0;
     if (dist > range) {
-      Attack.targetId[eid] = 0;
+      setEnemyTarget(eid, 0);
       Movement.moveMode[eid] = MoveModeVal.FollowPath;
       return NodeStatus.Failure;
     }
 
     Movement.moveMode[eid] = MoveModeVal.HoldPosition;
+    setEnemyTarget(eid, targetId);
 
     if ((Attack.cooldownTimer[eid] ?? 0) > 0) return NodeStatus.Failure;
 
     doEnemyAttack(world, eid, targetId, posX, posY, true);
 
-    Attack.targetId[eid] = targetId;
     const attackSpeed = Attack.attackSpeed[eid];
     if (attackSpeed && attackSpeed > 0) {
       Attack.cooldownTimer[eid] = 1 / attackSpeed;

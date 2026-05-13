@@ -2,12 +2,14 @@ import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import {
   Health,
   UnitTag,
+  Attack,
   DeathEffect,
   ExplosionEffect,
   Position,
   Visual,
   Category,
   ShapeVal,
+  enemyQuery,
 } from '../core/components.js';
 import { ruleEngine } from '../core/RuleEngine.js';
 
@@ -33,10 +35,17 @@ export class LifecycleSystem implements System {
       const currentHp = Health.current[eid];
 
       if (currentHp !== undefined && currentHp <= 0) {
-        // 派发 onDeath 生命周期事件
         ruleEngine.dispatch(world.world, eid, 'onDeath', { time: now });
 
-        // 创建死亡特效实体
+        // 清除指向该实体的所有 enemy Attack.targetId 引用，避免实体回收后下一帧
+        // 错误地对新占用该 entity slot 的实体执行 releaseTaunt（attackerCount-- 错乱）
+        const enemies = enemyQuery(world.world);
+        for (const enemyId of enemies) {
+          if (Attack.targetId[enemyId] === eid) {
+            Attack.targetId[enemyId] = 0;
+          }
+        }
+
         const posX = Position.x[eid] ?? 0;
         const posY = Position.y[eid] ?? 0;
         const colorR = Visual.colorR[eid] ?? 255;
