@@ -102,9 +102,33 @@ export async function dispatchEditorRequest(
     case 'list':
       await handleList(ctx, res);
       return;
+    case 'read':
+      await handleRead(ctx, route.id, res);
+      return;
     default:
       sendError(res, 501, 'not_implemented');
       return;
+  }
+}
+
+async function handleRead(ctx: HandlerContext, id: string, res: ServerResponseLike): Promise<void> {
+  const filePath = resolveLevelPath(ctx.levelsDir, id);
+  if (filePath === null) {
+    sendError(res, 400, 'invalid_id');
+    return;
+  }
+  try {
+    const [content, stat] = await Promise.all([
+      fs.readFile(filePath, 'utf-8'),
+      fs.stat(filePath),
+    ]);
+    sendJson(res, 200, { id, content, mtime: stat.mtimeMs });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      sendError(res, 404, 'not_found');
+      return;
+    }
+    throw err;
   }
 }
 

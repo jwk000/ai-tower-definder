@@ -202,6 +202,48 @@ describe('editor-fs-api: GET /__editor/levels (list endpoint)', () => {
   });
 });
 
+describe('editor-fs-api: GET /__editor/levels/:id (read endpoint)', () => {
+  let ctx: HandlerContext;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    const sandbox = await makeSandbox();
+    ctx = sandbox.ctx;
+    cleanup = sandbox.cleanup;
+  });
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('returns 200 + raw YAML content for existing level', async () => {
+    const yaml = 'id: level_01\nname: Plains\n';
+    await seedLevel(ctx, 'level_01', yaml);
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'read', id: 'level_01' }, ctx, {}, res);
+    expect(res.statusCode).toBe(200);
+    const payload = res.json<{ id: string; content: string; mtime: number }>();
+    expect(payload.id).toBe('level_01');
+    expect(payload.content).toBe(yaml);
+    expect(typeof payload.mtime).toBe('number');
+    expect(payload.mtime).toBeGreaterThan(0);
+  });
+
+  it('returns 404 when level does not exist', async () => {
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'read', id: 'missing' }, ctx, {}, res);
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: string }>().error).toBe('not_found');
+  });
+
+  it('preserves byte-for-byte content (no trim)', async () => {
+    const yaml = 'id: level_01\n\n# trailing comment\nname: Plains\n\n\n';
+    await seedLevel(ctx, 'level_01', yaml);
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'read', id: 'level_01' }, ctx, {}, res);
+    expect(res.json<{ content: string }>().content).toBe(yaml);
+  });
+});
+
 describe('editor-fs-api: dispatch error handling', () => {
   it('returns 405 for invalid method', async () => {
     const sandbox = await makeSandbox();
