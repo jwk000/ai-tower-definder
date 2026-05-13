@@ -3041,3 +3041,76 @@ describe('LifecycleSystem 死亡清理（design/24 §10.4 — attackerCount 防�
     expect(Attack.targetId[enemy3]).toBe(otherSoldier);
   });
 });
+
+describe('升级数据驱动 — Attack.tauntCapacity 增量（design/24 §12 — 盾卫每级 +1）', () => {
+  function applyUpgradeStep(eid: number, cfg: {
+    upgradeHpBonus?: readonly number[];
+    upgradeAtkBonus?: readonly number[];
+    upgradeTauntCapacityBonus?: readonly number[];
+    tauntCapacityPerLevel?: number;
+  }, costIdx: number): void {
+    const hpBonus = cfg.upgradeHpBonus?.[costIdx] ?? 0;
+    if (hpBonus > 0) {
+      Health.max[eid]! += hpBonus;
+      Health.current[eid]! += hpBonus;
+    }
+    const atkBonus = cfg.upgradeAtkBonus?.[costIdx] ?? 0;
+    if (atkBonus > 0) Attack.damage[eid]! += atkBonus;
+    const tauntBonus = cfg.upgradeTauntCapacityBonus?.[costIdx] ?? cfg.tauntCapacityPerLevel ?? 0;
+    if (tauntBonus > 0) {
+      const next = (Attack.tauntCapacity[eid] ?? 0) + tauntBonus;
+      Attack.tauntCapacity[eid] = next > 255 ? 255 : next;
+    }
+  }
+
+  it('盾卫 lvl1→lvl2 — tauntCapacity 2→3，HP +120，ATK +2', async () => {
+    const { UNIT_CONFIGS } = await import('../data/gameData.js');
+    const { UnitType } = await import('../types/index.js');
+    const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Health, { current: cfg.hp, max: cfg.hp });
+    addComp(w, eid, Attack, { damage: cfg.atk, tauntCapacity: cfg.tauntCapacity ?? 0 });
+
+    applyUpgradeStep(eid, cfg, 0);
+
+    expect(Attack.tauntCapacity[eid]).toBe(3);
+    expect(Health.max[eid]).toBe(cfg.hp + 120);
+    expect(Attack.damage[eid]).toBe(cfg.atk + 2);
+  });
+
+  it('盾卫 lvl2→lvl3 — tauntCapacity 3→4，HP +180，ATK +3', async () => {
+    const { UNIT_CONFIGS } = await import('../data/gameData.js');
+    const { UnitType } = await import('../types/index.js');
+    const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Health, { current: cfg.hp + 120, max: cfg.hp + 120 });
+    addComp(w, eid, Attack, { damage: cfg.atk + 2, tauntCapacity: 3 });
+
+    applyUpgradeStep(eid, cfg, 1);
+
+    expect(Attack.tauntCapacity[eid]).toBe(4);
+    expect(Health.max[eid]).toBe(cfg.hp + 120 + 180);
+    expect(Attack.damage[eid]).toBe(cfg.atk + 5);
+  });
+
+  it('剑士升级 — tauntCapacity 不变（剑士单嘲讽不增）', async () => {
+    const { UNIT_CONFIGS } = await import('../data/gameData.js');
+    const { UnitType } = await import('../types/index.js');
+    const cfg = UNIT_CONFIGS[UnitType.Swordsman];
+    const world = makeWorld();
+    const w = world.world;
+    const eid = addEntity(w);
+    addComp(w, eid, Health, { current: cfg.hp, max: cfg.hp });
+    addComp(w, eid, Attack, { damage: cfg.atk, tauntCapacity: cfg.tauntCapacity ?? 0 });
+
+    applyUpgradeStep(eid, cfg, 0);
+    applyUpgradeStep(eid, cfg, 1);
+
+    expect(Attack.tauntCapacity[eid]).toBe(1);
+    expect(Attack.damage[eid]).toBe(cfg.atk + 6 + 10);
+  });
+});
