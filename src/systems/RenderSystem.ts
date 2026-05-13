@@ -827,7 +827,7 @@ export class RenderSystem implements System {
       // 1. Entity body (bottom layer — drawn first)
       // ========================================
       const unitPartsId = Visual.partsId[eid] ?? 0;
-      if (isUnit && unitPartsId !== 0) {
+      if ((isUnit || isEnemy) && unitPartsId !== 0) {
         const parts = world.getUnitVisualParts(unitPartsId);
         if (parts) {
           this.drawSoldierComposite(eid, posX, posY, drawSize, displayColor, displayAlpha, strokeColor, strokeW, renderZ, parts);

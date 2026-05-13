@@ -283,6 +283,12 @@ export interface EnemyConfig {
   stunResist?: number;
   /** 铁甲巨兽专用：冰冻抵抗(秒, 免疫时长减免) */
   freezeResist?: number;
+  /** 基础几何形状：'circle' / 'rect' / 'hexagon' 等。默认 'circle'（敌人历史上是圆形） */
+  shape?: ShapeType;
+  /** 视觉部件配置（眼睛/武器/身体细节）— 不填则只画基础 shape，无装饰 */
+  visualParts?: UnitVisualParts;
+  /** 攻击动画时长（秒）— 用于挥砍/拉弓等武器动作。默认 0.3 秒；0 则不播放武器挥砍 */
+  attackAnimDuration?: number;
 }
 
 // ---- Unit ----

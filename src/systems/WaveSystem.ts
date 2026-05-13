@@ -22,6 +22,7 @@ import { GamePhase, EnemyType, type WaveConfig, type MapConfig } from '../types/
 import { generateEndlessWave } from './EndlessWaveGenerator.js';
 import { RenderSystem } from './RenderSystem.js';
 import { Sound } from '../utils/Sound.js';
+import { shapeTypeToVal } from '../utils/visualHelpers.js';
 
 // ---- bitecs query for alive enemy check ----
 
@@ -289,13 +290,23 @@ export class WaveSystem implements System {
       canAttackBuildings: config.canAttackBuildings ? 1 : 0,
       atk: config.atk,
     });
+    const shapeVal = shapeTypeToVal(config.shape ?? 'circle');
+    const partsId = config.visualParts
+      ? this.world.registerUnitVisualParts(config.visualParts)
+      : 0;
     this.world.addComponent(eid, Visual, {
-      shape: 1, // ShapeVal.Circle
+      shape: shapeVal,
       colorR: rgb.r,
       colorG: rgb.g,
       colorB: rgb.b,
       size: config.radius * 2,
       alpha: 1,
+      facing: 1,
+      bobPhase: 0,
+      breathPhase: Math.random() * Math.PI * 2,
+      attackAnimTimer: 0,
+      attackAnimDuration: config.attackAnimDuration ?? 0.3,
+      partsId,
     });
     this.world.addComponent(eid, Category, {
       value: CategoryVal.Enemy,

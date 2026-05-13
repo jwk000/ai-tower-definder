@@ -46,7 +46,8 @@ import { Sound } from './utils/Sound.js';
 import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
 import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS, UNIT_TYPE_BY_ID, UNIT_ID_BY_TYPE } from './data/gameData.js';
-import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig, type ShapeType } from './types/index.js';
+import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
+import { shapeTypeToVal } from './utils/visualHelpers.js';
 
 // ---- bitecs component stores ----
 import {
@@ -107,18 +108,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     g: parseInt(h.slice(2, 4), 16),
     b: parseInt(h.slice(4, 6), 16),
   };
-}
-
-function shapeTypeToVal(shape: ShapeType): ShapeVal {
-  switch (shape) {
-    case 'rect': return ShapeVal.Rect;
-    case 'circle': return ShapeVal.Circle;
-    case 'triangle': return ShapeVal.Triangle;
-    case 'diamond': return ShapeVal.Diamond;
-    case 'hexagon': return ShapeVal.Hexagon;
-    case 'arrow': return ShapeVal.Arrow;
-    default: return ShapeVal.Rect;
-  }
 }
 
 class TowerDefenderGame extends Game {
