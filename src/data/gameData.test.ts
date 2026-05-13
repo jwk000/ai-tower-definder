@@ -249,7 +249,7 @@ describe('单位配置 (UNIT_CONFIGS)', () => {
     expect(cfg.attackRange).toBe(64);
     expect(cfg.tauntCapacity).toBe(1);
     expect(cfg.tauntCapacityPerLevel ?? 0).toBe(0);
-    expect(cfg.splashRadius).toBe(90);
+    expect(cfg.splashRadius).toBe(96);
     expect(cfg.skillId).toBe('whirlwind');
   });
 });

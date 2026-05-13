@@ -690,7 +690,7 @@ export const UNIT_CONFIGS: Record<UnitType, UnitConfig> = {
     cost: 55,
     moveRange: 220,
     tauntCapacity: 1,
-    splashRadius: 90,
+    splashRadius: 96,
   },
 };
 
