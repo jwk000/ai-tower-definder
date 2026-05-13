@@ -613,9 +613,32 @@ export class AttackNode extends ActionNode {
       } else if (isTower) {
         Attack.targetId[eid] = targetId;
       } else {
-        Health.current[targetId]! -= damageType === 'dot' ? attackDmg * context.dt : attackDmg;
+        const primaryDamage = damageType === 'dot' ? attackDmg * context.dt : attackDmg;
+        Health.current[targetId]! -= primaryDamage;
         if (UnitTag.isEnemy[targetId] === 1 && Attack.damage[targetId] !== undefined) {
           Attack.targetId[targetId] = eid;
+        }
+        // 旋风斩 / 远程 splash：soldier 拥有 splashRadius > 0 → 以自身为中心命中周围 9 格
+        // 二次伤害 60%（与塔系 splash 一致，避免 AOE 单位过强）
+        const splashRadius = Attack.splashRadius[eid] ?? 0;
+        if (splashRadius > 0) {
+          const sx = Position.x[eid]!;
+          const sy = Position.y[eid]!;
+          const splashDamage = primaryDamage * 0.6;
+          const radiusSq = splashRadius * splashRadius;
+          for (const enemyId of enemyTargetQuery(context.world.world)) {
+            if (enemyId === targetId) continue;
+            if (UnitTag.isEnemy[enemyId] !== 1) continue;
+            if ((Health.current[enemyId] ?? 0) <= 0) continue;
+            const ex = Position.x[enemyId];
+            const ey = Position.y[enemyId];
+            if (ex === undefined || ey === undefined) continue;
+            const ddx = ex - sx;
+            const ddy = ey - sy;
+            if (ddx * ddx + ddy * ddy <= radiusSq) {
+              Health.current[enemyId]! -= splashDamage;
+            }
+          }
         }
       }
       AI.targetId[eid] = targetId;
