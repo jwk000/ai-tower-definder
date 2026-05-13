@@ -38,7 +38,7 @@ export interface DeckState {
 /** 手牌状态 */
 export interface HandState {
   /** 当前手牌（顺序与 UI 显示一致，左->右） */
-  cards: CardInstance[];
+  hand: CardInstance[];
   /** 手牌容量（默认 4，永久升级最高 8） */
   capacity: number;
 }
