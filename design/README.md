@@ -63,6 +63,7 @@
 | 26 | [脆弱状态](./26-vulnerability-status.md) | 沿用 | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
 | 27 | [调试系统](./27-debug-system.md) | 沿用 | 跨界面调试入口、一键通关、金币+99999、行为树查看弹窗 |
 | 28 | [阵营语义重构](./28-faction-refactoring.md) | 📝 草案 | 去 isEnemy 双轨、isHostileTo API、Phase A→F 分阶段迁移路线 |
+| 29 | [关卡编辑器](./29-level-editor.md) | ✅ v1.0 已批准 | 游戏内集成编辑器、调试入口、Vite 插件文件 API、**图模型路径**（多生成口 + DAG 分支加权随机 + 传送门跳转 + 敌人锁定 spawn 子图）/波次/池/难度全字段编辑 + 一键试玩。UI 选定 Preact，DEV-only |
 
 > 状态图例：✅ 全文重写 / 🔶 章节追加 / 沿用 / ⭐ 权威方案 / 📝 草案
 
