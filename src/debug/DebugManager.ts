@@ -17,6 +17,7 @@ import { LEVELS } from '../data/levels/index.js';
 export interface DebugManagerHooks {
   getEconomy?: () => EconomySystem | null;
   onLevelProgressChanged?: () => void;
+  onOpenLevelEditor?: () => void;
 }
 
 const GOLD_BONUS = 99999;
@@ -32,15 +33,21 @@ export class DebugManager {
 
   private getEconomyFn: (() => EconomySystem | null) | null = null;
   private onLevelProgressChangedFn: (() => void) | null = null;
+  private onOpenLevelEditorFn: (() => void) | null = null;
 
   constructor(world: TowerWorld, hooks: DebugManagerHooks = {}) {
     this.world = world;
     this.getEconomyFn = hooks.getEconomy ?? null;
     this.onLevelProgressChangedFn = hooks.onLevelProgressChanged ?? null;
+    this.onOpenLevelEditorFn = hooks.onOpenLevelEditor ?? null;
 
     this.behaviorTreeWindow = new BehaviorTreeWindow();
     this.debugPanel = new DebugPanel(this.buildActions());
     this.setupKeyboardShortcuts();
+  }
+
+  getActions(): DebugAction[] {
+    return this.buildActions();
   }
 
   setEconomyProvider(provider: () => EconomySystem | null): void {
@@ -59,7 +66,7 @@ export class DebugManager {
   }
 
   private buildActions(): DebugAction[] {
-    return [
+    const actions: DebugAction[] = [
       {
         id: 'complete_all_levels',
         label: '一键通关（全部 3 星）',
@@ -83,6 +90,17 @@ export class DebugManager {
         onClick: () => this.openBehaviorTreeWindow(),
       },
     ];
+    if (this.onOpenLevelEditorFn) {
+      const openEditor = this.onOpenLevelEditorFn;
+      actions.push({
+        id: 'open_level_editor',
+        label: '关卡编辑器 (F2)',
+        icon: '🛠️',
+        isEnabled: () => true,
+        onClick: () => openEditor(),
+      });
+    }
+    return actions;
   }
 
   private getEconomy(): EconomySystem | null {

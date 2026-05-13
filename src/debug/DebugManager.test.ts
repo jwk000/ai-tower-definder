@@ -124,6 +124,32 @@ describe('DebugManager — 调试功能 (design/27-debug-system.md)', () => {
     expect(economy.gold).toBeGreaterThanOrEqual(Math.min(goldBefore + 99999, 999_999));
   });
 
+  it('注册 onOpenLevelEditor hook 后 buildActions 包含 open_level_editor 条目', async () => {
+    const { TowerWorld } = await import('../core/World.js');
+    const { DebugManager } = await import('./DebugManager.js');
+
+    const world = new TowerWorld();
+    const openEditor = vi.fn();
+    const debug = new DebugManager(world, { onOpenLevelEditor: openEditor });
+
+    const actions = debug.getActions();
+    const editorAction = actions.find((a) => a.id === 'open_level_editor');
+    expect(editorAction).toBeDefined();
+    expect(editorAction?.isEnabled()).toBe(true);
+    editorAction?.onClick();
+    expect(openEditor).toHaveBeenCalledTimes(1);
+  });
+
+  it('未注册 onOpenLevelEditor 时不出现 open_level_editor 按钮', async () => {
+    const { TowerWorld } = await import('../core/World.js');
+    const { DebugManager } = await import('./DebugManager.js');
+
+    const world = new TowerWorld();
+    const debug = new DebugManager(world);
+    const actions = debug.getActions();
+    expect(actions.find((a) => a.id === 'open_level_editor')).toBeUndefined();
+  });
+
   it('addDebugGold 在 economy provider 返回 null 时按未注入处理', async () => {
     const { TowerWorld } = await import('../core/World.js');
     const { DebugManager } = await import('./DebugManager.js');
