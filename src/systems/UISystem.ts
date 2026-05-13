@@ -37,6 +37,37 @@ export function computeEnergyBarRatio(current: number, max: number): number {
   return current / max;
 }
 
+/**
+ * v3.0 roguelike — 手牌槽位水平居中布局。
+ * design/20 §4.5.2：单卡 120×168，卡间距 16px，最多 8 张，水平居中。
+ * 返回每张卡左上角相对手牌区原点 (x, y) 坐标，y=0（区内顶部对齐，调用方再做垂直居中）。
+ * 8 张溢出 800 宽时 startX 为负、视觉可越界（design 已知约束）。
+ */
+export function computeCardSlotsLayout(
+  handCount: number,
+  regionWidth: number,
+  cardWidth: number,
+  gap: number,
+): { x: number; y: number }[] {
+  if (handCount <= 0) return [];
+  const step = cardWidth + gap;
+  const totalWidth = handCount * cardWidth + (handCount - 1) * gap;
+  const startX = (regionWidth - totalWidth) / 2;
+  const slots: { x: number; y: number }[] = [];
+  for (let i = 0; i < handCount; i++) {
+    slots.push({ x: startX + i * step, y: 0 });
+  }
+  return slots;
+}
+
+/** design/09 §3.2 卡牌稀有度边框色 */
+export const RARITY_BORDER_COLORS = {
+  common: '#ffffff',
+  rare: '#2196f3',
+  epic: '#9c27b0',
+  legendary: '#ffc107',
+} as const;
+
 // ============================================================
 // TowerType numeric ID → enum mapping (matches BuildSystem)
 // ============================================================
@@ -413,6 +444,104 @@ export class UISystem implements System {
     return LayoutManager.toDesignX(LayoutManager.viewportW / 2);
   }
 
+  /**
+   * v3.0 roguelike — 手牌区渲染（design/20 §4.5.2）。
+   *   - 锚点 bottom-center offset(0, -130)，size 800×180
+   *   - 单卡 120×168，水平居中排列，卡间距 16px，最多 8 张
+   *   - 边框 2px 稀有度色（design/09 §3.2）
+   *   - 主图区 96×80 放占位符号（type 字母 + 卡名首字）
+   *   - 底部：◇ 能量消耗（蓝色菱形）；persistAcrossWaves=true 名字旁画 ✦
+   *   - 能量不足整卡 alpha=0.4 并叠加"能量不足"红字
+   *   - runContext 未装配时静默跳过（主菜单/编辑器流程）
+   */
+  private renderHandZone(): void {
+    const runContext = this._world?.runContext;
+    if (!runContext) return;
+
+    const cards = runContext.hand.state.hand;
+    if (cards.length === 0) return;
+
+    const REGION_W = 800;
+    const REGION_H = 180;
+    const CARD_W = 120;
+    const CARD_H = 168;
+    const GAP = 16;
+
+    const regionCenterX = LayoutManager.DESIGN_W / 2;
+    const regionCenterY = LayoutManager.DESIGN_H - 130;
+    const regionLeft = regionCenterX - REGION_W / 2;
+    const regionTop = regionCenterY - REGION_H / 2;
+
+    const slots = computeCardSlotsLayout(cards.length, REGION_W, CARD_W, GAP);
+    const currentEnergy = runContext.energy.current;
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i]!;
+      const slot = slots[i]!;
+      const config = runContext.registry.get(card.cardId);
+      if (!config) continue;
+
+      const cardLeft = regionLeft + slot.x;
+      const cardTop = regionTop + (REGION_H - CARD_H) / 2;
+      const cardCenterX = cardLeft + CARD_W / 2;
+      const cardCenterY = cardTop + CARD_H / 2;
+
+      const affordable = currentEnergy >= config.energyCost;
+      const cardAlpha = affordable ? 1 : 0.4;
+      const borderColor = RARITY_BORDER_COLORS[config.rarity];
+
+      this.renderer.push({
+        shape: 'rect',
+        x: cardCenterX, y: cardCenterY,
+        size: CARD_W, h: CARD_H,
+        color: '#1a2332',
+        alpha: cardAlpha * 0.95,
+        stroke: borderColor, strokeWidth: 2,
+      });
+
+      const artW = 96;
+      const artH = 80;
+      const artCenterY = cardTop + 12 + artH / 2;
+      this.renderer.push({
+        shape: 'rect',
+        x: cardCenterX, y: artCenterY,
+        size: artW, h: artH,
+        color: '#0d1b2a',
+        alpha: cardAlpha,
+        stroke: '#37474f', strokeWidth: 1,
+      });
+
+      const glyph = config.type === 'unit' ? '⚔' : '✦';
+      this.infos.push({
+        x: cardCenterX, y: artCenterY,
+        text: glyph,
+        color: borderColor, size: 36, align: 'center',
+      });
+
+      const namePersistMark = config.persistAcrossWaves ? '✦ ' : '';
+      this.infos.push({
+        x: cardCenterX, y: cardTop + 12 + artH + 14,
+        text: `${namePersistMark}${config.name}`,
+        color: affordable ? '#ffffff' : '#888888',
+        size: 12, align: 'center',
+      });
+
+      this.infos.push({
+        x: cardLeft + 10, y: cardTop + CARD_H - 14,
+        text: `◇ ${config.energyCost}`,
+        color: affordable ? '#bbdefb' : '#5e6a78', size: 14,
+      });
+
+      if (!affordable) {
+        this.infos.push({
+          x: cardCenterX, y: cardTop + CARD_H - 14,
+          text: '能量不足',
+          color: '#ef5350', size: 12, align: 'center',
+        });
+      }
+    }
+  }
+
   private renderEnergyBar(): void {
     const runContext = this._world?.runContext;
     if (!runContext) return;
@@ -645,6 +774,10 @@ export class UISystem implements System {
     const panelCenterX = LayoutManager.DESIGN_W / 2;     // design center
     const panelW = UISystem.PANEL_W;   // 1344
     const available = phase !== GamePhase.Victory && phase !== GamePhase.Defeat;
+
+    if (available) {
+      this.renderHandZone();
+    }
 
     if (panelY + panelH > LayoutManager.DESIGN_H) return;
 
