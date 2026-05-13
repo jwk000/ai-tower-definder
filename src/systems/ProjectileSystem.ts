@@ -32,7 +32,6 @@ import { TileDamageSystem } from './TileDamageSystem.js';
 
 const projectileQuery = defineQuery([Position, Projectile]);
 const enemyQuery = defineQuery([Position, Health, UnitTag]);
-const targetingMarkQuery = defineQuery([Position, TargetingMark]);
 
 // ============================================================
 // Constants
@@ -271,17 +270,10 @@ export class ProjectileSystem implements System {
     if (isMissile) {
       // ── Missile: enhanced explosion + screen shake + tile damage ──
 
-      // Clean up TargetingMark entities near impact point
-      for (const markId of targetingMarkQuery(world.world)) {
-        const mx = Position.x[markId];
-        const my = Position.y[markId];
-        if (mx !== undefined && my !== undefined) {
-          const mdx = mx - hitX;
-          const mdy = my - hitY;
-          if (Math.sqrt(mdx * mdx + mdy * mdy) < 10) {
-            world.destroyEntity(markId);
-          }
-        }
+      // Destroy this missile's own TargetingMark (Projectile.targetId points to it).
+      // 不依赖位置距离阈值——抛物线轨迹的落点必然偏离 mark 中心，距离 cleanup 会漏。
+      if (targetId !== 0 && hasComponent(world.world, TargetingMark, targetId)) {
+        world.destroyEntity(targetId);
       }
 
       // Enhanced explosion: bigger, longer, larger initial radius

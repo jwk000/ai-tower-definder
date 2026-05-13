@@ -109,6 +109,7 @@ const towerQuery = defineQuery([Position, Attack, Tower]);
 const potentialTargetQuery = defineQuery([Position, Health, UnitTag]);
 const chargingQuery = defineQuery([MissileCharge]);
 const targetingMarkQuery = defineQuery([TargetingMark, Position]);
+const projectileQueryForCleanup = defineQuery([Projectile]);
 
 // ============================================================
 // AttackSystem — towers find nearest enemy and fire

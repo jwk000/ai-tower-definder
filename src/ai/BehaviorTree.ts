@@ -21,8 +21,6 @@ import {
   FactionVal,
   MissileCharge,
   TargetingMark,
-  Visual,
-  ShapeVal,
   enemyQuery as enemyTargetQuery,
   towerQuery as towerTargetQuery,
   friendlyFighterQuery,
@@ -1112,20 +1110,9 @@ export class ChargeAttackNode extends ActionNode {
     const markId = world.createEntity();
     world.addComponent(markId, Position, { x: targetPos.x, y: targetPos.y });
     world.addComponent(markId, TargetingMark, {
-      blastRadius: blastRadius * 0.5, // outer ring = 50% of blast radius
+      blastRadius,
       pulsePhase: 0,
       ringRotation: 0,
-    });
-    world.addComponent(markId, Visual, {
-      shape: ShapeVal.Cross,
-      colorR: 0xff,
-      colorG: 0x17,
-      colorB: 0x44,
-      size: blastRadius,
-      alpha: 0.9,
-      outline: 0,
-      hitFlashTimer: 0,
-      idlePhase: 0,
     });
     world.addComponent(markId, Layer, { value: LayerVal.AboveGrid });
 
