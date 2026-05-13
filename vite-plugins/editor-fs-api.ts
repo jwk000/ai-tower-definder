@@ -98,7 +98,33 @@ export async function dispatchEditorRequest(
     sendError(res, 400, 'invalid_id');
     return;
   }
-  sendError(res, 501, 'not_implemented');
+  switch (route.kind) {
+    case 'list':
+      await handleList(ctx, res);
+      return;
+    default:
+      sendError(res, 501, 'not_implemented');
+      return;
+  }
+}
+
+async function handleList(ctx: HandlerContext, res: ServerResponseLike): Promise<void> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(ctx.levelsDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      sendJson(res, 200, { levels: [] });
+      return;
+    }
+    throw err;
+  }
+  const levels = entries
+    .filter((name) => name.endsWith('.yaml'))
+    .map((filename) => ({ id: filename.slice(0, -'.yaml'.length), filename }))
+    .filter((entry) => isValidLevelId(entry.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  sendJson(res, 200, { levels });
 }
 
 async function readRequestBody(req: Connect.IncomingMessage): Promise<string> {
@@ -144,5 +170,3 @@ export function editorFsApi(options: EditorFsApiOptions = {}): Plugin {
 }
 
 export const __internals = { DEFAULT_LEVELS_DIR, DEFAULT_TRASH_DIR, ROUTE_PREFIX };
-
-void fs;
