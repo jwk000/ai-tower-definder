@@ -8,7 +8,7 @@
  * - §7 重置
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SaveManager, CURRENT_VERSION, BACKUP_KEYS } from './SaveManager.js';
+import { SaveManager, CURRENT_VERSION, BACKUP_KEYS, type SaveData } from './SaveManager.js';
 import { crc32 } from './crc32.js';
 
 const store: Record<string, string> = {};
@@ -52,7 +52,7 @@ describe('SaveManager v1.1', () => {
         highScores: { 1: 5000 },
         totalGold: 999,
       };
-      SaveManager.save(original);
+      SaveManager.save(original as unknown as SaveData);
       const data = SaveManager.load();
       expect(data.unlockedLevels).toBe(3);
       expect(data.levelStars[1]).toBe(2);

@@ -1,37 +1,115 @@
 /**
- * SaveManager v1.1 — design/13-save-system.md
+ * SaveManager v2.0.0 — design/13-save-system.md (v3.0 重写)
  *
- * 改动 (P2-#17):
- * - version: number → string (semver-like, e.g. "1.1.0")
- * - 写入前 CRC32 校验和
- * - 多层备份: session / daily / version-migration / manual
- * - 版本迁移注册表
- * - 损坏检测 + 备份链恢复
+ * v2.0 主要改动:
+ * - 新增 v3.0 卡牌 Roguelike 永久数据: CardCollection / PermanentUpgrades / RunHistory / OngoingRun / Achievements / Settings / sparkShards
+ * - 新增 v1.1 → v2.0 迁移: 旧通关数关卡 × 100 转换为 sparkShards, 标记 migrated_from_v1_1 成就 (13 §6.2)
+ * - 保留 v1.1 兼容字段 (unlockedLevels / levelStars / highScores / totalGold) 与公共 API (setStars / unlockLevel) 以不破坏调用方
+ * - 保留 v1.1 → v1.1 (number → string) 迁移路径 (1 → 1.1.0)
  *
- * 向后兼容: load/save/unlockLevel/setStars/resetAll/getDefaults 公共 API 不变；
- * 旧 number-version 存档自动迁移到 v1.1.0。
+ * 沿用 v1.1 设计:
+ * - CRC32 校验和 + 多层备份 + 损坏恢复 (P2-#17)
+ * - BattleSnapshot 中途存档
  */
 
 import { crc32 } from './crc32.js';
 
 export interface SaveData {
   version: string;
-  unlockedLevels: number;
-  levelStars: Record<number, number>;
-  highScores: Record<number, number>;
-  totalGold: number;
-  battleSnapshot?: BattleSnapshot;
-  checksum?: string;
+  createdAt: number;
   updatedAt?: number;
+  checksum?: string;
+
+  sparkShards: number;
+  cardCollection: CardCollection;
+  permanentUpgrades: PermanentUpgrades;
+
+  runHistory: RunHistory;
+  ongoingRun: OngoingRun | null;
+
+  totalPlayTimeSeconds: number;
+  totalKills: number;
+  totalGoldEarned: number;
+  achievements: AchievementProgress;
+
+  settings: PlayerSettings;
+
+  battleSnapshot?: BattleSnapshot;
+
+  /** @deprecated v1.1 兼容字段，Phase A 后续任务移除（替代为 ongoingRun.currentLevel） */
+  unlockedLevels: number;
+  /** @deprecated v1.1 兼容字段，Phase A 后续任务移除（三星已取消） */
+  levelStars: Record<number, number>;
+  /** @deprecated v1.1 兼容字段，Phase A 后续任务移除（评分体系改为 heroScore） */
+  highScores: Record<number, number>;
+  /** @deprecated v1.1 兼容字段，Phase A 后续任务移除（金币改为 Run 内 + sparkShards） */
+  totalGold: number;
 }
 
-/**
- * Runtime mid-battle snapshot for resume-from-crash (design/13 §1 battleSnapshot).
- *
- * Captures: PRNG stream states (deterministic re-play) + EconomySystem refund metadata
- * + economy scalars + accumulated game time. Level identity + currentWave allow
- * the loader to re-seed the same battle session and restore economy invariants.
- */
+export interface CardCollection {
+  unlocked: Record<string, CardEntry>;
+}
+
+export interface CardEntry {
+  unlockedAt: number;
+  baseLevel: number;
+  totalUsesInRuns: number;
+  totalDeploys: number;
+}
+
+export interface PermanentUpgrades {
+  baseHpMax: number;
+  energyMax: number;
+  handSizeMax: number;
+  unitCapOnField: number;
+  startingGold: number;
+}
+
+export interface RunHistory {
+  totalRuns: number;
+  totalVictories: number;
+  highestLevelReached: number;
+  fastestVictoryTimeSeconds: number;
+  currentStreak: number;
+  longestWinStreak: number;
+  totalSparkShardsEarned: number;
+  archetypeWins: Record<string, number>;
+}
+
+export interface OngoingRun {
+  runSeed: number;
+  currentLevel: number;
+  /** 当前水晶 HP（字段名 baseHp 保留以兼容存档，见 design/13 §6.1.1） */
+  baseHp: number;
+  gold: number;
+  deck: CardInDeck[];
+  startedAt: number;
+  elapsedSeconds: number;
+  prngStateMap: number;
+  prngStateWave: number;
+  prngStateShop: number;
+  prngStateMystic: number;
+}
+
+export interface CardInDeck {
+  cardId: string;
+  instanceLevel: number;
+  isPersistentInHand?: boolean;
+  metaState?: Record<string, unknown>;
+}
+
+export interface AchievementProgress {
+  unlocked: Record<string, number>;
+  progress: Record<string, number>;
+}
+
+export interface PlayerSettings {
+  sfxVolume: number;
+  musicVolume: number;
+  showFPS: boolean;
+  preferredLanguage: string;
+}
+
 export interface BattleSnapshot {
   levelId: number;
   currentWave: number;
@@ -48,11 +126,12 @@ export interface BattleSnapshot {
     energy: number;
     population: number;
     maxPopulation: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     refundMeta: Array<[number, any]>;
   };
 }
 
-export const CURRENT_VERSION = '1.1.0';
+export const CURRENT_VERSION = '2.0.0';
 
 export const BACKUP_KEYS = {
   session: 'tower-defender-save-backup-session',
@@ -64,23 +143,85 @@ export const BACKUP_KEYS = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const INITIAL_UNLOCKED_CARD_IDS = [
+  'arrow_tower_card',
+  'cannon_tower_card',
+  'swordsman_card',
+  'archer_card',
+  'shield_guard_card',
+  'gold_mine_card',
+  'fireball_spell',
+  'energy_crystal_card',
+] as const;
+
 interface Migration {
   from: string | number;
   to: string;
-  migrate: (data: any) => SaveData;
+  migrate: (data: Record<string, unknown>) => SaveData;
+}
+
+function buildInitialCardCollection(): CardCollection {
+  const now = Date.now();
+  const unlocked: Record<string, CardEntry> = {};
+  for (const id of INITIAL_UNLOCKED_CARD_IDS) {
+    unlocked[id] = {
+      unlockedAt: now,
+      baseLevel: 1,
+      totalUsesInRuns: 0,
+      totalDeploys: 0,
+    };
+  }
+  return { unlocked };
 }
 
 const MIGRATIONS: Migration[] = [
   {
-    from: 1,
+    from: '1.1.0',
     to: CURRENT_VERSION,
-    migrate: (data: any): SaveData => ({
-      version: CURRENT_VERSION,
-      unlockedLevels: data.unlockedLevels ?? 1,
-      levelStars: data.levelStars ?? {},
-      highScores: data.highScores ?? {},
-      totalGold: data.totalGold ?? 0,
-    }),
+    migrate: (data: Record<string, unknown>): SaveData => {
+      const result = SaveManager.getDefaults();
+
+      const levelStars = (data['levelStars'] as Record<number, number> | undefined) ?? {};
+      let bonusShards = 0;
+      for (const stars of Object.values(levelStars)) {
+        if (stars > 0) bonusShards += 100;
+      }
+      result.sparkShards = bonusShards;
+      result.runHistory.totalSparkShardsEarned = bonusShards;
+      result.achievements.unlocked['migrated_from_v1_1'] = Date.now();
+
+      const unlockedLevels = data['unlockedLevels'];
+      if (typeof unlockedLevels === 'number') {
+        result.unlockedLevels = unlockedLevels;
+      }
+      if (typeof data['levelStars'] === 'object' && data['levelStars'] !== null) {
+        result.levelStars = { ...(data['levelStars'] as Record<number, number>) };
+      }
+      if (typeof data['highScores'] === 'object' && data['highScores'] !== null) {
+        result.highScores = { ...(data['highScores'] as Record<number, number>) };
+      }
+      const totalGold = data['totalGold'];
+      if (typeof totalGold === 'number') {
+        result.totalGoldEarned = totalGold;
+        result.totalGold = totalGold;
+      }
+
+      result.version = CURRENT_VERSION;
+      return result;
+    },
+  },
+  {
+    from: 1,
+    to: '1.1.0',
+    migrate: (data: Record<string, unknown>): SaveData => {
+      const intermediate: Record<string, unknown> = {
+        ...data,
+        version: '1.1.0',
+      };
+      const next = MIGRATIONS.find((m) => m.from === '1.1.0');
+      if (next) return next.migrate(intermediate);
+      return SaveManager.getDefaults();
+    },
   },
 ];
 
@@ -88,8 +229,8 @@ function canMigrate(fromVersion: string | number): boolean {
   return MIGRATIONS.some((m) => m.from === fromVersion);
 }
 
-function runMigration(data: any): SaveData | null {
-  const m = MIGRATIONS.find((mig) => mig.from === data.version);
+function runMigration(data: Record<string, unknown>): SaveData | null {
+  const m = MIGRATIONS.find((mig) => mig.from === data['version']);
   if (!m) return null;
   try {
     return m.migrate(data);
@@ -99,13 +240,19 @@ function runMigration(data: any): SaveData | null {
 }
 
 function safeGetItem(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 function safeSetItem(key: string, value: string): boolean {
-  try { localStorage.setItem(key, value); return true; } catch { return false; }
-}
-function safeRemoveItem(key: string): void {
-  try { localStorage.removeItem(key); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function computeChecksum(data: SaveData): string {
@@ -123,8 +270,40 @@ export class SaveManager {
   static readonly KEY = 'tower-defender-save';
 
   static getDefaults(): SaveData {
+    const now = Date.now();
     return {
       version: CURRENT_VERSION,
+      createdAt: now,
+      sparkShards: 0,
+      cardCollection: buildInitialCardCollection(),
+      permanentUpgrades: {
+        baseHpMax: 1000,
+        energyMax: 10,
+        handSizeMax: 4,
+        unitCapOnField: 8,
+        startingGold: 0,
+      },
+      runHistory: {
+        totalRuns: 0,
+        totalVictories: 0,
+        highestLevelReached: 0,
+        fastestVictoryTimeSeconds: 0,
+        currentStreak: 0,
+        longestWinStreak: 0,
+        totalSparkShardsEarned: 0,
+        archetypeWins: {},
+      },
+      ongoingRun: null,
+      totalPlayTimeSeconds: 0,
+      totalKills: 0,
+      totalGoldEarned: 0,
+      achievements: { unlocked: {}, progress: {} },
+      settings: {
+        sfxVolume: 0.8,
+        musicVolume: 0.6,
+        showFPS: false,
+        preferredLanguage: 'zh-CN',
+      },
       unlockedLevels: 1,
       levelStars: {},
       highScores: {},
@@ -154,32 +333,38 @@ export class SaveManager {
     return SaveManager.getDefaults();
   }
 
-  /** Attempt to load a specific key; migrate if old version; null on parse/checksum failure. */
   private static tryLoadKey(key: string): SaveData | null {
     const raw = safeGetItem(key);
     if (!raw) return null;
-    let parsed: any;
-    try { parsed = JSON.parse(raw); } catch { return null; }
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
     if (!parsed || typeof parsed !== 'object') return null;
 
-    if (parsed.version === CURRENT_VERSION) {
-      if (!verifyChecksum(parsed)) return null;
-      return SaveManager.normalize(parsed);
+    if (parsed['version'] === CURRENT_VERSION) {
+      const normalized = SaveManager.normalize(parsed);
+      if (!verifyChecksum(normalized)) return null;
+      return normalized;
     }
 
-    if (canMigrate(parsed.version)) {
-      SaveManager.backupBeforeMigration(parsed.version, raw);
-      const migrated = runMigration(parsed);
-      if (migrated) {
-        SaveManager.save(migrated);
-        return migrated;
+    const fromVersion = parsed['version'];
+    if (typeof fromVersion === 'string' || typeof fromVersion === 'number') {
+      if (canMigrate(fromVersion)) {
+        SaveManager.backupBeforeMigration(fromVersion, raw);
+        const migrated = runMigration(parsed);
+        if (migrated) {
+          SaveManager.save(migrated);
+          return migrated;
+        }
       }
     }
 
     return null;
   }
 
-  /** Persist with checksum + cascading backups (session every save, daily once/24h). */
   static save(data: SaveData): void {
     const previous = safeGetItem(SaveManager.KEY);
     if (previous) {
@@ -213,18 +398,56 @@ export class SaveManager {
   }
 
   /** Ensure all required fields are present with sane defaults (defensive load). */
-  private static normalize(data: any): SaveData {
+  private static normalize(input: SaveData | Record<string, unknown>): SaveData {
+    const data = input as Record<string, unknown>;
     const defaults = SaveManager.getDefaults();
+    const numberOr = (v: unknown, fallback: number): number =>
+      typeof v === 'number' ? v : fallback;
+    const recordOr = <T,>(v: unknown, fallback: Record<string, T>): Record<string, T> =>
+      v && typeof v === 'object' ? ({ ...fallback, ...(v as Record<string, T>) }) : fallback;
+
+    const cardCollection = data['cardCollection'] as CardCollection | undefined;
+    const permanentUpgrades = data['permanentUpgrades'] as PermanentUpgrades | undefined;
+    const runHistory = data['runHistory'] as RunHistory | undefined;
+    const achievements = data['achievements'] as AchievementProgress | undefined;
+    const settings = data['settings'] as PlayerSettings | undefined;
+    const ongoingRun = data['ongoingRun'] as OngoingRun | null | undefined;
+    const battleSnapshot = data['battleSnapshot'] as BattleSnapshot | undefined;
+
     const out: SaveData = {
-      version: data.version ?? defaults.version,
-      unlockedLevels: typeof data.unlockedLevels === 'number' ? data.unlockedLevels : defaults.unlockedLevels,
-      levelStars: { ...defaults.levelStars, ...(data.levelStars ?? {}) },
-      highScores: { ...defaults.highScores, ...(data.highScores ?? {}) },
-      totalGold: typeof data.totalGold === 'number' ? data.totalGold : defaults.totalGold,
-      checksum: data.checksum,
-      updatedAt: data.updatedAt,
+      version: (data['version'] as string | undefined) ?? defaults.version,
+      createdAt: numberOr(data['createdAt'], defaults.createdAt),
+      updatedAt: typeof data['updatedAt'] === 'number' ? (data['updatedAt'] as number) : undefined,
+      checksum: typeof data['checksum'] === 'string' ? (data['checksum'] as string) : undefined,
+
+      sparkShards: numberOr(data['sparkShards'], defaults.sparkShards),
+      cardCollection: cardCollection?.unlocked
+        ? { unlocked: { ...cardCollection.unlocked } }
+        : defaults.cardCollection,
+      permanentUpgrades: permanentUpgrades
+        ? { ...defaults.permanentUpgrades, ...permanentUpgrades }
+        : defaults.permanentUpgrades,
+      runHistory: runHistory
+        ? { ...defaults.runHistory, ...runHistory }
+        : defaults.runHistory,
+      ongoingRun: ongoingRun ?? null,
+      totalPlayTimeSeconds: numberOr(data['totalPlayTimeSeconds'], 0),
+      totalKills: numberOr(data['totalKills'], 0),
+      totalGoldEarned: numberOr(data['totalGoldEarned'], 0),
+      achievements: achievements
+        ? {
+            unlocked: { ...defaults.achievements.unlocked, ...achievements.unlocked },
+            progress: { ...defaults.achievements.progress, ...achievements.progress },
+          }
+        : defaults.achievements,
+      settings: settings ? { ...defaults.settings, ...settings } : defaults.settings,
+
+      unlockedLevels: numberOr(data['unlockedLevels'], defaults.unlockedLevels),
+      levelStars: recordOr<number>(data['levelStars'], defaults.levelStars),
+      highScores: recordOr<number>(data['highScores'], defaults.highScores),
+      totalGold: numberOr(data['totalGold'], defaults.totalGold),
     };
-    if (data.battleSnapshot) out.battleSnapshot = data.battleSnapshot;
+    if (battleSnapshot) out.battleSnapshot = battleSnapshot;
     return out;
   }
 
@@ -245,20 +468,17 @@ export class SaveManager {
     SaveManager.save(data);
   }
 
-  /** Persist a mid-battle snapshot into the main save under `battleSnapshot`. */
   static saveBattleSnapshot(snapshot: BattleSnapshot): void {
     const data = SaveManager.load();
     data.battleSnapshot = snapshot;
     SaveManager.save(data);
   }
 
-  /** Retrieve the current battle snapshot, or null if none stored. */
   static loadBattleSnapshot(): BattleSnapshot | null {
     const data = SaveManager.load();
     return data.battleSnapshot ?? null;
   }
 
-  /** Remove the current battle snapshot (call on battle victory/defeat/abandon). */
   static clearBattleSnapshot(): void {
     const data = SaveManager.load();
     if (data.battleSnapshot) {
@@ -267,7 +487,6 @@ export class SaveManager {
     }
   }
 
-  /** Reset with manual backup snapshot (timestamped). */
   static resetAll(): void {
     const current = safeGetItem(SaveManager.KEY);
     if (current) {
@@ -276,7 +495,6 @@ export class SaveManager {
     SaveManager.save(SaveManager.getDefaults());
   }
 
-  /** Test/diagnostic helper — list all save-related keys present in storage. */
   static listBackupKeys(): string[] {
     const keys: string[] = [];
     try {
@@ -286,7 +504,9 @@ export class SaveManager {
           keys.push(k);
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return keys;
   }
 }
