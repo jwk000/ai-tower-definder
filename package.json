@@ -23,6 +23,7 @@
     "@preact/preset-vite": "^2.10.5",
     "@preact/signals": "^2.9.0",
     "@types/js-yaml": "^4.0.9",
+    "happy-dom": "^20.9.0",
     "preact": "^10.29.1",
     "rimraf": "^6.0.0",
     "typescript": "^5.8.0",

@@ -1,0 +1,202 @@
+// @vitest-environment happy-dom
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render } from 'preact';
+import { EditorRoot } from '../ui/EditorRoot.js';
+import { LevelEditor } from '../LevelEditor.js';
+
+interface MockResp {
+  status: number;
+  body: unknown;
+}
+
+function makeFetch(responses: Record<string, MockResp | MockResp[]>): typeof fetch {
+  const calls: Record<string, number> = {};
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const key = `${method} ${url}`;
+    const matched = responses[key];
+    if (!matched) throw new Error(`unexpected fetch: ${key}`);
+    let resp: MockResp;
+    if (Array.isArray(matched)) {
+      const idx = calls[key] ?? 0;
+      resp = matched[Math.min(idx, matched.length - 1)]!;
+      calls[key] = idx + 1;
+    } else {
+      resp = matched;
+    }
+    return new Response(JSON.stringify(resp.body), {
+      status: resp.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }) as unknown as typeof fetch;
+}
+
+function findByTestId<T extends HTMLElement = HTMLElement>(root: HTMLElement, id: string): T | null {
+  return root.querySelector(`[data-testid="${id}"]`) as T | null;
+}
+
+async function tick(): Promise<void> {
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+describe('EditorRoot integration (happy-dom)', () => {
+  let host: HTMLDivElement;
+  let onClose: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    onClose = vi.fn();
+  });
+
+  afterEach(() => {
+    render(null, host);
+    host.remove();
+  });
+
+  it('renders level list after refreshList resolves', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': {
+          status: 200,
+          body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }, { id: 'level_02', filename: 'level_02.yaml' }] },
+        },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick();
+    await tick();
+
+    expect(findByTestId(host, 'editor-level-item-level_01')).not.toBeNull();
+    expect(findByTestId(host, 'editor-level-item-level_02')).not.toBeNull();
+  });
+
+  it('clicking a list item triggers loadLevel and shows textarea', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': {
+          status: 200,
+          body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] },
+        },
+        'GET /__editor/levels/level_01': {
+          status: 200,
+          body: { id: 'level_01', content: 'id: level_01\nname: Plains\n', mtime: 100 },
+        },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick();
+    await tick();
+
+    const button = findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01');
+    expect(button).not.toBeNull();
+    button!.click();
+    await tick();
+    await tick();
+
+    const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea');
+    expect(ta).not.toBeNull();
+    expect(ta!.value).toBe('id: level_01\nname: Plains\n');
+  });
+
+  it('editing textarea marks dirty and enables save button', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'old\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick();
+    await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick();
+    await tick();
+
+    expect(findByTestId(host, 'editor-dirty')).toBeNull();
+
+    const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+    ta.value = 'new content\n';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick();
+
+    expect(findByTestId(host, 'editor-dirty')).not.toBeNull();
+    const save = findByTestId<HTMLButtonElement>(host, 'editor-save')!;
+    expect(save.disabled).toBe(false);
+    expect(editor.isDirty).toBe(true);
+  });
+
+  it('clicking save triggers PUT and clears dirty', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'old\n', mtime: 100 } },
+        'PUT /__editor/levels/level_01': { status: 200, body: { id: 'level_01', mtime: 200 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+    ta.value = 'new\n';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-save')!.click();
+    await tick(); await tick();
+
+    expect(editor.isDirty).toBe(false);
+    expect(editor.currentMtime).toBe(200);
+    expect(findByTestId(host, 'editor-dirty')).toBeNull();
+  });
+
+  it('shows error banner when lastError is set', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 500, body: { error: 'internal_error' } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick();
+    await tick();
+
+    const banner = findByTestId(host, 'editor-error');
+    expect(banner).not.toBeNull();
+    expect(banner!.textContent).toMatch(/internal_error/);
+  });
+
+  it('save button is disabled when not dirty', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const save = findByTestId<HTMLButtonElement>(host, 'editor-save')!;
+    expect(save.disabled).toBe(true);
+  });
+
+  it('close button calls onClose handler', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({ 'GET /__editor/levels': { status: 200, body: { levels: [] } } }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-close')!.click();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
