@@ -78,6 +78,7 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
       EnemyType.Grunt, EnemyType.Runner, EnemyType.Exploder,
       EnemyType.Heavy, EnemyType.Juggernaut,
       EnemyType.Mage, EnemyType.Shaman, EnemyType.HotAirBalloon,
+      EnemyType.BossCommander, EnemyType.BossBeast,
     ];
 
     enemies.forEach((type) => {
@@ -206,6 +207,68 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
 
     it('bodyParts 至少 4 个（绳索 + 篮子 + 炸弹 + 火焰组合）', () => {
       expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
+  describe('BossCommander 指挥官', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.BossCommander];
+
+    it('应该配置 visualParts（金权杖 + 王冠 + 护肩）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.eyes).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+      expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('武器有金色光晕（统帅气场）', () => {
+      const glow = cfg.visualParts?.weapon?.glowColor?.toLowerCase() ?? '';
+      expect(glow).toMatch(/^#(f|e)/);
+    });
+
+    it('王冠由 triangle 组成（至少 3 个）', () => {
+      const triangles = (cfg.visualParts?.bodyParts ?? []).filter((p) => p.shape === 'triangle');
+      expect(triangles.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('武器长度 > 任何非 Boss 敌人（统帅级武器）', () => {
+      const cmdLen = cfg.visualParts?.weapon?.length ?? 0;
+      const heavyLen = ENEMY_CONFIGS[EnemyType.Heavy].visualParts?.weapon?.length ?? 0;
+      const jugLen = ENEMY_CONFIGS[EnemyType.Juggernaut].visualParts?.weapon?.length ?? 0;
+      expect(cmdLen).toBeGreaterThan(heavyLen);
+      expect(cmdLen).toBeGreaterThan(jugLen);
+    });
+  });
+
+  describe('BossBeast 攻城兽', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.BossBeast];
+
+    it('应该配置 visualParts（獠牙 + 背刺 + 重甲 + 巨锤）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+      expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('包含至少 5 个 triangle（多獠牙 + 多背刺 + 头顶尖刺）', () => {
+      const triangles = (cfg.visualParts?.bodyParts ?? []).filter((p) => p.shape === 'triangle');
+      expect(triangles.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('攻击动画比任何其他敌人都慢（巨兽笨重）', () => {
+      const beastDur = cfg.attackAnimDuration ?? 0;
+      const allOthers: EnemyType[] = [
+        EnemyType.Grunt, EnemyType.Runner, EnemyType.Exploder,
+        EnemyType.Heavy, EnemyType.Juggernaut,
+        EnemyType.Mage, EnemyType.Shaman,
+        EnemyType.BossCommander,
+      ];
+      for (const other of allOthers) {
+        const otherDur = ENEMY_CONFIGS[other].attackAnimDuration ?? 0;
+        expect(beastDur).toBeGreaterThan(otherDur);
+      }
+    });
+
+    it('武器宽度 >= 8（巨锤粗壮）', () => {
+      expect(cfg.visualParts?.weapon?.width ?? 0).toBeGreaterThanOrEqual(8);
     });
   });
 });

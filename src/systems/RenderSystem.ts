@@ -860,22 +860,6 @@ export class RenderSystem implements System {
       }
 
       // ========================================
-      // Boss crown (keep existing)
-      // ========================================
-      if (isBossEntity) {
-        const crownSize = Visual.size[eid]! * 0.4;
-        this.renderer.push({
-          shape: 'triangle',
-          x: posX,
-          y: posY - drawSize / 2 - crownSize / 2 - 2,
-          size: crownSize,
-          color: '#ffd700',
-          alpha: 0.95,
-          z: renderZ,
-        });
-      }
-
-      // ========================================
       // Alert mark (red ! above soldier head)
       // ========================================
       if (hasComponent(world.world, AlertMark, eid)) {
