@@ -2997,6 +2997,105 @@ describe('剑士 AOE 溅射（design/24 §11 — 9 格 / splashRadius=96）', ()
   });
 });
 
+describe('attackerCount 引用计数维护（design/24 §10.4 — acquire/release 对称）', () => {
+  function makeMeleeEnemy(world: TowerWorld, x: number, y: number): number {
+    const w = world.world;
+    const e = addEntity(w);
+    addComp(w, e, Position, { x, y });
+    addComp(w, e, Health, { current: 100, max: 100 });
+    addComp(w, e, Attack, { damage: 5, attackSpeed: 1, range: 50, cooldownTimer: 0, targetId: 0, isRanged: 0 });
+    addComp(w, e, Movement, { speed: 50, moveMode: MoveModeVal.FollowPath, targetX: 0, targetY: 0, moveRange: 0 });
+    addComp(w, e, UnitTag, { isEnemy: 1, canAttackBuildings: 0 });
+    addComp(w, e, Layer, { value: LayerVal.Ground });
+    return e;
+  }
+  function makeTauntSoldier(world: TowerWorld, x: number, y: number, tauntCap: number = 2, hp: number = 100): number {
+    const w = world.world;
+    const s = addEntity(w);
+    addComp(w, s, Position, { x, y });
+    addComp(w, s, Health, { current: hp, max: 100 });
+    addComp(w, s, UnitTag, { isEnemy: 0 });
+    addComp(w, s, Attack, { damage: 5, attackSpeed: 1, range: 40, tauntCapacity: tauntCap, attackerCount: 0 });
+    return s;
+  }
+  function makeCtx(world: TowerWorld, eid: number, targetId: number): AIContext {
+    const bb = new Map<string, unknown>();
+    bb.set('current_target', targetId);
+    return { entityId: eid, world, dt: 0.1, blackboard: bb };
+  }
+
+  it('acquire — 敌人首次锁定嘲讽源 soldier，attackerCount +1', () => {
+    const world = makeWorld();
+    const enemy = makeMeleeEnemy(world, 100, 100);
+    const soldier = makeTauntSoldier(world, 110, 100, 2);
+
+    const ctx = makeCtx(world, enemy, soldier);
+    const node = new EnemyMeleeAttackNode('enemy_melee_attack', {});
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+
+    expect(Attack.targetId[enemy]).toBe(soldier);
+    expect(Attack.attackerCount[soldier]).toBe(1);
+  });
+
+  it('release — 敌人因目标死亡释放嘲讽，attackerCount -1', () => {
+    const world = makeWorld();
+    const enemy = makeMeleeEnemy(world, 100, 100);
+    const soldier = makeTauntSoldier(world, 110, 100, 2);
+
+    const ctx1 = makeCtx(world, enemy, soldier);
+    new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(ctx1);
+    expect(Attack.attackerCount[soldier]).toBe(1);
+
+    Health.current[soldier] = 0;
+    const ctx2 = makeCtx(world, enemy, soldier);
+    expect(new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(ctx2)).toBe(NodeStatus.Failure);
+
+    expect(Attack.targetId[enemy]).toBe(0);
+    expect(Attack.attackerCount[soldier]).toBe(0);
+  });
+
+  it('release on out-of-range — 敌人远离嘲讽源，attackerCount -1', () => {
+    const world = makeWorld();
+    const enemy = makeMeleeEnemy(world, 100, 100);
+    const soldier = makeTauntSoldier(world, 110, 100, 2);
+
+    const ctx1 = makeCtx(world, enemy, soldier);
+    new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(ctx1);
+    expect(Attack.attackerCount[soldier]).toBe(1);
+
+    Position.x[enemy] = 500;
+    Attack.cooldownTimer[enemy] = 0;
+    const ctx2 = makeCtx(world, enemy, soldier);
+    expect(new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(ctx2)).toBe(NodeStatus.Failure);
+
+    expect(Attack.targetId[enemy]).toBe(0);
+    expect(Attack.attackerCount[soldier]).toBe(0);
+  });
+
+  it('多敌人 acquire — attackerCount 累加', () => {
+    const world = makeWorld();
+    const e1 = makeMeleeEnemy(world, 100, 100);
+    const e2 = makeMeleeEnemy(world, 90, 100);
+    const soldier = makeTauntSoldier(world, 110, 100, 3);
+
+    new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(makeCtx(world, e1, soldier));
+    new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(makeCtx(world, e2, soldier));
+
+    expect(Attack.attackerCount[soldier]).toBe(2);
+  });
+
+  it('非嘲讽源 (tauntCapacity=0) — attackerCount 不增减', () => {
+    const world = makeWorld();
+    const enemy = makeMeleeEnemy(world, 100, 100);
+    const soldier = makeTauntSoldier(world, 110, 100, 0);
+
+    new EnemyMeleeAttackNode('enemy_melee_attack', {}).tick(makeCtx(world, enemy, soldier));
+
+    expect(Attack.targetId[enemy]).toBe(soldier);
+    expect(Attack.attackerCount[soldier]).toBe(0);
+  });
+});
+
 describe('LifecycleSystem 死亡清理（design/24 §10.4 — attackerCount 防泄漏）', () => {
   it('士兵死亡后 — 所有指向它的敌人 Attack.targetId 被清零', async () => {
     const { LifecycleSystem } = await import('../systems/LifecycleSystem.js');
