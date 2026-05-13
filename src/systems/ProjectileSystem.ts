@@ -140,9 +140,10 @@ export class ProjectileSystem implements System {
           Visual.idlePhase[eid] = Math.atan2(vy, dirX * speed);
         }
 
-        // Check if missile has reached/passed target Y
+        // 命中判定：必须处于下落阶段（vy > 0）且 Y 已经越过目标线，
+        // 防止目标在塔北方时首帧 newY (=towerY-eps) >= tty (更小) 立刻误判命中
         const newY = Position.y[eid]!;
-        if (newY >= tty) {
+        if (vy > 0 && newY >= tty) {
           this.onHit(world, eid, Position.x[eid]!, newY);
           this.missileVelY.delete(eid);
           world.destroyEntity(eid);
@@ -367,6 +368,10 @@ export class ProjectileSystem implements System {
 
     for (const enemyId of enemyQuery(world.world)) {
       if (!isAlive(enemyId)) continue;
+
+      // 友军伤害守卫：splash 仅伤敌方单位，不伤友军塔/建筑/陷阱（含发射源塔自身）
+      if (UnitTag.isEnemy[enemyId] !== 1) continue;
+      if (enemyId === sourceTowerId) continue;
 
       // Missile: skip flying enemies (ground explosion doesn't reach them)
       if (cantTargetFlying && (Layer.value[enemyId] ?? LayerVal.Ground) === LayerVal.LowAir) {
