@@ -21,9 +21,10 @@ export function bootstrapEditor(deps: EditorBootstrapDeps): EditorHandle {
 }
 
 function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
-  const { game } = deps;
+  const { game, hostElement } = deps;
   let open = false;
   let wasPausedBeforeOpen = false;
+  hostElement.style.display = 'none';
 
   const handle: EditorHandle = {
     open() {
@@ -31,11 +32,13 @@ function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
       open = true;
       wasPausedBeforeOpen = game.paused;
       game.paused = true;
+      hostElement.style.display = 'block';
     },
     close() {
       if (!open) return;
       open = false;
       game.paused = wasPausedBeforeOpen;
+      hostElement.style.display = 'none';
     },
     toggle() {
       if (open) handle.close();
@@ -50,4 +53,15 @@ function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
   };
 
   return handle;
+}
+
+export function attachF2Hotkey(handle: EditorHandle, target: EventTarget): () => void {
+  const listener = (event: Event) => {
+    const keyEvent = event as KeyboardEvent;
+    if (keyEvent.key !== 'F2') return;
+    if (typeof keyEvent.preventDefault === 'function') keyEvent.preventDefault();
+    handle.toggle();
+  };
+  target.addEventListener('keydown', listener as EventListener);
+  return () => target.removeEventListener('keydown', listener as EventListener);
 }
