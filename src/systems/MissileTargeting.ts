@@ -67,6 +67,12 @@ export function evaluateMissileTarget(
   const TOWER_RANGE = Attack.range[towerId] ?? missileCfg?.range ?? 600;
   const TOWER_RANGE_SQ = TOWER_RANGE * TOWER_RANGE;
 
+  // ---- Self-target safety: forbid choosing a grid cell that overlaps the tower itself ----
+  // 防止「塔自己攻击自己」：当敌人推进到塔所在格附近时，目标格中心会落到塔身上。
+  // 取塔所在格的最小安全距离（约 1 个 tile）。
+  const MIN_DIST_FROM_TOWER = map.tileSize;
+  const MIN_DIST_FROM_TOWER_SQ = MIN_DIST_FROM_TOWER * MIN_DIST_FROM_TOWER;
+
   // ---- Blast radius: read from tower's Attack component ----
   const towerSplashRadius = Attack.splashRadius[towerId];
   const BLAST_RADIUS = towerSplashRadius !== undefined && towerSplashRadius > 0
@@ -120,7 +126,10 @@ export function evaluateMissileTarget(
     // v1.1: Range filter — skip grid cells beyond tower range
     const dxTower = centerX - towerX;
     const dyTower = centerY - towerY;
-    if (dxTower * dxTower + dyTower * dyTower > TOWER_RANGE_SQ) continue;
+    const distToTowerSq = dxTower * dxTower + dyTower * dyTower;
+    if (distToTowerSq > TOWER_RANGE_SQ) continue;
+    // Self-target guard: never choose a grid cell that sits on/under the tower itself
+    if (distToTowerSq < MIN_DIST_FROM_TOWER_SQ) continue;
 
     // Factor 1: Distance to base (0-1, closer = higher)
     const manhattanDist = Math.abs(row - BASE_ROW) + Math.abs(col - BASE_COL);
