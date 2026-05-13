@@ -57,7 +57,7 @@ interface CardEntry {
 // 永久升级项
 // ============================================================
 interface PermanentUpgrades {
-  baseHpMax: number;           // 大本营最大 HP 当前等级（影响 Run 起始 HP）
+  baseHpMax: number;           // 水晶最大 HP 当前等级（影响 Run 起始 HP）。字段名 baseHp* 保留以兼容存档（前称"大本营"，v3.0 更名"水晶"）
   energyMax: number;           // 能量上限当前等级（默认 10，可升至 12）
   handSizeMax: number;         // 手牌上限当前等级（默认 4，可升至 8）
   unitCapOnField: number;      // 场上单位上限（默认 8）
@@ -85,7 +85,7 @@ interface RunHistory {
 interface OngoingRun {
   runSeed: number;             // PRNG 种子（用于复现）
   currentLevel: number;        // 当前关卡（1-9）
-  baseHp: number;              // 当前大本营 HP
+  baseHp: number;              // 当前水晶 HP（字段名 baseHp 保留以兼容存档）
   gold: number;                // 当前金币
   deck: CardInDeck[];          // 当前卡组（含临时升级状态）
   startedAt: number;           // Run 开始时间
@@ -174,7 +174,7 @@ const DEFAULT_SAVE: SaveData = {
 
 | 时机 | 操作 |
 |------|------|
-| **Run 开始** | 写入 `ongoingRun`，包含初始种子 / 卡组 / 大本营 HP |
+| **Run 开始** | 写入 `ongoingRun`，包含初始种子 / 卡组 / 水晶 HP（字段 `baseHp`） |
 | **关卡通过（进入关间节点前）** | 更新 `ongoingRun`：currentLevel + 1（指向下一关），baseHp，gold，deck，prngState |
 | **关间节点决策完成** | 更新 `ongoingRun`：deck（关间商店买的卡/秘境效果），gold |
 | **Run 失败** | 清空 `ongoingRun`，按到达关卡发放火花碎片，更新 `runHistory` |
@@ -220,7 +220,7 @@ const DEFAULT_SAVE: SaveData = {
 | **永久升级卡基础等级（L2→L3）** | 卡池界面 | 600 / 张 |
 | **永久升级卡基础等级（L3→L4）** | 卡池界面 | 1200 / 张 |
 | **永久升级卡基础等级（L4→L5）** | 卡池界面 | 2400 / 张 |
-| **永久升级：基地 HP +100 / 级** | 永久升级面板 | 100 → 200 → 400 → 800 / 级 |
+| **永久升级：水晶 HP +100 / 级** | 永久升级面板 | 100 → 200 → 400 → 800 / 级 |
 | **永久升级：能量上限 +1 / 级** | 永久升级面板 | 500 → 1000（最多 +2，至 12 上限） |
 | **永久升级：手牌上限 +1 / 级** | 永久升级面板 | 300 → 600 → 900 → 1200 / 级（默认 4，可达 8） |
 | **永久升级：场上单位上限 +1 / 级** | 永久升级面板 | 200 → 400 → 600 → 800 / 级（默认 8，可达 12） |
@@ -262,7 +262,7 @@ const DEFAULT_SAVE: SaveData = {
    ▼
 从 ongoingRun 加载：
    - 设置当前关卡为 ongoingRun.currentLevel
-   - 设置大本营 HP / 金币
+   - 设置水晶 HP / 金币
    - 设置 PRNG 状态（多流）
    - 重建卡组（按 deck 配置，含实例等级）
    │
@@ -300,6 +300,17 @@ Run 结束时自动识别玩家流派，写入 `runHistory.archetypeWins`：
   else if (canMigrate(data.version)) → 调用 migrate() 升级
   else → 警告"存档版本不兼容"，备份原存档 + 创建新存档
 ```
+
+### 6.1.1 v3.0 水晶机制对存档的影响（无破坏性变更）
+
+「大本营 → 水晶」是**纯命名 + 语义变更**，不涉及数据结构变化：
+
+- 字段名 `baseHp` / `baseHpMax` / `baseHpBonus` **保留**（前缀 base 来自旧版"base = 大本营"，现重读为"基础值"也合理），仅注释更新为"水晶 HP"。
+- 现有 v2.0 存档**不需要迁移**，直接读取即可，因为：
+  1. 数据结构未变；
+  2. 旧规则「敌人抵达终点扣 N HP」 → 新规则「水晶秒杀敌人每杀 1 个 -1 HP」属于运行时逻辑变更，不存在持久化数据；
+  3. `OngoingRun.baseHp` 表示当前水晶 HP，数值含义不变（仍是 0 ~ baseHpMax 之间的整数）。
+- 不引入新的存档版本号；保持 `version: '2.0.0'`。
 
 ### 6.2 迁移注册表
 

@@ -234,7 +234,7 @@
 | `heal_pulse_spell` | Rare | AOE 治疗 | 我方单位全场 HP +100 | ❌ |
 | `freeze_all_spell` | Epic | 全屏控制 | 全屏敌人冰冻 2s | ❌ |
 | `meteor_spell` | Epic | 单点爆发 | 单格 300 火焰伤害 + 30% 范围 80 溅射 | ❌ |
-| `divine_protection_spell` | Legendary | 持续 buff | 大本营本波内伤害减免 50% | ✅（跨波保留） |
+| `divine_protection_spell` | Legendary | 持续 buff | 水晶本波内额外承受 N 次秒杀消耗不扣 HP（不改变水晶免疫伤害的本质） | ✅（跨波保留） |
 | `summon_skeletons_spell` | Legendary | 召唤 | 召唤 5 个 30 HP / 8 ATK 骷髅兵 | ❌ |
 
 ### 8.3 卡牌配置统一格式

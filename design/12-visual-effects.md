@@ -478,3 +478,137 @@ anim.flapSpeed = baselineFlapSpeed; // 恢复 3-6 Hz
 | 预计帧开销 | < 0.1ms/帧 |
 
 粒子使用现有 `ParticleContainer` 或复用 `BloodParticleSystem` 粒子池，避免逐粒子 Draw Call。
+
+---
+
+## 10. 水晶视觉与特效（v3.0 新增）
+
+> 水晶（前称"大本营"）是玩家方核心防御实体。本节聚焦**特效与动画**的渲染规范；几何造型规范见 [16-art §13.13](./16-art-assets-design.md#1313-水晶大本营视觉)；逻辑/数值见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)、[21 §19](./21-mda-numerical-design.md#19-水晶机制数值v30-新增--大本营--水晶)。
+
+### 10.1 渲染层归属
+
+| 元素 | 渲染层 | 说明 |
+|------|-------|------|
+| 底座（六边形石台） | 地图装饰层（与瓦片同层） | 永远贴地，不随 Y 排序浮动 |
+| 底座符文 | 地图装饰层（上覆一层） | HP > 30% 时显示 |
+| 水晶本体 + 环绕碎片 | 实体层（参与 Y 排序） | 浮动高度算作"实体在底座之上"，Y 排序参考底座 Y 坐标 |
+| 辉光（外发光大圆） | 实体层（在水晶本体之下） | 通过 `BlurFilter` 模糊；alpha 由呼吸曲线驱动 |
+| 攻击光束 | 弹道层（同 §4 弹道层） | 命令缓冲 + 单帧 Draw |
+| 命中爆裂粒子 | 粒子层（同 §5） | 复用粒子池 |
+| 死亡碎裂碎片 | 实体层（独立 Container） | 死亡触发后单独管理，2s 后销毁 |
+
+### 10.2 辉光呼吸（呼吸灯效果）
+
+辉光是水晶最显眼的"生命体征"，渲染规范：
+
+```
+// 伪代码：每帧更新辉光
+const t = world.time;
+const period = phaseByHp(hpRatio).period;  // 3.0 / 2.0 / 0.8
+const alphaMin = phaseByHp(hpRatio).alphaMin;
+const alphaMax = phaseByHp(hpRatio).alphaMax;
+const phase = (Math.sin((t / period) * Math.PI * 2) + 1) / 2;  // 0 ~ 1
+glow.alpha = alphaMin + (alphaMax - alphaMin) * phase;
+glow.scale.set(phaseByHp(hpRatio).radius / BASE_RADIUS);
+```
+
+| HP 区间 | period | alphaMin | alphaMax | 辉光半径 |
+|---------|--------|----------|----------|---------|
+| > 70% | 3.0 s | 0.6 | 1.0 | 50 px |
+| 30%-70% | 2.0 s | 0.5 | 0.9 | 40 px |
+| < 30% | 0.8 s | 0.3 | 0.7 | 30 px（+脉冲圆环） |
+
+HP < 30% 时叠加**脉冲圆环**：每 0.8 s 从水晶中心向外扩散一个红色描边圆，半径 30→80 px，alpha 1→0，描边宽度 2 px。
+
+### 10.3 悬浮动画
+
+```
+// 每帧更新水晶本体 y 偏移
+crystal.body.y = baseY - 6 * Math.sin((t / 2.4) * Math.PI * 2);
+// 环绕碎片公转
+for (const shard of orbitingShards) {
+  shard.angle = (t / 4.0) * Math.PI * 2 + shard.phaseOffset;
+  shard.x = centerX + 35 * Math.cos(shard.angle);
+  shard.y = centerY + 35 * Math.sin(shard.angle);
+}
+```
+
+| 元素 | 周期 | 幅度 | 缓动 |
+|------|-----|------|------|
+| 本体浮动 | 2.4 s | ±6 px | sine（隐含于 sin 函数） |
+| 环绕碎片 | 4.0 s | 半径 35 px | 线性（角速度恒定） |
+
+### 10.4 攻击光束特效
+
+每次秒杀触发，分 4 阶段（共 0.6 s + 冷却）：
+
+| 阶段 | 时长 | 渲染细节 |
+|------|------|---------|
+| 蓄力 | 100 ms | 本体缩放 1.0→0.9（`ease-out`）；辉光 alpha 强制 1.0 + 半径 ×1.5 |
+| 射出 | 150 ms | 从水晶中心到目标位置画一条 `Graphics.lineStyle(1, 0xff2d4a)` 直线；外层叠加 `Graphics.lineStyle(4, 0xff2d4a, 0.5)` 模糊光束（用 `BlurFilter`） |
+| 命中 | 200 ms | 目标位置触发 8-12 个红色菱形粒子（粒子配置见 10.5）；目标实体立即销毁 |
+| 回弹 | 150 ms | 本体缩放 0.9→1.1→1.0（`ease-back`） |
+
+**Boss 例外**：若目标 `immune_to_crystal_kill === true`，则**整套特效不触发**（攻击系统直接 skip）。
+
+### 10.5 粒子配置
+
+#### 10.5.1 命中爆裂粒子（每次秒杀）
+
+```yaml
+particle_kind: crystal_kill_burst
+shape: 菱形（4 顶点 Graphics）
+size: 4-8 px（随机）
+count: 8-12
+color: #ff2d4a / #ff5e7a / #ff8aa0（随机三选一）
+initial_velocity: 60-100 px/s（向四周辐射）
+gravity: 0
+lifetime: 0.4 s
+alpha_curve: 1.0 → 0.0（线性）
+scale_curve: 1.0 → 0.6（线性）
+```
+
+#### 10.5.2 死亡碎裂碎片（HP=0 触发）
+
+```yaml
+particle_kind: crystal_shatter
+shape: 菱形（10-20 px 不等）
+count: 12-18
+color: #ff2d4a / #ff5e7a / #a4001f（随机）
+initial_velocity: 80-120 px/s（向上偏移 + 四周辐射）
+gravity: -20 px/s²（轻微上浮）
+angular_velocity: ±360°/s（每片随机方向）
+lifetime: 2.0 s
+alpha_curve: 1.0 → 1.0 (0 ~ 1.0 s) → 0.0 (1.0 ~ 2.0 s)
+```
+
+> 碎片使用独立 `Container`（非粒子池）以支持旋转和大尺寸；销毁时一次性 `destroy(true)` 释放。
+
+### 10.6 死亡碎裂动画时序
+
+| 时间 | 事件 |
+|------|------|
+| 0.0 s | HP 降至 0；触发 `crystal_shatter` 事件；其它系统暂停（场上单位不再动） |
+| 0.0 - 0.3 s | 水晶剧烈震颤（位置 ±3 px 随机抖动每帧）；辉光红白闪烁（alpha 1.0 / 0.0 切换每 50 ms） |
+| 0.3 s | 水晶本体几何替换为 12-18 个碎片 `Container`；本体 Graphics 销毁 |
+| 0.3 - 2.0 s | 碎片按 10.5.2 配置飞散 + 渐隐 |
+| 0.3 s | 底座符文瞬间熄灭（alpha 1→0 over 100 ms）；底座本体保留 |
+| 0.3 s | 触发音效 `crystal_shatter`（见 10-audio） |
+| 2.0 s | 碎片 Container 销毁；进入 Run 失败结算流程 |
+
+### 10.7 性能考量
+
+| 指标 | 预估值 |
+|------|--------|
+| 水晶本体绘制 | 1 Container + 4-7 Graphics（本体 + 4-6 环绕碎片） |
+| 辉光绘制 | 1 Graphics + BlurFilter（共享 filter 实例） |
+| 攻击光束峰值 | ≤ 1 条同时存在（冷却 0.5 s 决定）|
+| 命中粒子峰值 | ≤ 12 个（单次攻击） |
+| 碎裂粒子峰值 | 12-18 个（仅死亡一次性触发） |
+| 整体帧开销 | < 0.2 ms/帧（静态状态） |
+
+实现要点：辉光 `BlurFilter` 实例应**全局复用**（不要每帧创建），通过 `crystal.body.filters = [sharedBlur]` 引用。
+
+### 10.8 与现有 §6（动画系统）的关系
+
+§6 描述了通用动画系统（如 Tween、状态机）。本节 §10 是**水晶专属特效与动画**的渲染细则，使用 §6 的基础设施实现。两者无冲突，§10 是 §6 的应用案例之一。

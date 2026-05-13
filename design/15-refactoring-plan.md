@@ -408,7 +408,7 @@ boss_commander:
 | 任务 | 涉及文件 | 验收 |
 |------|---------|------|
 | `RunManager`（Run 生命周期） | `src/core/RunManager.ts` | 开 Run / 结算 Run / 失败重开 |
-| 大本营 HP 继承逻辑 | `src/save/ongoingRun.ts` | 跨关 HP 正确传递 |
+| 水晶 HP 继承逻辑 | `src/save/ongoingRun.ts` | 跨关 HP 正确传递（字段名 `baseHp` 保留以兼容存档） |
 | `InterLevelNodeSystem`（关间节点） | `src/systems/InterLevelNodeSystem.ts` | 二选一面板 + 选择后正确路由 |
 | `ShopSystem`（商店） | `src/systems/ShopSystem.ts` | 4 商品 + 移除 + 刷新 |
 | `MysticSystem`（秘境事件） | `src/systems/MysticSystem.ts` | 12 事件池 + 效果生效 |

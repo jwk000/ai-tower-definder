@@ -158,9 +158,9 @@ Boss技能不消耗玩家能量（由AI自主管理冷却）。
 | 即时伤害（AoE） | 在选定区域立即释放范围伤害 | `fireball_spell`, `meteor_spell` | ❌ |
 | 持续伤害（DoT/区域） | 在区域内持续若干秒造成伤害 | `arrow_rain_spell` | ❌ |
 | 控制（减速/冰冻） | 让敌人减速或暂停 | `slow_spell`, `freeze_all_spell` | ❌ |
-| 治疗 | 治疗我方单位或大本营 | `heal_pulse_spell` | ❌ |
+| 治疗 | 治疗我方单位或水晶（水晶虽免疫伤害，但治疗法术可恢复其 HP） | `heal_pulse_spell` | ❌ |
 | 召唤 | 临时召唤友军单位 | `summon_skeletons_spell` | ❌ |
-| 防御（跨波） | 给予大本营或单位临时护盾 | `divine_protection_spell` | ✅ |
+| 防御（跨波） | 给予水晶（吸收 N 次秒杀的 HP 消耗）或单位临时护盾 | `divine_protection_spell` | ✅ |
 
 ### 5.2 法术卡执行接口
 
