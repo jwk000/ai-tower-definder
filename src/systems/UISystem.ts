@@ -68,6 +68,95 @@ export const RARITY_BORDER_COLORS = {
   legendary: '#ffc107',
 } as const;
 
+/**
+ * v3.0 roguelike — 手牌区几何边界（design space），renderHandZone 与命中判定共用。
+ * 与 design/20 §4.5.2 一致：bottom-center offset(0,-130), size 800×180。
+ */
+export function getHandZoneBounds(): {
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+  left: number;
+  top: number;
+} {
+  const width = 800;
+  const height = 180;
+  const centerX = 1920 / 2;
+  const centerY = 1080 - 130;
+  return {
+    width,
+    height,
+    centerX,
+    centerY,
+    left: centerX - width / 2,
+    top: centerY - height / 2,
+  };
+}
+
+/**
+ * v3.0 roguelike — 手牌槽命中判定（design space 坐标）。
+ * 返回被点击的卡 slot index，未命中返 -1。
+ * 与 renderHandZone 的 computeCardSlotsLayout 布局严格对齐，gap 内不命中。
+ */
+export function hitTestHandCard(
+  px: number,
+  py: number,
+  handCount: number,
+): number {
+  if (handCount <= 0) return -1;
+  const bounds = getHandZoneBounds();
+  const CARD_W = 120;
+  const CARD_H = 168;
+  const GAP = 16;
+
+  const cardTop = bounds.top + (bounds.height - CARD_H) / 2;
+  const cardBottom = cardTop + CARD_H;
+  if (py < cardTop || py >= cardBottom) return -1;
+
+  const slots = computeCardSlotsLayout(handCount, bounds.width, CARD_W, GAP);
+  for (let i = 0; i < slots.length; i++) {
+    const cardLeft = bounds.left + slots[i]!.x;
+    const cardRight = cardLeft + CARD_W;
+    if (px >= cardLeft && px < cardRight) return i;
+  }
+  return -1;
+}
+
+/**
+ * v3.0 roguelike — 把 CardConfig.unitConfigId 映射成可被 BuildSystem.startDrag 消费的实体描述。
+ *
+ * 当前覆盖范围（A4-UI 阶段）：
+ *   - `<X>_tower` → entityType='tower', towerType=TowerType.X
+ *   - 已知 UnitType 值 → entityType='unit', unitType=UnitType.X
+ *
+ * 其他卡（archer/priest/engineer 等尚无对应 ECS 单位实现）返回 null，
+ * 调用方应拒绝出卡并保留能量。Phase B 引入新单位时此映射会随 enum 自动扩展。
+ */
+export function resolveCardToEntityType(
+  unitConfigId: string | undefined,
+):
+  | { entityType: 'tower'; towerType: TowerType }
+  | { entityType: 'unit'; unitType: UnitType }
+  | null {
+  if (!unitConfigId) return null;
+
+  if (unitConfigId.endsWith('_tower')) {
+    const stem = unitConfigId.slice(0, -'_tower'.length);
+    const towerValues = Object.values(TowerType) as string[];
+    if (towerValues.includes(stem)) {
+      return { entityType: 'tower', towerType: stem as TowerType };
+    }
+    return null;
+  }
+
+  const unitValues = Object.values(UnitType) as string[];
+  if (unitValues.includes(unitConfigId)) {
+    return { entityType: 'unit', unitType: unitConfigId as UnitType };
+  }
+  return null;
+}
+
 // ============================================================
 // TowerType numeric ID → enum mapping (matches BuildSystem)
 // ============================================================

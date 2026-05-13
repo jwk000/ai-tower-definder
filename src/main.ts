@@ -18,7 +18,7 @@ import { WaveSystem } from './systems/WaveSystem.js';
 import { EconomySystem } from './systems/EconomySystem.js';
 import { BuildSystem } from './systems/BuildSystem.js';
 import { BuildingSystem } from './systems/BuildingSystem.js';
-import { UISystem } from './systems/UISystem.js';
+import { UISystem, hitTestHandCard, resolveCardToEntityType } from './systems/UISystem.js';
 import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
 import { ShamanSystem } from './systems/ShamanSystem.js';
@@ -70,7 +70,7 @@ import { UnitFactory } from './systems/UnitFactory.js';
 import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
 
 // ---- v3.0 Roguelike RunContext —— Phase A3 集成层 ----
-import { createRunContext, startWaveEffect, endWaveEffect } from './unit-system/RunContext.js';
+import { createRunContext, startWaveEffect, endWaveEffect, playCard as runPlayCard } from './unit-system/RunContext.js';
 import { loadAllCardConfigsSync } from './config/loader.js';
 
 // ---- Debug system imports ----
@@ -657,6 +657,7 @@ class TowerDefenderGame extends Game {
       const handledByUI = this.uiSystem.handleClick(e.x, e.y);
       if (handledByUI) return;
       if (this.paused) return;
+      if (this.tryPlayHandCard(e.x, e.y)) return;
       const sceneBottom = RenderSystem.sceneOffsetY + RenderSystem.sceneH;
       if (e.y >= sceneBottom + 8) return;
 
@@ -858,6 +859,65 @@ this.world.registerSystem(this.weatherSystem);
 
   private spawnNeutralUnits(_map: MapConfig): void {
     // Phase 3 neutral units — stub for now
+  }
+
+  // ================================================================
+  // v3.0 Roguelike — 手牌出卡（点击/拖卡触发）
+  // ================================================================
+
+  /**
+   * 命中手牌区时尝试出卡。逐层前置校验，全部通过才扣能量启动建造拖拽：
+   *   1. 命中 slot index 取对应 CardInstance + CardConfig
+   *   2. 能量不足 / 非 unit 类卡 / unitConfigId 未映射到 ECS 单位 → 拒绝，不扣能量、不移卡
+   *      （法术施法将在 Phase B SpellCastSystem 接入后单独处理）
+   *   3. 全部检查通过 → runPlayCard 扣能量 + 从手牌移除（unit 类不入弃牌堆），
+   *      并调 buildSystem.startDrag 让玩家把建造鬼影拖到地图上由 onPointerUp tryDrop 放置
+   *
+   * 返回 true 表示事件被消费（命中手牌区，无论出卡是否成功），调用方不应继续派发。
+   * 返回 false 表示未命中手牌区，调用方继续后续派发（单位选中 / 地图点击）。
+   */
+  private tryPlayHandCard(px: number, py: number): boolean {
+    const ctx = this.world.runContext;
+    if (!ctx) return false;
+    const hand = ctx.hand.state.hand;
+    if (hand.length === 0) return false;
+
+    const slotIdx = hitTestHandCard(px, py, hand.length);
+    if (slotIdx < 0) return false;
+
+    const card = hand[slotIdx];
+    if (!card) return true;
+    const cfg = ctx.registry.get(card.cardId);
+    if (!cfg) return true;
+    if (!ctx.energy.canAfford(cfg.energyCost)) {
+      Sound.play('build_deny');
+      return true;
+    }
+    if (cfg.type !== 'unit') {
+      // 法术卡：A4-UI 暂不直接施法（Phase B SpellCastSystem 接入前先拒绝），保留能量
+      Sound.play('build_deny');
+      return true;
+    }
+
+    const mapping = resolveCardToEntityType(cfg.unitConfigId);
+    if (!mapping) {
+      // 卡定义有效但 ECS 还没接入此单位/塔，保守拒绝避免脏数据
+      Sound.play('build_deny');
+      return true;
+    }
+
+    const played = runPlayCard(ctx, card.instanceId);
+    if (!played) {
+      Sound.play('build_deny');
+      return true;
+    }
+
+    if (mapping.entityType === 'tower') {
+      this.buildSystem.startDrag('tower', { towerType: mapping.towerType });
+    } else {
+      this.buildSystem.startDrag('unit', { unitType: mapping.unitType });
+    }
+    return true;
   }
 
   // ================================================================
