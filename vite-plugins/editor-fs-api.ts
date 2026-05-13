@@ -109,10 +109,104 @@ export async function dispatchEditorRequest(
     case 'write':
       await handleWrite(ctx, route.id, _req.body, res);
       return;
+    case 'delete':
+      await handleDelete(ctx, route.id, res);
+      return;
+    case 'duplicate':
+      await handleDuplicate(ctx, route.id, _req.body, res);
+      return;
     default:
       sendError(res, 501, 'not_implemented');
       return;
   }
+}
+
+async function handleDelete(ctx: HandlerContext, id: string, res: ServerResponseLike): Promise<void> {
+  const filePath = resolveLevelPath(ctx.levelsDir, id);
+  if (filePath === null) {
+    sendError(res, 400, 'invalid_id');
+    return;
+  }
+  try {
+    await fs.access(filePath);
+  } catch {
+    sendError(res, 404, 'not_found');
+    return;
+  }
+  await fs.mkdir(ctx.trashDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const trashPath = path.join(ctx.trashDir, `${id}.${stamp}.yaml`);
+  await fs.rename(filePath, trashPath);
+  sendJson(res, 200, { id, trashed: path.basename(trashPath) });
+}
+
+async function handleDuplicate(
+  ctx: HandlerContext,
+  sourceId: string,
+  body: unknown,
+  res: ServerResponseLike,
+): Promise<void> {
+  const sourcePath = resolveLevelPath(ctx.levelsDir, sourceId);
+  if (sourcePath === null) {
+    sendError(res, 400, 'invalid_id');
+    return;
+  }
+  if (typeof body !== 'string' || body.length === 0) {
+    sendError(res, 400, 'missing_body');
+    return;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    sendError(res, 400, 'invalid_json');
+    return;
+  }
+  const targetId = parsed && typeof parsed === 'object' ? (parsed as { targetId?: unknown }).targetId : undefined;
+  if (typeof targetId !== 'string') {
+    sendError(res, 400, 'missing_target_id');
+    return;
+  }
+  const targetPath = resolveLevelPath(ctx.levelsDir, targetId);
+  if (targetPath === null) {
+    sendError(res, 400, 'invalid_target_id');
+    return;
+  }
+  if (targetId === sourceId) {
+    sendError(res, 400, 'same_id');
+    return;
+  }
+  let content: string;
+  try {
+    content = await fs.readFile(sourcePath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      sendError(res, 404, 'not_found');
+      return;
+    }
+    throw err;
+  }
+  let targetExists = true;
+  try {
+    await fs.access(targetPath);
+  } catch {
+    targetExists = false;
+  }
+  if (targetExists) {
+    sendError(res, 409, 'target_exists');
+    return;
+  }
+  await fs.mkdir(ctx.levelsDir, { recursive: true });
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, content, 'utf-8');
+    await fs.rename(tmpPath, targetPath);
+  } catch (err) {
+    await fs.rm(tmpPath, { force: true }).catch(() => undefined);
+    throw err;
+  }
+  const stat = await fs.stat(targetPath);
+  sendJson(res, 200, { id: targetId, mtime: stat.mtimeMs });
 }
 
 function parseWriteBody(body: unknown): { ok: true; content: string } | { ok: false; status: number; reason: string } {

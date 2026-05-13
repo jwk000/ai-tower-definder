@@ -332,6 +332,155 @@ describe('editor-fs-api: PUT /__editor/levels/:id (write endpoint)', () => {
   });
 });
 
+describe('editor-fs-api: DELETE /__editor/levels/:id (delete endpoint)', () => {
+  let ctx: HandlerContext;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    const sandbox = await makeSandbox();
+    ctx = sandbox.ctx;
+    cleanup = sandbox.cleanup;
+  });
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('moves deleted file to .editor-trash and removes original', async () => {
+    const yaml = 'id: level_01\nname: ToDelete\n';
+    await seedLevel(ctx, 'level_01', yaml);
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'delete', id: 'level_01' }, ctx, {}, res);
+    expect(res.statusCode).toBe(200);
+    await expect(
+      fs.access(path.join(ctx.levelsDir, 'level_01.yaml')),
+    ).rejects.toThrow();
+    const trashEntries = await fs.readdir(ctx.trashDir);
+    const backup = trashEntries.find((n) => n.startsWith('level_01.') && n.endsWith('.yaml'));
+    expect(backup).toBeDefined();
+    const backupContent = await fs.readFile(path.join(ctx.trashDir, backup!), 'utf-8');
+    expect(backupContent).toBe(yaml);
+  });
+
+  it('returns 404 when level does not exist', async () => {
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'delete', id: 'missing' }, ctx, {}, res);
+    expect(res.statusCode).toBe(404);
+    expect(res.json<{ error: string }>().error).toBe('not_found');
+  });
+
+  it('creates trash directory on demand', async () => {
+    await seedLevel(ctx, 'level_01', 'id: level_01\n');
+    await expect(fs.access(ctx.trashDir)).rejects.toThrow();
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'delete', id: 'level_01' }, ctx, {}, res);
+    expect(res.statusCode).toBe(200);
+    const entries = await fs.readdir(ctx.trashDir);
+    expect(entries.length).toBe(1);
+  });
+
+  it('handles multiple deletes of same id without collision', async () => {
+    await seedLevel(ctx, 'level_01', 'first\n');
+    const res1 = new MockResponse();
+    await dispatchEditorRequest({ kind: 'delete', id: 'level_01' }, ctx, {}, res1);
+    expect(res1.statusCode).toBe(200);
+    await seedLevel(ctx, 'level_01', 'second\n');
+    await new Promise((r) => setTimeout(r, 5));
+    const res2 = new MockResponse();
+    await dispatchEditorRequest({ kind: 'delete', id: 'level_01' }, ctx, {}, res2);
+    expect(res2.statusCode).toBe(200);
+    const trashEntries = await fs.readdir(ctx.trashDir);
+    expect(trashEntries.length).toBe(2);
+    const contents = await Promise.all(
+      trashEntries.map((n) => fs.readFile(path.join(ctx.trashDir, n), 'utf-8')),
+    );
+    expect(contents.sort()).toEqual(['first\n', 'second\n']);
+  });
+});
+
+describe('editor-fs-api: POST /__editor/levels/:id/dup (duplicate endpoint)', () => {
+  let ctx: HandlerContext;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    const sandbox = await makeSandbox();
+    ctx = sandbox.ctx;
+    cleanup = sandbox.cleanup;
+  });
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('copies source level to target id', async () => {
+    const yaml = 'id: level_01\nname: Source\n';
+    await seedLevel(ctx, 'level_01', yaml);
+    const body = JSON.stringify({ targetId: 'level_02' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(200);
+    const written = await fs.readFile(path.join(ctx.levelsDir, 'level_02.yaml'), 'utf-8');
+    expect(written).toBe(yaml);
+    const payload = res.json<{ id: string; mtime: number }>();
+    expect(payload.id).toBe('level_02');
+    expect(typeof payload.mtime).toBe('number');
+  });
+
+  it('returns 404 when source does not exist', async () => {
+    const body = JSON.stringify({ targetId: 'level_02' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'duplicate', id: 'missing' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 409 when target already exists', async () => {
+    await seedLevel(ctx, 'level_01', 'source\n');
+    await seedLevel(ctx, 'level_02', 'existing\n');
+    const body = JSON.stringify({ targetId: 'level_02' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(409);
+    expect(res.json<{ error: string }>().error).toBe('target_exists');
+    const target = await fs.readFile(path.join(ctx.levelsDir, 'level_02.yaml'), 'utf-8');
+    expect(target).toBe('existing\n');
+  });
+
+  it('rejects 400 when targetId missing or invalid', async () => {
+    await seedLevel(ctx, 'level_01', 'source\n');
+    {
+      const res = new MockResponse();
+      await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body: undefined }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    {
+      const res = new MockResponse();
+      const body = JSON.stringify({ targetId: 'BadId' });
+      await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.json<{ error: string }>().error).toBe('invalid_target_id');
+    }
+    {
+      const res = new MockResponse();
+      const body = JSON.stringify({ targetId: '../escape' });
+      await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    {
+      const res = new MockResponse();
+      const body = JSON.stringify({});
+      await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+      expect(res.statusCode).toBe(400);
+    }
+  });
+
+  it('rejects 400 when source and target ids are identical', async () => {
+    await seedLevel(ctx, 'level_01', 'source\n');
+    const body = JSON.stringify({ targetId: 'level_01' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'duplicate', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.json<{ error: string }>().error).toBe('same_id');
+  });
+});
+
 describe('editor-fs-api: dispatch error handling', () => {
   it('returns 405 for invalid method', async () => {
     const sandbox = await makeSandbox();
