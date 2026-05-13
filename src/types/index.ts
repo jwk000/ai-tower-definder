@@ -311,6 +311,11 @@ export interface UnitConfig {
   tauntCapacity?: number; // 嘲讽容量基础值：能同时吸引多少敌人攻击自己（默认 0 = 无嘲讽）
   tauntCapacityPerLevel?: number; // 每升一级嘲讽容量增量（默认 0）
   splashRadius?: number; // 近战 AOE 半径（px），>0 时每次攻击对周围目标造成 60% 溅射伤害
+  maxLevel?: number; // 等级上限（默认 3）
+  upgradeCosts?: readonly number[]; // 各级升级费用：[1→2, 2→3, ...]（长度 = maxLevel - 1）
+  upgradeHpBonus?: readonly number[]; // 每级升级增加的最大 HP
+  upgradeAtkBonus?: readonly number[]; // 每级升级增加的攻击力
+  upgradeTauntCapacityBonus?: readonly number[]; // 每级升级增加的嘲讽容量（与 tauntCapacityPerLevel 二选一；优先此字段）
 }
 
 // ---- Production ----

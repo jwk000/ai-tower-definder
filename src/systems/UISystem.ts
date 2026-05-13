@@ -9,7 +9,7 @@
 import { TowerWorld, type System, defineQuery } from '../core/World.js';
 import { Renderer } from '../render/Renderer.js';
 import { LayoutManager, AnchorX, AnchorY, type AnchorConfig } from '../ui/LayoutManager.js';
-import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS, ENEMY_CONFIGS } from '../data/gameData.js';
+import { TOWER_CONFIGS, UNIT_CONFIGS, PRODUCTION_CONFIGS, ENEMY_CONFIGS, UNIT_TYPE_BY_ID } from '../data/gameData.js';
 import { GamePhase, TowerType, UnitType, ProductionType, type ShapeType } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
 import { FONTS, getFont } from '../config/fonts.js';
@@ -166,6 +166,7 @@ export class UISystem implements System {
      * | 'combat_damage' | 'combat_attack').
      */
     private getRefundQuote: ((entityId: number) => { amount: number; reason: string } | null) | null = null,
+    private onUpgradeUnit: ((entityId: number) => void) | null = null,
   ) {}
 
   // ---- Selection getter/setter helpers (unchanged) ----
@@ -804,7 +805,7 @@ export class UISystem implements System {
     const tx = px;
 
     // Use taller panel for units (extra stat line + HP bar)
-    if (this.selectedEntityType === 'unit') th = 130;
+    if (this.selectedEntityType === 'unit') th = 140;
     // Production needs space for rate info
     if (this.selectedEntityType === 'production') th = 120;
 
@@ -932,18 +933,50 @@ export class UISystem implements System {
           text: `HP: ${hpCurrent !== undefined && hpMax !== undefined ? `${Math.ceil(hpCurrent)}/${hpMax}` : '?'}  ATK: ${atkDamage !== undefined ? formatNumber(atkDamage) : '?'}`,
           color: '#ffffff', size: 16,
         });
+        const curLevel = UnitTag.level[id] ?? 1;
+        const maxUnitLevel = UnitTag.maxLevel[id] ?? 3;
+        const typeIdx = UnitTag.unitTypeNum[id];
+        const unitTypeKey = typeIdx !== undefined ? UNIT_TYPE_BY_ID[typeIdx] : undefined;
+        const unitCfg = unitTypeKey ? UNIT_CONFIGS[unitTypeKey] : undefined;
         this.infos.push({
           x: tx - tw / 2 + 10, y: ty - th / 2 + 52,
-          text: `攻速: ${atkSpeed !== undefined ? formatNumber(atkSpeed) + '/s' : '?'}  范围: ${atkRange !== undefined ? formatNumber(atkRange) + 'px' : '?'}`,
+          text: `Lv.${curLevel}/${maxUnitLevel}  攻速: ${atkSpeed !== undefined ? formatNumber(atkSpeed) + '/s' : '?'}  范围: ${atkRange !== undefined ? formatNumber(atkRange) + 'px' : '?'}`,
           color: '#aaaaaa', size: 14,
         });
 
-        // Recycle button — P1-#11 live quote
-        const refundInfo = this.resolveRefund(id, unitCost ?? 100);
+        const isMaxUnitLevel = curLevel >= maxUnitLevel;
+        const unitCostIdx = curLevel - 1;
+        const unitUpgradeCost = unitCfg?.upgradeCosts?.[unitCostIdx];
+        if (!isMaxUnitLevel && unitUpgradeCost !== undefined) {
+          const canAffordUnit = this.getGold() >= unitUpgradeCost;
+          const uubw = 55;
+          const uubh = 20;
+          const uubx = tx - tw / 2 + 10;
+          const uuby = ty - th / 2 + 72;
+          this.renderer.push({
+            shape: 'rect',
+            x: uubx + uubw / 2, y: uuby + uubh / 2,
+            size: uubw, h: uubh,
+            color: canAffordUnit ? '#2e7d32' : '#555555',
+            alpha: 0.9,
+            stroke: '#ffffff', strokeWidth: 1,
+          });
+          this.buttons.push({
+            x: uubx, y: uuby, w: uubw, h: uubh,
+            label: `${unitUpgradeCost}G`,
+            color: canAffordUnit ? '#2e7d32' : '#555555',
+            textColor: canAffordUnit ? '#ffffff' : '#888888',
+            enabled: canAffordUnit,
+            onClick: () => { if (this.onUpgradeUnit) this.onUpgradeUnit(id); },
+          });
+        }
+
+        const totalUnitInvested = UnitTag.totalInvested[id] ?? (unitCost ?? 100);
+        const refundInfo = this.resolveRefund(id, totalUnitInvested);
         const rbw = 65;
         const rbh = 20;
         const rbx = tx - tw / 2 + 10;
-        const rby = ty - th / 2 + 72;
+        const rby = ty - th / 2 + 96;
         this.renderer.push({
           shape: 'rect',
           x: rbx + rbw / 2, y: rby + rbh / 2,
@@ -961,7 +994,6 @@ export class UISystem implements System {
           onClick: () => { if (refundInfo.enabled) this.onRecycleEntity?.(id); },
         });
 
-        // HP bar
         if (hpCurrent !== undefined && hpMax !== undefined && hpMax > 0) {
           const ratio = hpCurrent / hpMax;
           const barX = tx - tw / 2 + rbx + rbw + 10;

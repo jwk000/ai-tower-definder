@@ -44,7 +44,7 @@ import { registerDamageObserver, clearDamageObservers } from './utils/damageUtil
 import { Sound } from './utils/Sound.js';
 import { Music } from './utils/Music.js';
 import { LEVELS } from './data/levels/index.js';
-import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS } from './data/gameData.js';
+import { TOWER_CONFIGS, UNIT_CONFIGS, SKILL_CONFIGS, PRODUCTION_CONFIGS, UNIT_TYPE_BY_ID, UNIT_ID_BY_TYPE } from './data/gameData.js';
 import { GamePhase, GameScreen, TileType, UnitType, TowerType, WeatherType, ProductionType, type InputEvent, type MapConfig, type LevelConfig } from './types/index.js';
 
 // ---- bitecs component stores ----
@@ -429,6 +429,44 @@ class TowerDefenderGame extends Game {
       }
     };
 
+    // ---- Upgrade soldier callback (player-owned units) ----
+    const upgradeUnit = (entityId: number) => {
+      if (UnitTag.isEnemy[entityId] !== 0) return;
+      const curLevel = UnitTag.level[entityId];
+      const maxLevel = UnitTag.maxLevel[entityId];
+      if (curLevel === undefined || maxLevel === undefined) return;
+      if (curLevel >= maxLevel) return;
+
+      const cfg = this.resolveUnitConfig(entityId);
+      if (!cfg) return;
+      const costIdx = curLevel - 1;
+      const cost = cfg.upgradeCosts?.[costIdx];
+      if (cost === undefined) return;
+      if (!this.economy.spendGold(cost)) return;
+
+      UnitTag.level[entityId] = curLevel + 1;
+      UnitTag.totalInvested[entityId]! += cost;
+
+      const hpBonus = cfg.upgradeHpBonus?.[costIdx] ?? 0;
+      if (hpBonus > 0) {
+        Health.max[entityId]! += hpBonus;
+        Health.current[entityId]! += hpBonus;
+      }
+      const atkBonus = cfg.upgradeAtkBonus?.[costIdx] ?? 0;
+      if (atkBonus > 0 && Attack.damage[entityId] !== undefined) {
+        Attack.damage[entityId]! += atkBonus;
+      }
+      // 嘲讽容量增量：优先 upgradeTauntCapacityBonus[costIdx]，否则用 tauntCapacityPerLevel
+      const tauntBonus = cfg.upgradeTauntCapacityBonus?.[costIdx] ?? cfg.tauntCapacityPerLevel ?? 0;
+      if (tauntBonus > 0 && Attack.tauntCapacity[entityId] !== undefined) {
+        const next = Attack.tauntCapacity[entityId]! + tauntBonus;
+        Attack.tauntCapacity[entityId] = next > 255 ? 255 : next;
+      }
+
+      Visual.hitFlashTimer[entityId] = 0.2;
+      Sound.play('upgrade');
+    };
+
     // ---- UI system ----
     this.uiSystem = new UISystem(
       this.renderer,
@@ -475,6 +513,7 @@ class TowerDefenderGame extends Game {
         const maxHp = Health.max[entityId] ?? 1;
         return this.economy.computeRefund(entityId, curHp, maxHp);
       },
+      upgradeUnit,
     );
 
     // ---- Health system ----
@@ -923,6 +962,14 @@ this.world.registerSystem(this.weatherSystem);
     this.debugManager.selectEntity(null);
   }
 
+  private resolveUnitConfig(entityId: number) {
+    const typeIdx = UnitTag.unitTypeNum[entityId];
+    if (typeIdx === undefined) return undefined;
+    const unitType = UNIT_TYPE_BY_ID[typeIdx];
+    if (!unitType) return undefined;
+    return UNIT_CONFIGS[unitType];
+  }
+
   // ================================================================
   // spawnUnitAt — bitecs version
   // ================================================================
@@ -1008,6 +1055,10 @@ this.world.registerSystem(this.weatherSystem);
       isEnemy: 0,
       popCost: config.popCost,
       cost: config.cost,
+      level: 1,
+      maxLevel: config.maxLevel ?? 3,
+      totalInvested: config.cost,
+      unitTypeNum: UNIT_ID_BY_TYPE[dragUnitType],
     });
 
     // Movement

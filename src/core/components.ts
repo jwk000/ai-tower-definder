@@ -521,6 +521,10 @@ export const UnitTag = defineComponent({
   popCost: Types.ui8,         // 人口占用
   cost: Types.f32,            // 造价
   atk: Types.f32,             // 攻击力（敌人到达基地的伤害源；同步自配置 atk）
+  level: Types.ui8,           // 当前等级 1-N（仅 player 单位升级；enemy 不升级保持 1）
+  maxLevel: Types.ui8,        // 等级上限（来自 UnitConfig.maxLevel，默认 3）
+  totalInvested: Types.f32,   // 累计投入金币（基础造价 + 所有升级费）— 用于回收时按比例退款
+  unitTypeNum: Types.ui8,     // UnitType 数值化（与 UNIT_TYPE_BY_ID 对应）— 用于升级时查 UnitConfig
 });
 
 // ============================================================

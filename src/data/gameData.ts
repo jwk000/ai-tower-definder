@@ -672,6 +672,11 @@ export const UNIT_CONFIGS: Record<UnitType, UnitConfig> = {
     moveRange: 180,
     tauntCapacity: 2,
     tauntCapacityPerLevel: 1,
+    maxLevel: 3,
+    upgradeCosts: [40, 60],
+    upgradeHpBonus: [120, 180],
+    upgradeAtkBonus: [2, 3],
+    upgradeTauntCapacityBonus: [1, 1],
   },
   [UnitType.Swordsman]: {
     type: UnitType.Swordsman,
@@ -691,7 +696,21 @@ export const UNIT_CONFIGS: Record<UnitType, UnitConfig> = {
     moveRange: 220,
     tauntCapacity: 1,
     splashRadius: 96,
+    maxLevel: 3,
+    upgradeCosts: [40, 60],
+    upgradeHpBonus: [60, 90],
+    upgradeAtkBonus: [6, 10],
   },
+};
+
+export const UNIT_TYPE_BY_ID: readonly UnitType[] = [
+  UnitType.ShieldGuard,
+  UnitType.Swordsman,
+];
+
+export const UNIT_ID_BY_TYPE: Readonly<Record<UnitType, number>> = {
+  [UnitType.ShieldGuard]: 0,
+  [UnitType.Swordsman]: 1,
 };
 
 // ---- Production Configs ----
