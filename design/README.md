@@ -19,7 +19,7 @@
 
 **v3.0 将塔防游戏改造为「卡牌 + Roguelike 长征」形态。**
 
-- **权威方案**：[25 - 卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) v0.2，所有 v3.0 改动以此为准
+- **权威方案**：[25 - 卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) v0.4（已批准，进入实施），所有 v3.0 改动以此为准
 - **核心变更**：
   - 删除无尽模式与三星机制
   - 删除工具栏部署，全部改为**手牌区拖卡**
@@ -59,7 +59,7 @@
 | 22 | [新单位设计](./22-new-unit-design.md) | 🔶 v3.0 §8-§10 追加 | 整合到 20 敌 + 20 友阵容、含 abyss_lord 终战 Boss |
 | 23 | [AI 行为树统一方案](./23-ai-behavior-tree.md) | 🔶 v3.0 第六章追加 | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
 | 24 | [士兵AI行为设计](./24-soldier-ai-behavior.md) | 沿用 | 士兵 AI 四状态机、三圈模型、敌方反击规则、行为树映射 |
-| 25 | [卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) | ⭐ v3.0 核心方案 | **权威方案源**——14 章完整设计：卡牌/Run/关间/商店/秘境/碎片/迁移 |
+| 25 | [卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) | ⭐ v0.4 已批准 | **v3.0 单一权威来源**——14 章完整设计：卡牌/Run/关间/商店/秘境/碎片/迁移 |
 | 26 | [脆弱状态](./26-vulnerability-status.md) | 沿用 | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
 | 27 | [调试系统](./27-debug-system.md) | 沿用 | 跨界面调试入口、一键通关、金币+99999、行为树查看弹窗 |
 | 28 | [阵营语义重构](./28-faction-refactoring.md) | 📝 草案 | 去 isEnemy 双轨、isHostileTo API、Phase A→F 分阶段迁移路线 |
