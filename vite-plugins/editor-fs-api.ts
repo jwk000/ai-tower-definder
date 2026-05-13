@@ -10,6 +10,7 @@ const DEFAULT_TRASH_DIR = path.resolve(PLUGIN_DIR, '..', '.editor-trash');
 const ROUTE_PREFIX = '/__editor';
 const ID_PATTERN = /^[a-z0-9_-]+$/;
 const ID_MAX_LENGTH = 64;
+const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 
 export function isValidLevelId(id: unknown): id is string {
   return typeof id === 'string' && id.length <= ID_MAX_LENGTH && ID_PATTERN.test(id);
@@ -105,10 +106,65 @@ export async function dispatchEditorRequest(
     case 'read':
       await handleRead(ctx, route.id, res);
       return;
+    case 'write':
+      await handleWrite(ctx, route.id, _req.body, res);
+      return;
     default:
       sendError(res, 501, 'not_implemented');
       return;
   }
+}
+
+function parseWriteBody(body: unknown): { ok: true; content: string } | { ok: false; status: number; reason: string } {
+  if (typeof body !== 'string' || body.length === 0) {
+    return { ok: false, status: 400, reason: 'missing_body' };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return { ok: false, status: 400, reason: 'invalid_json' };
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return { ok: false, status: 400, reason: 'invalid_body' };
+  }
+  const content = (parsed as { content?: unknown }).content;
+  if (typeof content !== 'string') {
+    return { ok: false, status: 400, reason: 'missing_content' };
+  }
+  if (Buffer.byteLength(content, 'utf-8') > MAX_CONTENT_BYTES) {
+    return { ok: false, status: 413, reason: 'content_too_large' };
+  }
+  return { ok: true, content };
+}
+
+async function handleWrite(
+  ctx: HandlerContext,
+  id: string,
+  body: unknown,
+  res: ServerResponseLike,
+): Promise<void> {
+  const filePath = resolveLevelPath(ctx.levelsDir, id);
+  if (filePath === null) {
+    sendError(res, 400, 'invalid_id');
+    return;
+  }
+  const parsed = parseWriteBody(body);
+  if (!parsed.ok) {
+    sendError(res, parsed.status, parsed.reason);
+    return;
+  }
+  await fs.mkdir(ctx.levelsDir, { recursive: true });
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, parsed.content, 'utf-8');
+    await fs.rename(tmpPath, filePath);
+  } catch (err) {
+    await fs.rm(tmpPath, { force: true }).catch(() => undefined);
+    throw err;
+  }
+  const stat = await fs.stat(filePath);
+  sendJson(res, 200, { id, mtime: stat.mtimeMs });
 }
 
 async function handleRead(ctx: HandlerContext, id: string, res: ServerResponseLike): Promise<void> {

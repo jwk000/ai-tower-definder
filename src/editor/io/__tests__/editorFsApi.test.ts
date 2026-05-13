@@ -244,6 +244,94 @@ describe('editor-fs-api: GET /__editor/levels/:id (read endpoint)', () => {
   });
 });
 
+describe('editor-fs-api: PUT /__editor/levels/:id (write endpoint)', () => {
+  let ctx: HandlerContext;
+  let cleanup: () => Promise<void>;
+
+  beforeEach(async () => {
+    const sandbox = await makeSandbox();
+    ctx = sandbox.ctx;
+    cleanup = sandbox.cleanup;
+  });
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  it('creates a new YAML file when level does not exist', async () => {
+    const body = JSON.stringify({ content: 'id: level_99\nname: Test\n' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'write', id: 'level_99' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(200);
+    const written = await fs.readFile(path.join(ctx.levelsDir, 'level_99.yaml'), 'utf-8');
+    expect(written).toBe('id: level_99\nname: Test\n');
+    const payload = res.json<{ id: string; mtime: number }>();
+    expect(payload.id).toBe('level_99');
+    expect(typeof payload.mtime).toBe('number');
+  });
+
+  it('overwrites existing YAML atomically', async () => {
+    await seedLevel(ctx, 'level_01', 'id: level_01\nname: Old\n');
+    const body = JSON.stringify({ content: 'id: level_01\nname: New\n' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(200);
+    const written = await fs.readFile(path.join(ctx.levelsDir, 'level_01.yaml'), 'utf-8');
+    expect(written).toBe('id: level_01\nname: New\n');
+  });
+
+  it('preserves byte-for-byte content', async () => {
+    const yaml = 'id: level_01\n# comment\n\nname: Plains\n\n';
+    const body = JSON.stringify({ content: yaml });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body }, res);
+    const written = await fs.readFile(path.join(ctx.levelsDir, 'level_01.yaml'), 'utf-8');
+    expect(written).toBe(yaml);
+  });
+
+  it('rejects 400 when body is missing or malformed', async () => {
+    {
+      const res = new MockResponse();
+      await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body: undefined }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    {
+      const res = new MockResponse();
+      await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body: 'not json' }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    {
+      const res = new MockResponse();
+      await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body: '{}' }, res);
+      expect(res.statusCode).toBe(400);
+    }
+    {
+      const res = new MockResponse();
+      const body = JSON.stringify({ content: 42 });
+      await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body }, res);
+      expect(res.statusCode).toBe(400);
+    }
+  });
+
+  it('rejects content exceeding size limit', async () => {
+    const huge = 'x'.repeat(2 * 1024 * 1024 + 1);
+    const body = JSON.stringify({ content: huge });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(413);
+  });
+
+  it('uses tmp + rename (no partial file visible)', async () => {
+    await seedLevel(ctx, 'level_01', 'id: level_01\nname: Old\n');
+    const body = JSON.stringify({ content: 'id: level_01\nname: New\n' });
+    const res = new MockResponse();
+    await dispatchEditorRequest({ kind: 'write', id: 'level_01' }, ctx, { body }, res);
+    expect(res.statusCode).toBe(200);
+    const dirEntries = await fs.readdir(ctx.levelsDir);
+    const tmpFiles = dirEntries.filter((n) => n.includes('.tmp') || n.endsWith('~'));
+    expect(tmpFiles).toEqual([]);
+  });
+});
+
 describe('editor-fs-api: dispatch error handling', () => {
   it('returns 405 for invalid method', async () => {
     const sandbox = await makeSandbox();
