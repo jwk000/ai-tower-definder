@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { editorFsApi } from './vite-plugins/editor-fs-api';
 
 export default defineConfig({
   // GitHub Pages: 如果仓库名不是 TowerDefender，改成对应名称
   base: '/ai-tower-defender/',
+  plugins: [editorFsApi()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
