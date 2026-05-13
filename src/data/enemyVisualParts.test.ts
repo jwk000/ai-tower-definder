@@ -74,7 +74,10 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
   });
 
   describe('Visual 部件偏移合法性（避免越界绘制）', () => {
-    const enemies: EnemyType[] = [EnemyType.Grunt, EnemyType.Runner, EnemyType.Exploder];
+    const enemies: EnemyType[] = [
+      EnemyType.Grunt, EnemyType.Runner, EnemyType.Exploder,
+      EnemyType.Heavy, EnemyType.Juggernaut,
+    ];
 
     enemies.forEach((type) => {
       it(`${type}: bodyParts 所有 offset 在 ±radius*2 范围内（合理装饰位置）`, () => {
@@ -86,6 +89,55 @@ describe('ENEMY_CONFIGS — 阶段2A 杂兵 visualParts 合约', () => {
           expect(Math.abs(part.offsetY)).toBeLessThanOrEqual(r * 2);
         }
       });
+    });
+  });
+
+  describe('Heavy 重装兵', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Heavy];
+
+    it('应该配置 visualParts（厚甲 + 大锤 + 黑瞳愤怒眼）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.eyes).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+      expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('攻击动画偏慢（>0.4 秒，体现笨重感）', () => {
+      expect(cfg.attackAnimDuration).toBeGreaterThan(0.4);
+    });
+
+    it('武器宽度 >= 5（大锤粗壮）', () => {
+      expect(cfg.visualParts?.weapon?.width ?? 0).toBeGreaterThanOrEqual(5);
+    });
+
+    it('武器 restAngle > 0（自然下垂指向地面）', () => {
+      expect(cfg.visualParts?.weapon?.restAngle ?? -1).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Juggernaut 铁甲巨兽', () => {
+    const cfg = ENEMY_CONFIGS[EnemyType.Juggernaut];
+
+    it('应该配置 visualParts（牛角 + 厚甲 + 巨锤 + 红凶眼）', () => {
+      expect(cfg.visualParts).toBeDefined();
+      expect(cfg.visualParts?.weapon).toBeDefined();
+      expect(cfg.visualParts?.bodyParts?.length).toBeGreaterThanOrEqual(6);
+    });
+
+    it('武器长度 > Heavy（巨型更醒目）', () => {
+      const jugLen = cfg.visualParts?.weapon?.length ?? 0;
+      const heavyLen = ENEMY_CONFIGS[EnemyType.Heavy].visualParts?.weapon?.length ?? 999;
+      expect(jugLen).toBeGreaterThan(heavyLen);
+    });
+
+    it('包含至少 2 个 triangle（左右对称牛角）', () => {
+      const triangles = (cfg.visualParts?.bodyParts ?? []).filter((p) => p.shape === 'triangle');
+      expect(triangles.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('瞳孔为红色（凶猛威胁感）', () => {
+      const pupilColor = cfg.visualParts?.eyes?.pupilColor ?? '';
+      expect(pupilColor.toLowerCase()).toMatch(/^#(d|e|f)/);
     });
   });
 });
