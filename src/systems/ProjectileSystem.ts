@@ -84,9 +84,6 @@ export class ProjectileSystem implements System {
   /** Vine tower DOT entries: targetId → DOT state */
   private dotEntries = new Map<number, VineDOT>();
 
-  /** Missile projectile vertical velocity: entityId → vy (px/s) */
-  private missileVelY = new Map<number, number>();
-
   constructor(map: MapConfig) {
     this.map = map;
   }
@@ -102,51 +99,38 @@ export class ProjectileSystem implements System {
       const isMissile = sourceTowerType === 6;
 
       if (isMissile) {
-        // ── Missile: parabolic trajectory, target is a position marker (no Health) ──
-        const ttx = Position.x[targetId];
-        const tty = Position.y[targetId];
+        // ── Missile: 参数化抛物线（design/19 §X/Y 参数化）──
+        // 飞行参数发射时一次锁定在 Projectile 组件，飞行期不读 mark 实体
+        const fromX = Projectile.fromX[eid]!;
+        const fromY = Projectile.fromY[eid]!;
+        const ttx = Projectile.targetX[eid]!;
+        const tty = Projectile.targetY[eid]!;
+        const totalTime = Projectile.totalTime[eid]!;
+        const vyInitial = Projectile.vyInitial[eid]!;
+        const g = 400;
 
-        if (ttx === undefined || tty === undefined) {
+        const newT = (Projectile.flightTime[eid]! + dt);
+        Projectile.flightTime[eid] = newT;
+
+        if (newT >= totalTime) {
+          // 强制对齐落点（消除浮点漂移）→ 触发命中
+          Position.x[eid] = ttx;
+          Position.y[eid] = tty;
+          this.onHit(world, eid, ttx, tty);
           world.destroyEntity(eid);
-          this.missileVelY.delete(eid);
           continue;
         }
 
-        const px = Position.x[eid]!;
-        const py = Position.y[eid]!;
-        const speed = Projectile.speed[eid]!;
+        const ratio = newT / totalTime;
+        const newX = fromX + (ttx - fromX) * ratio;
+        const newY = fromY + vyInitial * newT + 0.5 * g * newT * newT;
+        Position.x[eid] = newX;
+        Position.y[eid] = newY;
 
-        // Initialize vertical velocity on first frame
-        let vy = this.missileVelY.get(eid);
-        if (vy === undefined) {
-          vy = -150; // initial upward velocity
-          this.missileVelY.set(eid, vy);
-        }
-
-        // Apply gravity
-        vy += 400 * dt;
-        this.missileVelY.set(eid, vy);
-
-        // Horizontal movement toward target
-        const dx = ttx - px;
-        const dirX = dx > 0 ? 1 : -1;
-        const moveX = Math.min(Math.abs(dx), speed * dt) * dirX;
-
-        Position.x[eid] = px + moveX;
-        Position.y[eid] = py + vy * dt;
-
-        // Rotate toward velocity direction (stored in idlePhase for renderer)
         if (hasComponent(world.world, Visual, eid)) {
-          Visual.idlePhase[eid] = Math.atan2(vy, dirX * speed);
-        }
-
-        // 命中判定：必须处于下落阶段（vy > 0）且 Y 已经越过目标线，
-        // 防止目标在塔北方时首帧 newY (=towerY-eps) >= tty (更小) 立刻误判命中
-        const newY = Position.y[eid]!;
-        if (vy > 0 && newY >= tty) {
-          this.onHit(world, eid, Position.x[eid]!, newY);
-          this.missileVelY.delete(eid);
-          world.destroyEntity(eid);
+          const vyNow = vyInitial + g * newT;
+          const vxNow = (ttx - fromX) / totalTime;
+          Visual.idlePhase[eid] = Math.atan2(vyNow, vxNow);
         }
       } else {
         // ── Non‑missile: straight‑line trajectory ──

@@ -446,6 +446,28 @@ export function getEffectiveDamage(eid: number): number {
   return (raw + buff.absolute) * (1 + buff.percent / 100);
 }
 
+/** 导弹塔抛物线物理常量：重力加速度（px/s²） */
+export const MISSILE_GRAVITY = 400;
+
+/**
+ * 计算导弹抛物线锁定参数（design/19-missile-tower §X/Y 参数化）。
+ *
+ * 推导：y(t) = fromY + vyInitial*t + 0.5*g*t²，令 y(totalTime)=targetY 反解 vyInitial。
+ * X 恒速 → totalTime = |dx|/speed；dx≈0 时退化为 |dx|=1 像素的最短飞行时间避免除零。
+ *
+ * 由 spawnMissileProjectile 与测试 helper 共用，保证测试与生产代码物理一致。
+ */
+export function computeMissileParabola(
+  fromX: number, fromY: number,
+  targetX: number, targetY: number,
+  speed: number,
+): { totalTime: number; vyInitial: number } {
+  const dx = targetX - fromX;
+  const totalTime = Math.max(Math.abs(dx), 1) / speed;
+  const vyInitial = (targetY - fromY - 0.5 * MISSILE_GRAVITY * totalTime * totalTime) / totalTime;
+  return { totalTime, vyInitial };
+}
+
 /**
  * 生成导弹塔抛物线投射物（design/23 §0.5 launch_missile_projectile 节点核心副作用）。
  *
@@ -468,6 +490,10 @@ export function spawnMissileProjectile(
   const fromX = Position.x[towerId]!;
   const fromY = Position.y[towerId]!;
   const towerCfg = TOWER_CONFIGS[TowerType.Missile];
+
+  const targetX = Position.x[targetMarkId] ?? fromX;
+  const targetY = Position.y[targetMarkId] ?? fromY;
+  const { totalTime, vyInitial } = computeMissileParabola(fromX, fromY, targetX, targetY, visual.speed);
 
   const pid = world.createEntity();
   world.addComponent(pid, Position, { x: fromX, y: fromY });
@@ -493,6 +519,11 @@ export function spawnMissileProjectile(
     chainRange: 0,
     chainDecay: 0,
     sourceTowerType: 6,
+    targetX,
+    targetY,
+    flightTime: 0,
+    totalTime,
+    vyInitial,
   });
 
   world.addComponent(pid, Visual, {

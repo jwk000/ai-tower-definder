@@ -8,7 +8,7 @@
  *   不能伤害友军塔、生产建筑、陷阱等己方实体，也不能伤害发射源塔自身。
  */
 import { describe, it, expect } from 'vitest';
-import { addEntity, addComponent } from 'bitecs';
+import { addEntity, addComponent, hasComponent } from 'bitecs';
 import type { World as BitecsWorld } from 'bitecs';
 import { TowerWorld } from '../core/World.js';
 import {
@@ -16,6 +16,7 @@ import {
   TargetingMark, Visual, DamageTypeVal,
 } from '../core/components.js';
 import { ProjectileSystem } from './ProjectileSystem.js';
+import { computeMissileParabola } from './AttackSystem.js';
 import { MAP_01 } from '../data/gameData.js';
 
 const MISSILE_TOWER_TYPE = 6;
@@ -48,10 +49,14 @@ function makeMissile(
   damage: number = 100,
 ): number {
   const w = world.world;
+  const speed = 600;
+  const targetX = Position.x[markId] ?? fromX;
+  const targetY = Position.y[markId] ?? fromY;
+  const { totalTime, vyInitial } = computeMissileParabola(fromX, fromY, targetX, targetY, speed);
   const id = addEntity(w);
   addComp(w, id, Position, { x: fromX, y: fromY });
   addComp(w, id, Projectile, {
-    speed: 600,
+    speed,
     damage,
     damageType: DamageTypeVal.Physical,
     targetId: markId,
@@ -64,6 +69,11 @@ function makeMissile(
     splashRadius,
     stunDuration: 0.4,
     sourceTowerType: MISSILE_TOWER_TYPE,
+    targetX,
+    targetY,
+    flightTime: 0,
+    totalTime,
+    vyInitial,
   });
   addComp(w, id, Visual, {
     shape: 1, colorR: 0, colorG: 0, colorB: 0,
@@ -189,5 +199,45 @@ describe('ProjectileSystem — Splash friendly-fire guard', () => {
 
     expect(Health.current[sourceTowerId]).toBe(sourceHpBefore);
     expect(Health.current[enemy]).toBeLessThan(enemyHpBefore);
+  });
+});
+
+describe('ProjectileSystem — Missile landing accuracy', () => {
+  function runUntilHit(world: TowerWorld, sys: ProjectileSystem, missile: number): { hitX: number; hitY: number } {
+    for (let i = 0; i < 600; i++) {
+      sys.update(world, 1 / 60);
+      // 命中那帧 ProjectileSystem 已强制 Position=(targetX,targetY) 再 destroyEntity，
+      // SoA 数组保留命中位置值；cleanupDeadEntities 仅移除 Projectile 组件用于判存活。
+      const x = Position.x[missile] ?? 0;
+      const y = Position.y[missile] ?? 0;
+      world.cleanupDeadEntities();
+      if (!hasComponent(world.world, Projectile, missile)) {
+        return { hitX: x, hitY: y };
+      }
+    }
+    throw new Error('Missile never hit within 600 frames');
+  }
+
+  const tolerance = 8;
+
+  it.each([
+    ['target east+south (down-right)', 400, 400, 700, 600],
+    ['target east+north (up-right)', 400, 400, 700, 200],
+    ['target west+south (down-left)', 600, 400, 300, 600],
+    ['target west+north (up-left)', 600, 400, 300, 200],
+    ['target very close', 400, 400, 450, 410],
+    ['target very far', 400, 400, 1200, 1000],
+  ])('落点应精准命中 mark 位置 (±%spx tolerance): %s', (_label: string, towerX, towerY, markX, markY) => {
+    const world = new TowerWorld();
+    const sys = new ProjectileSystem(MAP_01);
+
+    const tower = makeAlliedTower(world, towerX, towerY);
+    const markId = makeMark(world, markX, markY);
+    const missile = makeMissile(world, towerX, towerY, markId, tower);
+
+    const { hitX, hitY } = runUntilHit(world, sys, missile);
+
+    expect(Math.abs(hitX - markX)).toBeLessThan(tolerance);
+    expect(Math.abs(hitY - markY)).toBeLessThan(tolerance);
   });
 });
