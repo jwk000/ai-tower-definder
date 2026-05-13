@@ -10,18 +10,24 @@
 //   - design/13-save-system.md §3 (PRNG state in save data)
 //
 // Multi-stream isolation:
-//   - mapRandom   — map gen, weather pool, neutral units, banned towers
-//   - waveRandom  — enemy selection within waves, special rule triggers
-//   - dropRandom  — kill drops, treasure chests, bounty rewards
-//   - decorRandom — decoration positions (visual-only, may be omitted from save)
+//   - mapRandom    — map gen, weather pool, neutral units, banned towers
+//   - waveRandom   — enemy selection within waves, special rule triggers
+//   - dropRandom   — kill drops, treasure chests, bounty rewards
+//   - decorRandom  — decoration positions (visual-only, may be omitted from save)
+//   - deckRandom   — (v3.0) card drafting, deck shuffle, hand draw
+//   - mysticRandom — (v3.0) mystic event pool, shop refresh, mystery box outcome
 //
 // Player actions MUST NOT influence other streams; e.g. firing a missile
-// (consumes dropRandom) must not shift waveRandom outcomes.
+// (consumes dropRandom) must not shift waveRandom outcomes. Deck/mystic
+// streams are dedicated so that combat replay variance does not perturb
+// roguelike card draws (design/25 §13 PRNG isolation).
 // ============================================================
 
 const WAVE_MASK = 0x57415645 | 0;  // 'WAVE'
 const DROP_MASK = 0x44524f50 | 0;  // 'DROP'
 const DECO_MASK = 0x4445434f | 0;  // 'DECO'
+const DECK_MASK = 0x4445434b | 0;  // 'DECK'
+const MYST_MASK = 0x4d595354 | 0;  // 'MYST'
 
 /** Deterministic 32-bit PRNG (Mulberry32). */
 export class GameRandom {
@@ -103,6 +109,8 @@ export interface RandomStreams {
   wave: GameRandom;
   drop: GameRandom;
   decor: GameRandom;
+  deck: GameRandom;
+  mystic: GameRandom;
 }
 
 /** Creates a full multi-stream PRNG bundle from a single seed. */
@@ -113,6 +121,8 @@ export function createRandomStreams(seed: number): RandomStreams {
     wave: new GameRandom(seed ^ WAVE_MASK),
     drop: new GameRandom(seed ^ DROP_MASK),
     decor: new GameRandom(seed ^ DECO_MASK),
+    deck: new GameRandom(seed ^ DECK_MASK),
+    mystic: new GameRandom(seed ^ MYST_MASK),
   };
 }
 
@@ -134,6 +144,8 @@ export function captureStreamState(streams: RandomStreams): {
   wave: number;
   drop: number;
   decor: number;
+  deck: number;
+  mystic: number;
 } {
   return {
     seed: streams.seed,
@@ -141,18 +153,26 @@ export function captureStreamState(streams: RandomStreams): {
     wave: streams.wave.getState(),
     drop: streams.drop.getState(),
     decor: streams.decor.getState(),
+    deck: streams.deck.getState(),
+    mystic: streams.mystic.getState(),
   };
 }
 
-/** Restores stream states (from save). */
+/**
+ * Restores stream states (from save). Deck/mystic streams are optional
+ * for backwards compatibility with v1.1 save snapshots that lack them;
+ * missing streams stay at their initial seed-derived state.
+ */
 export function restoreStreamState(
   streams: RandomStreams,
-  state: { map: number; wave: number; drop: number; decor: number },
+  state: { map: number; wave: number; drop: number; decor: number; deck?: number; mystic?: number },
 ): void {
   streams.map.setState(state.map);
   streams.wave.setState(state.wave);
   streams.drop.setState(state.drop);
   streams.decor.setState(state.decor);
+  if (state.deck !== undefined) streams.deck.setState(state.deck);
+  if (state.mystic !== undefined) streams.mystic.setState(state.mystic);
 }
 
 // ============================================================
@@ -189,4 +209,6 @@ export const Rand = {
   wave: () => getGlobalRandom().wave.next(),
   drop: () => getGlobalRandom().drop.next(),
   decor: () => getGlobalRandom().decor.next(),
+  deck: () => getGlobalRandom().deck.next(),
+  mystic: () => getGlobalRandom().mystic.next(),
 };

@@ -109,58 +109,97 @@ describe('createRandomStreams — 多流隔离 (P2-#16)', () => {
     expect(a.wave.next()).toBe(b.wave.next());
     expect(a.drop.next()).toBe(b.drop.next());
     expect(a.decor.next()).toBe(b.decor.next());
+    expect(a.deck.next()).toBe(b.deck.next());
+    expect(a.mystic.next()).toBe(b.mystic.next());
   });
 
   it('多流之间互相独立 — 消耗 drop 不影响 wave', () => {
     const a = createRandomStreams(42);
     const b = createRandomStreams(42);
-    // a 消耗 drop 100 次
     for (let i = 0; i < 100; i++) a.drop.next();
-    // a/b 的 wave 流应仍然一致
     for (let i = 0; i < 50; i++) {
       expect(a.wave.next()).toBe(b.wave.next());
     }
   });
 
+  it('v3.0 卡牌动作不污染战斗流：消耗 deck/mystic 不影响 wave/drop', () => {
+    const a = createRandomStreams(42);
+    const b = createRandomStreams(42);
+    for (let i = 0; i < 100; i++) {
+      a.deck.next();
+      a.mystic.next();
+    }
+    for (let i = 0; i < 50; i++) {
+      expect(a.wave.next()).toBe(b.wave.next());
+      expect(a.drop.next()).toBe(b.drop.next());
+    }
+  });
+
   it('多流的种子派生互不相同', () => {
     const s = createRandomStreams(42);
-    expect(s.map.getState()).not.toBe(s.wave.getState());
-    expect(s.wave.getState()).not.toBe(s.drop.getState());
-    expect(s.drop.getState()).not.toBe(s.decor.getState());
+    const states = [
+      s.map.getState(),
+      s.wave.getState(),
+      s.drop.getState(),
+      s.decor.getState(),
+      s.deck.getState(),
+      s.mystic.getState(),
+    ];
+    const unique = new Set(states);
+    expect(unique.size).toBe(states.length);
   });
 });
 
 describe('captureStreamState / restoreStreamState — 存档复现 (P2-#16 + #17)', () => {
   it('保存后再恢复，所有流继续相同序列', () => {
     const streams = createRandomStreams(42);
-    // 消耗一些
     for (let i = 0; i < 10; i++) {
       streams.map.next();
       streams.wave.next();
       streams.drop.next();
       streams.decor.next();
+      streams.deck.next();
+      streams.mystic.next();
     }
     const state = captureStreamState(streams);
 
-    // 继续消耗，记录"未来"序列
     const future = {
       map: streams.map.next(),
       wave: streams.wave.next(),
       drop: streams.drop.next(),
       decor: streams.decor.next(),
+      deck: streams.deck.next(),
+      mystic: streams.mystic.next(),
     };
 
-    // 恢复并再次抽取，应等于 future
     restoreStreamState(streams, state);
     expect(streams.map.next()).toBe(future.map);
     expect(streams.wave.next()).toBe(future.wave);
     expect(streams.drop.next()).toBe(future.drop);
     expect(streams.decor.next()).toBe(future.decor);
+    expect(streams.deck.next()).toBe(future.deck);
+    expect(streams.mystic.next()).toBe(future.mystic);
   });
 
   it('种子存储在 state 中，可跨会话复现', () => {
     const streams = createRandomStreams(0xdeadbeef);
     const state = captureStreamState(streams);
     expect(state.seed).toBe(0xdeadbeef | 0);
+  });
+
+  it('v1.1 旧存档（无 deck/mystic 字段）可向后兼容恢复', () => {
+    const streams = createRandomStreams(42);
+    const deckBefore = streams.deck.getState();
+    const mysticBefore = streams.mystic.getState();
+    restoreStreamState(streams, {
+      map: 100,
+      wave: 200,
+      drop: 300,
+      decor: 400,
+    });
+    expect(streams.map.getState()).toBe(100);
+    expect(streams.wave.getState()).toBe(200);
+    expect(streams.deck.getState()).toBe(deckBefore);
+    expect(streams.mystic.getState()).toBe(mysticBefore);
   });
 });
