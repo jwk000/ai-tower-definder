@@ -1,0 +1,69 @@
+# ============================================================
+# Tower Defender — 兵牌配置 (A1.2 范围: 6 张)
+# ============================================================
+# 设计文档:
+#   - design/25-card-roguelike-refactor.md §2 卡牌系统
+#   - design/03-unit-data.md §8.1 单位/建筑卡目录
+#   - design/21-mda-numerical-design.md §12.2 卡牌能量消耗表（数值真理源）
+#
+# 字段约定见 src/config/cardRegistry.ts: CardConfig
+
+swordsman_card:
+  name: 剑士
+  description: 基础前排，近战物理输出
+  type: unit
+  rarity: common
+  energyCost: 2
+  unitConfigId: swordsman
+  placement:
+    targetType: tile
+
+archer_card:
+  name: 弓箭手
+  description: 远程物理输出，后排清线
+  type: unit
+  rarity: common
+  energyCost: 2
+  unitConfigId: archer
+  placement:
+    targetType: tile
+
+shield_guard_card:
+  name: 盾卫
+  description: 高血量肉盾，吸收前线伤害
+  type: unit
+  rarity: common
+  energyCost: 3
+  unitConfigId: shield_guard
+  placement:
+    targetType: tile
+
+priest_card:
+  name: 牧师
+  description: 治疗支援，恢复友军生命
+  type: unit
+  rarity: rare
+  energyCost: 4
+  unitConfigId: priest
+  placement:
+    targetType: tile
+
+engineer_card:
+  name: 工程师
+  description: 修复辅助，维修建筑结构
+  type: unit
+  rarity: rare
+  energyCost: 3
+  unitConfigId: engineer
+  placement:
+    targetType: tile
+
+assassin_card:
+  name: 刺客
+  description: 高爆发刺杀位，优先打击高威胁目标
+  type: unit
+  rarity: epic
+  energyCost: 4
+  unitConfigId: assassin
+  placement:
+    targetType: tile

@@ -1,0 +1,69 @@
+# ============================================================
+# Tower Defender — 塔牌配置 (A1.2 范围: 6 张)
+# ============================================================
+# 设计文档:
+#   - design/25-card-roguelike-refactor.md §2 卡牌系统
+#   - design/03-unit-data.md §8.1 单位/建筑卡目录
+#   - design/21-mda-numerical-design.md §12.2 卡牌能量消耗表（数值真理源）
+#
+# 字段约定见 src/config/cardRegistry.ts: CardConfig
+
+arrow_tower_card:
+  name: 箭塔
+  description: 基础远程塔，单体物理伤害
+  type: unit
+  rarity: common
+  energyCost: 3
+  unitConfigId: arrow_tower
+  placement:
+    targetType: tile
+
+cannon_tower_card:
+  name: 炮塔
+  description: 群伤塔，对目标周围造成范围物理伤害
+  type: unit
+  rarity: common
+  energyCost: 4
+  unitConfigId: cannon_tower
+  placement:
+    targetType: tile
+
+ice_tower_card:
+  name: 冰塔
+  description: 控制塔，攻击附带减速效果
+  type: unit
+  rarity: rare
+  energyCost: 5
+  unitConfigId: ice_tower
+  placement:
+    targetType: tile
+
+lightning_tower_card:
+  name: 闪电塔
+  description: 链击塔，攻击在敌人之间跳跃
+  type: unit
+  rarity: rare
+  energyCost: 5
+  unitConfigId: lightning_tower
+  placement:
+    targetType: tile
+
+laser_tower_card:
+  name: 激光塔
+  description: 贯穿塔，对一条直线上的所有敌人造成持续伤害
+  type: unit
+  rarity: epic
+  energyCost: 6
+  unitConfigId: laser_tower
+  placement:
+    targetType: tile
+
+bat_tower_card:
+  name: 暗夜塔
+  description: 召唤蝙蝠群追击敌人，可攻击空中目标
+  type: unit
+  rarity: epic
+  energyCost: 5
+  unitConfigId: bat_tower
+  placement:
+    targetType: tile
