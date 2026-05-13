@@ -16,7 +16,16 @@ function makeFetch(responses: Record<string, MockResp | MockResp[]>): typeof fet
     if (!matched) {
       throw new Error(`unexpected fetch: ${key}`);
     }
-    const resp = Array.isArray(matched) ? matched[calls[key] = (calls[key] ?? 0) + 1 - 1]! : matched;
+    let resp: MockResp;
+    if (Array.isArray(matched)) {
+      const idx = calls[key] ?? 0;
+      const picked = matched[Math.min(idx, matched.length - 1)];
+      if (!picked) throw new Error(`mock array empty for ${key}`);
+      resp = picked;
+      calls[key] = idx + 1;
+    } else {
+      resp = matched;
+    }
     return new Response(JSON.stringify(resp.body), {
       status: resp.status,
       headers: { 'Content-Type': 'application/json' },
@@ -190,5 +199,52 @@ describe('LevelEditor: duplicate + delete', () => {
     await editor.delete('level_01');
     expect(editor.currentId).toBe(null);
     expect(editor.currentContent).toBe(null);
+  });
+});
+
+describe('LevelEditor: lastError', () => {
+  it('starts as null', () => {
+    const editor = makeEditor(makeFetch({}));
+    expect(editor.lastError).toBe(null);
+  });
+
+  it('is populated after refreshList fails', async () => {
+    const fetchImpl = makeFetch({
+      'GET /__editor/levels': { status: 500, body: { error: 'internal_error' } },
+    });
+    const editor = makeEditor(fetchImpl);
+    await editor.refreshList();
+    expect(editor.status).toBe('error');
+    expect(editor.lastError).toMatch(/internal_error/);
+  });
+
+  it('is populated after loadLevel fails', async () => {
+    const fetchImpl = makeFetch({
+      'GET /__editor/levels/missing': { status: 404, body: { error: 'not_found' } },
+    });
+    const editor = makeEditor(fetchImpl);
+    await editor.loadLevel('missing');
+    expect(editor.lastError).toMatch(/not_found/);
+  });
+
+  it('is populated after saveCurrent fails (and cleared on subsequent success)', async () => {
+    const fetchImpl = makeFetch({
+      'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'x\n', mtime: 100 } },
+      'PUT /__editor/levels/level_01': [
+        { status: 409, body: { error: 'mtime_conflict' } },
+        { status: 200, body: { id: 'level_01', mtime: 200 } },
+      ],
+    });
+    const editor = makeEditor(fetchImpl);
+    await editor.loadLevel('level_01');
+    editor.setCurrentContent('y\n');
+    const failed = await editor.saveCurrent();
+    expect(failed.ok).toBe(false);
+    expect(editor.lastError).toMatch(/mtime_conflict/);
+
+    const succeeded = await editor.saveCurrent();
+    expect(succeeded.ok).toBe(true);
+    expect(editor.lastError).toBe(null);
+    expect(editor.status).toBe('idle');
   });
 });
