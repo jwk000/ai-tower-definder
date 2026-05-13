@@ -60,9 +60,11 @@
 | 23 | [AI 行为树统一方案](./23-ai-behavior-tree.md) | 🔶 v3.0 第六章追加 | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
 | 24 | [士兵AI行为设计](./24-soldier-ai-behavior.md) | 沿用 | 士兵 AI 四状态机、三圈模型、敌方反击规则、行为树映射 |
 | 25 | [卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) | ⭐ v3.0 核心方案 | **权威方案源**——14 章完整设计：卡牌/Run/关间/商店/秘境/碎片/迁移 |
+| 26 | [脆弱状态](./26-vulnerability-status.md) | 沿用 | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
 | 27 | [调试系统](./27-debug-system.md) | 沿用 | 跨界面调试入口、一键通关、金币+99999、行为树查看弹窗 |
+| 28 | [阵营语义重构](./28-faction-refactoring.md) | 📝 草案 | 去 isEnemy 双轨、isHostileTo API、Phase A→F 分阶段迁移路线 |
 
-> 状态图例：✅ 全文重写 / 🔶 章节追加 / 沿用 / ⭐ 权威方案
+> 状态图例：✅ 全文重写 / 🔶 章节追加 / 沿用 / ⭐ 权威方案 / 📝 草案
 
 ---
 
