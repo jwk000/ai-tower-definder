@@ -38,6 +38,7 @@ import {
   TargetingMark,
   TileDamageMark,
   MissileCharge,
+  BuildingTower,
 } from '../core/components.js';
 import { isAdjacentToPath } from '../utils/grid.js';
 import { UNIT_CONFIGS, UPGRADE_VISUALS } from '../data/gameData.js';
@@ -671,6 +672,14 @@ export class RenderSystem implements System {
       }
 
       // ========================================
+      // Building period: half-transparent body so player can see placement
+      // ========================================
+      const isBuilding = isTower && hasComponent(world.world, BuildingTower, eid);
+      if (isBuilding) {
+        displayAlpha *= 0.5;
+      }
+
+      // ========================================
       // MissileCharge visual (pulsing red glow + alpha flicker)
       // ========================================
       if (isTower && hasComponent(world.world, MissileCharge, eid)) {
@@ -786,13 +795,24 @@ export class RenderSystem implements System {
       // ========================================
       // 2.5. Cooldown bar (thin blue bar below health bar, towers only)
       // ========================================
-      if (isTower && hasComponent(world.world, Attack, eid) && drawSize > 0 && isFinite(entityTop)) {
+      if (isTower && hasComponent(world.world, Attack, eid) && drawSize > 0 && isFinite(entityTop) && !isBuilding) {
         const atkSpeed = Attack.attackSpeed[eid]!;
         const cdTimer = Attack.cooldownTimer[eid]!;
         // fillRatio: 0 = just fired (empty), 1 = ready to fire (full)
         const fillRatio = Math.max(0, Math.min(1, 1 - cdTimer * atkSpeed));
         const cdBarY = healthBarY + HEALTH_BAR_HALF_H + CD_BAR_GAP + CD_BAR_HALF_H;
         this.drawCooldownBar(posX, cdBarY, barW, fillRatio, renderZ);
+      }
+
+      // ========================================
+      // 2.6. Building progress bar (orange → green gradient below tower)
+      // ========================================
+      if (isBuilding && drawSize > 0 && isFinite(entityTop)) {
+        const timer = BuildingTower.timer[eid]!;
+        const duration = BuildingTower.duration[eid]!;
+        const progress = duration > 0 ? Math.max(0, Math.min(1, 1 - timer / duration)) : 1;
+        const barY = posY + drawSize / 2 + 8;
+        this.drawBuildingProgressBar(posX, barY, barW, progress, renderZ);
       }
 
       // ========================================
@@ -1059,6 +1079,38 @@ export class RenderSystem implements System {
         h: barH,
         color: CD_BAR_COLOR,
         alpha: 0.95,
+        z,
+      });
+    }
+  }
+
+  // ============================================
+  // Building progress bar — orange→green gradient below tower body
+  // ============================================
+  private drawBuildingProgressBar(
+    x: number, y: number, width: number, progress: number, z: number,
+  ): void {
+    const barH = CD_BAR_HEIGHT;
+    const barW = width;
+    const halfW = barW / 2;
+
+    this.renderer.push({
+      shape: 'rect', x, y, size: barW, h: barH,
+      color: '#222222', alpha: 0.85,
+      z,
+    });
+
+    const fillW = Math.max(barW * progress, 0);
+    if (fillW > 0) {
+      const fillColor = this.lerpColorRGB(0xff, 0x8c, 0x00, '#00ff00', progress);
+      this.renderer.push({
+        shape: 'rect',
+        x: x - halfW + fillW / 2,
+        y,
+        size: fillW,
+        h: barH,
+        color: fillColor,
+        alpha: 1,
         z,
       });
     }

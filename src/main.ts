@@ -55,6 +55,7 @@ import {
   Movement, ShapeVal, Layer, LayerVal, Faction, FactionVal,
   DamageTypeVal, TargetSelectionVal, AttackModeVal,
   BatSwarmMember, AlertMark, AlertMarkVal,
+  BuildingTower,
   defineQuery,
 } from './core/components.js';
 
@@ -844,6 +845,7 @@ this.world.registerSystem(this.weatherSystem);
     // Try clicking on a tower
     for (let eid = 1; eid < Tower.towerType.length; eid++) {
       if (!hasComponent(w, Tower, eid)) continue;
+      if (hasComponent(w, BuildingTower, eid)) continue;
       const px = Position.x[eid];
       const py = Position.y[eid];
       if (px === undefined || py === undefined) continue;

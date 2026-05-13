@@ -14,6 +14,7 @@ import {
   Stunned,
   Frozen,
   MoveModeVal,
+  BuildingTower,
 } from '../core/components.js';
 import { ENEMY_CONFIGS } from '../data/gameData.js';
 import { EnemyType } from '../types/index.js';
@@ -279,6 +280,7 @@ export class JuggernautSystem implements System {
       const tid = towers[i]!;
       if (Health.current[tid]! <= 0) continue;
       if (Faction.value[tid] !== FactionVal.Player) continue;
+      if (hasComponent(w, BuildingTower, tid)) continue;
       const dx = Position.x[tid]! - fromX;
       const dy = Position.y[tid]! - fromY;
       const dist = Math.sqrt(dx * dx + dy * dy);

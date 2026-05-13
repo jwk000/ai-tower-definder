@@ -1,5 +1,5 @@
-import { TowerWorld, type System, defineQuery } from '../core/World.js';
-import { Position, Attack, Tower, Health } from '../core/components.js';
+import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import { Position, Attack, Tower, Health, BuildingTower } from '../core/components.js';
 import { TowerType } from '../types/index.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 
@@ -68,6 +68,7 @@ export class CommandTowerSystem implements System {
     for (let i = 0; i < allTowers.length; i++) {
       const eid = allTowers[i]!;
       if (Tower.towerType[eid] !== COMMAND_TOWER_TYPE) continue;
+      if (hasComponent(w, BuildingTower, eid)) continue;
 
       const hp = Health.current[eid];
       if (hp !== undefined && hp <= 0) continue;
@@ -87,6 +88,7 @@ export class CommandTowerSystem implements System {
     for (let i = 0; i < buffTargets.length; i++) {
       const eid = buffTargets[i]!;
       if (Tower.towerType[eid] === COMMAND_TOWER_TYPE) continue;
+      if (hasComponent(w, BuildingTower, eid)) continue;
 
       const hp = Health.current[eid];
       if (hp !== undefined && hp <= 0) continue;

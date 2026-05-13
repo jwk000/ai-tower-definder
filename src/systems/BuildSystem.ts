@@ -22,6 +22,7 @@ import {
   Layer,
   LayerVal,
   BatTower,
+  BuildingTower,
   AI,
   Movement,
   PlayerControllable,
@@ -462,6 +463,13 @@ export class BuildSystem implements System {
     // Category
     world.addComponent(eid, Category, { value: CategoryVal.Tower });
     world.addComponent(eid, Layer, { value: LayerVal.Ground });
+
+    // 建造中状态 — buildTime 秒内不可攻击、不被锁定、不可选中
+    const buildTime = config.buildTime ?? 2.0;
+    world.addComponent(eid, BuildingTower, {
+      timer: buildTime,
+      duration: buildTime,
+    });
 
     // Display name for overhead HUD
     world.setDisplayName(eid, config.name);

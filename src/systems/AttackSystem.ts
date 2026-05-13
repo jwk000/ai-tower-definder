@@ -15,6 +15,7 @@ import {
   DamageTypeVal,
   MissileCharge,
   TargetingMark,
+  BuildingTower,
 } from '../core/components.js';
 import { TowerType } from '../types/index.js';
 import type { MapConfig } from '../types/index.js';
@@ -144,6 +145,8 @@ export class AttackSystem implements System {
     }
 
     for (const eid of towers) {
+      // 建造中的塔不参与任何攻击逻辑（AISystem 已跳过 BT，AttackSystem 守卫一致性）
+      if (hasComponent(world.world, BuildingTower, eid)) continue;
       const towerTypeVal = Tower.towerType[eid]!;
       if (towerTypeVal === 6) {
         // Missile: BT v1.0 已接管 (P3 R5)，handleMissileTower 已薄化为 no-op，保留入口兼容

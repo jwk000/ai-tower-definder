@@ -7,6 +7,7 @@ import {
   Tower,
   UnitTag,
   BatSwarmMember,
+  BuildingTower,
 } from '../core/components.js';
 import type { World as BitecsWorld } from 'bitecs';
 import {
@@ -242,6 +243,7 @@ const hasMov = w ? hasComponent(w.world, Movement, entityId) : false;
       const result: number[] = [];
       for (let i = 0; i < entities.length; i++) {
         const eid = entities[i]!;
+        if (hasComponent(rawWorld, BuildingTower, eid)) continue;
         if (Tower.towerType[eid] === towerNum) {
           result.push(eid);
         }
@@ -251,9 +253,13 @@ const hasMov = w ? hasComponent(w.world, Movement, entityId) : false;
 
     switch (targetType) {
       case 'bat_tower':
-        return batAttackQuery(rawWorld) as number[];
+        return (batAttackQuery(rawWorld) as number[]).filter(
+          (eid) => !hasComponent(rawWorld, BuildingTower, eid),
+        );
       case 'tower':
-        return towerAttackQuery(rawWorld) as number[];
+        return (towerAttackQuery(rawWorld) as number[]).filter(
+          (eid) => !hasComponent(rawWorld, BuildingTower, eid),
+        );
       case 'enemy': {
         const entities = enemyMovementQuery(rawWorld);
         const result: number[] = [];

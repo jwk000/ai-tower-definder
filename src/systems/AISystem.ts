@@ -1,5 +1,5 @@
-import { TowerWorld, type System, defineQuery } from '../core/World.js';
-import { AI, Position, Health, UnitTag, Attack, Movement } from '../core/components.js';
+import { TowerWorld, type System, defineQuery, hasComponent } from '../core/World.js';
+import { AI, Position, Health, UnitTag, Attack, Movement, BuildingTower } from '../core/components.js';
 import { BehaviorTree, type AIContext } from '../ai/BehaviorTree.js';
 import type { BehaviorTreeConfig, MapConfig } from '../types/index.js';
 
@@ -125,6 +125,9 @@ export class AISystem implements System {
         this.cleanupBlackboard(eid);
         continue;
       }
+
+      // 跳过建造中的塔 — BuildingSystem 负责 tick timer，期间不执行 BT 也不 tick 冷却
+      if (hasComponent(world.world, BuildingTower, eid)) continue;
 
       // 统一管理攻击冷却（所有有 Attack 组件的实体，每帧 tick）
       const ct = Attack.cooldownTimer[eid];

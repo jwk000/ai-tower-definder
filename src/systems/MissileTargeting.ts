@@ -9,8 +9,8 @@
 // to correctly convert between pixel and grid coordinates.
 // ============================================================
 
-import { TowerWorld } from '../core/World.js';
-import { Position, UnitTag, Attack, Layer, LayerVal } from '../core/components.js';
+import { TowerWorld, hasComponent } from '../core/World.js';
+import { Position, UnitTag, Attack, Layer, LayerVal, BuildingTower } from '../core/components.js';
 import { RenderSystem } from '../systems/RenderSystem.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { TowerType } from '../types/index.js';
@@ -44,6 +44,7 @@ export function evaluateMissileTarget(
   map: MapConfig,
 ): MissileTargetResult | null {
   if (enemyList.length === 0) return null;
+  if (hasComponent(world.world, BuildingTower, towerId)) return null;
 
   // ---- v1.1: Filter out flying enemies (cantTargetFlying) ----
   // Missile is a ground-explosion weapon; flying-layer enemies are immune.
