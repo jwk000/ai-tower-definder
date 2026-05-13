@@ -631,6 +631,65 @@ export class UISystem implements System {
     }
   }
 
+  /**
+   * v3.0 roguelike — 牌堆 / 弃牌堆计数图标。
+   *   - 牌堆图标 bottom-right offset(-200,-160), size 50×70（design/20 §4.5.1）
+   *   - 弃牌堆图标 bottom-right offset(-140,-160), size 50×70
+   *   - 数据源 runContext.deck.state.{drawPile,discardPile}.length
+   *   - runContext 未装配时静默跳过
+   */
+  private renderDeckCounter(): void {
+    const runContext = this._world?.runContext;
+    if (!runContext) return;
+
+    const drawCount = runContext.deck.state.drawPile.length;
+    const discardCount = runContext.deck.state.discardPile.length;
+
+    const ICON_W = 50;
+    const ICON_H = 70;
+    const rightX = LayoutManager.DESIGN_W;
+    const bottomY = LayoutManager.DESIGN_H;
+
+    const drawIconCenterX = rightX - 200 + ICON_W / 2;
+    const drawIconCenterY = bottomY - 160 + ICON_H / 2;
+    const discardIconCenterX = rightX - 140 + ICON_W / 2;
+    const discardIconCenterY = bottomY - 160 + ICON_H / 2;
+
+    this.renderer.push({
+      shape: 'rect',
+      x: drawIconCenterX, y: drawIconCenterY,
+      size: ICON_W, h: ICON_H,
+      color: '#1a2332', alpha: 0.9,
+      stroke: '#1e88e5', strokeWidth: 2,
+    });
+    this.infos.push({
+      x: drawIconCenterX, y: drawIconCenterY - 6,
+      text: '📚', color: '#bbdefb', size: 22, align: 'center',
+    });
+    this.infos.push({
+      x: drawIconCenterX, y: drawIconCenterY + 18,
+      text: String(drawCount),
+      color: '#ffffff', size: 14, align: 'center',
+    });
+
+    this.renderer.push({
+      shape: 'rect',
+      x: discardIconCenterX, y: discardIconCenterY,
+      size: ICON_W, h: ICON_H,
+      color: '#1a2332', alpha: 0.9,
+      stroke: '#6d4c41', strokeWidth: 2,
+    });
+    this.infos.push({
+      x: discardIconCenterX, y: discardIconCenterY - 6,
+      text: '🗑', color: '#ffccbc', size: 22, align: 'center',
+    });
+    this.infos.push({
+      x: discardIconCenterX, y: discardIconCenterY + 18,
+      text: String(discardCount),
+      color: '#ffffff', size: 14, align: 'center',
+    });
+  }
+
   private renderEnergyBar(): void {
     const runContext = this._world?.runContext;
     if (!runContext) return;
@@ -866,6 +925,7 @@ export class UISystem implements System {
 
     if (available) {
       this.renderHandZone();
+      this.renderDeckCounter();
     }
 
     if (panelY + panelH > LayoutManager.DESIGN_H) return;
