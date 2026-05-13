@@ -733,7 +733,6 @@ export class UISystem implements System {
   private buildTopHUD(phase: GamePhase): void {
     const world = this._world;
     const gold = this.getGold();
-    const energy = this.getEnergy();
     const population = this.getPopulation();
     const maxPop = this.getMaxPopulation();
     const wave = this.getWave();
@@ -755,7 +754,7 @@ export class UISystem implements System {
 
     this.infos.push({
       x: 20, y: UISystem.TOP_H / 2,
-      text: `💰${gold} ⚡${energy} 👥${population}/${maxPop}`,
+      text: `💰${gold} 👥${population}/${maxPop}`,
       color: '#ffd54f', size: 20,
     });
 
