@@ -1844,6 +1844,48 @@ describe('SelectMissileTargetNode（导弹塔地格评分目标选择）', () =>
 
     expect(node.tick(ctx)).toBe(NodeStatus.Failure);
   });
+
+  it('友军单位 (isEnemy=0) 不被选中 — 即使在射程内且独占场景', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200);
+
+    const ally = addEntity(w);
+    addComp(w, ally, Position, { x: 300, y: 200 });
+    addComp(w, ally, Health, { current: 100, max: 100 });
+    addComp(w, ally, UnitTag, { isEnemy: 0 });
+    addComp(w, ally, Layer, { value: LayerVal.Ground });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Failure);
+    expect(ctx.blackboard.has('current_target_pos')).toBe(false);
+  });
+
+  it('混合场景：友军与敌人同时存在 → 仅选敌人，friendly count 不计入 enemy_count', () => {
+    const world = makeRealWorld();
+    const w = world.world;
+    const tower = makeMissileTower(world, 200, 200);
+
+    const ally = addEntity(w);
+    addComp(w, ally, Position, { x: 280, y: 200 });
+    addComp(w, ally, Health, { current: 100, max: 100 });
+    addComp(w, ally, UnitTag, { isEnemy: 0 });
+    addComp(w, ally, Layer, { value: LayerVal.Ground });
+
+    const enemy = addEntity(w);
+    addComp(w, enemy, Position, { x: 320, y: 200 });
+    addComp(w, enemy, Health, { current: 100, max: 100 });
+    addComp(w, enemy, UnitTag, { isEnemy: 1 });
+    addComp(w, enemy, Layer, { value: LayerVal.Ground });
+
+    const ctx = makeContextWithMap(world, tower, makeMinimalMap());
+    const node = new SelectMissileTargetNode('select_missile_target', {});
+
+    expect(node.tick(ctx)).toBe(NodeStatus.Success);
+    expect(ctx.blackboard.get('current_target_enemy_count')).toBe(1);
+  });
 });
 
 describe('ChargeAttackNode（导弹塔蓄力两阶段状态机）', () => {

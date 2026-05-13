@@ -1123,7 +1123,9 @@ export class SelectMissileTargetNode extends ActionNode {
     const eid = context.entityId;
     const enemies = enemyTargetQuery(context.world.world);
     const aliveEnemies: number[] = [];
+    // bitecs defineQuery 仅按组件 presence 交集，UnitTag.isEnemy 数值字段需显式守卫
     for (const e of enemies) {
+      if (UnitTag.isEnemy[e] !== 1) continue;
       if ((Health.current[e] ?? 0) > 0) aliveEnemies.push(e);
     }
 
