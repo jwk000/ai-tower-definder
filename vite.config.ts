@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import preact from '@preact/preset-vite';
 import { editorFsApi } from './vite-plugins/editor-fs-api';
 
 export default defineConfig({
   // GitHub Pages: 如果仓库名不是 TowerDefender，改成对应名称
   base: '/ai-tower-defender/',
-  plugins: [editorFsApi()],
+  plugins: [preact(), editorFsApi()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

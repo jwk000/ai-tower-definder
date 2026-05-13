@@ -17,6 +17,8 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "outDir": "./dist",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "paths": {
       "@/*": ["./src/*"],
       "@core/*": ["./src/core/*"],

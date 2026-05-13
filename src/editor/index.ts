@@ -1,8 +1,11 @@
 import type { Game } from '../core/Game.js';
+import type { LevelEditor } from './LevelEditor.js';
 
 export interface EditorBootstrapDeps {
   game: Game;
   hostElement: HTMLElement;
+  levelEditor?: LevelEditor;
+  mountUi?: (deps: { host: HTMLElement; editor: LevelEditor; onClose: () => void }) => () => void;
 }
 
 export interface EditorHandle {
@@ -21,9 +24,10 @@ export function bootstrapEditor(deps: EditorBootstrapDeps): EditorHandle {
 }
 
 function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
-  const { game, hostElement } = deps;
+  const { game, hostElement, levelEditor, mountUi } = deps;
   let open = false;
   let wasPausedBeforeOpen = false;
+  let unmount: (() => void) | null = null;
   hostElement.style.display = 'none';
 
   const handle: EditorHandle = {
@@ -33,11 +37,18 @@ function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
       wasPausedBeforeOpen = game.paused;
       game.paused = true;
       hostElement.style.display = 'block';
+      if (levelEditor && mountUi) {
+        unmount = mountUi({ host: hostElement, editor: levelEditor, onClose: () => handle.close() });
+      }
     },
     close() {
       if (!open) return;
       open = false;
       game.paused = wasPausedBeforeOpen;
+      if (unmount) {
+        unmount();
+        unmount = null;
+      }
       hostElement.style.display = 'none';
     },
     toggle() {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { bootstrapEditor, attachF2Hotkey, type EditorHandle } from '../index.js';
 import type { Game } from '../../core/Game.js';
 
@@ -89,6 +89,44 @@ describe('bootstrapEditor', () => {
   it('dispose() is safe when already closed', () => {
     handle.dispose();
     expect(handle.isOpen()).toBe(false);
+  });
+});
+
+describe('bootstrapEditor: UI mount/unmount wiring', () => {
+  it('calls mountUi on open and the returned unmount on close', () => {
+    const host = makeHost();
+    const game = makeFakeGame();
+    const unmount = vi.fn();
+    const mountUi = vi.fn(() => unmount);
+    const editor = {} as never;
+    const h = bootstrapEditor({ game, hostElement: host, levelEditor: editor, mountUi });
+
+    h.open();
+    expect(mountUi).toHaveBeenCalledTimes(1);
+    expect(unmount).not.toHaveBeenCalled();
+    h.close();
+    expect(unmount).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips mountUi when levelEditor or mountUi is missing', () => {
+    const host = makeHost();
+    const game = makeFakeGame();
+    const mountUi = vi.fn(() => () => undefined);
+    const h = bootstrapEditor({ game, hostElement: host, mountUi });
+    h.open();
+    expect(mountUi).not.toHaveBeenCalled();
+    h.close();
+  });
+
+  it('open is still idempotent with mountUi', () => {
+    const host = makeHost();
+    const game = makeFakeGame();
+    const mountUi = vi.fn(() => () => undefined);
+    const editor = {} as never;
+    const h = bootstrapEditor({ game, hostElement: host, levelEditor: editor, mountUi });
+    h.open();
+    h.open();
+    expect(mountUi).toHaveBeenCalledTimes(1);
   });
 });
 
