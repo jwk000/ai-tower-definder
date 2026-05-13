@@ -607,7 +607,9 @@ export class AttackNode extends ActionNode {
     if (cooldown <= 0) {
       Attack.cooldownTimer[eid] = 1 / atkSpeed!;
       const isEnemy = UnitTag.isEnemy[eid] === 1;
-      const isTower = Tower.towerType[eid] !== undefined;
+      // priority-3 注释：bitecs SoA 字段在所有 entity 上都返回 0（不会是 undefined），
+      // 必须用 hasComponent 显式检测，否则 soldier 会被误判为 tower 走 silent 分支不打伤害。
+      const isTower = hasComponent(context.world.world, Tower, eid);
       if (isEnemy) {
         Attack.targetId[eid] = targetId;
       } else if (isTower) {
