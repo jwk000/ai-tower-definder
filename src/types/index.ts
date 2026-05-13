@@ -181,6 +181,8 @@ export interface TowerConfig {
   upgradeAtkBonus: number[];
   upgradeRangeBonus: number[];
   color: string;
+  /** 建造耗时（秒）— 安装后到可攻击之间的延迟。省略则按默认值 2.0s。 */
+  buildTime?: number;
   splashRadius?: number;
   stunDuration?: number;
   slowPercent?: number;
@@ -306,6 +308,9 @@ export interface UnitConfig {
   cost: number;
   moveRange: number;
   alertRange?: number; // detection radius for soldier AI alert behavior (default 0)
+  tauntCapacity?: number; // 嘲讽容量基础值：能同时吸引多少敌人攻击自己（默认 0 = 无嘲讽）
+  tauntCapacityPerLevel?: number; // 每升一级嘲讽容量增量（默认 0）
+  splashRadius?: number; // 近战 AOE 半径（px），>0 时每次攻击对周围目标造成 60% 溅射伤害
 }
 
 // ---- Production ----

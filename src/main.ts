@@ -16,6 +16,7 @@ import { HealthSystem } from './systems/HealthSystem.js';
 import { WaveSystem } from './systems/WaveSystem.js';
 import { EconomySystem } from './systems/EconomySystem.js';
 import { BuildSystem } from './systems/BuildSystem.js';
+import { BuildingSystem } from './systems/BuildingSystem.js';
 import { UISystem } from './systems/UISystem.js';
 import { LevelSelectUI } from './systems/LevelSelectUI.js';
 import { TrapSystem } from './systems/TrapSystem.js';
@@ -558,6 +559,7 @@ class TowerDefenderGame extends Game {
     // ---- New unit system ----
     this.aiSystem = new AISystem();
     this.lifecycleSystem = new LifecycleSystem();
+    const buildingSystem = new BuildingSystem();
     this.unitFactory = new UnitFactory(this.world);
 
     // Register AI configurations
@@ -701,8 +703,9 @@ class TowerDefenderGame extends Game {
     };
 
     // ---- Register systems ----
-    this.world.registerSystem(this.lifecycleSystem);  // Lifecycle first
-    this.world.registerSystem(this.aiSystem);         // AI system
+this.world.registerSystem(this.lifecycleSystem);  // Lifecycle first
+this.world.registerSystem(buildingSystem);        // Tick build timers BEFORE AI/Attack so completion frame is immediately attackable
+this.world.registerSystem(this.aiSystem);         // AI system
     this.world.registerSystem(movementSystem);
     this.world.registerSystem(shamanSystem);
     this.world.registerSystem(enemyAttackSystem);
@@ -976,7 +979,8 @@ this.world.registerSystem(this.weatherSystem);
       max: config.hp,
     });
 
-    // Attack (player units are physical damage by default)
+    const splashRadius = config.splashRadius ?? 0;
+    const attackMode = splashRadius > 0 ? AttackModeVal.AoeSplash : AttackModeVal.SingleTarget;
     this.world.addComponent(id, Attack, {
       damageType: DamageTypeVal.Physical,
       damage: config.atk,
@@ -985,14 +989,16 @@ this.world.registerSystem(this.weatherSystem);
       cooldownTimer: 0,
       targetId: 0,
       targetSelection: TargetSelectionVal.Nearest,
-      attackMode: AttackModeVal.SingleTarget,
-      isRanged: 0,  // ShieldGuard/Swordsman are melee
-      splashRadius: 0,
+      attackMode,
+      isRanged: 0,
+      splashRadius,
       chainCount: 0,
       chainRange: 0,
       chainDecay: 0,
       drainPercent: 0,
       alertRange: config.alertRange ?? (config.attackRange * 2),
+      tauntCapacity: config.tauntCapacity ?? 0,
+      attackerCount: 0,
     });
 
     // UnitTag (player unit)

@@ -206,7 +206,7 @@ export class UnitSystem implements System {
     return (Visual.size[eid] ?? 32) / 2;
   }
 
-  /** Tile collision — checks if (x, y) with given radius overlaps blocked/path tiles */
+  /** Tile collision — soldiers may step onto Path to chase/intercept enemies; only Blocked tiles obstruct them. */
   private checkTileCollision(x: number, y: number, radius: number): boolean {
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
@@ -220,10 +220,10 @@ export class UnitSystem implements System {
     for (let row = minRow; row <= maxRow; row++) {
       for (let col = minCol; col <= maxCol; col++) {
         if (row < 0 || row >= this.map.rows || col < 0 || col >= this.map.cols) {
-          return true; // out of bounds = blocked
+          return true;
         }
         const tile = this.map.tiles[row]![col]!;
-        if (tile === TileType.Blocked || tile === TileType.Path) {
+        if (tile === TileType.Blocked) {
           const tileCenterX = col * ts + ts / 2 + ox;
           const tileCenterY = row * ts + ts / 2 + oy;
           const halfTs = ts / 2;

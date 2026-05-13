@@ -175,8 +175,10 @@ export const Attack = defineComponent({
   splashRadius: Types.f32,     // AOE溅射半径
   chainCount: Types.ui8,       // 弹跳次数
   chainRange: Types.f32,       // 弹跳搜索半径
-  chainDecay: Types.f32,       // 弹跳衰减比例
+  chainDecay: Types.f32,     // 弹跳衰减比例
   drainPercent: Types.f32,     // 吸血比例（蝙蝠塔）
+  tauntCapacity: Types.ui8,   // 嘲讽容量 — 同时能吸引多少敌人攻击自己（0 = 无嘲讽）
+  attackerCount: Types.ui8,   // 当前正在攻击此单位的敌人数（与 tauntCapacity 配合限流）
 });
 
 /** 弹道 */
@@ -383,6 +385,12 @@ export const AI = defineComponent({
 /** 眩晕状态 */
 export const Stunned = defineComponent({
   timer: Types.f32,
+});
+
+/** 建造中状态 — 塔安装后到 timer 归零之间挂载此组件，期间不参与攻击/不被锁定/不可选中 */
+export const BuildingTower = defineComponent({
+  timer: Types.f32,     // 剩余建造时间（秒），递减至 0 时移除组件
+  duration: Types.f32,  // 总建造时长（秒），用于计算进度条比例
 });
 
 /** 冰冻状态 */

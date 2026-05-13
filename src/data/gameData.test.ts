@@ -230,16 +230,26 @@ describe('单位配置 (UNIT_CONFIGS)', () => {
     }
   });
 
-  it('盾卫 — 高HP + 嘲讽', () => {
+  it('盾卫 — 高HP + 低攻 + 高物防 + 嘲讽 (基础 2, 每级 +1)', () => {
     const cfg = UNIT_CONFIGS[UnitType.ShieldGuard];
-    expect(cfg.hp).toBe(350);
-    expect(cfg.defense).toBe(50);
+    expect(cfg.hp).toBe(400);
+    expect(cfg.atk).toBe(6);
+    expect(cfg.defense).toBe(30);
+    expect(cfg.attackRange).toBe(64);
+    expect(cfg.tauntCapacity).toBe(2);
+    expect(cfg.tauntCapacityPerLevel).toBe(1);
     expect(cfg.skillId).toBe('taunt');
   });
 
-  it('剑士 — 高ATK + 旋风斩', () => {
+  it('剑士 — 中HP + 高攻 + AOE 9 格 + 单嘲讽 (固定 1, 不升级)', () => {
     const cfg = UNIT_CONFIGS[UnitType.Swordsman];
-    expect(cfg.atk).toBe(18);
+    expect(cfg.hp).toBe(180);
+    expect(cfg.atk).toBe(20);
+    expect(cfg.defense).toBe(8);
+    expect(cfg.attackRange).toBe(64);
+    expect(cfg.tauntCapacity).toBe(1);
+    expect(cfg.tauntCapacityPerLevel ?? 0).toBe(0);
+    expect(cfg.splashRadius).toBe(90);
     expect(cfg.skillId).toBe('whirlwind');
   });
 });
