@@ -4,6 +4,8 @@
 > 动态行为规则见 [02-单位系统](./02-unit-system.md)。视觉规范见 [16-美术资产](./16-art-assets-design.md)。
 >
 > 本文档定义：每个单位的**字段集合、机制语义、配置项语义**，作为读懂 21 文档数值表的索引。
+>
+> **v3.1（2026-05-14）变更**：塔升级模型从"L1–L5 线性"改为"科技树（路径互斥 + 节点线性解锁）"，详见 [30-tower-tech-tree](./30-tower-tech-tree.md)。本文档 §1 塔类的 "L3 被动" 与"L1~L5 升级"描述已废弃，保留作历史参考。`baseLevel` 字段废弃，`instanceLevel` 语义见 §10。
 
 ---
 
@@ -74,19 +76,22 @@
 ## 1. 塔类（Tower）
 
 > 所有塔具体数值见 [21 §4](./21-mda-numerical-design.md#4-塔类单位数值重设计)。
+> **升级体系（v3.1）**：塔升级改为**科技树**（路径互斥 + 节点线性解锁），权威定义见 [30-tower-tech-tree](./30-tower-tech-tree.md)。本表 "L3 被动" 列保留作历史参考，运行时实际能力以 30 号文档的节点配置为准。
 
-| 塔 ID | 战术角色 | 攻击模式 | 关键机制 | L3 被动 |
+| 塔 ID | 战术角色 | 默认攻击模式 | 默认关键机制 | 科技树路径 |
 |-------|---------|---------|---------|---------|
-| `arrow_tower` | 稳定单体输出 | `single_target` | — | 精准射击（暴击） |
-| `cannon_tower` | 群体控制 | `aoe_splash` | `stun_on_hit` | 集束弹药（AOE 增幅） |
-| `ice_tower` | 战场减速 | `single_target` | `slow_on_hit` + `freeze_at_max_stacks` | 碎裂（冰冻结束 AOE） |
-| `lightning_tower` | 群怪清剿 | `chain` | — | 过载（弹跳+衰减优化） |
-| `laser_tower` | 远程贯穿 | `piercing` | — | 聚焦光束（衰减降低） |
-| `bat_tower` | 暗夜杀手 | `single_target` | `weather_dependent_atk` + `lifesteal_on_hit` | 声波探测（无视雾天射程惩罚） |
-| `missile_tower` | 战略打击 | `global_aoe` | 地格评分系统（详见 19） | 详见 19 |
+| `arrow_tower` | 稳定单体输出 | `single_target` | — | 多重射击 / 高频火力（详见 [30 §4.1](./30-tower-tech-tree.md#41-箭塔)） |
+| `cannon_tower` | 群体控制 | `aoe_splash` | `stun_on_hit` | 控场 AOE / 狙击穿透（详见 [30 §4.2](./30-tower-tech-tree.md#42-炮塔)） |
+| `elemental_tower` | 元素效果（默认冰） | `single_target` | `slow_on_hit`（冰）/`burn_on_hit`（火）/`poison_on_hit`（毒） | 冰系 / 火系 / 毒系（详见 [30 §4.3](./30-tower-tech-tree.md#43-元素塔原冰塔)） |
+| `lightning_tower` | 群怪清剿 | `chain` | — | 单路径 4 节点（详见 [30 §4.4](./30-tower-tech-tree.md#44-电塔单路径-4-节点)） |
+| `laser_tower` | 远程持续输出 | 激光 | — | 扇形覆盖 / 蓄能聚焦（详见 [30 §4.5](./30-tower-tech-tree.md#45-激光塔)） |
+| `bat_tower` | 暗夜杀手 | 群体单位 | `weather_dependent_atk` | 单路径 3 节点（详见 [30 §4.6](./30-tower-tech-tree.md#46-蝙蝠塔单路径-3-节点)） |
+| `missile_tower` | 战略打击 | `global_aoe` | 地格评分系统（详见 19） | 双联齐射 / 战略弹头（详见 [30 §4.7](./30-tower-tech-tree.md#47-导弹塔)） |
 
+> v3.1 重命名：`ice_tower` → `elemental_tower`。默认形态 = 元素塔 · 冰，沿用原 `slow_on_hit` 机制，向后兼容。
+> 已废弃单位：`poison_vine_tower`（毒藤塔）/ `ballista_tower`（弩炮塔）—— 角色由元素塔毒系路径、炮塔狙击穿透路径承接，详见 [30 §8](./30-tower-tech-tree.md#8-废弃单位清单)。
 > 共同字段：均为 `category: Tower`，部署在地面层（Ground），不可移动。
-> 升级体系：L1~L5，共 4 次升级。
+> 升级体系：**关内禁升级**，关外卡池按科技树路径解锁（碎片货币），详见 [30 §2 全局规则](./30-tower-tech-tree.md#2-全局规则)。
 
 ### 1.1 蝙蝠塔天气依赖说明
 
@@ -95,6 +100,23 @@
 ### 1.2 导弹塔说明
 
 导弹塔的攻击不是单体或简单 AOE，而是"地格评分系统驱动的全场 AOE 战略打击"。详细机制（评分维度、爆炸物理、热压弹头等）见 [19-missile-tower.md](./19-missile-tower.md)。
+
+### 1.3 塔科技树字段规范（v3.1）
+
+塔单位 YAML 增加 `techTree` 字段，旧 `upgrades` / `maxLevel` 字段废弃。完整结构与路径定义见 [30 §5 配置结构](./30-tower-tech-tree.md#5-配置结构yaml)，本节仅列字段语义索引：
+
+| 字段 | 类型 | 语义 |
+|------|------|------|
+| `techTree.paths[]` | array | 该塔的所有升级路径 |
+| `path.id` | string | 路径主键（如 `multi_shot` / `rapid_fire`） |
+| `path.name` | string | 路径显示名（如「多重射击」） |
+| `path.nodes[]` | array | 路径节点（线性解锁顺序） |
+| `node.id` | string | 节点主键（如 `arrow_double`） |
+| `node.name` | string | 节点形态名（如「双重箭塔」），关内塔实际显示 |
+| `node.shardCost` | int | 解锁该节点的火花碎片成本（数值在 21-MDA） |
+| `node.effects[]` | array | 该节点新增/覆盖的能力，引用 RuleHandler |
+
+> 元素塔（`elemental_tower`）特殊：路径切换时同步切换 `elementType` 字段（`ice` / `fire` / `poison`），规则引擎据此决定命中附加的 DOT/Debuff。
 
 ---
 
@@ -207,7 +229,7 @@
 |-------|------|--------|----------------|------|
 | `arrow_tower_card` | 建筑卡 | Common | `arrow_tower` | 基础远程塔 |
 | `cannon_tower_card` | 建筑卡 | Common | `cannon_tower` | 基础群伤塔 |
-| `ice_tower_card` | 建筑卡 | Rare | `ice_tower` | 控制塔 |
+| `elemental_tower_card` | 建筑卡 | Rare | `elemental_tower` | 元素塔（默认冰形态），路径详见 [30 §4.3](./30-tower-tech-tree.md#43-元素塔原冰塔)；v3.1 重命名自 `ice_tower_card` |
 | `lightning_tower_card` | 建筑卡 | Rare | `lightning_tower` | 链击塔 |
 | `laser_tower_card` | 建筑卡 | Epic | `laser_tower` | 贯穿塔 |
 | `bat_tower_card` | 建筑卡 | Epic | `bat_tower` | 暗夜塔 |
@@ -281,6 +303,9 @@
 |------|------|------|
 | `enemyTargetPriority[]` | Enemy | 攻击优先级配置（详见 [02 §9](./02-unit-system.md#9-单位的-ai-行为优先级v30-新增敌方)） |
 | `cardId` | 单位实例（运行时） | 该实例由哪张卡生成（用于追溯） |
-| `instanceLevel` | 单位实例（运行时） | 实例当前等级（永久 base + 本局升级） |
+| `instanceLevel` | 单位实例（运行时） | 关内单实例临时强化层级。**v3.1：仅本局有效，塔死亡/关结束清零，不持久化到 CardCollection，不切换形态**（仅调数值）。形态切换走科技树，详见 [30 §2.3](./30-tower-tech-tree.md#23-关内临时升级instancelevel保留) |
+| ~~`baseLevel`~~ | ~~CardCollection~~ | **v3.1 废弃**。原"永久 L1–L5"模型由科技树取代，迁移规则见 [13 §存档迁移](./13-save-system.md) |
+| `techTree.pathDepth` | CardCollection（塔卡） | 该塔卡每条路径已解锁到第几个节点（v3.1 新增） |
+| `techTree.equippedPath` | CardCollection（塔卡） | 该塔卡当前装备的路径 ID（v3.1 新增） |
 | `persistAcrossWaves` | CardConfig | 法术卡是否跨波保留 |
 | `removable` | CardConfig | 卡是否可在商店移除 |
