@@ -1,4 +1,18 @@
-# 29 — 关卡编辑器（Level Editor）
+---
+title: 关卡编辑器（Level Editor）
+status: authoritative
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - level-editor
+  - level-yaml-schema
+supersedes: []
+cross-refs:
+  - 10-gameplay/13-map-level.md
+  - 10-gameplay/10-roguelike-loop.md
+---
+
+# 关卡编辑器（Level Editor）
 
 > 形态：游戏内集成编辑器 · 调试模式入口
 > 数据：本地后端写文件 API → `src/config/levels/*.yaml`
@@ -56,7 +70,7 @@
 
 | 入口位置 | 触发条件 | 行为 |
 |---------|---------|------|
-| **调试面板**（参见 [27-调试系统](./27-debug-system.md)） | 仅 `import.meta.env.DEV === true` 时显示 | 点击「关卡编辑器」按钮，打开编辑器主界面 |
+| **调试面板**（参见 [27-调试系统](./63-debug.md)） | 仅 `import.meta.env.DEV === true` 时显示 | 点击「关卡编辑器」按钮，打开编辑器主界面 |
 | **键盘快捷键** | `F2`（DEV 模式） | 全局热键，任何场景均可呼出 |
 
 > 生产构建中，编辑器模块通过 `if (import.meta.env.DEV)` 守卫，Vite tree-shake 时整段剥离，**不进入 production bundle**。
@@ -277,7 +291,7 @@ interface EditorState {
 路径不再是"折线数组"，而是**节点 + 有向加权边的 DAG（有向无环图）**。
 - 节点（`PathNode`）落在 tile 上，分四种角色：`spawn / waypoint / branch / portal / crystal_anchor`
 - 边（`PathEdge`）从一个节点连到下一个节点，**同一节点出度 ≥ 1**；出度 > 1 = 分支点，按权重随机
-- 分支语义：**敌人到达分支节点时，按出边权重随机选一条**（采用 `waveRandom` 种子流，详见 [07 §2.3.3](./07-map-level-system.md#233-多流隔离)），选定后沿该边走到下一节点
+- 分支语义：**敌人到达分支节点时，按出边权重随机选一条**（采用 `waveRandom` 种子流，详见 [07 §2.3.3](../10-gameplay/13-map-level.md#233-多流隔离)），选定后沿该边走到下一节点
 - 传送门：特殊节点，**敌人到达后瞬移到指定目标节点**继续行走（详见 §4.6）
 - 拓扑约束：**DAG**（禁止环路），但 portal 跳转**不计入环路检测**（portal 是逻辑跳转，不是图边）
 
@@ -583,7 +597,7 @@ function validatePathGraph(map):
 | `src/render/MapRenderer.ts` | 渲染所有 spawn / branch / portal / crystal_anchor 标记；编辑器渲染额外覆盖多色子图 overlay 与权重标签 |
 | 各 `*.test.ts` | 涉及路径访问的测试更新；新增 PathGraph 单元测试 |
 
-> 该改动属于"结构性升级"，但保留**所有现有玩法功能不变**——不属于「roguelike 重构」豁免，必须满足 [回归铁律](../AGENTS.md#-回归铁律新增修改需求不得破坏已有功能)：现有 L1-L5 通关流程零退化。
+> 该改动属于"结构性升级"，但保留**所有现有玩法功能不变**——不属于「roguelike 重构」豁免，必须满足 [回归铁律](../../AGENTS.md#-回归铁律新增修改需求不得破坏已有功能)：现有 L1-L5 通关流程零退化。
 
 ---
 
@@ -607,7 +621,7 @@ function validatePathGraph(map):
 1. 敌人 `targetNodeId = portal_in`，沿边走到 portal_in 的几何位置
 2. 抵达瞬间：
    - 视觉特效：原地播放传送特效（漩涡缩放 + 颜色 A），目标位置播放传送出特效（漩涡膨胀 + 颜色 A）
-   - 音效：`sfx_portal_teleport`（新增，待 [10-audio](./10-audio-system.md) 评估）
+   - 音效：`sfx_portal_teleport`（新增，待 [10-audio](../40-presentation/46-audio.md) 评估）
    - 实体坐标瞬移到 `teleportTo` 节点的几何位置
    - `currentNodeId = teleportTo`，调用 `chooseNext(currentNodeId)` 选下一节点（若 `teleportTo` 是 branch，仍会触发加权随机）
 3. 在传送瞬间敌人**不计入移动距离**，攻速/buff/debuff 计时不重置
@@ -872,7 +886,7 @@ export function editorFsApi(): Plugin {
 | 2 | 地图尺寸是否可变 | **v1.0 锁定 21×9**。未来若需自定义尺寸需同步调整渲染锚点和水晶位置。 |
 | 3 | UI 框架选型 | **Preact（~3KB gzip）**。详见 §3.3。 |
 | 4 | 共享 path tile 编辑歧义 | **只对"当前编辑中节点"生效**（§4.5.6）。共享 tile 在 hover 时以列表形式展示所有所属节点。 |
-| 5 | `tiles[].type = 'base'` 是否保留 | **编辑器内部统一显示为水晶（crystal）**。迁移时 `base` 透明转 `crystal`，YAML 写回也用 `crystal`。与 [07 §1.2](./07-map-level-system.md) 对齐。 |
+| 5 | `tiles[].type = 'base'` 是否保留 | **编辑器内部统一显示为水晶（crystal）**。迁移时 `base` 透明转 `crystal`，YAML 写回也用 `crystal`。与 [07 §1.2](../10-gameplay/13-map-level.md) 对齐。 |
 
 ---
 
@@ -906,9 +920,9 @@ export function editorFsApi(): Plugin {
 
 ## 14. 参考文档
 
-- [07-地图与关卡系统](./07-map-level-system.md) — 关卡配置字段语义
-- [15-重构方案](./15-refactoring-plan.md) — 配置驱动架构
-- [20-响应式布局](./20-responsive-layout.md) — 21×9 网格与锚点
-- [27-调试系统](./27-debug-system.md) — 调试入口规范
+- [07-地图与关卡系统](../10-gameplay/13-map-level.md) — 关卡配置字段语义
+- [15-重构方案](./60-architecture.md) — 配置驱动架构
+- [20-响应式布局](../40-presentation/41-responsive-layout.md) — 21×9 网格与锚点
+- [27-调试系统](./63-debug.md) — 调试入口规范
 - [src/config/loader.ts](../src/config/loader.ts) — 现有 YAML 加载流
 - [src/config/levels/](../src/config/levels/) — 现有关卡 YAML 范例

@@ -1,4 +1,20 @@
-# 15 — 重构方案
+---
+title: 架构与重构方案
+status: authoritative
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - system-architecture
+  - pipeline-order
+  - ecs-rules
+  - rule-engine-spec
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 60-tech/61-save-system.md
+---
+
+# 架构与重构方案
 
 > 技术选型评估、架构设计、迁移路线图
 
@@ -362,7 +378,7 @@ boss_commander:
 
 # 七、v3.0 卡牌化分阶段实施（追加）
 
-> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，将塔防游戏改造为「卡牌 + Roguelike 长征」。本节定义 v2.x → v3.0 的实施路线图。
+> 根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，将塔防游戏改造为「卡牌 + Roguelike 长征」。本节定义 v2.x → v3.0 的实施路线图。
 
 ## 7.1 v3.0 改造目标
 
@@ -458,7 +474,7 @@ boss_commander:
 - **代码兼容**：保留 `Tower` / `Soldier` / `Enemy` 等 UnitConfig 概念不变，仅新增 CardConfig 层
 - **行为树兼容**：现有 23 / 24 行为树继续使用，新增 `enemyTargetPriority` 字段不破坏旧 BT
 - **数值兼容**：21-MDA §4-§9 旧数值表保留，新增 §12-§18 v3.0 数值表
-- **存档兼容**：v1.1 存档自动迁移到 v2.0，发放补偿碎片（详见 [13-save §6.2](./13-save-system.md#62-迁移注册表)）
+- **存档兼容**：v1.1 存档自动迁移到 v2.0，发放补偿碎片（详见 [13-save §6.2](./61-save-system.md#62-迁移注册表)）
 - **测试兼容**：旧测试中与单关 / 三星 / 无尽相关的 case 标记为 `.skip`，新测试覆盖 v3.0 功能
 
 ## 7.4 风险与缓解

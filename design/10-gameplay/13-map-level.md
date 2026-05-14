@@ -1,8 +1,24 @@
-# 07 — 地图与关卡系统
+---
+title: 地图与关卡系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - level-progression
+  - wave-system
+  - map-grid
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 60-tech/64-level-editor.md
+  - 50-data-numerical/50-mda.md
+---
+
+# 地图与关卡系统
 
 > 网格地图、8 关 + 终战、波次系统、关间节点、随机初始化
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，关卡结构改为 Roguelike 长征模式（连闯 8 关 + 终战 Boss）。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](./10-roguelike-loop.md) 方案，关卡结构改为 Roguelike 长征模式（连闯 8 关 + 终战 Boss）。
 
 ---
 
@@ -23,14 +39,14 @@
 | `path` | 路径 | 敌人行走，不可部署 |
 | `blocked` | 障碍 | 不可通行不可部署 |
 | `spawn` | 敌人出生点 | 位于地图右侧 |
-| `crystal` | **水晶（前称大本营）** | 位于地图左侧，HP 跨关卡继承。无敌但秒杀进入攻击范围的敌人，每杀 1 个 -1 HP。Boss 携带 `immune_to_crystal_kill` 标记不可被秒杀。详见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体) |
+| `crystal` | **水晶（前称大本营）** | 位于地图左侧，HP 跨关卡继承。无敌但秒杀进入攻击范围的敌人，每杀 1 个 -1 HP。Boss 携带 `immune_to_crystal_kill` 标记不可被秒杀。详见 [25 §6.2](./10-roguelike-loop.md#62-水晶机制核心防御实体) |
 
 ### 1.3 水晶与生成口（v3.0 关键变更）
 
-- **水晶固定在地图左侧**（玩家保卫的核心防御实体，红色辉光悬浮造型，详见 [16-art §13.13](./16-art-assets-design.md#1313-水晶大本营视觉)）
+- **水晶固定在地图左侧**（玩家保卫的核心防御实体，红色辉光悬浮造型，详见 [16-art §13.13](../40-presentation/42-art-assets.md#1313-水晶大本营视觉)）
 - **敌方生成口固定在地图右侧**（部分关卡可有多个生成口）
 - 敌人从右向左行进
-- 水晶 HP 见 [13-save-system §4](./13-save-system.md)，跨关卡继承；水晶机制（无敌 + 秒杀 + 1HP 消耗）见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)
+- 水晶 HP 见 [13-save-system §4](../60-tech/61-save-system.md)，跨关卡继承；水晶机制（无敌 + 秒杀 + 1HP 消耗）见 [25 §6.2](./10-roguelike-loop.md#62-水晶机制核心防御实体)
 - **路径终点变更**：路径终点格紧邻水晶，水晶占用左侧 1 格（不算 path），敌人最终目标是「进入水晶 `attackRange` 范围」而非「抵达地图边」
 
 ### 1.4 建造限制
@@ -274,7 +290,7 @@ class RunRandom {
 
 ### 4.4 敌人层级（Layer）— 保留
 
-> 详见 [18-图层系统](./18-layer-system.md)。
+> 详见 [18-图层系统](../40-presentation/45-layer-system.md)。
 
 | 层级 | 说明 | 可被攻击规则 |
 |------|------|------------|
@@ -297,7 +313,7 @@ class RunRandom {
 | **反射机甲** | L8 | 反弹 30% 受到的攻击 |
 | **强化自爆兽** | L7 | 接近塔时自爆造成 AoE |
 
-具体数值见 [21-MDA §6](./21-mda-numerical-design.md)。详细机制与阵容清单见 [21-unit-roster](./20-units/21-unit-roster.md)。
+具体数值见 [21-MDA §6](../50-data-numerical/50-mda.md)。详细机制与阵容清单见 [21-unit-roster](../20-units/21-unit-roster.md)。
 
 ---
 
@@ -310,7 +326,7 @@ class RunRandom {
 | 🏪 **商店** | 稳健消费，明码标价 |
 | 🌀 **秘境** | 冒险博弈，事件随机 |
 
-详细规则见 [25-card-roguelike-refactor §3](./25-card-roguelike-refactor.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)。
+详细规则见 [25-card-roguelike-refactor §3](./10-roguelike-loop.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)。
 
 ### 5.1 关 8 与终战之间
 
@@ -332,7 +348,7 @@ class RunRandom {
 | 石堡 | `#37474f` 暗石 | `#546e7a` 石板 | `#263238` 纯黑 | `#fff176` 金 | `#42a5f5` 蓝 |
 | 深渊 | `#1a0033` 深紫 | `#311b92` 紫黑 | `#0d0019` 黑紫 | `#aa00ff` 亮紫 | `#ffd54f` 金黄 |
 
-> "水晶底座"指水晶所在格的 tile 底色（地面装饰），不是水晶本体颜色。水晶本体始终为**红色辉光晶体**，造型与配色规范见 [16-art-assets §13.13](./16-art-assets-design.md#1313-水晶大本营视觉)。
+> "水晶底座"指水晶所在格的 tile 底色（地面装饰），不是水晶本体颜色。水晶本体始终为**红色辉光晶体**，造型与配色规范见 [16-art-assets §13.13](../40-presentation/42-art-assets.md#1313-水晶大本营视觉)。
 
 ---
 
@@ -352,4 +368,4 @@ class RunRandom {
 | 石堡 | 石柱、火炬台、碎石堆 |
 | 深渊 | 漂浮石、紫色火焰、晶簇 |
 
-装饰物散布在空地块上，随机摆放，不影响游戏逻辑。详见 [17-scene-decoration](./17-scene-decoration.md)。
+装饰物散布在空地块上，随机摆放，不影响游戏逻辑。详见 [17-scene-decoration](../40-presentation/43-scene-decoration.md)。

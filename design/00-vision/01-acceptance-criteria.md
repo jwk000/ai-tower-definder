@@ -1,8 +1,22 @@
-# 14 — 验收标准
+---
+title: 验收标准
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - acceptance-criteria
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 50-data-numerical/50-mda.md
+  - 20-units/22-tower-tech-tree.md
+---
+
+# 验收标准
 
 > 功能验收、体验验收、各阶段门禁、回归验证清单
 >
-> **v3.0 更新**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除「单关三星」「无尽模式」相关验收项，新增「Run 模式」「卡牌系统」「关间节点」「永久卡池」相关验收项。其余 v1.1 验收项保留。
+> **v3.0 更新**：根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，删除「单关三星」「无尽模式」相关验收项，新增「Run 模式」「卡牌系统」「关间节点」「永久卡池」相关验收项。其余 v1.1 验收项保留。
 
 ---
 
@@ -105,7 +119,7 @@
 
 ### 3.6 水晶机制与 HP 继承
 
-> 水晶（前称大本营）是玩家方的核心防御实体。详细机制见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)。
+> 水晶（前称大本营）是玩家方的核心防御实体。详细机制见 [25 §6.2](../10-gameplay/10-roguelike-loop.md#62-水晶机制核心防御实体)。
 
 #### 6a. 水晶基础与 HP 继承
 
@@ -137,7 +151,7 @@
 - [ ] 水晶辉光亮度按呼吸频率周期变化
 - [ ] 秒杀触发时水晶向目标方向发出红色光束 + 目标位置出现红色爆裂粒子
 - [ ] 水晶 HP=0 时触发碎裂动画：水晶分裂为多个碎片 → 向上飘散 → 透明度渐变到 0 → 完全消失
-- [ ] 详细视觉规范见 [16-art §13.13](./16-art-assets-design.md#1313-水晶大本营视觉) 与 [12-vfx §10](./12-visual-effects.md#10-水晶视觉与特效v30-新增)
+- [ ] 详细视觉规范见 [16-art §13.13](../40-presentation/42-art-assets.md#1313-水晶大本营视觉) 与 [12-vfx §10](../40-presentation/44-visual-effects.md#10-水晶视觉与特效v30-新增)
 
 ### 3.7 关间节点：商店
 

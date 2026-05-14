@@ -1,10 +1,27 @@
-# 21 — MDA 驱动的全局数值设计
+---
+title: MDA 驱动的全局数值设计
+status: authoritative
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - all-numerical-values
+  - damage-formulas
+  - progression-curves
+  - balance-tables
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 20-units/22-tower-tech-tree.md
+  - 20-units/21-unit-roster.md
+---
+
+# MDA 驱动的全局数值设计
 
 > 基于 MDA 理论对 Tower Defender 全部游戏数值进行系统性评估、诊断与优化重设计。
 >
 > 版本: v1.2 | 日期: 2026-05-14 | 状态: **唯一数值真理源（Single Source of Truth）**
 >
-> **v1.2 变更**：新增 §20「塔科技树数值（v3.1）」承接 [30-tower-tech-tree](./30-tower-tech-tree.md) 的数值定义，含节点解锁碎片成本、各塔节点能力占位值、路径重置成本与返还、与 §17 经济关系。
+> **v1.2 变更**：新增 §20「塔科技树数值（v3.1）」承接 [30-tower-tech-tree](../20-units/22-tower-tech-tree.md) 的数值定义，含节点解锁碎片成本、各塔节点能力占位值、路径重置成本与返还、与 §17 经济关系。
 
 ---
 
@@ -818,7 +835,7 @@ AOE因子：
 
 # v3.0 卡牌 + Roguelike 数值扩展
 
-> 以下章节由 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 引入，本节是 v3.0 卡牌系统的唯一数值真理源。
+> 以下章节由 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 引入，本节是 v3.0 卡牌系统的唯一数值真理源。
 >
 > v3.0 新增三大资源：能量 E（关内）、金币 G（Run）、火花碎片（meta）。本节定义其数值。
 
@@ -946,7 +963,7 @@ AOE因子：
 
 ## 15. 秘境事件效果数值（v3.0）
 
-> 秘境事件池详细文本见 [25 §3.2](./25-card-roguelike-refactor.md)，此处仅定义数值效果。
+> 秘境事件池详细文本见 [25 §3.2](../10-gameplay/10-roguelike-loop.md)，此处仅定义数值效果。
 
 | 事件 ID | 选项 | 数值效果 |
 |---------|------|---------|
@@ -1073,7 +1090,7 @@ final_Bounty = base_Bounty × goldRewardMult[N]
 
 ## 19. 水晶机制数值（v3.0 新增 — 大本营 → 水晶）
 
-> 配套语义见 [25 §6.2 水晶机制](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)。本节是水晶相关字段的**数值真理源**。
+> 配套语义见 [25 §6.2 水晶机制](../10-gameplay/10-roguelike-loop.md#62-水晶机制核心防御实体)。本节是水晶相关字段的**数值真理源**。
 
 ### 19.1 水晶核心数值
 
@@ -1138,7 +1155,7 @@ final_Bounty = base_Bounty × goldRewardMult[N]
 
 ## 20. 塔科技树数值（v3.1 新增）
 
-> 权威方案：[30-tower-tech-tree](./30-tower-tech-tree.md)。本节为科技树各节点的数值真理源；所有 YAML 配置与代码实现必须从本节取值。
+> 权威方案：[30-tower-tech-tree](../20-units/22-tower-tech-tree.md)。本节为科技树各节点的数值真理源；所有 YAML 配置与代码实现必须从本节取值。
 
 ### 20.1 通用规则
 
@@ -1255,7 +1272,7 @@ final_Bounty = base_Bounty × goldRewardMult[N]
 
 - 本节费用全部从 §17 火花碎片池支出，**不引入新货币**。
 - §17.1 玩家碎片获取速率不变；§17.3 永久升级（水晶 HP/能量上限等）与科技树并列消费 — 玩家需要在"水晶续航"与"塔强化"之间分配预算，构成 meta 策略选择。
-- 商店"路径重置券"（[25 §3.2](./25-card-roguelike-refactor.md#32-商店节点稳健分支)）价格 100-150 G，约对应玩家 1 关后期省下的一次小额商品费用，作为"碎片对金币的间接转化"通道。
+- 商店"路径重置券"（[25 §3.2](../10-gameplay/10-roguelike-loop.md#32-商店节点稳健分支)）价格 100-150 G，约对应玩家 1 关后期省下的一次小额商品费用，作为"碎片对金币的间接转化"通道。
 
 ### 20.7 实测与调参原则
 

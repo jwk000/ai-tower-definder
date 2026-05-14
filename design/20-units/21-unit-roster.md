@@ -23,20 +23,20 @@ cross-refs:
   - ../19-missile-tower.md
 ---
 
-# 21 — 单位与卡牌阵容总表
+# 单位与卡牌阵容总表
 
 > 本文档是**单位字段语义**与 **v3.0/v3.1 阵容清单**的唯一权威。所有单位 ID、分类、机制语义、与卡牌的映射关系以此为准。
 >
 > **本文档不包含**：
-> - 具体数值（HP/ATK/造价等）→ [21-MDA](../21-mda-numerical-design.md)
-> - 卡牌系统机制（抽弃牌/出卡/关间节点）→ [25-card-roguelike-refactor](../25-card-roguelike-refactor.md)
-> - 塔升级机制（科技树路径/节点解锁）→ [30-tower-tech-tree](../30-tower-tech-tree.md)
-> - 视觉规范（形状/颜色/动画）→ [16-art-assets-design](../16-art-assets-design.md)
-> - AI 行为树具体节点 → [23-ai-behavior-tree](../23-ai-behavior-tree.md) / [24-soldier-ai-behavior](../24-soldier-ai-behavior.md)
-> - 战斗公式（伤害/护甲减伤）→ [05-combat-system](../05-combat-system.md)
+> - 具体数值（HP/ATK/造价等）→ [21-MDA](../50-data-numerical/50-mda.md)
+> - 卡牌系统机制（抽弃牌/出卡/关间节点）→ [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md)
+> - 塔升级机制（科技树路径/节点解锁）→ [30-tower-tech-tree](./22-tower-tech-tree.md)
+> - 视觉规范（形状/颜色/动画）→ [16-art-assets-design](../40-presentation/42-art-assets.md)
+> - AI 行为树具体节点 → [23-ai-behavior-tree](../30-ai/30-behavior-tree.md) / [24-soldier-ai-behavior](../30-ai/31-soldier-ai.md)
+> - 战斗公式（伤害/护甲减伤）→ [05-combat-system](./24-combat.md)
 
 > **v3.1（2026-05-14）变更摘要**：
-> - 塔升级模型从"关内 L1-L5 线性"重构为"关外科技树（路径互斥 + 节点线性解锁）"，权威见 [30](../30-tower-tech-tree.md)。
+> - 塔升级模型从"关内 L1-L5 线性"重构为"关外科技树（路径互斥 + 节点线性解锁）"，权威见 [30](./22-tower-tech-tree.md)。
 > - `ice_tower` 重命名为 `elemental_tower`（默认冰形态，路径覆盖冰/火/毒三系）。
 > - 已废弃单位：`poison_vine_tower`（毒藤塔）、`ballista_tower`（弩炮塔）—— 角色由元素塔毒系路径、炮塔狙击穿透路径承接。详见 [archive/deprecated-units-vine-ballista.md](../archive/deprecated-units-vine-ballista.md)。
 > - `baseLevel` 字段已废弃；`instanceLevel` 语义见 §6。
@@ -53,7 +53,7 @@ cross-refs:
 
 ## 1. 通用字段约定（Schema）
 
-每个单位配置由以下分类字段构成。具体取值见 [21-MDA](../21-mda-numerical-design.md)。
+每个单位配置由以下分类字段构成。具体取值见 [21-MDA](../50-data-numerical/50-mda.md)。
 
 | 字段类别 | 字段 | 语义 |
 |---------|------|------|
@@ -70,14 +70,14 @@ cross-refs:
 | | `population` | 占用人口（仅 Soldier） |
 | | `cost` | 建造造价（金币） |
 | | `killReward` | 击杀奖励（仅敌人） |
-| **视觉** | `color` | 主色（阵营色），详见 [16 §9 阵营色规范](../16-art-assets-design.md) |
-| | `shape` | 复合几何体描述（详见 [16 §5](../16-art-assets-design.md)） |
+| **视觉** | `color` | 主色（阵营色），详见 [16 §9 阵营色规范](../40-presentation/42-art-assets.md) |
+| | `shape` | 复合几何体描述（详见 [16 §5](../40-presentation/42-art-assets.md)） |
 | | `size` / `radius` | 渲染尺寸 |
-| | `layer` | 渲染层级（详见 [18 图层系统](../18-layer-system.md)） |
+| | `layer` | 渲染层级（详见 [18 图层系统](../40-presentation/45-layer-system.md)） |
 | **机制** | `attackMode` | 见 §1.1 攻击模式枚举 |
 | | `specialEffects[]` | 见 §1.2 特殊机制枚举 |
-| | `skill` | 主动技能引用（详见 [04](../04-skill-buff-system.md)） |
-| | `aiBehavior` | 行为树 ID（详见 [23](../23-ai-behavior-tree.md)） |
+| | `skill` | 主动技能引用（详见 [04](./23-skill-buff.md)） |
+| | `aiBehavior` | 行为树 ID（详见 [23](../30-ai/30-behavior-tree.md)） |
 
 ### 1.1 攻击模式枚举（`attackMode`）
 
@@ -103,7 +103,7 @@ cross-refs:
 | `burn_on_hit` | 命中后燃烧 DOT | `burnDps` / `burnDuration` |
 | `poison_on_hit` | 命中附毒 DOT | `poisonDps` / `poisonDuration` |
 | `lifesteal_on_hit` | 攻击吸血 | `lifestealRatio` |
-| `weather_dependent_atk` | 攻击力随天气变动 | 详见 [11-weather-system](../11-weather-system.md) |
+| `weather_dependent_atk` | 攻击力随天气变动 | 详见 [11-weather-system](../10-gameplay/14-weather.md) |
 | `death_explosion` | 死亡爆炸 AOE | `explosionRadius` / `explosionDamage` / `factionFilter` |
 | `boss_phase_transition` | 血量阈值阶段切换 | `phaseHpThreshold` / `phaseModifiers` |
 | `boss_immune_stun` | 免疫眩晕 | — |
@@ -115,22 +115,22 @@ cross-refs:
 
 ## 2. 塔类（Tower）
 
-> 数值见 [21-MDA §4](../21-mda-numerical-design.md#4-塔类单位数值重设计)。升级体系（v3.1 科技树）见 [30](../30-tower-tech-tree.md)。
+> 数值见 [21-MDA §4](../50-data-numerical/50-mda.md#4-塔类单位数值重设计)。升级体系（v3.1 科技树）见 [30](./22-tower-tech-tree.md)。
 
 ### 2.1 塔阵容清单
 
 | # | 塔 ID | 战术角色 | 默认攻击模式 | 默认关键机制 | 卡稀有度 | 科技树路径 |
 |---|-------|---------|---------|---------|---------|---------|
-| 1 | `arrow_tower` | 稳定单体输出 | `single_target` | — | Common | 多重射击 / 高频火力（→ [30 §4.1](../30-tower-tech-tree.md#41-箭塔)） |
-| 2 | `cannon_tower` | 群体控制 | `aoe_splash` | `stun_on_hit` | Common | 控场 AOE / 狙击穿透（→ [30 §4.2](../30-tower-tech-tree.md#42-炮塔)） |
-| 3 | `elemental_tower` | 元素效果（默认冰） | `single_target` | `slow_on_hit` (冰) / `burn_on_hit` (火) / `poison_on_hit` (毒) | Rare | 冰系 / 火系 / 毒系（→ [30 §4.3](../30-tower-tech-tree.md#43-元素塔原冰塔)） |
-| 4 | `lightning_tower` | 群怪清剿 | `chain` | — | Rare | 单路径 4 节点（→ [30 §4.4](../30-tower-tech-tree.md#44-电塔单路径-4-节点)） |
-| 5 | `laser_tower` | 远程持续输出 | 激光 | — | Epic | 扇形覆盖 / 蓄能聚焦（→ [30 §4.5](../30-tower-tech-tree.md#45-激光塔)） |
-| 6 | `bat_tower` | 暗夜杀手 | 群体单位 | `weather_dependent_atk` | Epic | 单路径 3 节点（→ [30 §4.6](../30-tower-tech-tree.md#46-蝙蝠塔单路径-3-节点)） |
-| 7 | `missile_tower` | 战略打击 | `global_aoe` | 地格评分系统（详见 [19](../19-missile-tower.md)） | Legendary | 双联齐射 / 战略弹头（→ [30 §4.7](../30-tower-tech-tree.md#47-导弹塔)） |
+| 1 | `arrow_tower` | 稳定单体输出 | `single_target` | — | Common | 多重射击 / 高频火力（→ [30 §4.1](./22-tower-tech-tree.md#41-箭塔)） |
+| 2 | `cannon_tower` | 群体控制 | `aoe_splash` | `stun_on_hit` | Common | 控场 AOE / 狙击穿透（→ [30 §4.2](./22-tower-tech-tree.md#42-炮塔)） |
+| 3 | `elemental_tower` | 元素效果（默认冰） | `single_target` | `slow_on_hit` (冰) / `burn_on_hit` (火) / `poison_on_hit` (毒) | Rare | 冰系 / 火系 / 毒系（→ [30 §4.3](./22-tower-tech-tree.md#43-元素塔原冰塔)） |
+| 4 | `lightning_tower` | 群怪清剿 | `chain` | — | Rare | 单路径 4 节点（→ [30 §4.4](./22-tower-tech-tree.md#44-电塔单路径-4-节点)） |
+| 5 | `laser_tower` | 远程持续输出 | 激光 | — | Epic | 扇形覆盖 / 蓄能聚焦（→ [30 §4.5](./22-tower-tech-tree.md#45-激光塔)） |
+| 6 | `bat_tower` | 暗夜杀手 | 群体单位 | `weather_dependent_atk` | Epic | 单路径 3 节点（→ [30 §4.6](./22-tower-tech-tree.md#46-蝙蝠塔单路径-3-节点)） |
+| 7 | `missile_tower` | 战略打击 | `global_aoe` | 地格评分系统（详见 [19](./26-missile-special.md)） | Legendary | 双联齐射 / 战略弹头（→ [30 §4.7](./22-tower-tech-tree.md#47-导弹塔)） |
 
 > - 共同字段：均为 `category: Tower`，部署在地面层（Ground），不可移动。
-> - 升级体系（v3.1）：**关内禁升级**，关外卡池按科技树路径解锁（碎片货币），详见 [30 §2 全局规则](../30-tower-tech-tree.md#2-全局规则)。
+> - 升级体系（v3.1）：**关内禁升级**，关外卡池按科技树路径解锁（碎片货币），详见 [30 §2 全局规则](./22-tower-tech-tree.md#2-全局规则)。
 > - v3.1 重命名：`ice_tower` → `elemental_tower`，默认形态 = 元素塔 · 冰，沿用原 `slow_on_hit` 机制，向后兼容。
 > - 已废弃单位：`poison_vine_tower`（毒藤塔）、`ballista_tower`（弩炮塔），见 [archive/deprecated-units-vine-ballista.md](../archive/deprecated-units-vine-ballista.md)；功能由元素塔毒系路径、炮塔狙击穿透路径承接。
 
@@ -138,11 +138,11 @@ cross-refs:
 
 #### 蝙蝠塔（`bat_tower`）天气依赖
 
-蝙蝠塔的 ATK 受 `weather_dependent_atk` 机制影响，倍率在 [21-MDA §9 天气矩阵](../21-mda-numerical-design.md#9-天气系统数值优化) 定义。**蝙蝠塔不再"休眠"**——所有天气下都能正常攻击，仅 ATK 倍率不同。
+蝙蝠塔的 ATK 受 `weather_dependent_atk` 机制影响，倍率在 [21-MDA §9 天气矩阵](../50-data-numerical/50-mda.md#9-天气系统数值优化) 定义。**蝙蝠塔不再"休眠"**——所有天气下都能正常攻击，仅 ATK 倍率不同。
 
 #### 导弹塔（`missile_tower`）
 
-导弹塔的攻击不是单体或简单 AOE，而是"地格评分系统驱动的全场 AOE 战略打击"。详细机制（评分维度、爆炸物理、热压弹头等）见 [19-missile-tower.md](../19-missile-tower.md)。
+导弹塔的攻击不是单体或简单 AOE，而是"地格评分系统驱动的全场 AOE 战略打击"。详细机制（评分维度、爆炸物理、热压弹头等）见 [19-missile-tower.md](./26-missile-special.md)。
 
 #### 元素塔（`elemental_tower`）路径切换
 
@@ -150,7 +150,7 @@ cross-refs:
 
 ### 2.3 塔科技树字段规范（v3.1）
 
-塔单位 YAML 增加 `techTree` 字段，旧 `upgrades` / `maxLevel` 字段废弃。完整结构与路径定义见 [30 §5 配置结构](../30-tower-tech-tree.md#5-配置结构yaml)。字段语义索引：
+塔单位 YAML 增加 `techTree` 字段，旧 `upgrades` / `maxLevel` 字段废弃。完整结构与路径定义见 [30 §5 配置结构](./22-tower-tech-tree.md#5-配置结构yaml)。字段语义索引：
 
 | 字段 | 类型 | 语义 |
 |------|------|------|
@@ -167,11 +167,11 @@ cross-refs:
 
 ## 3. 我方移动单位（Soldier）
 
-> 数值见 [21-MDA §5](../21-mda-numerical-design.md#5-我方移动单位数值重设计)。AI 行为详见 [24-soldier-ai-behavior.md](../24-soldier-ai-behavior.md)。
+> 数值见 [21-MDA §5](../50-data-numerical/50-mda.md#5-我方移动单位数值重设计)。AI 行为详见 [24-soldier-ai-behavior.md](../30-ai/31-soldier-ai.md)。
 
 ### 3.1 士兵阵容清单（6 种核心）
 
-| # | 兵 ID | 战术角色 | 攻击模式 | 主动技能（详见 [04](../04-skill-buff-system.md)） | 卡稀有度 |
+| # | 兵 ID | 战术角色 | 攻击模式 | 主动技能（详见 [04](./23-skill-buff.md)） | 卡稀有度 |
 |---|-------|---------|---------|---------------------|---------|
 | 1 | `shield_guard` | 肉盾 | `single_target` | 嘲讽 | Common |
 | 2 | `swordsman` | 前排输出 | `single_target` | 旋风斩（AOE） | Common |
@@ -198,7 +198,7 @@ cross-refs:
 
 ## 4. 敌方单位（Enemy）
 
-> 数值见 [21-MDA §6](../21-mda-numerical-design.md#6-敌方单位数值重设计)。完整阵容 = **20 种**（13 种 v3.0 扩展 + 7 种 v2 旧 = 19 种沿用 + 1 终战 boss `abyss_lord`，关底 Boss 系列另计）。
+> 数值见 [21-MDA §6](../50-data-numerical/50-mda.md#6-敌方单位数值重设计)。完整阵容 = **20 种**（13 种 v3.0 扩展 + 7 种 v2 旧 = 19 种沿用 + 1 终战 boss `abyss_lord`，关底 Boss 系列另计）。
 
 ### 4.1 敌方阵容清单（20 种）
 
@@ -222,8 +222,8 @@ cross-refs:
 | 16 | `elite_exploder` | L7 | 精英 | 强化自爆（半径 150 / 100 伤害） | 高 |
 | 17 | `invisible_assassin` | L8 | 精英 | 出生 3s 内隐形 | 高 |
 | 18 | `reflective_golem` | L8 | 精英 | 反弹 30% 受到伤害 | 中（避免高 ATK 集火） |
-| 19 | `boss_commander` | 关底 | BOSS | `summon_minions` + `boss_phase_transition` + `boss_immune_stun` | `boss_commander_ai`（→ [23](../23-ai-behavior-tree.md)） |
-| 20 | `abyss_lord` | L9 终战 | BOSS | 3 阶段切换 + 阶段 1 召唤普通敌 + 阶段 2 召唤精英 + 阶段 3 范围 DOT 大招 | `abyss_lord_ai`（→ [23](../23-ai-behavior-tree.md)） |
+| 19 | `boss_commander` | 关底 | BOSS | `summon_minions` + `boss_phase_transition` + `boss_immune_stun` | `boss_commander_ai`（→ [23](../30-ai/30-behavior-tree.md)） |
+| 20 | `abyss_lord` | L9 终战 | BOSS | 3 阶段切换 + 阶段 1 召唤普通敌 + 阶段 2 召唤精英 + 阶段 3 范围 DOT 大招 | `abyss_lord_ai`（→ [23](../30-ai/30-behavior-tree.md)） |
 
 > 旧版 `boss_beast`（分裂巨兽）作为 `boss_commander` 的变体融合，BT 模板复用。
 
@@ -251,11 +251,11 @@ cross-refs:
 
 #### Boss 阶段切换规则
 
-`boss_phase_transition` 通过 BT 的 `Once` 装饰节点封装，确保 HP 跨过阈值时**只触发一次**，阶段切换瞬间重置当前 BT 子树。具体节点规范详见 [23-ai-behavior-tree.md §节点规格冻结](../23-ai-behavior-tree.md)。
+`boss_phase_transition` 通过 BT 的 `Once` 装饰节点封装，确保 HP 跨过阈值时**只触发一次**，阶段切换瞬间重置当前 BT 子树。具体节点规范详见 [23-ai-behavior-tree.md §节点规格冻结](../30-ai/30-behavior-tree.md)。
 
 #### 飞行敌（LowAir 层级）
 
-`bat_swarm` / `wisp` / `hot_air_balloon` 等飞行敌位于 LowAir 层级，**免疫地面陷阱**（AboveGrid 层级），仅可被 LowAir 层级或 Ground 层级塔（即所有塔）攻击。详见 [18-layer-system](../18-layer-system.md)。
+`bat_swarm` / `wisp` / `hot_air_balloon` 等飞行敌位于 LowAir 层级，**免疫地面陷阱**（AboveGrid 层级），仅可被 LowAir 层级或 Ground 层级塔（即所有塔）攻击。详见 [18-layer-system](../40-presentation/45-layer-system.md)。
 
 #### 隐形/不可锁定敌
 
@@ -291,7 +291,7 @@ cross-refs:
 
 ### 5.1 生产建筑（Building）
 
-> 数值见 [21-MDA §7](../21-mda-numerical-design.md#7-经济系统数值重设计)。
+> 数值见 [21-MDA §7](../50-data-numerical/50-mda.md#7-经济系统数值重设计)。
 
 | 建筑 ID | 产出 | 最高等级 | 卡稀有度 | v3.0 备注 |
 |---------|------|---------|---------|----------|
@@ -300,7 +300,7 @@ cross-refs:
 
 ### 5.2 陷阱 / 中立单位（Trap / Neutral）
 
-> 数值见 [21-MDA §7](../21-mda-numerical-design.md#7-经济系统数值重设计) 及附录。
+> 数值见 [21-MDA §7](../50-data-numerical/50-mda.md#7-经济系统数值重设计) 及附录。
 
 | 单位 ID | 类型 | 关键机制 |
 |---------|------|---------|
@@ -312,7 +312,7 @@ cross-refs:
 
 `healing_spring` **不再设置为不可摧毁**。改为高 HP（具体值见 21-MDA）的脆弱光环源——双方均可攻击破坏。一旦摧毁，治疗光环消失。
 
-行为树评估目标时若遇到 `invulnerable=true` 的单位，应通过 `ignore_invulnerable` 装饰器跳过（节点规格见 [23](../23-ai-behavior-tree.md)）。
+行为树评估目标时若遇到 `invulnerable=true` 的单位，应通过 `ignore_invulnerable` 装饰器跳过（节点规格见 [23](../30-ai/30-behavior-tree.md)）。
 
 ### 5.3 路障（Barricade）—— 独立类型 Structure
 
@@ -392,7 +392,7 @@ interface StructureLevel {
 
 | 目标 ID | 阵营 | 说明 |
 |---------|------|------|
-| `base` | Player | 玩家基地，HP 归零=失败。具体 HP 见 [21-MDA §7](../21-mda-numerical-design.md#7-经济系统数值重设计)。v3.0 改为"水晶"语义：无敌但秒杀入侵敌人，每杀 -1 HP，跨关继承 |
+| `base` | Player | 玩家基地，HP 归零=失败。具体 HP 见 [21-MDA §7](../50-data-numerical/50-mda.md#7-经济系统数值重设计)。v3.0 改为"水晶"语义：无敌但秒杀入侵敌人，每杀 -1 HP，跨关继承 |
 | `spawn_point` | Enemy | 敌人出生点，`invulnerable=true`，不可作为塔的攻击目标 |
 
 > 出生点的"无敌"属性会被 `ignore_invulnerable` 装饰器过滤，塔不会浪费攻击。
@@ -403,15 +403,15 @@ interface StructureLevel {
 
 | 字段 | 适用 | 说明 |
 |------|------|------|
-| `enemyTargetPriority[]` | Enemy | 攻击优先级配置（详见 [02 §9](../02-unit-system.md#9-单位的-ai-行为优先级v30-新增敌方)） |
+| `enemyTargetPriority[]` | Enemy | 攻击优先级配置（详见 [02 §9](./20-unit-system.md#9-单位的-ai-行为优先级v30-新增敌方)） |
 | `cardId` | 单位实例（运行时） | 该实例由哪张卡生成（用于追溯） |
-| `instanceLevel` | 单位实例（运行时） | 关内单实例临时强化层级。**v3.1：仅本局有效，塔死亡/关结束清零，不持久化到 CardCollection，不切换形态**（仅调数值）。提升通道：仅法术卡（如"精炼术"），详见 [04 §7](../04-skill-buff-system.md#7-instancelevel-法术卡提升机制)。形态切换走科技树，详见 [30 §2.3](../30-tower-tech-tree.md#23-关内临时升级instancelevel保留) |
+| `instanceLevel` | 单位实例（运行时） | 关内单实例临时强化层级。**v3.1：仅本局有效，塔死亡/关结束清零，不持久化到 CardCollection，不切换形态**（仅调数值）。提升通道：仅法术卡（如"精炼术"），详见 [04 §7](./23-skill-buff.md#7-instancelevel-法术卡提升机制)。形态切换走科技树，详见 [30 §2.3](./22-tower-tech-tree.md#23-关内临时升级instancelevel保留) |
 | `techTree.pathDepth` | CardCollection（塔卡） | 该塔卡每条路径已解锁到第几个节点（v3.1 新增） |
 | `techTree.equippedPath` | CardCollection（塔卡） | 该塔卡当前装备的路径 ID（v3.1 新增） |
 | `persistAcrossWaves` | CardConfig | 法术卡是否跨波保留 |
 | `removable` | CardConfig | 卡是否可在商店移除 |
 
-> 已废弃字段：`baseLevel`（CardCollection 上的永久 L1–L5 模型，v3.1 由科技树取代，存档无需迁移，详见 [13 §6](../13-save-system.md)）。
+> 已废弃字段：`baseLevel`（CardCollection 上的永久 L1–L5 模型，v3.1 由科技树取代，存档无需迁移，详见 [13 §6](../60-tech/61-save-system.md)）。
 
 ---
 
@@ -419,10 +419,10 @@ interface StructureLevel {
 
 > 本节是「哪张卡引用哪个 UnitConfig」的**对照表（reference data）**。
 >
-> **卡牌系统机制权威** → [25-card-roguelike-refactor](../25-card-roguelike-refactor.md)（含 CardConfig 字段、出卡流程、抽弃牌、关间节点、卡池）
-> **卡牌数值权威** → [21-MDA §8](../21-mda-numerical-design.md)
-> **塔卡科技树权威** → [30-tower-tech-tree](../30-tower-tech-tree.md)
-> **卡牌与单位的边界** → [02 §8](../02-unit-system.md#8-卡牌作为生成入口v30)
+> **卡牌系统机制权威** → [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md)（含 CardConfig 字段、出卡流程、抽弃牌、关间节点、卡池）
+> **卡牌数值权威** → [21-MDA §8](../50-data-numerical/50-mda.md)
+> **塔卡科技树权威** → [30-tower-tech-tree](./22-tower-tech-tree.md)
+> **卡牌与单位的边界** → [02 §8](./20-unit-system.md#8-卡牌作为生成入口v30)
 
 ### 7.1 单位/建筑/陷阱卡（指向 UnitConfig）
 
@@ -430,7 +430,7 @@ interface StructureLevel {
 |-------|------|--------|----------------|------|
 | `arrow_tower_card` | 建筑卡 | Common | `arrow_tower` | 基础远程塔 |
 | `cannon_tower_card` | 建筑卡 | Common | `cannon_tower` | 基础群伤塔 |
-| `elemental_tower_card` | 建筑卡 | Rare | `elemental_tower` | 元素塔（默认冰形态），路径详见 [30 §4.3](../30-tower-tech-tree.md#43-元素塔原冰塔)；v3.1 重命名自 `ice_tower_card` |
+| `elemental_tower_card` | 建筑卡 | Rare | `elemental_tower` | 元素塔（默认冰形态），路径详见 [30 §4.3](./22-tower-tech-tree.md#43-元素塔原冰塔)；v3.1 重命名自 `ice_tower_card` |
 | `lightning_tower_card` | 建筑卡 | Rare | `lightning_tower` | 链击塔 |
 | `laser_tower_card` | 建筑卡 | Epic | `laser_tower` | 贯穿塔 |
 | `bat_tower_card` | 建筑卡 | Epic | `bat_tower` | 暗夜塔 |
@@ -458,8 +458,8 @@ interface StructureLevel {
 | `divine_protection_spell` | Legendary | 持续 buff | 水晶本波内额外承受 N 次秒杀消耗不扣 HP | ✅（跨波保留） |
 | `summon_skeletons_spell` | Legendary | 召唤 | 召唤 5 个 30 HP / 8 ATK 骷髅兵 | ❌ |
 
-> 法术卡子分类（AOE / 单体 / 召唤 / 增益 / 控制）见 [04 §6](../04-skill-buff-system.md)。  
-> 「精炼术」类提升 `instanceLevel` 的法术见 [04 §7](../04-skill-buff-system.md#7-instancelevel-法术卡提升机制)，本质属法术卡子类，单独通道，不出现在上表。
+> 法术卡子分类（AOE / 单体 / 召唤 / 增益 / 控制）见 [04 §6](./23-skill-buff.md)。  
+> 「精炼术」类提升 `instanceLevel` 的法术见 [04 §7](./23-skill-buff.md#7-instancelevel-法术卡提升机制)，本质属法术卡子类，单独通道，不出现在上表。
 
 ### 7.3 完整卡池规模（开服默认）
 
@@ -471,11 +471,11 @@ interface StructureLevel {
 | Legendary | 4 | 战略塔 + 终极法术 |
 | **总计** | **30** | 满足"开局抽 12 张"的足够多样性 |
 
-> 开服默认解锁 6-8 张 Common 卡（详见 [13-save-system §1.2 默认初始状态](../13-save-system.md)），其余通过火花碎片解锁。
+> 开服默认解锁 6-8 张 Common 卡（详见 [13-save-system §1.2 默认初始状态](../60-tech/61-save-system.md)），其余通过火花碎片解锁。
 
 ### 7.4 卡牌配置统一格式
 
-详见 [25-card-roguelike-refactor §CardConfig 字段](../25-card-roguelike-refactor.md)。
+详见 [25-card-roguelike-refactor §CardConfig 字段](../10-gameplay/10-roguelike-loop.md)。
 
 ---
 
@@ -495,7 +495,7 @@ interface StructureLevel {
 | L8 黑暗领域 | invisible_assassin / reflective_golem + 关底 boss_dark_knight | 隐形渗透 + 伤害反弹 |
 | L9 终战 | abyss_lord | 三阶段切换 + 召唤 + 范围 DOT 大招 |
 
-> 玩家阵营的塔/兵卡解锁节奏由科技树碎片成本决定（→ [30](../30-tower-tech-tree.md)），不与关卡硬绑定。
+> 玩家阵营的塔/兵卡解锁节奏由科技树碎片成本决定（→ [30](./22-tower-tech-tree.md)），不与关卡硬绑定。
 
 ---
 
@@ -503,16 +503,16 @@ interface StructureLevel {
 
 | 需要查 | 查这里 |
 |--------|--------|
-| 单位的具体 HP/ATK/造价/移速等 | [21-MDA §4-§7](../21-mda-numerical-design.md) |
-| 公式骨架（护甲减伤、攻速上限等） | [05-combat-system.md](../05-combat-system.md) |
-| 塔升级体系（路径/节点/碎片成本） | [30-tower-tech-tree.md](../30-tower-tech-tree.md) |
+| 单位的具体 HP/ATK/造价/移速等 | [21-MDA §4-§7](../50-data-numerical/50-mda.md) |
+| 公式骨架（护甲减伤、攻速上限等） | [05-combat-system.md](./24-combat.md) |
+| 塔升级体系（路径/节点/碎片成本） | [30-tower-tech-tree.md](./22-tower-tech-tree.md) |
 | 攻击模式/特殊机制语义 | 本文档 §1.1 / §1.2 |
-| 视觉规范（形状/颜色） | [16-art-assets-design.md](../16-art-assets-design.md) |
-| AI 行为树 | [23-ai-behavior-tree.md](../23-ai-behavior-tree.md) / [24-soldier-ai-behavior.md](../24-soldier-ai-behavior.md) |
-| 波次缩放 | [21-MDA §8](../21-mda-numerical-design.md#8-波次难度曲线重校准) |
-| 天气矩阵 | [11-weather-system.md](../11-weather-system.md) / [21-MDA §9](../21-mda-numerical-design.md#9-天气系统数值优化) |
-| 技能与 Buff（含 `instanceLevel` 法术卡） | [04-skill-buff-system.md](../04-skill-buff-system.md) |
-| 卡牌系统机制 | [25-card-roguelike-refactor.md](../25-card-roguelike-refactor.md) |
+| 视觉规范（形状/颜色） | [16-art-assets-design.md](../40-presentation/42-art-assets.md) |
+| AI 行为树 | [23-ai-behavior-tree.md](../30-ai/30-behavior-tree.md) / [24-soldier-ai-behavior.md](../30-ai/31-soldier-ai.md) |
+| 波次缩放 | [21-MDA §8](../50-data-numerical/50-mda.md#8-波次难度曲线重校准) |
+| 天气矩阵 | [11-weather-system.md](../10-gameplay/14-weather.md) / [21-MDA §9](../50-data-numerical/50-mda.md#9-天气系统数值优化) |
+| 技能与 Buff（含 `instanceLevel` 法术卡） | [04-skill-buff-system.md](./23-skill-buff.md) |
+| 卡牌系统机制 | [25-card-roguelike-refactor.md](../10-gameplay/10-roguelike-loop.md) |
 | 已废弃单位（毒藤塔/弩炮塔）历史档案 | [archive/deprecated-units-vine-ballista.md](../archive/deprecated-units-vine-ballista.md) |
 | 已废弃 L3 被动技能历史档案 | [archive/deprecated-l3-passives.md](../archive/deprecated-l3-passives.md) |
 
@@ -524,4 +524,4 @@ interface StructureLevel {
 |------|------|---------|
 | v1.0.0 | 2026-05-14 | **R3 重构**：合并原 `03-unit-data.md` + `22-new-unit-design.md` 为本文。`ice_tower` → `elemental_tower` 全量切换；新增 §2.3 塔科技树字段规范；§3.2 / §4.4 / §5.4 引入「设计储备」分类，将 v1.1 设计但暂未入池的单位与暂废弃单位分离。 |
 
-> 数值变更记录请查 [21-MDA](../21-mda-numerical-design.md)。卡牌系统变更请查 [25](../25-card-roguelike-refactor.md)。塔升级变更请查 [30](../30-tower-tech-tree.md)。
+> 数值变更记录请查 [21-MDA](../50-data-numerical/50-mda.md)。卡牌系统变更请查 [25](../10-gameplay/10-roguelike-loop.md)。塔升级变更请查 [30](./22-tower-tech-tree.md)。

@@ -1,8 +1,22 @@
-# 01 — 游戏概述
+---
+title: 游戏概述
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - core-pillars
+  - high-level-vision
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 00-vision/01-acceptance-criteria.md
+---
+
+# 游戏概述
 
 > 产品定位、目标用户、核心玩法
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，定位从「独立关卡塔防」改造为「卡牌 + Roguelike 长征塔防」融合形态。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，定位从「独立关卡塔防」改造为「卡牌 + Roguelike 长征塔防」融合形态。
 
 ---
 
@@ -133,7 +147,7 @@ Drafting → Battle ⇄ WaveEnd → InterLevelChoosing → (Shopping | MysticEve
 
 **关键设计**：三种资源**作用范围、来源、消耗都不交叉**（除 Run 末未花完金币按 1:1 转碎片外），认知边界清晰。
 
-详细规则见 [06-economy-system](./06-economy-system.md)。
+详细规则见 [06-economy-system](../10-gameplay/11-economy.md)。
 
 ---
 
@@ -153,10 +167,10 @@ Drafting → Battle ⇄ WaveEnd → InterLevelChoosing → (Shopping | MysticEve
 
 ## 6. 关键文档导航
 
-- 卡牌系统与抽卡机制：[25-card-roguelike-refactor §2](./25-card-roguelike-refactor.md#2-卡牌系统)
-- 关间节点（商店 + 秘境）：[25 §3](./25-card-roguelike-refactor.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
-- 三资源系统：[06-economy-system](./06-economy-system.md)
-- 8 关 + 终战结构：[07-map-level-system](./07-map-level-system.md)
-- Run 模式定义：[08-game-modes](./08-game-modes.md)
-- 永久解锁与存档：[13-save-system](./13-save-system.md)
-- UI 改造（手牌区、关间面板）：[09-ui-ux](./09-ui-ux.md)
+- 卡牌系统与抽卡机制：[25-card-roguelike-refactor §2](../10-gameplay/10-roguelike-loop.md#2-卡牌系统)
+- 关间节点（商店 + 秘境）：[25 §3](../10-gameplay/10-roguelike-loop.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
+- 三资源系统：[06-economy-system](../10-gameplay/11-economy.md)
+- 8 关 + 终战结构：[07-map-level-system](../10-gameplay/13-map-level.md)
+- Run 模式定义：[08-game-modes](../10-gameplay/12-game-modes.md)
+- 永久解锁与存档：[13-save-system](../60-tech/61-save-system.md)
+- UI 改造（手牌区、关间面板）：[09-ui-ux](../40-presentation/40-ui-ux.md)

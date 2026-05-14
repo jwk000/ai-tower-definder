@@ -1,15 +1,34 @@
-# 25 - 卡牌化 + Roguelike 长征改造方案
+---
+title: 卡牌化 + Roguelike 长征改造方案
+status: authoritative
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - card-system
+  - run-loop
+  - three-resources
+  - hand-zone
+  - inter-level-nodes
+  - spark-meta-progression
+supersedes: []
+cross-refs:
+  - 20-units/22-tower-tech-tree.md
+  - 50-data-numerical/50-mda.md
+  - 20-units/21-unit-roster.md
+---
+
+# 卡牌化 + Roguelike 长征改造方案
 
 > 版本: v0.6 | 日期: 2026-05-14 | 状态: **🚧 Phase A 集成层已落地（A1+A2+A3 完成），Phase B 待启动；v0.6 同步塔科技树**
 > 同步影响文档（已落地）：01/02/03/04/06/07/08/09/10/13/14/15/16/20/21/22/23，**v0.6 同步：30 新增**（详见 §10.1 影响清单）。本文档为 v3.0 单一权威来源（Single Source of Truth），如发现其它文档与本文档冲突，以本文档为准并将冲突视为 BUG 提交修复。
 >
-> ⚠️ **v0.6 例外**：塔升级（科技树）的权威来源转移至 [30-tower-tech-tree](./30-tower-tech-tree.md)；本文档涉及塔升级的描述以 30 为准。
+> ⚠️ **v0.6 例外**：塔升级（科技树）的权威来源转移至 [30-tower-tech-tree](../20-units/22-tower-tech-tree.md)；本文档涉及塔升级的描述以 30 为准。
 
 **变更记录**
-- v0.5 → v0.6：根据 [30-tower-tech-tree](./30-tower-tech-tree.md) 同步塔升级模型变更——
+- v0.5 → v0.6：根据 [30-tower-tech-tree](../20-units/22-tower-tech-tree.md) 同步塔升级模型变更——
   1. §2.4 塔卡的卡级升级**完全移出**关间商店与关内技能卡，改为关外卡池科技树（路径互斥 + 节点线性解锁）；非塔卡（士兵/法术/陷阱）仍可走商店/技能卡升级。
   2. §3.2 商店「[升级] 箭塔→L2」商品**删除塔卡升级**，新增「路径重置券」道具与「碎片包」商品。
-  3. §8.1 `cardLevelMap` 对塔卡废弃，改用 [13 §CardEntry.techTree](./13-save-system.md)。
+  3. §8.1 `cardLevelMap` 对塔卡废弃，改用 [13 §CardEntry.techTree](../60-tech/61-save-system.md)。
   4. §8.2 火花碎片"永久升级塔卡基础等级"改为"购买塔卡科技树节点"。
   5. §8.3 边界表澄清"关内升级"仅指非塔卡或塔卡的 `instanceLevel`（不切形态）。
 - v0.4 → v0.5：§11 新增 §11.1「实施进度快照」记录 Phase A1+A2+A3 已落地的 6 流 PRNG / 4 个事件驱动管理器（Energy/Deck/Hand/RunManager）/ RunContext 集成层契约枢纽 / World.attachRunContext / main.initBattle 装配 / WaveSystem 波次钩子；累计 749/749 测试 0 回归。状态从「已批准」升为「Phase A 集成层已落地」；§14.1 追加 A1+A2+A3 验收条目。
@@ -120,7 +139,7 @@ interface CardConfig {
 |------|------|------|----------|
 | **建筑卡（Tower）** | 防御塔（单体/AoE/控制）、生产塔（金矿/能量塔）、辅助塔（治疗/增益） | 部署到地格，持续存在，可被摧毁 | 我方 8 张 |
 | **单位卡（Soldier）** | 近战（盾兵/剑士）、远程（弓手/法师）、空中（飞兵）、特殊（祭司/工程师/召唤师） | 部署到地格，沿驻守圈巡逻并攻击敌人，可被击杀 | 我方 8 张 |
-| **法术卡（Spell）** | 伤害、控制、Buff（包括对塔实例 `instanceLevel +1`，见 [04 §7](./04-skill-buff-system.md)）、Debuff、特殊 | 一次性效果，打出即消耗，进入弃牌堆 | 我方 4 张 |
+| **法术卡（Spell）** | 伤害、控制、Buff（包括对塔实例 `instanceLevel +1`，见 [04 §7](../20-units/23-skill-buff.md)）、Debuff、特殊 | 一次性效果，打出即消耗，进入弃牌堆 | 我方 4 张 |
 
 **合计我方 20 张**。敌方 20 张见 §6。
 
@@ -163,10 +182,10 @@ interface CardConfig {
 ### 2.4 卡牌升级状态（关键变更）
 
 > **v3.1 决策（M1 落地）**：所有"塔升级"通道收窄为以下两种，互不重叠：
-> 1. **关外卡池科技树**（永久，跨 Run）—— 详见 [30-tower-tech-tree](./30-tower-tech-tree.md)。
-> 2. **关内法术卡**（仅本局，仅作用于场上塔实例的 `instanceLevel`，**不切形态、不持久化、塔死亡清零、关结束清零**）—— 详见 [04 §7](./04-skill-buff-system.md)。
+> 1. **关外卡池科技树**（永久，跨 Run）—— 详见 [30-tower-tech-tree](../20-units/22-tower-tech-tree.md)。
+> 2. **关内法术卡**（仅本局，仅作用于场上塔实例的 `instanceLevel`，**不切形态、不持久化、塔死亡清零、关结束清零**）—— 详见 [04 §7](../20-units/23-skill-buff.md)。
 
-**关于 `instanceLevel`**（详细规范见 [04 §7](./04-skill-buff-system.md)）：
+**关于 `instanceLevel`**（详细规范见 [04 §7](../20-units/23-skill-buff.md)）：
 - 唯一提升来源：**法术卡**（如「狂怀术」）。
 - 作用域：仅作用于场上已部署的塔实例，叠加上限 3 层。
 - 清零时机：塔死亡 / 关卡结束。
@@ -210,7 +229,7 @@ interface CardConfig {
 
 ### 3.2 商店节点（稳健分支）
 
-> **v0.6 变更**：塔卡不再出现在「[升级] X→L2」商品中，塔升级走科技树（[30](./30-tower-tech-tree.md)）。商店改为：升级商品仅作用于非塔卡；新增「路径重置券」与「碎片包」商品。
+> **v0.6 变更**：塔卡不再出现在「[升级] X→L2」商品中，塔升级走科技树（[30](../20-units/22-tower-tech-tree.md)）。商店改为：升级商品仅作用于非塔卡；新增「路径重置券」与「碎片包」商品。
 
 ```
 商店面板（怪物火车风格）：
@@ -241,7 +260,7 @@ interface CardConfig {
 
 **商店刷新**：单次商店内 30 G 刷新所有商品，无次数限制（成本本身就是限制）。
 
-> ⚠️ 关间节点（商店/秘境）**不直接触发科技树重置 UI**，至多提供"重置券"作为道具，玩家须在关外卡池界面使用，避免与"关外升级"原则模糊。详见 [30 §2.4](./30-tower-tech-tree.md#24-关间节点商店秘境的边界)。
+> ⚠️ 关间节点（商店/秘境）**不直接触发科技树重置 UI**，至多提供"重置券"作为道具，玩家须在关外卡池界面使用，避免与"关外升级"原则模糊。详见 [30 §2.4](../20-units/22-tower-tech-tree.md#24-关间节点商店秘境的边界)。
 
 ### 3.3 秘境节点（冒险分支）
 
@@ -426,7 +445,7 @@ interface CardConfig {
 #### 6.2.1 定位与外观
 
 - **类型**：特殊单位（unit_kind=`crystal`），固定占用 1 个 tile，不可被部署/移除/移动。
-- **视觉**：红色水晶造型，悬浮于空中（上下浮动循环），辉光呈呼吸式亮度变化。详见 [16-art-assets §13.13](./16-art-assets-design.md#1313-水晶大本营视觉) 与 [12-visual-effects §10](./12-visual-effects.md#10-水晶视觉与特效v30-新增)。
+- **视觉**：红色水晶造型，悬浮于空中（上下浮动循环），辉光呈呼吸式亮度变化。详见 [16-art-assets §13.13](../40-presentation/42-art-assets.md#1313-水晶大本营视觉) 与 [12-visual-effects §10](../40-presentation/44-visual-effects.md#10-水晶视觉与特效v30-新增)。
 
 #### 6.2.2 无敌规则
 
@@ -444,10 +463,10 @@ interface CardConfig {
 
 | 字段 | 语义 | 默认值 | 真理源 |
 |------|------|--------|--------|
-| `crystal.attackRange` | 攻击范围（地格数），范围圆形 | 1 格（紧贴自卫） | [21-MDA §18](./21-mda-numerical-design.md) |
-| `crystal.attackCooldown` | 攻击间隔（秒），防止单帧多杀掏空 HP | 0.5 s | [21-MDA §18](./21-mda-numerical-design.md) |
-| `crystal.hpCostPerKill` | 每次秒杀消耗的水晶 HP | 1 | [21-MDA §18](./21-mda-numerical-design.md) |
-| `crystal.maxKillsPerTick` | 单次冷却结束最多击杀几个敌人 | 1 | [21-MDA §18](./21-mda-numerical-design.md) |
+| `crystal.attackRange` | 攻击范围（地格数），范围圆形 | 1 格（紧贴自卫） | [21-MDA §18](../50-data-numerical/50-mda.md) |
+| `crystal.attackCooldown` | 攻击间隔（秒），防止单帧多杀掏空 HP | 0.5 s | [21-MDA §18](../50-data-numerical/50-mda.md) |
+| `crystal.hpCostPerKill` | 每次秒杀消耗的水晶 HP | 1 | [21-MDA §18](../50-data-numerical/50-mda.md) |
+| `crystal.maxKillsPerTick` | 单次冷却结束最多击杀几个敌人 | 1 | [21-MDA §18](../50-data-numerical/50-mda.md) |
 
 **目标选择**：当范围内有多个敌人时，按「最近距离 > 进入范围时间」排序击杀 1 个（冷却结束后再杀下一个）。
 
@@ -607,7 +626,7 @@ Run 结束（无论胜负）按到达关卡发放火花碎片：
 
 ### 8.3 关卡内升级 vs 关卡外升级（清晰边界）
 
-> **v3.1 决策（M1 落地）**：塔卡的形态切换**只发生在关外卡池**（科技树），关内/关间均不能改塔形态。塔卡的关内 `instanceLevel` 仅由**法术卡**提升（详见 [04 §7](./04-skill-buff-system.md)），塔死亡 / 关结束清零。
+> **v3.1 决策（M1 落地）**：塔卡的形态切换**只发生在关外卡池**（科技树），关内/关间均不能改塔形态。塔卡的关内 `instanceLevel` 仅由**法术卡**提升（详见 [04 §7](../20-units/23-skill-buff.md)），塔死亡 / 关结束清零。
 
 | 维度 | 关内升级 | 关间升级（商店） | 关外永久升级 |
 |------|---------|-----------------|--------------|
@@ -616,7 +635,7 @@ Run 结束（无论胜负）按到达关卡发放火花碎片：
 | 强度 | 中（实例 +1 层，最多 3 层） | 中（非塔卡 +1 级） | 高（解锁新形态/能力） |
 | 设计意图 | 战斗中应变 | 本局策略 | 长线成长 |
 | **塔卡支持？** | ✅ 仅 `instanceLevel`（不切形态） | ❌ 不可 | ✅ 通过科技树节点解锁（切形态） |
-| **非塔卡支持？** | ✅ 由特定法术卡触发的数值微调 | ✅ 卡级升级（如有该商品） | ⚠️ 视类型而定，详见 [21-MDA §8](./21-mda-numerical-design.md) |
+| **非塔卡支持？** | ✅ 由特定法术卡触发的数值微调 | ✅ 卡级升级（如有该商品） | ⚠️ 视类型而定，详见 [21-MDA §8](../50-data-numerical/50-mda.md) |
 
 ---
 
@@ -827,7 +846,7 @@ UI / SpellCastSystem / CardSpawnSystem (Phase B)
 | **6. 手牌满时抽到的卡** | **直接进入弃牌堆 + 屏幕飘字「手牌已满」** | 简化交互，避免战斗中弹窗打断节奏。 |
 | **7. 终战 Boss 失败惩罚** | **直接 Run 失败，不允许重试** | 提升终战重量，强化 Roguelike 失败-成长循环。 |
 
-**实施约束**：所有数值真理源仍归 [21-MDA](./21-mda-numerical-design.md) 管理。若上述决策与 21-MDA 存在出入，以 21-MDA 数值为准并同步修订本节。
+**实施约束**：所有数值真理源仍归 [21-MDA](../50-data-numerical/50-mda.md) 管理。若上述决策与 21-MDA 存在出入，以 21-MDA 数值为准并同步修订本节。
 
 ---
 

@@ -1,12 +1,26 @@
-# 13 — 存档系统
+---
+title: 存档系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - save-format
+  - persistence-spec
+supersedes: []
+cross-refs:
+  - 60-tech/60-architecture.md
+  - 10-gameplay/10-roguelike-loop.md
+---
+
+# 存档系统
 
 > 存档数据结构、版本兼容、损坏恢复、自动存档时机、永久卡池与火花碎片
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除 `LevelProgress` 三星与 `EndlessProgress`，新增 `CardCollection`（永久卡池）、`SparkShards`（meta 货币）、`OngoingRun`（关间存档点）、`PermanentUpgrades`（永久升级项）。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，删除 `LevelProgress` 三星与 `EndlessProgress`，新增 `CardCollection`（永久卡池）、`SparkShards`（meta 货币）、`OngoingRun`（关间存档点）、`PermanentUpgrades`（永久升级项）。
 >
-> **v3.1（2026-05-14）变更**：根据 [30-tower-tech-tree](./30-tower-tech-tree.md)，塔升级从"L1–L5 线性"改为"科技树路径互斥 + 节点线性解锁"。
+> **v3.1（2026-05-14）变更**：根据 [30-tower-tech-tree](../20-units/22-tower-tech-tree.md)，塔升级从"L1–L5 线性"改为"科技树路径互斥 + 节点线性解锁"。
 > - `CardEntry` 新增 `techTree?: TechTreeProgress` 字段，塔卡持有；非塔卡不持有。
-> - `CardInDeck.instanceLevel` 语义收窄：**仅本局有效，仅可由法术卡提升，塔死亡/关结束清零，不写回 `CardCollection`、不切换形态**（详见 [04 §7](./04-skill-buff-system.md) 和 [30 §2.3](./30-tower-tech-tree.md#23-关内临时升级instancelevel保留)）。
+> - `CardInDeck.instanceLevel` 语义收窄：**仅本局有效，仅可由法术卡提升，塔死亡/关结束清零，不写回 `CardCollection`、不切换形态**（详见 [04 §7](../20-units/23-skill-buff.md) 和 [30 §2.3](../20-units/22-tower-tech-tree.md#23-关内临时升级instancelevel保留)）。
 > - 关间节点（商店/秘境）不再提供"塔升级"，不会写 `CardCollection.techTree`。
 > - 存档版本保持 `v2.0.0`（游戏未上线，无迁移需求；详见 §6）。
 
@@ -221,7 +235,7 @@ const DEFAULT_SAVE: SaveData = {
 
 ### 3.1 火花碎片获取规则
 
-详见 [06-economy-system §4.1](./06-economy-system.md#4-火花碎片跨局-meta-资源)。
+详见 [06-economy-system §4.1](../10-gameplay/11-economy.md#4-火花碎片跨局-meta-资源)。
 
 | 触发条件 | 碎片发放 |
 |---------|---------|
@@ -260,7 +274,7 @@ const DEFAULT_SAVE: SaveData = {
 | Epic | 12% | 350 | 1200 |
 | Legendary | 3% | 800 | 2400 |
 
-详见 [21-MDA §8 卡牌价格表](./21-mda-numerical-design.md)。
+详见 [21-MDA §8 卡牌价格表](../50-data-numerical/50-mda.md)。
 
 ---
 
@@ -424,8 +438,8 @@ function load(): SaveData | null {
 
 ## 11. 参考章节
 
-- 火花碎片来源与去向：[06-economy-system §4](./06-economy-system.md#4-火花碎片跨局-meta-资源)
-- 卡牌系统机制：[25-card-roguelike-refactor §2](./25-card-roguelike-refactor.md#2-卡牌系统)
-- 永久升级 UI：[09-ui-ux §9 卡池界面](./09-ui-ux.md#9-卡池界面主菜单子页面)
-- Run 模式规则：[08-game-modes §1](./08-game-modes.md#1-run-模式唯一模式)
-- 数值表：[21-MDA §8-§11](./21-mda-numerical-design.md)
+- 火花碎片来源与去向：[06-economy-system §4](../10-gameplay/11-economy.md#4-火花碎片跨局-meta-资源)
+- 卡牌系统机制：[25-card-roguelike-refactor §2](../10-gameplay/10-roguelike-loop.md#2-卡牌系统)
+- 永久升级 UI：[09-ui-ux §9 卡池界面](../40-presentation/40-ui-ux.md#9-卡池界面主菜单子页面)
+- Run 模式规则：[08-game-modes §1](../10-gameplay/12-game-modes.md#1-run-模式唯一模式)
+- 数值表：[21-MDA §8-§11](../50-data-numerical/50-mda.md)

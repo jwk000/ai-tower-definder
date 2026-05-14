@@ -1,10 +1,27 @@
-# 30 — 塔科技树系统
+---
+title: 塔科技树系统
+status: authoritative
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - tower-tech-tree
+  - tech-nodes
+  - shard-economy
+  - tower-upgrade-mechanic
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 50-data-numerical/50-mda.md
+  - 20-units/21-unit-roster.md
+---
+
+# 塔科技树系统
 
 > 版本: v1.0 | 日期: 2026-05-14 | 状态: 设计阶段
 >
 > 取代旧版「线性等级升级」模型，将塔升级移至关外卡池界面，以「路径互斥科技树」呈现。本文档为塔升级机制的唯一权威来源（Single Source of Truth）。
 >
-> 数值占位：所有具体数值（碎片成本、概率、CD、伤害倍率等）以 [21-MDA](./21-mda-numerical-design.md) 为权威，本文档只描述字段语义、机制骨架、路径结构。
+> 数值占位：所有具体数值（碎片成本、概率、CD、伤害倍率等）以 [21-MDA](../50-data-numerical/50-mda.md) 为权威，本文档只描述字段语义、机制骨架、路径结构。
 
 ---
 
@@ -58,7 +75,7 @@
 
 - **关内不再有"升级塔"按钮**，BuildSystem 不处理任何升级请求。
 - 塔在关内一旦放置，形态 = 该塔卡当前装备路径下已解锁的最深节点形态。
-- 关内移除塔仅返还能量（按 [25 §6 退卡规则](./25-card-roguelike-refactor.md) 处理），不返还碎片。
+- 关内移除塔仅返还能量（按 [25 §6 退卡规则](../10-gameplay/10-roguelike-loop.md) 处理），不返还碎片。
 
 ### 2.2 关外科技树解锁
 
@@ -66,16 +83,16 @@
 - **路径互斥**：单个塔卡同时只能"装备"一条路径作为本局形态。
 - **节点线性解锁**：必须按 节点 1 → 节点 2 → 节点 3（→ 节点 4）顺序购买。
 - **跨路径独立**：路径 A 与路径 B 的节点解锁互不影响，**两条路径都能点满**。
-- **解锁货币**：火花碎片（meta 货币，详见 [13 §CardCollection](./13-save-system.md) / [21 §17](./21-mda-numerical-design.md)）。
+- **解锁货币**：火花碎片（meta 货币，详见 [13 §CardCollection](../60-tech/61-save-system.md) / [21 §17](../50-data-numerical/50-mda.md)）。
 - **路径切换**：默认免费切换装备路径（路径 A ↔ 路径 B）。
-- **路径重置**：若想"忘记"某路径已解锁的节点（极少需要），消耗碎片重置该路径，返还 50% 碎片。重置成本与返还比例进 [21-MDA](./21-mda-numerical-design.md)。
+- **路径重置**：若想"忘记"某路径已解锁的节点（极少需要），消耗碎片重置该路径，返还 50% 碎片。重置成本与返还比例进 [21-MDA](../50-data-numerical/50-mda.md)。
 
 ### 2.3 关内临时升级（`instanceLevel`）保留
 
 - 单个塔实例可在关内通过特殊机制（特定卡牌效果 / 商店 buff / 秘境奖励等）获得 `instanceLevel +1/+2/...`。
 - **仅作用于单个塔实例**，不写入 `CardCollection`，不影响 meta 科技树进度。
 - 塔死亡 / 关卡结束 / 退卡时 `instanceLevel` 归零。
-- **`instanceLevel` 只调数值，不切换形态**（不能从"双重箭塔"升到"三重箭塔"）。具体数值公式见 [21-MDA](./21-mda-numerical-design.md)。
+- **`instanceLevel` 只调数值，不切换形态**（不能从"双重箭塔"升到"三重箭塔"）。具体数值公式见 [21-MDA](../50-data-numerical/50-mda.md)。
 
 ### 2.4 关间节点（商店/秘境）的边界
 
@@ -91,20 +108,20 @@
 
 ## 3. 与 v3.0 卡牌系统的关系
 
-科技树是对 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) v3.0 卡牌系统的**深化**，不冲突：
+科技树是对 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) v3.0 卡牌系统的**深化**，不冲突：
 
 | v3.0 已有 | 科技树新增 |
 |---|---|
 | 每个塔 = 一张单位卡 | 每张塔卡内嵌一棵科技树 |
 | 旧线性升级模型 `baseLevel` L1→L5 | 已删除；改为"已解锁节点 + 装备路径"组合 |
-| `instanceLevel`（关内临时升级） | **保留**，仅由法术卡提升（详见 [04 §7](./04-skill-buff-system.md)），与节点切换解耦 |
+| `instanceLevel`（关内临时升级） | **保留**，仅由法术卡提升（详见 [04 §7](./23-skill-buff.md)），与节点切换解耦 |
 | `CardCollection`（永久卡池） | 加 `unlockedNodes` / `equippedPath` 字段 |
 | 关间商店/秘境 | 不再提供升级，可提供碎片包/重置券 |
 
 ### 3.1 `baseLevel` 字段移除
 
 - 旧字段 `baseLevel: 1–5` 在 v3.1 起从所有结构中**移除**。
-- 游戏未上线，无玩家数据需要迁移；存档结构直接以"含 `techTree` / 无 `baseLevel`"为准（详见 [13 §1.1](./13-save-system.md) 和 §6 当前版本与策略）。
+- 游戏未上线，无玩家数据需要迁移；存档结构直接以"含 `techTree` / 无 `baseLevel`"为准（详见 [13 §1.1](../60-tech/61-save-system.md) 和 §6 当前版本与策略）。
 
 ---
 
@@ -167,7 +184,7 @@
 - 触发逻辑：每次普通攻击后掷骰，CD 内不可重复触发。
 - 目标：随机敌人池（不限阵营/状态/位置），单次伤害独立计算。
 - 定位：末期 panic button，**不是清屏 AI 必胜键**。
-- 数值（概率、CD、倍率）以 [21-MDA](./21-mda-numerical-design.md) 为准。
+- 数值（概率、CD、倍率）以 [21-MDA](../50-data-numerical/50-mda.md) 为准。
 
 ### 4.5 激光塔
 
@@ -190,13 +207,13 @@
 
 #### 蝙蝠塔机制说明
 
-- 所有节点沿用 [21-unit-roster §2.2 蝙蝠塔天气依赖](./20-units/21-unit-roster.md#蝙蝠塔bat_tower天气依赖) 的 `weather_dependent_atk` 天气影响。
+- 所有节点沿用 [21-unit-roster §2.2 蝙蝠塔天气依赖](./21-unit-roster.md#蝙蝠塔bat_tower天气依赖) 的 `weather_dependent_atk` 天气影响。
 - 单路径设计因素：蝙蝠塔的"变量"来自天气系统，已经具备策略深度，无需再加路径。
-- 节点 2/3 的"+蝙蝠数"会**直接修改单位生成数量**（详见 [02-unit-system §蝙蝠生成](./02-unit-system.md)）。
+- 节点 2/3 的"+蝙蝠数"会**直接修改单位生成数量**（详见 [02-unit-system §蝙蝠生成](./20-unit-system.md)）。
 
 ### 4.7 导弹塔
 
-**塔定位**：战略全图打击，地格评分系统。详见 [19-missile-tower](./19-missile-tower.md)。
+**塔定位**：战略全图打击，地格评分系统。详见 [19-missile-tower](./26-missile-special.md)。
 
 | 路径 | 节点 1 | 节点 2 | 节点 3 |
 |---|---|---|---|
@@ -205,9 +222,9 @@
 
 #### 导弹路径 1 机制说明
 
-- 评分逻辑（选哪个地格）不变，复用 [19-missile-tower §地格评分](./19-missile-tower.md)。
+- 评分逻辑（选哪个地格）不变，复用 [19-missile-tower §地格评分](./26-missile-special.md)。
 - **同坐标多发射**：`ProjectileSystem` 在选定地格后，按节点数量循环 N 次发射相同弹道，弹道之间错开极短延迟（视觉区分用，伤害互独立）。
-- 总伤害 ≈ 单发 × N，但单发 < 普通导弹塔单发伤害（数值进 [21-MDA](./21-mda-numerical-design.md)）。
+- 总伤害 ≈ 单发 × N，但单发 < 普通导弹塔单发伤害（数值进 [21-MDA](../50-data-numerical/50-mda.md)）。
 - 实现优势：复用现有评分流水线，比"打多个地格"简单；视觉效果更冲击。
 
 ---
@@ -284,7 +301,7 @@ arrow_tower:
 
 ## 6. 存档结构
 
-详细字段定义见 [13-save-system](./13-save-system.md) §科技树扩展。
+详细字段定义见 [13-save-system](../60-tech/61-save-system.md) §科技树扩展。
 
 ```typescript
 interface CardCollection {
@@ -312,7 +329,7 @@ interface TechTreeProgress {
 
 ## 7. 卡池界面 UI 草图
 
-详细布局见 [09-ui-ux](./09-ui-ux.md) §卡池科技树。
+详细布局见 [09-ui-ux](../40-presentation/40-ui-ux.md) §卡池科技树。
 
 ```
 ┌─────────────────────────── 卡池 · 元素塔 ────────────────────────────┐
@@ -341,8 +358,8 @@ interface TechTreeProgress {
 
 | 单位 ID | 旧文档定位 | 删除理由 | 角色承接 |
 |---|---|---|---|
-| `poison_vine_tower` | [archive §1 毒藤塔](./archive/deprecated-units-vine-ballista.md#1-毒藤塔vinetowerdot-持续伤害) — DOT 反物理，铁甲 TTK 11.7s | 角色被元素塔毒系路径完全覆盖 | 元素塔 · 毒系路径（巫毒塔/病毒塔） |
-| `ballista_tower` | [archive §2 弩炮塔](./archive/deprecated-units-vine-ballista.md#2-弩炮塔ballistatower远程穿透狙击) — 远程穿透单体，射程 320 | DPS/G 偏低（0.094–0.188），且穿透机制可由炮塔路径 2 终点承接 | 炮塔 · 路径 2 终点（战术炮塔的贯穿能力） |
+| `poison_vine_tower` | [archive §1 毒藤塔](../archive/deprecated-units-vine-ballista.md#1-毒藤塔vinetowerdot-持续伤害) — DOT 反物理，铁甲 TTK 11.7s | 角色被元素塔毒系路径完全覆盖 | 元素塔 · 毒系路径（巫毒塔/病毒塔） |
+| `ballista_tower` | [archive §2 弩炮塔](../archive/deprecated-units-vine-ballista.md#2-弩炮塔ballistatower远程穿透狙击) — 远程穿透单体，射程 320 | DPS/G 偏低（0.094–0.188），且穿透机制可由炮塔路径 2 终点承接 | 炮塔 · 路径 2 终点（战术炮塔的贯穿能力） |
 
 ### 删除影响清单
 
@@ -350,7 +367,7 @@ interface TechTreeProgress {
 - `config/cards/*.yaml`：删除对应卡牌定义。
 - `src/data/`：清理 `gameData.ts` 引用。
 - 关卡 YAML：扫描所有 `config/levels/*.yaml` 中的随机池，移除对应 ID。
-- [21-unit-roster](./20-units/21-unit-roster.md)（v3.1 R3 重构后承接 22-new-unit-design 的阵容内容）：废弃塔的角色承接关系已在 §2.1 / §10 体现。
+- [21-unit-roster](./21-unit-roster.md)（v3.1 R3 重构后承接 22-new-unit-design 的阵容内容）：废弃塔的角色承接关系已在 §2.1 / §10 体现。
 
 ---
 
@@ -358,14 +375,14 @@ interface TechTreeProgress {
 
 | 文档 | 改动 |
 |---|---|
-| [21-unit-roster](./20-units/21-unit-roster.md) | YAML 示例加 `techTree` 字段；删毒藤/弩炮配置（已迁档案） |
-| [04-skill-buff](./04-skill-buff-system.md) | 新增机制：贯穿、传染（病毒塔）、全屏闪电、充能蓄力 |
-| [13-save-system](./13-save-system.md) | `CardEntry` 加 `techTree` 字段；明确 `instanceLevel` 不持久化；`baseLevel` 字段已移除 |
-| [19-missile-tower](./19-missile-tower.md) | 同坐标多发射（双联/集束）机制说明 |
-| [21-mda-numerical-design](./21-mda-numerical-design.md) | 加碎片成本表、路径重置成本与返还比例、闪电塔/真火塔概率与 CD 占位 |
-| [21-unit-roster](./20-units/21-unit-roster.md) | 毒藤塔/弩炮塔已移到 archive；冰塔改名元素塔；新增各路径节点定位 |
-| [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) | 卡池界面加科技树面板；明确关间节点不再提供塔升级；可提供碎片包/重置券 |
-| [README](./README.md) | 文档导航加入 30 |
+| [21-unit-roster](./21-unit-roster.md) | YAML 示例加 `techTree` 字段；删毒藤/弩炮配置（已迁档案） |
+| [04-skill-buff](./23-skill-buff.md) | 新增机制：贯穿、传染（病毒塔）、全屏闪电、充能蓄力 |
+| [13-save-system](../60-tech/61-save-system.md) | `CardEntry` 加 `techTree` 字段；明确 `instanceLevel` 不持久化；`baseLevel` 字段已移除 |
+| [19-missile-tower](./26-missile-special.md) | 同坐标多发射（双联/集束）机制说明 |
+| [21-mda-numerical-design](../50-data-numerical/50-mda.md) | 加碎片成本表、路径重置成本与返还比例、闪电塔/真火塔概率与 CD 占位 |
+| [21-unit-roster](./21-unit-roster.md) | 毒藤塔/弩炮塔已移到 archive；冰塔改名元素塔；新增各路径节点定位 |
+| [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) | 卡池界面加科技树面板；明确关间节点不再提供塔升级；可提供碎片包/重置券 |
+| [README](../README.md) | 文档导航加入 30 |
 
 ---
 
@@ -375,9 +392,9 @@ interface TechTreeProgress {
 
 1. **重置粒度**：路径重置是"整条路径回到节点 1"还是"逐节点退还"？当前方案 = 整条路径，待玩家测试后回看。
 2. **路径切换是否有冷却？** 默认无冷却（自由切换装备路径），如果发现平衡性问题（玩家每关切一次）再加约束。
-3. **真火塔 vs 能量回收类卡牌叠加上限？** 是否需要"每关每塔最多 +5 能量"类硬上限？暂留作 [21-MDA](./21-mda-numerical-design.md) 数值平衡阶段决策。
-4. **全屏闪电的视觉表现**：是单条贯穿全图，还是多条独立闪电？[12-vfx](./12-visual-effects.md) 实现阶段决定。
-5. **科技树版本化**：未来若调整某节点能力，是否要给已解锁玩家做"补偿"？v1.0 阶段不考虑，留作 [13-save](./13-save-system.md) 长期议题。
+3. **真火塔 vs 能量回收类卡牌叠加上限？** 是否需要"每关每塔最多 +5 能量"类硬上限？暂留作 [21-MDA](../50-data-numerical/50-mda.md) 数值平衡阶段决策。
+4. **全屏闪电的视觉表现**：是单条贯穿全图，还是多条独立闪电？[12-vfx](../40-presentation/44-visual-effects.md) 实现阶段决定。
+5. **科技树版本化**：未来若调整某节点能力，是否要给已解锁玩家做"补偿"？v1.0 阶段不考虑，留作 [13-save](../60-tech/61-save-system.md) 长期议题。
 
 ---
 
@@ -391,4 +408,4 @@ interface TechTreeProgress {
 | 解锁 (Unlock) | 永久购买某节点，写入 `CardCollection.techTree` |
 | 重置 (Reset) | 主动放弃某路径已解锁的节点，部分退还碎片 |
 | `instanceLevel` | 关内单个塔实例的临时强化层级，不持久化、不切形态 |
-| 碎片 (Spark Shard) | meta 永久货币，详见 [06](./06-economy-system.md) / [21](./21-mda-numerical-design.md) |
+| 碎片 (Spark Shard) | meta 永久货币，详见 [06](../10-gameplay/11-economy.md) / [21](../50-data-numerical/50-mda.md) |

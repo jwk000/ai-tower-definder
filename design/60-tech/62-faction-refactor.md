@@ -1,4 +1,17 @@
-# 28 — 阵营语义重构
+---
+title: 阵营语义重构
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - faction-semantics
+supersedes: []
+cross-refs:
+  - 60-tech/60-architecture.md
+  - 20-units/20-unit-system.md
+---
+
+# 阵营语义重构
 
 > 状态：草案 v0.1 | 日期：2026-05-13 | 触发原因：导弹塔锁友军 bug 暴露 isEnemy 双轨语义陷阱
 

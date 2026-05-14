@@ -1,4 +1,17 @@
-# 17 — 场景表现增强
+---
+title: 场景表现增强
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - scene-decoration
+supersedes: []
+cross-refs:
+  - 40-presentation/42-art-assets.md
+  - 40-presentation/45-layer-system.md
+---
+
+# 场景表现增强
 
 > 动态环境生物 + 全屏环境特效 | 纯视觉装饰层 | 不影响游戏逻辑
 

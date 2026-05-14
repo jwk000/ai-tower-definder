@@ -1,4 +1,17 @@
-# 27 - 调试系统设计
+---
+title: 调试系统设计
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - debug-tooling
+supersedes: []
+cross-refs:
+  - 60-tech/60-architecture.md
+  - 60-tech/64-level-editor.md
+---
+
+# 调试系统设计
 
 > 版本: v1.0 | 日期: 2026-05-12
 
@@ -124,6 +137,6 @@ DebugManager 通过 `setOnLevelSelectRefresh(cb: () => void)` 注入刷新回调
 
 ## 8. 与其他文档的关系
 
-- 不修改 [13-存档系统](./13-save-system.md)；仅通过其公共 API（`setStars`、`unlockLevel`）写入。
-- 不修改 [06-经济系统](./06-economy-system.md)；仅通过 `addGold` 公共 API 写入。
-- 不修改 [23-AI 行为树](./23-ai-behavior-tree.md)；仅消费 `AI` 组件与 `BehaviorTreeConfig`。
+- 不修改 [13-存档系统](./61-save-system.md)；仅通过其公共 API（`setStars`、`unlockLevel`）写入。
+- 不修改 [06-经济系统](../10-gameplay/11-economy.md)；仅通过 `addGold` 公共 API 写入。
+- 不修改 [23-AI 行为树](../30-ai/30-behavior-tree.md)；仅消费 `AI` 组件与 `BehaviorTreeConfig`。

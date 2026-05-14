@@ -1,10 +1,23 @@
-# 06 — 经济系统
+---
+title: 经济系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - gold-economy
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 50-data-numerical/50-mda.md
+---
+
+# 经济系统
 
 > 三种核心资源：能量（关内）、金币（本局 Run）、火花碎片（跨局 meta）
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除被动生产链与人口资源（改为永久升级项），按「认知边界严格分层」重新设计。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](./10-roguelike-loop.md) 方案，删除被动生产链与人口资源（改为永久升级项），按「认知边界严格分层」重新设计。
 >
-> **数值真理源**：本文档不持有数值，所有数值（能量消耗、金币掉落、商店价格、碎片汇率等）以 [21-MDA](./21-mda-numerical-design.md) 为准。本文档仅说明**规则与结构**。
+> **数值真理源**：本文档不持有数值，所有数值（能量消耗、金币掉落、商店价格、碎片汇率等）以 [21-MDA](../50-data-numerical/50-mda.md) 为准。本文档仅说明**规则与结构**。
 
 ---
 
@@ -119,7 +132,7 @@
 | **永久升级卡基础等级**（L1 → L2） | 主菜单卡池界面 | 300 碎片 |
 | **永久升级（水晶 HP / 手牌上限 / 能量上限）** | 主菜单升级面板 | 100-500 碎片/级 |
 
-详见 [13-save-system §3](./13-save-system.md#3-永久解锁与火花碎片)。
+详见 [13-save-system §3](../60-tech/61-save-system.md#3-永久解锁与火花碎片)。
 
 ### 4.3 设计意图
 
@@ -169,7 +182,7 @@
 | **关 6-8（成型）** | 金币充裕，可在商店进行升级或移除卡精简 | 卡组成型，秘境的高风险事件成为爆发点 |
 | **终战** | 资源应该接近峰值，全力一搏 | 终战的张力最大化 |
 
-经济节奏校验：见 [21-MDA §11 经济节奏验证表](./21-mda-numerical-design.md)（按关卡的金币累积曲线 vs 商店建议消费曲线）。
+经济节奏校验：见 [21-MDA §11 经济节奏验证表](../50-data-numerical/50-mda.md)（按关卡的金币累积曲线 vs 商店建议消费曲线）。
 
 ---
 
@@ -209,7 +222,7 @@
 ## 9. 参考章节
 
 - 资源具体数值：21-MDA §6（关卡参数）、§8（卡牌能量消耗表）、§9（商店价格表）
-- 卡牌定义：[25-card-roguelike-refactor §2](./25-card-roguelike-refactor.md#2-卡牌系统)
-- 关间节点与商店：[25 §3](./25-card-roguelike-refactor.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
-- 永久解锁：[13-save-system §3](./13-save-system.md#3-永久解锁与火花碎片)
-- 卡牌部署回收：[09-ui-ux §3](./09-ui-ux.md)
+- 卡牌定义：[25-card-roguelike-refactor §2](./10-roguelike-loop.md#2-卡牌系统)
+- 关间节点与商店：[25 §3](./10-roguelike-loop.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
+- 永久解锁：[13-save-system §3](../60-tech/61-save-system.md#3-永久解锁与火花碎片)
+- 卡牌部署回收：[09-ui-ux §3](../40-presentation/40-ui-ux.md)

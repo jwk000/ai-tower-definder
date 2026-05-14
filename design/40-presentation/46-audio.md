@@ -1,4 +1,16 @@
-# 10 — 音效系统
+---
+title: 音效系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - audio-system
+supersedes: []
+cross-refs:
+  - 40-presentation/44-visual-effects.md
+---
+
+# 音效系统
 
 > 音乐与音效完整清单，覆盖全部游戏系统。基于 v2.2 设计文档与代码实现交叉分析。
 
@@ -379,7 +391,7 @@
 
 ## 十五、v3.0 卡牌与 Roguelike 系统音效（追加）
 
-> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，v3.0 新增卡牌系统、关间节点、商店、秘境、火花碎片等界面，需补充对应音效。
+> 根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，v3.0 新增卡牌系统、关间节点、商店、秘境、火花碎片等界面，需补充对应音效。
 >
 > 本节追加 **18 个 v3.0 新 SfxKey**，与现有 39 个并列，总计 **57 个 SfxKey**。
 
@@ -439,7 +451,7 @@
 
 ### 15.6a 水晶机制音效（3 个，v3.0 新增）
 
-> 配套视觉规范见 [12-vfx §10](./12-visual-effects.md#10-水晶视觉与特效v30-新增)、[16-art §13.13](./16-art-assets-design.md#1313-水晶大本营视觉)。
+> 配套视觉规范见 [12-vfx §10](./44-visual-effects.md#10-水晶视觉与特效v30-新增)、[16-art §13.13](./42-art-assets.md#1313-水晶大本营视觉)。
 
 | SfxKey | 触发时机 | 风格 | 优先级 |
 |--------|---------|------|--------|

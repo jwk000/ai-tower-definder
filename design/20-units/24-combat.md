@@ -1,6 +1,20 @@
-# 05 — 战斗系统：公式骨架与机制规范
+---
+title: 战斗系统：公式骨架与机制规范
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - damage-pipeline
+  - combat-formulas-skeleton
+supersedes: []
+cross-refs:
+  - 50-data-numerical/50-mda.md
+  - 20-units/25-vulnerability.md
+---
 
-> **本文档不再持有数值**。所有具体数值（伤害系数常量、波次缩放、攻速上限等）见 [21-MDA数值设计](./21-mda-numerical-design.md)（**唯一真理源**）。
+# 战斗系统：公式骨架与机制规范
+
+> **本文档不再持有数值**。所有具体数值（伤害系数常量、波次缩放、攻速上限等）见 [21-MDA数值设计](../50-data-numerical/50-mda.md)（**唯一真理源**）。
 >
 > 本文档定义：战斗公式的**形态**、机制的**规则边界**、视觉/反馈的**规范**。
 
@@ -81,7 +95,7 @@ return max(actualSpeed, floor);
 
 ## 4. 数值锚点说明
 
-> 数值锚点（箭塔 L1 等）见 [21 §3](./21-mda-numerical-design.md#3-锚点定义与核心公式)。本文档不再重复，避免双源数值漂移。
+> 数值锚点（箭塔 L1 等）见 [21 §3](../50-data-numerical/50-mda.md#3-锚点定义与核心公式)。本文档不再重复，避免双源数值漂移。
 
 ---
 
@@ -143,7 +157,7 @@ return max(actualSpeed, floor);
 
 ## 8. 难度曲线骨架
 
-> **具体波次倍率表见 [21 §8](./21-mda-numerical-design.md#8-波次难度曲线重校准)**。本文档只描述形态：
+> **具体波次倍率表见 [21 §8](../50-data-numerical/50-mda.md#8-波次难度曲线重校准)**。本文档只描述形态：
 
 - 关卡模式：1-3 入门 → 4-8 发展 → 9-15 挑战 → 16-20 极限
 - 无尽模式：20 波后进入线性递增段（HP/移速/护甲/魔抗每波 +固定增量，具体值见 21）

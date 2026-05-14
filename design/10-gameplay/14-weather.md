@@ -1,4 +1,17 @@
-# 13 — 天气系统
+---
+title: 天气系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - weather-effects
+supersedes: []
+cross-refs:
+  - 20-units/24-combat.md
+  - 50-data-numerical/50-mda.md
+---
+
+# 天气系统
 
 > 5种天气类型及其对游戏数值的影响
 

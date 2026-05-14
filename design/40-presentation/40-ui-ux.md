@@ -1,8 +1,23 @@
-# 09 — UI/UX 设计
+---
+title: UI / UX 设计
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - ui-layout
+  - hud-spec
+  - hand-zone-ui
+supersedes: []
+cross-refs:
+  - 40-presentation/41-responsive-layout.md
+  - 10-gameplay/10-roguelike-loop.md
+---
+
+# UI / UX 设计
 
 > 横屏布局 | 符号优于文字 | 卡牌驱动交互
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，底部工具栏改为「手牌区」，新增关间节点面板、商店界面、秘境界面、卡池界面、Run 结算界面。删除关卡选择网格（改为 Run 入口）、删除三星菱形显示。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，底部工具栏改为「手牌区」，新增关间节点面板、商店界面、秘境界面、卡池界面、Run 结算界面。删除关卡选择网格（改为 Run 入口）、删除三星菱形显示。
 
 ---
 
@@ -21,7 +36,7 @@
 ## 2. 横屏布局（1920×1080）
 
 > **v3.0 关键变更**：底部工具栏 1344×100 → 底部**手牌区** 800×180（居中浮于地图下沿）；顶部 HUD 删除人口/敌军/倒计时，新增手牌计数。
-> **响应式锚点权威定义见 [20-responsive-layout §4.5](./20-responsive-layout.md#45-v30-锚点)**，本文档的尺寸/位置数据须与 20 文档保持一致。如发现冲突，以 20 文档为准。
+> **响应式锚点权威定义见 [20-responsive-layout §4.5](./41-responsive-layout.md#45-v30-锚点)**，本文档的尺寸/位置数据须与 20 文档保持一致。如发现冲突，以 20 文档为准。
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -114,7 +129,7 @@ pointerDown(x, y)
 | 单卡 | 120×168 | 横向 16px 间距 |
 | 整体 | 4 张默认水平居中排列 | 上限 8 张（永久升级） |
 
-权威锚点定义见 [20-responsive-layout §4.5.2](./20-responsive-layout.md#452-手牌区锚点)。
+权威锚点定义见 [20-responsive-layout §4.5.2](./41-responsive-layout.md#452-手牌区锚点)。
 
 ### 3.2 单卡视觉规范
 
@@ -183,7 +198,7 @@ pointerDown(x, y)
 | 金币 | 金色圆点 ● | `● 120` | 整局 Run 累计金币 |
 | 波次 | 旗标 ⚑ | `⚑ 3/8` | 当前波次 / 关卡总波次 |
 | 敌军存活 | 骷髅 ☠ | `☠ 12` | 当前波场上敌人数 |
-| 水晶 HP | 红色水晶 💎 | `💎 980/1000` | 跨关继承，HP < 30% 闪烁红色 + 水晶辉光转急促；详见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体) |
+| 水晶 HP | 红色水晶 💎 | `💎 980/1000` | 跨关继承，HP < 30% 闪烁红色 + 水晶辉光转急促；详见 [25 §6.2](../10-gameplay/10-roguelike-loop.md#62-水晶机制核心防御实体) |
 | Run 进度 | "Run" 文字 | `Run 3/9` | 当前关卡 / 9 关 |
 | 倍速 | 文本按钮 | `[1x][2x]` | 切换 |
 | 暂停 | 暂停符号 | `[⏸]` | 进入暂停菜单 |
@@ -273,7 +288,7 @@ pointerDown(x, y)
 | 血药 | 60 | 水晶 HP +100 |
 | 刷新商品 | 30 | 重新生成 4 件商品（同一节点内消耗递增） |
 
-详细价格见 [21-MDA §9 商品价格表](./21-mda-numerical-design.md)。
+详细价格见 [21-MDA §9 商品价格表](../50-data-numerical/50-mda.md)。
 
 ---
 
@@ -308,7 +323,7 @@ pointerDown(x, y)
 | 选项卡 | 通常 3 选项（含离开） |
 | 每个选项 | 1 行效果摘要（明确告知风险/收益） |
 
-事件池见 [25 §3.2 秘境事件初版池](./25-card-roguelike-refactor.md)。
+事件池见 [25 §3.2 秘境事件初版池](../10-gameplay/10-roguelike-loop.md)。
 
 ---
 
@@ -342,7 +357,7 @@ pointerDown(x, y)
 | 火花碎片 | 顶部显示当前余额 |
 | 操作 | 点击 🔒 卡 → 弹出确认花碎片解锁；点击已解锁卡 → 显示升级选项 |
 
-详见 [13-save-system §3](./13-save-system.md#3-永久解锁与火花碎片)。
+详见 [13-save-system §3](../60-tech/61-save-system.md#3-永久解锁与火花碎片)。
 
 ---
 
@@ -408,7 +423,7 @@ Run 失败时面板结构相同，标题改为「Run 失败」+ "最远到达关
 
 > **v3.0 关键变更**：等级标识仅显示永久升级后的等级（在场卡实例的等级 = 永久卡级 + 临时升级），实例临时升级用**金色脉冲光晕**额外提示，不计入头顶菱形（避免与永久等级混淆）。
 
-详见旧 §6.1（沿用）+ [25 §6 卡牌升级双轨制](./25-card-roguelike-refactor.md)。
+详见旧 §6.1（沿用）+ [25 §6 卡牌升级双轨制](../10-gameplay/10-roguelike-loop.md)。
 
 ---
 
@@ -427,7 +442,7 @@ Run 失败时面板结构相同，标题改为「Run 失败」+ "最远到达关
 
 ## 14. 参考章节
 
-- 卡牌系统机制：[25-card-roguelike-refactor §2-§6](./25-card-roguelike-refactor.md)
-- 美术风格规范：[16-art-assets-design](./16-art-assets-design.md)
-- 响应式布局锚点：[20-responsive-layout](./20-responsive-layout.md)
+- 卡牌系统机制：[25-card-roguelike-refactor §2-§6](../10-gameplay/10-roguelike-loop.md)
+- 美术风格规范：[16-art-assets-design](./42-art-assets.md)
+- 响应式布局锚点：[20-responsive-layout](./41-responsive-layout.md)
 - HUD 与实体头顶规范：v2.3 沿用

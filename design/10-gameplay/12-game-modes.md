@@ -1,10 +1,23 @@
-# 08 — 游戏模式
+---
+title: 游戏模式
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - game-modes
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 10-gameplay/13-map-level.md
+---
+
+# 游戏模式
 
 > Run 模式规则、胜负条件、关卡内难度曲线
 >
-> **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除「独立关卡模式」与「无尽模式」，统一为「Run 长征模式」。三星评定整体删除（Run 不评星，仅按到达关卡发放火花碎片）。
+> **v3.0 重写**：根据 [25-card-roguelike-refactor](./10-roguelike-loop.md) 方案，删除「独立关卡模式」与「无尽模式」，统一为「Run 长征模式」。三星评定整体删除（Run 不评星，仅按到达关卡发放火花碎片）。
 >
-> **数值真理源**：本文档不持有数值，所有数值（HP/速度系数/起始资源等）以 [21-MDA](./21-mda-numerical-design.md) 为准。
+> **数值真理源**：本文档不持有数值，所有数值（HP/速度系数/起始资源等）以 [21-MDA](../50-data-numerical/50-mda.md) 为准。
 
 ---
 
@@ -19,7 +32,7 @@ v3.0 游戏只有**一种游戏模式**：Roguelike 长征 Run。
 - 每局 Run 开局重新抽取 12 张卡组，每次玩内容不同
 - **水晶**（玩家方核心防御实体，前称大本营）HP 在整局 Run 内**跨关卡继承**
 - 任一关卡内水晶 HP 归零 → 水晶碎裂 → Run 失败，从第 1 关重开
-- 水晶机制（无敌 + 秒杀敌人 + 1HP 消耗）详见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)
+- 水晶机制（无敌 + 秒杀敌人 + 1HP 消耗）详见 [25 §6.2](./10-roguelike-loop.md#62-水晶机制核心防御实体)
 - 完成终战 → Run 胜利
 
 ### 1.2 Run 流程
@@ -85,7 +98,7 @@ v3.0 游戏只有**一种游戏模式**：Roguelike 长征 Run。
 | 失败判定 | HP ≤ 0 → 水晶碎裂 → Run 失败 |
 | Run 末 | 不影响 meta 货币结算 |
 
-详细数值见 [21-MDA §18](./21-mda-numerical-design.md)。水晶机制规则细节见 [25 §6.2](./25-card-roguelike-refactor.md#62-水晶机制核心防御实体)。
+详细数值见 [21-MDA §18](../50-data-numerical/50-mda.md)。水晶机制规则细节见 [25 §6.2](./10-roguelike-loop.md#62-水晶机制核心防御实体)。
 
 ### 1.5 关卡内难度曲线（保留 v1.1 设计）
 
@@ -120,7 +133,7 @@ v3.0 游戏只有**一种游戏模式**：Roguelike 长征 Run。
 | L8 王城 | 1.8 / 1.5 |
 | L9 终战 | 2.5 / 1.8 |
 
-详见 [07-map-level-system §3](./07-map-level-system.md#3-8-关--终战清单)。
+详见 [07-map-level-system §3](./13-map-level.md#3-8-关--终战清单)。
 
 ### 1.7 玩家成长与难度同步
 
@@ -133,7 +146,7 @@ v3.0 游戏只有**一种游戏模式**：Roguelike 长征 Run。
 | 关 6-7 通关 | 至少 1 张 L3 卡 + 充分能量上限 | 关 7 总收入应支持 L3 升级或购入 Epic |
 | 关 8 通关 | 卡组完全成型，能稳定应对终战 | 关 7 关间节点是终战前最后准备机会 |
 
-经济节奏校验见 [21-MDA §11 经济节奏验证表](./21-mda-numerical-design.md)。
+经济节奏校验见 [21-MDA §11 经济节奏验证表](../50-data-numerical/50-mda.md)。
 
 ### 1.8 主菜单入口
 
@@ -142,7 +155,7 @@ v3.0 游戏只有**一种游戏模式**：Roguelike 长征 Run。
 - 主菜单同时提供「卡池」「永久升级」「成就」「设置」入口
 - **不再提供独立关卡选择**——Run 模式必须按顺序连闯
 
-详见 [09-ui-ux](./09-ui-ux.md)。
+详见 [09-ui-ux](../40-presentation/40-ui-ux.md)。
 
 ---
 
@@ -217,7 +230,7 @@ Run 结束（无论胜负）后弹出结算画面：
 
 ## 5. 参考章节
 
-- 关卡详情：[07-map-level-system §3](./07-map-level-system.md#3-8-关--终战清单)
-- 关间节点（商店 + 秘境）：[25-card-roguelike-refactor §3](./25-card-roguelike-refactor.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
-- 永久解锁与火花碎片：[13-save-system §3](./13-save-system.md#3-永久解锁与火花碎片)
-- 关卡内难度乘数：[21-MDA §6 关卡参数](./21-mda-numerical-design.md)
+- 关卡详情：[07-map-level-system §3](./13-map-level.md#3-8-关--终战清单)
+- 关间节点（商店 + 秘境）：[25-card-roguelike-refactor §3](./10-roguelike-loop.md#3-关间节点系统核心-rogue-抉择替代波间-3-选-1)
+- 永久解锁与火花碎片：[13-save-system §3](../60-tech/61-save-system.md#3-永久解锁与火花碎片)
+- 关卡内难度乘数：[21-MDA §6 关卡参数](../50-data-numerical/50-mda.md)

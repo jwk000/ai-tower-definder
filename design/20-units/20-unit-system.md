@@ -1,8 +1,23 @@
-# 02 — 单位系统
+---
+title: 单位系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - unit-taxonomy
+  - unit-lifecycle
+supersedes: []
+cross-refs:
+  - 20-units/21-unit-roster.md
+  - 10-gameplay/10-roguelike-loop.md
+  - 50-data-numerical/50-mda.md
+---
+
+# 单位系统
 
 > 统一单位概念、配置驱动架构、动态行为规则
 >
-> **v3.0 扩展**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md)，**所有玩家可部署单位都从卡牌生成**。本文档保持 ECS 单位概念不变，新增「卡牌作为生成入口」说明（§8）。
+> **v3.0 扩展**：根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md)，**所有玩家可部署单位都从卡牌生成**。本文档保持 ECS 单位概念不变，新增「卡牌作为生成入口」说明（§8）。
 
 ---
 
@@ -47,7 +62,7 @@
 | **视觉属性** | 形状轮廓、颜色、尺寸、符号特征、待机动画、弹道样式 | 所有单位 |
 | **分类属性** | 所属阵营、类别、层级 | 所有单位 |
 
-> **视觉属性**不以文字标签区分单位，而是通过形状轮廓+符号特征+动态特效的组合让玩家一眼识别。详见 [12-视觉特效](./12-visual-effects.md)。
+> **视觉属性**不以文字标签区分单位，而是通过形状轮廓+符号特征+动态特效的组合让玩家一眼识别。详见 [12-视觉特效](../40-presentation/44-visual-effects.md)。
 
 ---
 
@@ -55,7 +70,7 @@
 
 > **核心原则：行为树统一驱动。** 所有单位的行为（目标选择、攻击、移动、技能释放）由行为树配置驱动。专用系统（AttackSystem/MovementSystem 等）仅执行行为树委派的原子动作，不再自主决策。
 
-详见 [23-AI行为树统一方案](./23-ai-behavior-tree.md)。
+详见 [23-AI行为树统一方案](../30-ai/30-behavior-tree.md)。
 
 ### 3.1 生命周期事件规则
 
@@ -131,7 +146,7 @@
 | Boss 阶段切换 | `check_hp` → 切换行为子树 |
 | 多技能优先级 | Selector 决定技能释放顺序 |
 
-行为树节点类型：Sequence、Selector、Inverter、CheckHP、CheckEnemyInRange、Attack、MoveTo、MoveTowards、Wait。详见 [23-AI行为树统一方案](./23-ai-behavior-tree.md)。
+行为树节点类型：Sequence、Selector、Inverter、CheckHP、CheckEnemyInRange、Attack、MoveTo、MoveTowards、Wait。详见 [23-AI行为树统一方案](../30-ai/30-behavior-tree.md)。
 
 ---
 
@@ -364,7 +379,7 @@ spike_trap:
 
 > **本节为入口/边界声明，不是机制权威。**
 >
-> 卡牌系统（CardConfig 字段、出卡流程、能量消耗、抽牌弃牌、关间节点、卡池升级）的**唯一权威**位于 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md)（重构后会迁移到 `10-gameplay/10-roguelike-loop.md`）。本节只声明"卡牌与单位的边界"。
+> 卡牌系统（CardConfig 字段、出卡流程、能量消耗、抽牌弃牌、关间节点、卡池升级）的**唯一权威**位于 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md)（重构后会迁移到 `10-gameplay/10-roguelike-loop.md`）。本节只声明"卡牌与单位的边界"。
 
 ### 8.1 单位 vs 卡牌的概念边界
 
@@ -381,7 +396,7 @@ spike_trap:
 - 法术卡：出卡 → 消耗能量 → 触发 `cardConfig.spellEffect`（瞬时 / VFX 实体）→ 进入弃牌堆（`persistAcrossWaves=true` 除外）。
 - 场上单位实例**死亡不回弃牌堆**——卡是"召唤令"，使用一次即弃。
 
-> ⚠️ **`baseLevel` 已在 v3.1 移除**：旧版 `CardConfig.upgradePath.baseLevel` 字段不复存在。塔卡数值由 [30-tower-tech-tree](./30-tower-tech-tree.md) 科技树驱动；关内临时数值层由 `CardInDeck.instanceLevel`（仅法术卡可提升，详见 [04 §7](./04-skill-buff-system.md)）驱动。
+> ⚠️ **`baseLevel` 已在 v3.1 移除**：旧版 `CardConfig.upgradePath.baseLevel` 字段不复存在。塔卡数值由 [30-tower-tech-tree](./22-tower-tech-tree.md) 科技树驱动；关内临时数值层由 `CardInDeck.instanceLevel`（仅法术卡可提升，详见 [04 §7](./23-skill-buff.md)）驱动。
 
 ---
 
@@ -429,4 +444,4 @@ enemy_assassin:
   disengagementRange: 130
 ```
 
-详见 [23-ai-behavior-tree §X 威胁度评分扩展](./23-ai-behavior-tree.md)。
+详见 [23-ai-behavior-tree §X 威胁度评分扩展](../30-ai/30-behavior-tree.md)。

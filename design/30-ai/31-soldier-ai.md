@@ -1,4 +1,17 @@
-# 24 — 士兵AI行为设计
+---
+title: 士兵 AI 行为设计
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - soldier-ai-spec
+supersedes: []
+cross-refs:
+  - 30-ai/30-behavior-tree.md
+  - 20-units/21-unit-roster.md
+---
+
+# 士兵 AI 行为设计
 
 > 我方可移动单位（统称"士兵"）的AI行为：警戒/追击/战斗/游荡 状态机设计
 >
@@ -474,7 +487,7 @@ wander:
 
 ### 6.3 新增行为树节点（详细规格见 23 §0）
 
-所有节点签名/语义已在 [23 §0 节点接口规格冻结](./23-ai-behavior-tree.md#零节点接口规格冻结source-of-truth) 中定义。本文档仅列出士兵 AI 涉及的节点清单（不再重复签名，避免双源漂移）：
+所有节点签名/语义已在 [23 §0 节点接口规格冻结](./30-behavior-tree.md#零节点接口规格冻结source-of-truth) 中定义。本文档仅列出士兵 AI 涉及的节点清单（不再重复签名，避免双源漂移）：
 
 | 节点 | 类型 | 用途 |
 |------|------|------|
@@ -748,7 +761,7 @@ private aggroTable: Map<number, { targetId: number; expireTime: number; totalDam
 >
 > 原 v2.2 线性升级方案（关内出金币 → 单位 Lv↑ → HP/ATK/嘲讽容量线性增长）随 v3.0 卡牌化、v3.1 塔科技树后已**不再适用**：
 > - v3.0 取消"关内出工具栏部署"，全部改走手牌区拖卡，关内不再有金币投入升级；
-> - v3.1 塔升级整体改为关外卡池科技树（[30](./30-tower-tech-tree.md)），士兵作为同等地位的 friendly 单位，**未来也应按"路径式科技树"重设计**，但当前阶段优先级低于塔。
+> - v3.1 塔升级整体改为关外卡池科技树（[30](../20-units/22-tower-tech-tree.md)），士兵作为同等地位的 friendly 单位，**未来也应按"路径式科技树"重设计**，但当前阶段优先级低于塔。
 >
 > **决策（M5）**：士兵升级方案延后。在新方案落地前：
 > - 关外不提供士兵升级入口；

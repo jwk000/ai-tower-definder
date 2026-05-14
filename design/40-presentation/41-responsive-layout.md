@@ -1,4 +1,17 @@
-# 20 — 响应式布局 & 自适应缩放
+---
+title: 响应式布局 & 自适应缩放
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - responsive-layout
+  - anchor-system
+supersedes: []
+cross-refs:
+  - 40-presentation/40-ui-ux.md
+---
+
+# 响应式布局 & 自适应缩放
 
 > 设计分辨率适配 | 锚点定位系统 | 窗口自适应
 
@@ -246,7 +259,7 @@ computeSceneLayout() → 使用动态 canvas 尺寸：
 
 ### 4.5 v3.0 卡牌系统锚点
 
-> 根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，v3.0 新增手牌区与关间面板，本节定义其锚点配置。
+> 根据 [25-card-roguelike-refactor](../10-gameplay/10-roguelike-loop.md) 方案，v3.0 新增手牌区与关间面板，本节定义其锚点配置。
 
 #### 4.5.1 关内 HUD 扩展（替代旧工具栏）
 
@@ -264,7 +277,7 @@ computeSceneLayout() → 使用动态 canvas 尺寸：
 |------|---------|------|
 | 手牌区背景条 | `anchor: bottom-center, offset(0, -130)`, `size: 800 × 180` | 屏幕底部居中长条 |
 | 手牌卡片插槽 | 手牌区内**水平居中排列**，卡间距 16px | 最多 8 张，按当前手牌数动态居中 |
-| 单张卡尺寸 | `120 × 168` | 见 [16 §13.1](./16-art-assets-design.md#131-卡牌尺寸与基础规格) |
+| 单张卡尺寸 | `120 × 168` | 见 [16 §13.1](./42-art-assets.md#131-卡牌尺寸与基础规格) |
 | 卡牌锚点（容器内） | `anchor: middle-center, offset(0, 0)` | 卡牌中心对齐手牌区中心 |
 | 手牌区出现/隐藏 | 战斗阶段显示，关间阶段隐藏 | LayoutManager 监听 GamePhase |
 
@@ -284,7 +297,7 @@ computeSceneLayout() → 使用动态 canvas 尺寸：
 | 商店全屏背景 | `anchor: middle-center, offset(0, 0)`, `size: 1200 × 700` | 居中大面板 |
 | 标题（含余额） | `anchor: top-center, offset(0, 30)` 相对于商店面板 | 顶部居中 |
 | 商品槽 1-4 | 4 个槽位水平排列，槽间距 20px，整组水平居中 | 中央区域 |
-| 单槽尺寸 | `140 × 200` | 详见 [16 §13.8.2](./16-art-assets-design.md#1382-商店面板视觉) |
+| 单槽尺寸 | `140 × 200` | 详见 [16 §13.8.2](./42-art-assets.md#1382-商店面板视觉) |
 | 刷新按钮 | `anchor: bottom-right, offset(-200, -30)` 相对于商店面板 | 右下 |
 | 离开按钮 | `anchor: bottom-right, offset(-30, -30)` 相对于商店面板 | 右下角 |
 

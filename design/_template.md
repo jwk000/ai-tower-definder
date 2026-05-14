@@ -5,7 +5,7 @@ version: 1.0.0
 last-modified: 2026-05-14
 authority-for: []                    # 本文档独家裁定的领域，可为空。命名约定见 §3
 supersedes: []                       # 本文档取代的旧文件相对路径（如 ["../03-unit-data.md"]）
-cross-refs:                          # 本文档主要引用的兄弟文档
+cross-refs:                          # 本文档主要引用的兄弟文档（相对 design/ 根的路径片段）
   - 10-gameplay/10-roguelike-loop.md
   - 50-data-numerical/50-mda.md
 ---
@@ -113,7 +113,7 @@ cross-refs:                          # 本文档主要引用的兄弟文档
 
 ## F. 内部链接规范
 
-- 同目录引用：`[文本](../目录名/文件名.md#锚点)`
+- 同目录引用：`[文本](./文件名.md#锚点)`
 - 跨层级引用：`[10-roguelike-loop §2.4](../10-gameplay/10-roguelike-loop.md#24-卡牌升级状态)`
 - 引用具体小节时优先用锚点，便于定位
 - 引用 50-mda 时强制写明小节号，例如：`详见 [50-mda §17 火花碎片](../50-data-numerical/50-mda.md#17-火花碎片获取与消费数值)`

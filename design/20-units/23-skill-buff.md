@@ -1,7 +1,23 @@
-# 05 — 技能与Buff系统
+---
+title: 技能与 Buff 系统
+status: stable
+version: 1.0.0
+last-modified: 2026-05-14
+authority-for:
+  - skill-system
+  - buff-debuff-runtime
+  - instance-level
+supersedes: []
+cross-refs:
+  - 10-gameplay/10-roguelike-loop.md
+  - 20-units/24-combat.md
+  - 50-data-numerical/50-mda.md
+---
 
-> **v3.1（2026-05-14）变更**：因塔升级改造为科技树（[30-tower-tech-tree](./30-tower-tech-tree.md)），本文档同步：
-> - §2.2「塔被动技能（L3 解锁）」**整段删除**，原表移至 [archive/deprecated-l3-passives.md](./archive/deprecated-l3-passives.md)；塔被动统一由科技树节点提供
+# 技能与 Buff 系统
+
+> **v3.1（2026-05-14）变更**：因塔升级改造为科技树（[30-tower-tech-tree](./22-tower-tech-tree.md)），本文档同步：
+> - §2.2「塔被动技能（L3 解锁）」**整段删除**，原表移至 [archive/deprecated-l3-passives.md](../archive/deprecated-l3-passives.md)；塔被动统一由科技树节点提供
 > - §3.3 预定义 Buff 表新增 v3.1 Buff 行：贯穿（pierce）/ 传染（infect）/ 电荷（capacitor）/ 灼烧扩展 / 能量丹概率
 > - §6「v3.1 塔科技树新增机制」：贯穿、传染跳跃、闪电塔全屏技、激光塔蓄能聚焦的机制详述
 > - §7（新增）「instanceLevel 法术卡提升」：M1 决策落地 —— instanceLevel 仅由法术卡提升、本局有效、塔死亡清零
@@ -36,7 +52,7 @@
 
 ### 2.2 塔被动技能
 
-> 🛑 v3.1 起塔被动技能不再由 "L3 解锁" 提供，统一由[科技树节点](./30-tower-tech-tree.md#4-各塔科技树详细设计)定义。原 L3 被动设计的历史快照见 [archive/deprecated-l3-passives.md](./archive/deprecated-l3-passives.md)。
+> 🛑 v3.1 起塔被动技能不再由 "L3 解锁" 提供，统一由[科技树节点](./22-tower-tech-tree.md#4-各塔科技树详细设计)定义。原 L3 被动设计的历史快照见 [archive/deprecated-l3-passives.md](../archive/deprecated-l3-passives.md)。
 
 ### 2.3 Boss技能
 
@@ -88,7 +104,7 @@
 |--------|------|------|
 | 1（最高） | **眩晕/冰冻控制类** | 完全压制行为（无法移动/攻击），其他 Buff 仍然存在但效果被压制 |
 | 2 | **嘲讽控制类** | 强制目标，覆盖一般目标选择 |
-| 3 | **减速类** | 同类减速取 **max**（最强生效），跨类减速取 **sum**（详见 [05-combat-system 减速叠加规则](./05-combat-system.md)） |
+| 3 | **减速类** | 同类减速取 **max**（最强生效），跨类减速取 **sum**（详见 [05-combat-system 减速叠加规则](./24-combat.md)） |
 | 4 | **DOT 燃烧/中毒类** | 每个独立计算伤害，相加但有 MAX_DOT_STACK 上限 |
 | 5 | **属性增益（ATK/HP/Speed buff）** | 同类增益取 **max**，跨类乘算（×=1+增益总和） |
 | 6（最低） | **标记类**（如"被锁定"） | 不影响数值，仅作为 AI 条件 |
@@ -126,7 +142,7 @@
 | **激光蓄能**（v3.1） | 自身增益 | self_buff | 1 | 持续锁定期间 | true | 对同目标连续锁定每 0.5s 攻击 +X%，最高 +cap%（详见 §6.4） | 稳压/特变激光塔（激光塔路径2） |
 | **能量丹概率**（v3.1） | 自身被动（无 Buff 实体） | — | — | — | — | 真火塔击杀敌人时按概率触发，给玩家能量池 +1 E（不引入新资源） | 真火塔（元素塔路径2终点） |
 
-> **数值真理源**：所有 Buff 具体数值以 [21-MDA](./21-mda-numerical-design.md) 为准。本表是字段结构示例。
+> **数值真理源**：所有 Buff 具体数值以 [21-MDA](../50-data-numerical/50-mda.md) 为准。本表是字段结构示例。
 
 ### 3.4 Buff视觉
 
@@ -154,7 +170,7 @@ Boss技能不消耗玩家能量（由AI自主管理冷却）。
 
 > 自 v3.0 起，玩家主动施放的技能全部以**法术卡**形式存在于卡牌系统中。本节定义法术卡的子分类。机制层面与 §2 预定义技能完全一致，仅是触发方式从"塔的主动技能"改为"手牌出卡"。
 >
-> 详细数值见 [21-MDA §12](./21-mda-numerical-design.md#12-能量-e-系统数值v30)；法术卡清单见 [21-unit-roster §7.2](./20-units/21-unit-roster.md#72-法术卡spelleffect-驱动不指向-unitconfig)。
+> 详细数值见 [21-MDA §12](../50-data-numerical/50-mda.md#12-能量-e-系统数值v30)；法术卡清单见 [21-unit-roster §7.2](./21-unit-roster.md#72-法术卡spelleffect-驱动不指向-unitconfig)。
 
 ### 5.1 法术卡按效果分类
 
@@ -187,7 +203,7 @@ type SpellEffect =
 
 - **不消耗单位能量**：法术卡从玩家**能量 E 池**扣除（与 §4 单位技能能量分开）。
 - **不可与塔主动技能共用**：塔的内置主动技能（如冰塔光环、激光过载）仍走 §4 能量规则，独立于法术卡能量池。
-- **数值范围**：法术卡能量消耗 2-10，详见 [21-MDA §12.2](./21-mda-numerical-design.md#122-卡牌能量消耗表)。
+- **数值范围**：法术卡能量消耗 2-10，详见 [21-MDA §12.2](../50-data-numerical/50-mda.md#122-卡牌能量消耗表)。
 
 ### 5.4 法术卡临时升级双轨
 
@@ -198,13 +214,13 @@ type SpellEffect =
 | 实例临时升级 | 该卡当前在手牌中的实例 | 出卡后消失 | 伤害 +30% / 范围 +10% |
 | 卡级临时升级 | 该卡 instanceLevel | 本局 Run 内永久（直到 Run 结束） | 每级累加 +30% 伤害 / +10% 范围 |
 
-> 法术卡死亡（出过一次）后**不回弃牌堆**，与 [25 §1.4 出卡流程](./25-card-roguelike-refactor.md#14-出卡流程) 一致。
+> 法术卡死亡（出过一次）后**不回弃牌堆**，与 [25 §1.4 出卡流程](../10-gameplay/10-roguelike-loop.md#14-出卡流程) 一致。
 
 ---
 
 ## 6. v3.1 塔科技树新增机制（追加）
 
-> 本节为 [30-tower-tech-tree](./30-tower-tech-tree.md) 中各塔终点节点的机制详述，作为 21-MDA 数值表的语义补充。所有具体数值占位以 21-MDA 为准。
+> 本节为 [30-tower-tech-tree](./22-tower-tech-tree.md) 中各塔终点节点的机制详述，作为 21-MDA 数值表的语义补充。所有具体数值占位以 21-MDA 为准。
 
 ### 6.1 贯穿（pierce） — 战术炮塔（炮塔路径 2 终点）
 
@@ -337,7 +353,7 @@ type SpellEffect =
 
 ### 7.2 与科技树的关系
 
-科技树（[30](./30-tower-tech-tree.md)）决定塔的**形态与能力上限**（永久），instanceLevel 决定塔的**数值强度**（临时）。两者正交，互不干扰：
+科技树（[30](./22-tower-tech-tree.md)）决定塔的**形态与能力上限**（永久），instanceLevel 决定塔的**数值强度**（临时）。两者正交，互不干扰：
 
 | 维度 | 决定者 | 持久性 | 关内可变 |
 |------|--------|--------|----------|
