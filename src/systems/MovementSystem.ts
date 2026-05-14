@@ -3,9 +3,11 @@ import {
   Position, Movement, Health, UnitTag, Stunned, Frozen, Slowed, MoveModeVal,
   Visual, Attack, Projectile, DeathEffect, Trap, Category, CategoryVal,
 } from '../core/components.js';
-import type { MapConfig } from '../types/index.js';
+import type { MapConfig, GridPos } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
 import { getEffectiveValue } from './BuffSystem.js';
+import { resolveGraphFromMap } from '../level/graph/loaderAdapter.js';
+import { linearizeForLegacy } from '../level/graph/PathGraph.js';
 
 interface CollisionResult {
   blocked: boolean;
@@ -26,11 +28,16 @@ export class MovementSystem implements System {
   /** Query: base objective entities (Category.Objective) for damage on enemy reach-end */
   private baseQuery = defineQuery([Position, Health, Category]);
 
-  constructor(private map: MapConfig) {}
+  private readonly path: readonly GridPos[];
+
+  constructor(private map: MapConfig) {
+    const resolved = resolveGraphFromMap(map);
+    this.path = linearizeForLegacy({ pathGraph: resolved.pathGraph, spawns: resolved.spawns });
+  }
 
   update(world: TowerWorld, dt: number): void {
     const entities = this.movingQuery(world.world);
-    const path = this.map.enemyPath;
+    const path = this.path;
     const ts = this.map.tileSize;
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;

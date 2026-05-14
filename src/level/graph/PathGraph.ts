@@ -1,5 +1,6 @@
 import type { PathGraph, PathNode, PathEdge, SpawnPoint, WaveEnemyGroup } from './types.js';
 import type { GameRandom } from '../../utils/Random.js';
+import type { GridPos } from '../../types/index.js';
 
 export interface PathGraphIndex {
   graph: PathGraph;
@@ -189,6 +190,64 @@ export function findDeadEndNodes(graph: PathGraph): string[] {
     }
   }
   return deadEnds;
+}
+
+export interface LinearizeInput {
+  pathGraph: PathGraph;
+  spawns: SpawnPoint[];
+}
+
+export function linearizeForLegacy(input: LinearizeInput): readonly GridPos[] {
+  const { pathGraph } = input;
+  const index = buildPathGraphIndex(pathGraph);
+
+  for (const n of pathGraph.nodes) {
+    if (n.role === 'portal') {
+      throw new Error(`[linearizeForLegacy] 不支持传送门节点 ${n.id}（B.12a 仅支持单链图）`);
+    }
+  }
+
+  const spawnNodes = pathGraph.nodes.filter((n) => n.role === 'spawn');
+  if (spawnNodes.length === 0) {
+    throw new Error('[linearizeForLegacy] 图中没有 spawn 节点');
+  }
+  if (spawnNodes.length > 1) {
+    throw new Error(
+      `[linearizeForLegacy] 多生成口图（${spawnNodes.length} 个 spawn 节点）不支持线性化（B.12a 仅支持单链图）`,
+    );
+  }
+
+  const start = spawnNodes[0]!;
+  const visited = new Set<string>();
+  const result: GridPos[] = [];
+  let cursor: PathNode | undefined = start;
+
+  while (cursor !== undefined) {
+    if (visited.has(cursor.id)) {
+      throw new Error(`[linearizeForLegacy] 检测到环路（节点 ${cursor.id} 重复访问）`);
+    }
+    visited.add(cursor.id);
+    result.push({ row: cursor.row, col: cursor.col });
+
+    if (cursor.role === 'crystal_anchor') {
+      return result;
+    }
+
+    const out = index.outEdges.get(cursor.id) ?? [];
+    if (out.length === 0) {
+      throw new Error(
+        `[linearizeForLegacy] 节点 ${cursor.id} 无出边但不是 crystal_anchor`,
+      );
+    }
+    if (out.length > 1) {
+      throw new Error(
+        `[linearizeForLegacy] 节点 ${cursor.id} 存在分支（${out.length} 条出边），不支持线性化（B.12a 仅支持单链图）`,
+      );
+    }
+    cursor = index.nodeById.get(out[0]!.to);
+  }
+
+  throw new Error('[linearizeForLegacy] 从 spawn 出发未抵达 crystal_anchor');
 }
 
 export interface GraphAlgorithmInput {
