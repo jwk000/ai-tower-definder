@@ -23,6 +23,8 @@ import { generateEndlessWave } from './EndlessWaveGenerator.js';
 import { RenderSystem } from './RenderSystem.js';
 import { Sound } from '../utils/Sound.js';
 import { shapeTypeToVal } from '../utils/visualHelpers.js';
+import { resolveGraphFromMap } from '../level/graph/loaderAdapter.js';
+import type { SpawnPoint } from '../level/graph/types.js';
 
 // ---- bitecs query for alive enemy check ----
 
@@ -76,6 +78,8 @@ export class WaveSystem implements System {
   /** Throttle counter for enemy spawn sounds */
   private spawnSoundCounter: number = 0;
 
+  private readonly resolvedSpawns: readonly SpawnPoint[];
+
   constructor(
     world: TowerWorld,
     private map: MapConfig,
@@ -88,6 +92,7 @@ export class WaveSystem implements System {
   ) {
     this.world = world;
     this.waves = waves;
+    this.resolvedSpawns = resolveGraphFromMap(map).spawns;
   }
 
   get currentWave(): number {
@@ -267,7 +272,7 @@ export class WaveSystem implements System {
     const config = ENEMY_CONFIGS[type];
     if (!config) return;
 
-    const spawn = this.map.enemyPath[0]!;
+    const spawn = this.resolvedSpawns[0]!;
     const ts = this.map.tileSize;
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
