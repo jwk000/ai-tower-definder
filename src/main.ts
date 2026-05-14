@@ -36,6 +36,7 @@ import { TileDamageSystem } from './systems/TileDamageSystem.js';
 import { LightningBoltSystem } from './systems/LightningBoltSystem.js';
 import { DecorationSystem } from './systems/DecorationSystem.js';
 import { ScreenFXSystem } from './systems/ScreenFXSystem.js';
+import { resolveGraphFromMap } from './level/graph/loaderAdapter.js';
 import { SaveManager } from './utils/SaveManager.js';
 import {
   initGlobalRandom, getGlobalRandom, generateSeed,
@@ -333,13 +334,15 @@ class TowerDefenderGame extends Game {
     Music.play('battle_default');
 
     // ---- Create base entity ----
-    const basePath = map.enemyPath[map.enemyPath.length - 1]!;
+    const resolvedGraph = resolveGraphFromMap(map);
+    const crystalAnchor = resolvedGraph.pathGraph.nodes.find((n) => n.role === 'crystal_anchor')
+      ?? resolvedGraph.pathGraph.nodes[resolvedGraph.pathGraph.nodes.length - 1]!;
     const ts = map.tileSize;
     const layout = computeSceneLayout(map, LayoutManager.DESIGN_W, LayoutManager.DESIGN_H);
     const ox = layout.offsetX;
     const oy = layout.offsetY;
-    const baseX = basePath.col * ts + ts / 2 + ox;
-    const baseY = basePath.row * ts + ts / 2 + oy;
+    const baseX = crystalAnchor.col * ts + ts / 2 + ox;
+    const baseY = crystalAnchor.row * ts + ts / 2 + oy;
     this.baseEntityId = this.world.createEntity();
     this.world.addComponent(this.baseEntityId, Position, { x: baseX, y: baseY });
     this.world.addComponent(this.baseEntityId, Health, { current: 100, max: 100 });
