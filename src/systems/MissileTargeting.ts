@@ -15,6 +15,23 @@ import { RenderSystem } from '../systems/RenderSystem.js';
 import { TOWER_CONFIGS } from '../data/gameData.js';
 import { TowerType } from '../types/index.js';
 import type { MapConfig } from '../types/index.js';
+import { resolveGraphFromMap, type ResolvedGraph } from '../level/graph/loaderAdapter.js';
+
+const resolvedGraphCache = new WeakMap<MapConfig, ResolvedGraph | null>();
+
+function getCachedGraph(map: MapConfig): ResolvedGraph | null {
+  if (resolvedGraphCache.has(map)) {
+    return resolvedGraphCache.get(map) ?? null;
+  }
+  let cached: ResolvedGraph | null = null;
+  try {
+    cached = resolveGraphFromMap(map);
+  } catch {
+    cached = null;
+  }
+  resolvedGraphCache.set(map, cached);
+  return cached;
+}
 
 export interface MissileTargetResult {
   targetX: number;
@@ -80,10 +97,10 @@ export function evaluateMissileTarget(
     ? towerSplashRadius
     : 120; // fallback
 
-  // ---- Base position: last waypoint of enemyPath ----
-  const basePos = map.enemyPath[map.enemyPath.length - 1];
-  const BASE_ROW = basePos?.row ?? MAP_ROWS - 1;
-  const BASE_COL = basePos?.col ?? MAP_COLS - 1;
+  const resolved = getCachedGraph(map);
+  const crystalNode = resolved?.pathGraph.nodes.find((n) => n.role === 'crystal_anchor');
+  const BASE_ROW = crystalNode?.row ?? MAP_ROWS - 1;
+  const BASE_COL = crystalNode?.col ?? MAP_COLS - 1;
   const MAX_PATH_DIST = MAP_COLS + MAP_ROWS;
 
   // ---- Grid ↔ pixel conversion ----
