@@ -218,10 +218,14 @@
 
 ---
 
-## 8. 卡牌目录（v3.0 新增）
+## 8. 卡牌目录（v3.0）
 
-> 数值见 [21-MDA §8 卡牌能量消耗与升级数值表](./21-mda-numerical-design.md)。
-> 卡牌实例化机制见 [02 §8 卡牌作为生成入口](./02-unit-system.md#8-卡牌作为生成入口v30-新增)。
+> 本节是"哪张卡引用哪个 UnitConfig"的**对照表（reference data）**，不是卡牌系统机制权威。
+>
+> - **卡牌系统机制权威** → [25-card-roguelike-refactor](./25-card-roguelike-refactor.md)（含 CardConfig 字段、出卡流程、抽弃牌、关间节点、卡池）
+> - **卡牌数值权威** → [21-MDA §8 卡牌能量消耗与升级数值表](./21-mda-numerical-design.md)
+> - **塔卡科技树权威** → [30-tower-tech-tree](./30-tower-tech-tree.md)
+> - **卡牌与单位的边界** → [02 §8](./02-unit-system.md#8-卡牌作为生成入口v30)
 
 ### 8.1 单位/建筑卡（指向已有 UnitConfig）
 
@@ -261,7 +265,7 @@
 
 ### 8.3 卡牌配置统一格式
 
-详见 [02 §8.3 CardConfig 字段](./02-unit-system.md#83-cardconfig-字段与-unitconfig-关联)。
+详见 [25-card-roguelike-refactor §CardConfig 字段](./25-card-roguelike-refactor.md)（重构后将位于 `10-gameplay/10-roguelike-loop.md`）。
 
 ---
 

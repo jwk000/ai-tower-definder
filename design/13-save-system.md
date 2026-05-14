@@ -4,11 +4,11 @@
 >
 > **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除 `LevelProgress` 三星与 `EndlessProgress`，新增 `CardCollection`（永久卡池）、`SparkShards`（meta 货币）、`OngoingRun`（关间存档点）、`PermanentUpgrades`（永久升级项）。
 >
-> **v3.1（2026-05-14）变更**：根据 [30-tower-tech-tree](./30-tower-tech-tree.md)，塔升级从"L1–L5 线性"改为"科技树路径互斥 + 节点线性解锁"。存档版本 `v2.0.0 → v2.1.0`：
-> - `CardEntry` 新增 `techTree?: TechTreeProgress` 字段，塔卡持有。
-> - `CardEntry.baseLevel` **废弃**，迁移规则：原 `baseLevel = N` 自动在塔卡路径 1 上解锁前 `min(N-1, maxNodes)` 个节点；非塔卡 `baseLevel` 直接丢弃。
-> - `CardInDeck.instanceLevel` 语义收窄：**仅本局有效，塔死亡/关结束清零，不写回 `CardCollection`、不切换形态**（详见 [30 §2.3](./30-tower-tech-tree.md#23-关内临时升级instancelevel保留)）。
+> **v3.1（2026-05-14）变更**：根据 [30-tower-tech-tree](./30-tower-tech-tree.md)，塔升级从"L1–L5 线性"改为"科技树路径互斥 + 节点线性解锁"。
+> - `CardEntry` 新增 `techTree?: TechTreeProgress` 字段，塔卡持有；非塔卡不持有。
+> - `CardInDeck.instanceLevel` 语义收窄：**仅本局有效，仅可由法术卡提升，塔死亡/关结束清零，不写回 `CardCollection`、不切换形态**（详见 [04 §7](./04-skill-buff-system.md) 和 [30 §2.3](./30-tower-tech-tree.md#23-关内临时升级instancelevel保留)）。
 > - 关间节点（商店/秘境）不再提供"塔升级"，不会写 `CardCollection.techTree`。
+> - 存档版本保持 `v2.0.0`（游戏未上线，无迁移需求；详见 §6）。
 
 ---
 
@@ -54,9 +54,7 @@ interface CardCollection {
 
 interface CardEntry {
   unlockedAt: number;          // 解锁时间（Unix ms）
-  /** @deprecated v3.1 起废弃，迁移规则见 §6.2 v2.0.0→v2.1.0；非塔卡的 baseLevel 直接丢弃 */
-  baseLevel?: number;
-  techTree?: TechTreeProgress; // v3.1 新增：仅塔卡持有，存科技树解锁进度与装备路径
+  techTree?: TechTreeProgress; // 仅塔卡持有，存科技树解锁进度与装备路径
   totalUsesInRuns: number;     // 该卡历史出现在 Run 中的次数
   totalDeploys: number;        // 该卡历史部署次数
 }
@@ -151,7 +149,7 @@ interface PlayerSettings {
 
 ```typescript
 const DEFAULT_SAVE: SaveData = {
-  version: '2.1.0',
+  version: '2.0.0',
   createdAt: now(),
   updatedAt: now(),
   checksum: '',
@@ -162,7 +160,6 @@ const DEFAULT_SAVE: SaveData = {
       // v3.1 默认状态：
       //   - 塔卡（tower_*）含 techTree，默认仅基础节点解锁（pathDepth: { [paths[0].id]: 1 }），未装备路径
       //   - 非塔卡无 techTree 字段
-      //   - 所有卡的 baseLevel 字段移除（v3.1 起废弃）
       'arrow_tower_basic':   { unlockedAt: now(), techTree: { pathDepth: { 'multi_shot': 1 }, equippedPath: null }, totalUsesInRuns: 0, totalDeploys: 0 },
       'cannon_tower_basic':  { unlockedAt: now(), techTree: { pathDepth: { 'control_aoe': 1 }, equippedPath: null }, totalUsesInRuns: 0, totalDeploys: 0 },
       'swordsman_basic':     { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
@@ -318,153 +315,31 @@ Run 结束时自动识别玩家流派，写入 `runHistory.archetypeWins`：
 
 ---
 
-## 6. 版本兼容与数据迁移
+## 6. 版本兼容
 
-### 6.1 版本检查流程
+### 6.1 当前版本与策略
+
+- **当前存档版本**：`v2.0.0`（自 v3.0 起设定，v3.1 不升版）。
+- **游戏未上线，没有历史版本的玩家数据**。本节不再维护任何 v1.x → v2.0 或 v2.0 → v2.1 的迁移路径。
+- 开发阶段如需调整存档结构：
+  1. 直接修改 `SaveData` 类型 + 默认值；
+  2. 提升 `CURRENT_VERSION` 常量；
+  3. 加载存档时若 `data.version !== CURRENT_VERSION` → 警告并备份原存档（key: `save_backup_v{oldVersion}`），然后创建新存档。
+- 上线后若需要数据迁移，将在专门的「迁移设计文档」中重新定义；本文件不预留迁移注册表。
+
+### 6.2 版本检查流程
 
 ```
 读取存档 →
-  if (data.version === CURRENT_VERSION) → 直接使用
-  else if (canMigrate(data.version)) → 调用 migrate() 升级
-  else → 警告"存档版本不兼容"，备份原存档 + 创建新存档
+  if (data.version === CURRENT_VERSION) → 校验 checksum → 直接使用
+  else → 备份原存档到 save_backup_v{oldVersion} → 创建全新存档（DEFAULT_SAVE）
 ```
 
-### 6.1.1 v3.0 水晶机制对存档的影响（无破坏性变更）
+### 6.3 命名兼容说明
 
-「大本营 → 水晶」是**纯命名 + 语义变更**，不涉及数据结构变化：
-
-- 字段名 `baseHp` / `baseHpMax` / `baseHpBonus` **保留**（前缀 base 来自旧版"base = 大本营"，现重读为"基础值"也合理），仅注释更新为"水晶 HP"。
-- 现有 v2.0 存档**不需要迁移**，直接读取即可，因为：
-  1. 数据结构未变；
-  2. 旧规则「敌人抵达终点扣 N HP」 → 新规则「水晶秒杀敌人每杀 1 个 -1 HP」属于运行时逻辑变更，不存在持久化数据；
-  3. `OngoingRun.baseHp` 表示当前水晶 HP，数值含义不变（仍是 0 ~ baseHpMax 之间的整数）。
-- 不引入新的存档版本号；保持 `version: '2.0.0'`。
-
-### 6.2 迁移注册表
-
-```typescript
-const MIGRATIONS: Migration[] = [
-  // v3.1: v2.0 → v2.1（塔升级改为科技树）
-  {
-    from: '2.0.0',
-    to: '2.1.0',
-    migrate: (data: any): SaveData => {
-      const result = { ...data };
-
-      // 塔卡 ID 集合（从 03-unit-data §1 / 30 §4 派生）
-      const TOWER_CARD_IDS = new Set([
-        'arrow_tower_basic',
-        'cannon_tower_basic',
-        'elemental_tower_basic',  // 旧 ice_tower_basic 同时迁移
-        'ice_tower_basic',        // 兼容旧 ID
-        'lightning_tower_basic',
-        'laser_tower_basic',
-        'bat_tower_basic',
-        'missile_tower_basic',
-      ]);
-
-      // 塔卡 ID → 默认路径 ID（用于落 baseLevel→path1）
-      const DEFAULT_PATH: Record<string, string> = {
-        'arrow_tower_basic':      'multi_shot',
-        'cannon_tower_basic':     'control_aoe',
-        'elemental_tower_basic':  'ice',
-        'ice_tower_basic':        'ice',
-        'lightning_tower_basic':  'chain',     // 单路径
-        'laser_tower_basic':      'fan_cover',
-        'bat_tower_basic':        'swarm',     // 单路径
-        'missile_tower_basic':    'twin_salvo',
-      };
-
-      // 重命名 ice_tower_* → elemental_tower_*
-      const unlocked = result.cardCollection.unlocked;
-      if (unlocked['ice_tower_basic'] && !unlocked['elemental_tower_basic']) {
-        unlocked['elemental_tower_basic'] = unlocked['ice_tower_basic'];
-        delete unlocked['ice_tower_basic'];
-      }
-
-      // 把每张塔卡的旧 baseLevel 转为路径 1 节点解锁
-      for (const [cardId, entry] of Object.entries(unlocked) as [string, any][]) {
-        if (!TOWER_CARD_IDS.has(cardId)) {
-          // 非塔卡，丢弃 baseLevel
-          delete entry.baseLevel;
-          continue;
-        }
-        const oldLevel = entry.baseLevel ?? 1;
-        const defaultPath = DEFAULT_PATH[cardId] ?? 'path_1';
-        // baseLevel = N → 路径 1 已解锁前 N 个节点（含基础节点）
-        // 例：baseLevel=1 → pathDepth=1，baseLevel=3 → pathDepth=3
-        // 上限由 30 号文档定义的节点数（3 或 4）裁剪；迁移阶段先保留写入值，加载时再裁剪
-        entry.techTree = {
-          pathDepth: { [defaultPath]: Math.max(1, oldLevel) },
-          equippedPath: null,
-        };
-        delete entry.baseLevel;
-      }
-
-      // CardInDeck.instanceLevel 不再持久化关外状态，但 OngoingRun 字段保留供续战使用
-      // （续战时 instanceLevel 即"已在本 Run 内累积的临时强化"，与 CardCollection 解耦）
-
-      // 标记迁移日志
-      result.achievements.unlocked['migrated_from_v2_0_to_v2_1'] = now();
-
-      result.version = '2.1.0';
-      return result;
-    },
-  },
-  {
-    from: '1.1.0',
-    to: '2.0.0',
-    migrate: (data: any): SaveData => {
-      // v1.1（独立关卡 + 三星 + 无尽）迁移到 v2.0（Run + 卡池）
-      const result = { ...DEFAULT_SAVE };
-
-      // 历史统计累加
-      result.totalKills = data.totalKills ?? 0;
-      result.totalGoldEarned = data.totalGoldEarned ?? 0;
-      result.totalPlayTimeSeconds = data.totalPlayTimeSeconds ?? 0;
-      result.settings = data.settings ?? DEFAULT_SAVE.settings;
-
-      // 旧关卡进度补偿：根据通关数发放碎片
-      let bonusShards = 0;
-      for (const lv of Object.values(data.levels ?? {})) {
-        if ((lv as any).cleared) bonusShards += 100;
-      }
-      // 旧无尽模式记录补偿
-      if (data.endless?.highestWaveReached) {
-        bonusShards += Math.floor(data.endless.highestWaveReached * 20);
-      }
-      result.sparkShards = bonusShards;
-
-      // 标记迁移日志
-      result.achievements.unlocked['migrated_from_v1_1'] = now();
-
-      result.version = '2.0.0';
-      return result;
-    },
-  },
-  {
-    from: '1.0.0',
-    to: '1.1.0',
-    migrate: (data: any): any => {
-      // 历史 v1.0 → v1.1 迁移逻辑（已废弃但保留兼容路径）
-      // 实际从 1.0 到 2.0 通过两阶段迁移：1.0 → 1.1 → 2.0
-      // ... 旧 v1.1 迁移代码
-      data.version = '1.1.0';
-      return data;
-    },
-  },
-];
-```
-
-### 6.3 迁移规则
-
-- 每次升级版本必须保留对前 N-1 个版本的迁移路径（支持多阶段迁移）
-- v1.x → v2.0 是结构性大版本变更，原 `levels` / `endless` 字段完全弃用
-- v2.0 → v2.1 是塔升级模型变更（线性 → 科技树），无破坏性数据丢失：原 `baseLevel = N` 自动转为塔卡路径 1 的前 N 个节点解锁
-- 迁移过程中保留原始存档备份（key: `save_backup_v{oldVersion}`）
-- 迁移失败时，UI 提示用户"存档迁移失败，是否使用备份"
-- v2.0 迁移补偿：旧通关数据 × 100 + 旧无尽波次 × 20 转换为 sparkShards
-- v2.1 迁移补偿：不发放额外碎片（用户已通过 baseLevel→节点解锁拿到等价进度）
+- `baseHp` / `baseHpMax` / `baseHpBonus` 字段名保留（前缀 `base` 在 v3.0 后重读为"基础值"，仍表达水晶 HP）。
+- `OngoingRun.baseHp` = 当前水晶 HP（0 ~ baseHpMax）。
+- 不引入与之对应的 `crystalHp` 别名，避免双字段并存。
 
 ---
 

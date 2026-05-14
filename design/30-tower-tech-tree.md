@@ -96,16 +96,15 @@
 | v3.0 已有 | 科技树新增 |
 |---|---|
 | 每个塔 = 一张单位卡 | 每张塔卡内嵌一棵科技树 |
-| 卡牌 `baseLevel` L1→L5（数值成长） | 改为"已解锁节点 + 装备路径"组合 |
-| `instanceLevel`（关内临时升级） | **保留**，但与节点切换解耦 |
+| 旧线性升级模型 `baseLevel` L1→L5 | 已删除；改为"已解锁节点 + 装备路径"组合 |
+| `instanceLevel`（关内临时升级） | **保留**，仅由法术卡提升（详见 [04 §7](./04-skill-buff-system.md)），与节点切换解耦 |
 | `CardCollection`（永久卡池） | 加 `unlockedNodes` / `equippedPath` 字段 |
 | 关间商店/秘境 | 不再提供升级，可提供碎片包/重置券 |
 
-### 3.1 `baseLevel` 字段的迁移
+### 3.1 `baseLevel` 字段移除
 
-- 旧字段 `baseLevel: 1–5` **废弃**。
-- 旧存档迁移规则：原 `baseLevel = N` → 自动在每张塔卡的**路径 1** 上解锁前 `min(N-1, maxNodes)` 个节点，作为补偿。
-- 详见 [13 §存档迁移](./13-save-system.md)。
+- 旧字段 `baseLevel: 1–5` 在 v3.1 起从所有结构中**移除**。
+- 游戏未上线，无玩家数据需要迁移；存档结构直接以"含 `techTree` / 无 `baseLevel`"为准（详见 [13 §1.1](./13-save-system.md) 和 §6 当前版本与策略）。
 
 ---
 
@@ -307,8 +306,7 @@ interface TechTreeProgress {
 }
 ```
 
-- `baseLevel` 字段从 v2.0 存档**移除**。
-- 旧存档迁移：见 §3.1 和 [13](./13-save-system.md)。
+- `baseLevel` 字段已彻底**移除**，不再出现在任何存档结构中（详见 §3.1）。
 
 ---
 
@@ -362,7 +360,7 @@ interface TechTreeProgress {
 |---|---|
 | [03-unit-data](./03-unit-data.md) | YAML 示例加 `techTree` 字段；删毒藤/弩炮配置 |
 | [04-skill-buff](./04-skill-buff-system.md) | 新增机制：贯穿、传染（病毒塔）、全屏闪电、充能蓄力 |
-| [13-save-system](./13-save-system.md) | `CardEntry` 加 `techTree` 字段；明确 `instanceLevel` 不持久化；旧 `baseLevel` 迁移规则 |
+| [13-save-system](./13-save-system.md) | `CardEntry` 加 `techTree` 字段；明确 `instanceLevel` 不持久化；`baseLevel` 字段已移除 |
 | [19-missile-tower](./19-missile-tower.md) | 同坐标多发射（双联/集束）机制说明 |
 | [21-mda-numerical-design](./21-mda-numerical-design.md) | 加碎片成本表、路径重置成本与返还比例、闪电塔/真火塔概率与 CD 占位 |
 | [22-new-unit-design](./22-new-unit-design.md) | 毒藤塔/弩炮塔章节标记 DEPRECATED；冰塔改名元素塔；新增各路径节点定位 |

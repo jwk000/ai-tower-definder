@@ -360,144 +360,28 @@ spike_trap:
 
 ---
 
-## 8. 卡牌作为生成入口（v3.0 新增）
+## 8. 卡牌作为生成入口（v3.0）
+
+> **本节为入口/边界声明，不是机制权威。**
+>
+> 卡牌系统（CardConfig 字段、出卡流程、能量消耗、抽牌弃牌、关间节点、卡池升级）的**唯一权威**位于 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md)（重构后会迁移到 `10-gameplay/10-roguelike-loop.md`）。本节只声明"卡牌与单位的边界"。
 
 ### 8.1 单位 vs 卡牌的概念边界
 
 | 概念 | 范围 | 持久性 | 数据来源 |
 |------|------|--------|---------|
-| **CardConfig（卡片配置）** | 设计时蓝图 | 静态配置文件 | `src/data/cards.ts`（新增）|
-| **CardInstance（卡片实例）** | 本局 Run 内 | 整局 Run | `ongoingRun.deck[]`（每张含临时等级） |
-| **UnitConfig（单位配置）** | 设计时蓝图 | 静态配置文件 | `src/data/gameData.ts`（保留） |
+| **CardConfig（卡片配置）** | 设计时蓝图 | 静态配置文件 | `src/data/cards.ts` |
+| **CardInstance（卡片实例）** | 本局 Run 内 | 整局 Run | `ongoingRun.deck[]` |
+| **UnitConfig（单位配置）** | 设计时蓝图 | 静态配置文件 | `src/data/gameData.ts` |
 | **Unit Entity（单位实例）** | 关内战场 | 关内生命周期 | ECS World（实时） |
 
-### 8.2 卡牌 → 单位 实例化流程
+### 8.2 卡牌触发单位生成的简要规则（细节见 25）
 
-```
-玩家出卡（拖卡到合法位置）
-   │
-   ▼
-1. 卡牌系统检查：能量足够？目标合法？
-   │
-   ▼
-2. 消耗能量 E
-   │
-   ▼
-3. 按卡牌类型分支：
-   │
-   ├─ 单位卡 / 建筑卡：
-   │     │
-   │     ▼
-   │  根据 cardConfig.spawnUnitId 实例化单位
-   │  - 读取 UnitConfig（与旧版完全相同）
-   │  - 创建 ECS Entity（带 Position/Render/Health/Attack 等组件）
-   │  - 应用本局临时等级（实例 baseLevel = card 实例等级）
-   │  - 该实例**死亡后不回弃牌堆**
-   │     │
-   │     ▼
-   │  卡片进入弃牌堆
-   │
-   └─ 法术卡：
-         │
-         ▼
-      根据 cardConfig.spellEffect 立即生效
-      - 不创建持久 Entity（瞬时效果 / 短暂 VFX 实体）
-      - 范围/数值由 cardConfig + 临时升级决定
-         │
-         ▼
-      卡片进入弃牌堆（除非 persistAcrossWaves=true）
-```
+- 单位卡 / 建筑卡：出卡 → 消耗能量 → 按 `cardConfig.spawnUnitId` 实例化 ECS Entity → 卡进入弃牌堆。
+- 法术卡：出卡 → 消耗能量 → 触发 `cardConfig.spellEffect`（瞬时 / VFX 实体）→ 进入弃牌堆（`persistAcrossWaves=true` 除外）。
+- 场上单位实例**死亡不回弃牌堆**——卡是"召唤令"，使用一次即弃。
 
-### 8.3 CardConfig 字段（与 UnitConfig 关联）
-
-```typescript
-interface CardConfig {
-  id: string;                  // 卡 ID（如 'arrow_tower_card'）
-  name: string;                // 卡名（中文）
-  type: 'unit' | 'building' | 'spell';
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-
-  energyCost: number;          // 出卡能量消耗
-  description: string;         // 卡片简介
-
-  // 单位/建筑卡：指向 UnitConfig
-  spawnUnitId?: string;        // 引用 src/data/gameData.ts 中的 unit ID
-
-  // 法术卡：效果配置
-  spellEffect?: SpellEffectConfig;
-
-  // 视觉
-  visual: {
-    artworkSymbol: string;     // 卡牌主图几何符号（80×60 区域）
-    bgTheme: string;           // 卡背主题色
-  };
-
-  // 升级路径（永久 + 临时）
-  upgradePath?: {
-    baseLevel: 1 | 2 | 3 | 4 | 5;
-    statsPerLevel: Partial<UnitStats>;  // 等级递增数值
-    spellEffectPerLevel?: SpellEffectConfig;
-  };
-
-  // 特殊标记
-  persistAcrossWaves?: boolean; // 法术卡是否跨波保留
-  removable?: boolean;          // 是否可在商店移除（默认 true）
-}
-```
-
-### 8.4 关键设计取舍
-
-- **卡牌不持有单位的运行时数据**——只持有"如何生成"的元信息
-- **临时升级影响实例化**——出卡时，引擎读取 CardInstance 的当前等级，把对应数值施加到新实例上
-- **场上实例死亡不回弃牌堆**——卡是"召唤令"，使用一次即弃
-- **法术卡的范围扩散逻辑等仍走 SkillSystem**——卡只是把目标格 + 等级传给现有 SkillSystem
-
-### 8.5 配置示例
-
-```yaml
-# 剑士卡 — 单位卡
-swordsman_basic:
-  id: swordsman_basic
-  name: 剑士
-  type: unit
-  rarity: common
-  energyCost: 2
-  description: "近战单位，对地面敌人造成中等伤害"
-  spawnUnitId: swordsman    # 引用既有的 swordsman UnitConfig
-  visual:
-    artworkSymbol: cross_sword
-    bgTheme: warm_red
-  upgradePath:
-    baseLevel: 1
-    statsPerLevel:
-      hp: 30           # 每级 +30 HP
-      atk: 4           # 每级 +4 ATK
-  removable: true
-
-# 火球术卡 — 法术卡
-fireball_spell:
-  id: fireball_spell
-  name: 火球术
-  type: spell
-  rarity: common
-  energyCost: 3
-  description: "对目标区域造成 80 火焰伤害，半径 80px"
-  spellEffect:
-    type: aoe_damage
-    damageType: fire
-    damage: 80
-    radius: 80
-    visualEffect: fireball_explosion
-  visual:
-    artworkSymbol: fireball
-    bgTheme: warm_red
-  upgradePath:
-    baseLevel: 1
-    spellEffectPerLevel:
-      damage: 30       # 每级 +30 damage
-  persistAcrossWaves: false
-  removable: true
-```
+> ⚠️ **`baseLevel` 已在 v3.1 移除**：旧版 `CardConfig.upgradePath.baseLevel` 字段不复存在。塔卡数值由 [30-tower-tech-tree](./30-tower-tech-tree.md) 科技树驱动；关内临时数值层由 `CardInDeck.instanceLevel`（仅法术卡可提升，详见 [04 §7](./04-skill-buff-system.md)）驱动。
 
 ---
 
