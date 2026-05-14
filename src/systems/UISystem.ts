@@ -939,8 +939,6 @@ export class UISystem implements System {
   private buildTopHUD(phase: GamePhase): void {
     const world = this._world;
     const gold = this.getGold();
-    const population = this.getPopulation();
-    const maxPop = this.getMaxPopulation();
     const wave = this.getWave();
     const total = this.getTotalWaves();
 
@@ -960,7 +958,7 @@ export class UISystem implements System {
 
     this.infos.push({
       x: 20, y: UISystem.TOP_H / 2,
-      text: `💰${gold} 👥${population}/${maxPop}`,
+      text: `💰${gold}`,
       color: '#ffd54f', size: 20,
     });
 
@@ -1121,210 +1119,11 @@ export class UISystem implements System {
   }
 
   private buildBottomPanel(phase: GamePhase): void {
-    const sceneBottom = this.getSceneBottom();
-    const panelY = sceneBottom + 8;
-    const panelH = UISystem.PANEL_H;   // 100
-    const panelCenterX = LayoutManager.DESIGN_W / 2;     // design center
-    const panelW = UISystem.PANEL_W;   // 1344
     const available = phase !== GamePhase.Victory && phase !== GamePhase.Defeat;
-
-    if (available) {
-      this.renderHandZone();
-      this.renderDeckCounter();
-      this.renderHandTooltip();
-    }
-
-    if (panelY + panelH > LayoutManager.DESIGN_H) return;
-
-    // Panel background — centered, narrower than full width
-    this.renderer.push({
-      shape: 'rect',
-      x: panelCenterX, y: panelY + panelH / 2,
-      size: panelW, h: panelH,
-      color: '#0d1b2a',
-      alpha: 0.9,
-    });
-
-    const btnY = panelY + 10;
-    const bw = UISystem.BTN_W;   // 80
-    const bh = UISystem.BTN_H;   // 80
-    const gap = UISystem.BTN_GAP; // 8
-    const step = bw + gap;       // 88
-    const btnStartX = UISystem.PANEL_BTN_START_X; // 308
-
-    // ---- Tower buttons (7) ----
-    const towerTypes = [TowerType.Arrow, TowerType.Cannon, TowerType.Ice, TowerType.Lightning, TowerType.Laser, TowerType.Bat, TowerType.Missile, TowerType.Vine, TowerType.Ballista];
-    const towerLabelX = btnStartX + towerTypes.length * step / 2 - step / 2;
-    this.infos.push({ x: towerLabelX, y: panelY + 6, text: '防御塔', color: '#aaaaaa', size: 14, align: 'center' });
-
-    const selected = this.getSelectedTower();
-
-    for (let i = 0; i < towerTypes.length; i++) {
-      const type = towerTypes[i]!;
-      const config = TOWER_CONFIGS[type];
-      if (!config) continue;
-
-      const cx = btnStartX + i * step + bw / 2;
-      const canAfford = this.getGold() >= config.cost;
-      const isSel = selected === type;
-
-      this.renderer.push({
-        shape: 'rect',
-        x: cx, y: btnY + bh / 2,
-        size: bw, h: bh,
-        color: isSel ? '#1e88e5' : canAfford ? '#37474f' : '#444444',
-        alpha: 0.9,
-        stroke: '#ffffff', strokeWidth: 1,
-      });
-
-      this.buttons.push({
-        x: cx - bw / 2, y: btnY, w: bw, h: bh,
-        label: `${config.name}\n${config.cost}G`,
-        color: isSel ? '#1e88e5' : '#37474f',
-        textColor: canAfford ? '#ffffff' : '#888888',
-        enabled: available,
-        onClick: () => {
-          this.selectTower(type);
-          if (available && this.onStartDrag) {
-            this.onStartDrag('tower', type);
-          }
-        },
-      });
-    }
-
-    // ---- Divider ----
-    const divX1 = btnStartX + towerTypes.length * step;
-    this.renderer.push({
-      shape: 'rect',
-      x: divX1, y: btnY + bh / 2,
-      size: 2, h: bh + 16,
-      color: '#444444',
-      alpha: 1,
-    });
-
-    // ---- Unit buttons (2) + Trap (1) ----
-    const unitStartX = divX1 + 20;
-    this.infos.push({ x: unitStartX + bw, y: panelY + 6, text: '单位/陷阱', color: '#aaaaaa', size: 14, align: 'center' });
-
-    const unitTypes = [UnitType.ShieldGuard, UnitType.Swordsman];
-
-    for (let i = 0; i < unitTypes.length; i++) {
-      const utype = unitTypes[i]!;
-      const uconfig = UNIT_CONFIGS[utype];
-      if (!uconfig) continue;
-
-      const cx = unitStartX + i * step + bw / 2;
-      const canAffordGold = this.getGold() >= uconfig.cost;
-      const hasPop = this.getPopulation() + uconfig.popCost <= this.getMaxPopulation();
-      const canAfford = canAffordGold && hasPop;
-
-      this.renderer.push({
-        shape: 'rect',
-        x: cx, y: btnY + bh / 2,
-        size: bw, h: bh,
-        color: canAfford ? '#37474f' : '#444444',
-        alpha: 0.9,
-        stroke: '#ffffff', strokeWidth: 1,
-      });
-
-      this.buttons.push({
-        x: cx - bw / 2, y: btnY, w: bw, h: bh,
-        label: `${uconfig.name}\n${uconfig.cost}G`,
-        color: '#37474f',
-        textColor: canAfford ? '#ffffff' : '#888888',
-        enabled: available && canAfford,
-        onClick: () => {
-          if (available && canAfford && this.onStartDrag) {
-            this.onStartDrag('unit', undefined, utype);
-          }
-        },
-      });
-    }
-
-    // Trap button
-    const trapCost = 40;
-    const trapAffordable = this.getGold() >= trapCost;
-    const trapX = unitStartX + 2 * step + bw / 2;
-
-    this.renderer.push({
-      shape: 'rect',
-      x: trapX, y: btnY + bh / 2,
-      size: bw, h: bh,
-      color: trapAffordable ? '#4a0000' : '#444444',
-      alpha: 0.9,
-      stroke: '#e53935', strokeWidth: 1,
-    });
-
-    this.buttons.push({
-      x: trapX - bw / 2, y: btnY, w: bw, h: bh,
-      label: `地刺\n${trapCost}G`,
-      color: '#4a0000',
-      textColor: trapAffordable ? '#ffffff' : '#888888',
-      enabled: available && trapAffordable,
-      onClick: () => {
-        if (available && trapAffordable && this.onStartDrag) {
-          this.onStartDrag('trap');
-        }
-      },
-    });
-
-    // ---- Divider ----
-    const divX2 = unitStartX + 3 * step - gap + 10;
-    this.renderer.push({
-      shape: 'rect',
-      x: divX2, y: btnY + bh / 2,
-      size: 2, h: bh + 16,
-      color: '#444444',
-      alpha: 1,
-    });
-
-    // ---- Production buttons (2) ----
-    const prodStartX = divX2 + 20;
-    this.infos.push({ x: prodStartX + bw, y: panelY + 6, text: '生产', color: '#aaaaaa', size: 14, align: 'center' });
-
-    const prodTypes = [ProductionType.GoldMine, ProductionType.EnergyTower];
-
-    for (let i = 0; i < prodTypes.length; i++) {
-      const ptype = prodTypes[i]!;
-      const pconfig = PRODUCTION_CONFIGS[ptype];
-      if (!pconfig) continue;
-
-      const cx = prodStartX + i * step + bw / 2;
-      const canAfford = this.getGold() >= pconfig.cost;
-
-      this.renderer.push({
-        shape: 'rect',
-        x: cx, y: btnY + bh / 2,
-        size: bw, h: bh,
-        color: canAfford ? '#37474f' : '#444444',
-        alpha: 0.9,
-        stroke: '#ffffff', strokeWidth: 1,
-      });
-
-      this.buttons.push({
-        x: cx - bw / 2, y: btnY, w: bw, h: bh,
-        label: `${pconfig.name}\n${pconfig.cost}G`,
-        color: '#37474f',
-        textColor: canAfford ? '#ffffff' : '#888888',
-        enabled: available && canAfford,
-        onClick: () => {
-          if (available && canAfford && this.onStartDrag) {
-            this.onStartDrag('production', undefined, undefined, ptype);
-          }
-        },
-      });
-    }
-
-    // ---- Divider ----
-    const divX3 = prodStartX + 2 * step - gap + 10;
-    this.renderer.push({
-      shape: 'rect',
-      x: divX3, y: btnY + bh / 2,
-      size: 2, h: bh + 16,
-      color: '#444444',
-      alpha: 1,
-    });
-
+    if (!available) return;
+    this.renderHandZone();
+    this.renderDeckCounter();
+    this.renderHandTooltip();
   }
 
 
