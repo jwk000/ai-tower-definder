@@ -3,6 +3,12 @@
 > 存档数据结构、版本兼容、损坏恢复、自动存档时机、永久卡池与火花碎片
 >
 > **v3.0 重写**：根据 [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) 方案，删除 `LevelProgress` 三星与 `EndlessProgress`，新增 `CardCollection`（永久卡池）、`SparkShards`（meta 货币）、`OngoingRun`（关间存档点）、`PermanentUpgrades`（永久升级项）。
+>
+> **v3.1（2026-05-14）变更**：根据 [30-tower-tech-tree](./30-tower-tech-tree.md)，塔升级从"L1–L5 线性"改为"科技树路径互斥 + 节点线性解锁"。存档版本 `v2.0.0 → v2.1.0`：
+> - `CardEntry` 新增 `techTree?: TechTreeProgress` 字段，塔卡持有。
+> - `CardEntry.baseLevel` **废弃**，迁移规则：原 `baseLevel = N` 自动在塔卡路径 1 上解锁前 `min(N-1, maxNodes)` 个节点；非塔卡 `baseLevel` 直接丢弃。
+> - `CardInDeck.instanceLevel` 语义收窄：**仅本局有效，塔死亡/关结束清零，不写回 `CardCollection`、不切换形态**（详见 [30 §2.3](./30-tower-tech-tree.md#23-关内临时升级instancelevel保留)）。
+> - 关间节点（商店/秘境）不再提供"塔升级"，不会写 `CardCollection.techTree`。
 
 ---
 
@@ -48,9 +54,24 @@ interface CardCollection {
 
 interface CardEntry {
   unlockedAt: number;          // 解锁时间（Unix ms）
-  baseLevel: number;           // 永久基础等级（L1-L5）
+  /** @deprecated v3.1 起废弃，迁移规则见 §6.2 v2.0.0→v2.1.0；非塔卡的 baseLevel 直接丢弃 */
+  baseLevel?: number;
+  techTree?: TechTreeProgress; // v3.1 新增：仅塔卡持有，存科技树解锁进度与装备路径
   totalUsesInRuns: number;     // 该卡历史出现在 Run 中的次数
   totalDeploys: number;        // 该卡历史部署次数
+}
+
+// v3.1 新增：塔卡科技树持久化进度
+// 完整路径/节点定义见 30-tower-tech-tree §4
+interface TechTreeProgress {
+  // 每条路径已解锁到第几个节点
+  //   1 = 仅基础节点（默认拥有，免费）
+  //   2 = 解锁了第 2 个节点
+  //   3 = 解锁了第 3 个节点
+  //   ...
+  pathDepth: Record<string, number>;  // pathId → 已解锁深度
+  // 当前装备的路径（影响关内出塔形态）；null = 使用塔的默认路径（通常 paths[0]）
+  equippedPath: string | null;
 }
 
 // ============================================================
@@ -98,7 +119,11 @@ interface OngoingRun {
 
 interface CardInDeck {
   cardId: string;              // 卡 ID
-  instanceLevel: number;       // 实例当前等级（永久 baseLevel + 本局升级）
+  // v3.1: 实例当前临时升级层级（仅本局有效）。
+  // 写入：关内特定卡牌效果/商店 buff/秘境奖励等。
+  // 清零：塔死亡 / 关卡结束 / 退卡。
+  // 不持久化：不写回 CardCollection；不切换形态（仅调数值，形态切换走科技树 equippedPath）。
+  instanceLevel: number;
   isPersistentInHand?: boolean;// 是否跨波保留
   metaState?: Record<string, unknown>; // 卡片自定义状态（如冷却进度）
 }
@@ -126,7 +151,7 @@ interface PlayerSettings {
 
 ```typescript
 const DEFAULT_SAVE: SaveData = {
-  version: '2.0.0',
+  version: '2.1.0',
   createdAt: now(),
   updatedAt: now(),
   checksum: '',
@@ -134,15 +159,18 @@ const DEFAULT_SAVE: SaveData = {
   sparkShards: 0,
   cardCollection: {
     unlocked: {
-      // 初始解锁 6-8 张 Common 卡作为起步卡池
-      'arrow_tower_basic':   { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'cannon_tower_basic':  { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'swordsman_basic':     { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'archer_basic':        { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'shield_guard_basic':  { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'fireball_spell':      { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'gold_mine':           { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
-      'energy_crystal':      { unlockedAt: now(), baseLevel: 1, totalUsesInRuns: 0, totalDeploys: 0 },
+      // v3.1 默认状态：
+      //   - 塔卡（tower_*）含 techTree，默认仅基础节点解锁（pathDepth: { [paths[0].id]: 1 }），未装备路径
+      //   - 非塔卡无 techTree 字段
+      //   - 所有卡的 baseLevel 字段移除（v3.1 起废弃）
+      'arrow_tower_basic':   { unlockedAt: now(), techTree: { pathDepth: { 'multi_shot': 1 }, equippedPath: null }, totalUsesInRuns: 0, totalDeploys: 0 },
+      'cannon_tower_basic':  { unlockedAt: now(), techTree: { pathDepth: { 'control_aoe': 1 }, equippedPath: null }, totalUsesInRuns: 0, totalDeploys: 0 },
+      'swordsman_basic':     { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
+      'archer_basic':        { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
+      'shield_guard_basic':  { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
+      'fireball_spell':      { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
+      'gold_mine':           { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
+      'energy_crystal':      { unlockedAt: now(), totalUsesInRuns: 0, totalDeploys: 0 },
     },
   },
   permanentUpgrades: {
@@ -316,6 +344,73 @@ Run 结束时自动识别玩家流派，写入 `runHistory.archetypeWins`：
 
 ```typescript
 const MIGRATIONS: Migration[] = [
+  // v3.1: v2.0 → v2.1（塔升级改为科技树）
+  {
+    from: '2.0.0',
+    to: '2.1.0',
+    migrate: (data: any): SaveData => {
+      const result = { ...data };
+
+      // 塔卡 ID 集合（从 03-unit-data §1 / 30 §4 派生）
+      const TOWER_CARD_IDS = new Set([
+        'arrow_tower_basic',
+        'cannon_tower_basic',
+        'elemental_tower_basic',  // 旧 ice_tower_basic 同时迁移
+        'ice_tower_basic',        // 兼容旧 ID
+        'lightning_tower_basic',
+        'laser_tower_basic',
+        'bat_tower_basic',
+        'missile_tower_basic',
+      ]);
+
+      // 塔卡 ID → 默认路径 ID（用于落 baseLevel→path1）
+      const DEFAULT_PATH: Record<string, string> = {
+        'arrow_tower_basic':      'multi_shot',
+        'cannon_tower_basic':     'control_aoe',
+        'elemental_tower_basic':  'ice',
+        'ice_tower_basic':        'ice',
+        'lightning_tower_basic':  'chain',     // 单路径
+        'laser_tower_basic':      'fan_cover',
+        'bat_tower_basic':        'swarm',     // 单路径
+        'missile_tower_basic':    'twin_salvo',
+      };
+
+      // 重命名 ice_tower_* → elemental_tower_*
+      const unlocked = result.cardCollection.unlocked;
+      if (unlocked['ice_tower_basic'] && !unlocked['elemental_tower_basic']) {
+        unlocked['elemental_tower_basic'] = unlocked['ice_tower_basic'];
+        delete unlocked['ice_tower_basic'];
+      }
+
+      // 把每张塔卡的旧 baseLevel 转为路径 1 节点解锁
+      for (const [cardId, entry] of Object.entries(unlocked) as [string, any][]) {
+        if (!TOWER_CARD_IDS.has(cardId)) {
+          // 非塔卡，丢弃 baseLevel
+          delete entry.baseLevel;
+          continue;
+        }
+        const oldLevel = entry.baseLevel ?? 1;
+        const defaultPath = DEFAULT_PATH[cardId] ?? 'path_1';
+        // baseLevel = N → 路径 1 已解锁前 N 个节点（含基础节点）
+        // 例：baseLevel=1 → pathDepth=1，baseLevel=3 → pathDepth=3
+        // 上限由 30 号文档定义的节点数（3 或 4）裁剪；迁移阶段先保留写入值，加载时再裁剪
+        entry.techTree = {
+          pathDepth: { [defaultPath]: Math.max(1, oldLevel) },
+          equippedPath: null,
+        };
+        delete entry.baseLevel;
+      }
+
+      // CardInDeck.instanceLevel 不再持久化关外状态，但 OngoingRun 字段保留供续战使用
+      // （续战时 instanceLevel 即"已在本 Run 内累积的临时强化"，与 CardCollection 解耦）
+
+      // 标记迁移日志
+      result.achievements.unlocked['migrated_from_v2_0_to_v2_1'] = now();
+
+      result.version = '2.1.0';
+      return result;
+    },
+  },
   {
     from: '1.1.0',
     to: '2.0.0',
@@ -365,9 +460,11 @@ const MIGRATIONS: Migration[] = [
 
 - 每次升级版本必须保留对前 N-1 个版本的迁移路径（支持多阶段迁移）
 - v1.x → v2.0 是结构性大版本变更，原 `levels` / `endless` 字段完全弃用
+- v2.0 → v2.1 是塔升级模型变更（线性 → 科技树），无破坏性数据丢失：原 `baseLevel = N` 自动转为塔卡路径 1 的前 N 个节点解锁
 - 迁移过程中保留原始存档备份（key: `save_backup_v{oldVersion}`）
 - 迁移失败时，UI 提示用户"存档迁移失败，是否使用备份"
 - v2.0 迁移补偿：旧通关数据 × 100 + 旧无尽波次 × 20 转换为 sparkShards
+- v2.1 迁移补偿：不发放额外碎片（用户已通过 baseLevel→节点解锁拿到等价进度）
 
 ---
 
