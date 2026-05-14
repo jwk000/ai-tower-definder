@@ -539,7 +539,8 @@ export class UISystem implements System {
    *   - 单卡 120×168，水平居中排列，卡间距 16px，最多 8 张
    *   - 边框 2px 稀有度色（design/09 §3.2）
    *   - 主图区 96×80 放占位符号（type 字母 + 卡名首字）
-   *   - 底部：◇ 能量消耗（蓝色菱形）；persistAcrossWaves=true 名字旁画 ✦
+   *   - 底部：◇ 能量消耗（蓝色菱形）
+   *   - 右上角：persistAcrossWaves=true 画金色 ✦ 角标（design/14 §3.2 line 72）
    *   - 能量不足整卡 alpha=0.4 并叠加"能量不足"红字
    *   - runContext 未装配时静默跳过（主菜单/编辑器流程）
    */
@@ -607,10 +608,9 @@ export class UISystem implements System {
         color: borderColor, size: 36, align: 'center',
       });
 
-      const namePersistMark = config.persistAcrossWaves ? '✦ ' : '';
       this.infos.push({
         x: cardCenterX, y: cardTop + 12 + artH + 14,
-        text: `${namePersistMark}${config.name}`,
+        text: config.name,
         color: affordable ? '#ffffff' : '#888888',
         size: 12, align: 'center',
       });
@@ -626,6 +626,16 @@ export class UISystem implements System {
           x: cardCenterX, y: cardTop + CARD_H - 14,
           text: '能量不足',
           color: '#ef5350', size: 12, align: 'center',
+        });
+      }
+
+      // 右上角 ✦ 金色角标 — design/14 §3.2 line 72：persistAcrossWaves=true 法术卡跨波保留
+      if (config.persistAcrossWaves) {
+        this.infos.push({
+          x: cardLeft + CARD_W - 12, y: cardTop + 14,
+          text: '✦',
+          color: affordable ? '#ffc107' : '#5a4a14',
+          size: 18, align: 'center',
         });
       }
     }
