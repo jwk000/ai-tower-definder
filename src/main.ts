@@ -71,6 +71,9 @@ import { ALL_AI_CONFIGS } from './ai/presets/aiConfigs.js';
 
 // ---- v3.0 Roguelike RunContext —— Phase A3 集成层 ----
 import { createRunContext, startWaveEffect, endWaveEffect, playCard as runPlayCard } from './unit-system/RunContext.js';
+import { SpellSystem } from './unit-system/SpellSystem.js';
+import type { CardConfig } from './config/cardRegistry.js';
+import type { CardInstance } from './unit-system/types.js';
 import { loadAllCardConfigsSync } from './config/loader.js';
 
 // ---- Debug system imports ----
@@ -150,6 +153,8 @@ class TowerDefenderGame extends Game {
   public debugManager: DebugManager;
 
   private unitDragId: number | null = null;
+  private spellSystem!: SpellSystem;
+  private pendingSpell: { config: CardConfig; played: CardInstance } | null = null;
   private defeatSfxPlayed = false;
   private previousPhase: GamePhase = GamePhase.Deployment;
 
@@ -411,6 +416,8 @@ class TowerDefenderGame extends Game {
       this.buildSystem.selectTower(config.availableTowers[0]);
     }
 
+    this.spellSystem = new SpellSystem(this.world);
+
     // ---- Upgrade tower callback (bitecs component access) ----
     const upgradeTower = (entityId: number) => {
       const towerTypeNum = Tower.towerType[entityId];
@@ -655,6 +662,17 @@ class TowerDefenderGame extends Game {
     this.input.onPointerDown = (e: InputEvent) => {
       if (this.buildSystem.dragState?.active) return;
       if (this.unitDragId !== null) return;
+      if (this.pendingSpell !== null) {
+        const sceneBottom = RenderSystem.sceneOffsetY + RenderSystem.sceneH;
+        if (e.y < sceneBottom + 8 && e.y >= RenderSystem.sceneOffsetY) {
+          this.spellSystem.executeSpell(this.pendingSpell.config, { x: e.x, y: e.y });
+          Sound.play('build_place');
+        } else {
+          Sound.play('build_deny');
+        }
+        this.pendingSpell = null;
+        return;
+      }
       const handledByUI = this.uiSystem.handleClick(e.x, e.y);
       if (handledByUI) return;
       if (this.paused) return;
@@ -895,7 +913,12 @@ this.world.registerSystem(this.weatherSystem);
       return true;
     }
     if (cfg.type === 'spell') {
-      Sound.play('build_deny');
+      const playedSpell = runPlayCard(ctx, card.instanceId);
+      if (!playedSpell) {
+        Sound.play('build_deny');
+        return true;
+      }
+      this.pendingSpell = { config: playedSpell.config, played: playedSpell.instance };
       return true;
     }
 

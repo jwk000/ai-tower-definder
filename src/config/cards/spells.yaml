@@ -1,0 +1,26 @@
+# ============================================================
+# Tower Defender — 法术卡配置 (B3-MVP)
+# ============================================================
+# 设计文档:
+#   - design/25-card-roguelike-refactor.md §2 卡牌系统（spell 即用即弃）
+#   - design/03-unit-data.md §8 卡牌目录
+#   - design/21-mda-numerical-design.md §12.2 卡牌能量消耗表
+#
+# 字段约定见 src/config/cardRegistry.ts: CardConfig
+# spellEffect 字段被 SpellSystem.executeSpell 消费（src/unit-system/SpellSystem.ts）
+
+fireball_card:
+  name: 火球术
+  description: 在指定位置爆出一团火焰，对范围内敌人造成 80 点伤害
+  type: spell
+  rarity: common
+  energyCost: 3
+  spellSubtype: damage
+  placement:
+    targetType: area
+    range: cursor
+  spellEffect:
+    handler: aoe_damage
+    damage: 80
+    radius: 80
+    affectAlly: false
