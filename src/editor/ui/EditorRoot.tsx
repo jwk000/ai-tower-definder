@@ -58,7 +58,7 @@ function snapshot(editor: LevelEditor): ViewState {
 export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const [view, setView] = useState<ViewState>(() => snapshot(editor));
   const [tab, setTab] = useState<EditTab>('raw');
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [validationState, setValidationState] = useState<{ content: string | null; errors: ValidationError[] }>({ content: null, errors: [] });
 
   useEffect(() => {
     const onChange = () => setView(snapshot(editor));
@@ -71,10 +71,6 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     () => tryParseModel(view.currentContent),
     [view.currentContent],
   );
-
-  useEffect(() => {
-    setValidationErrors([]);
-  }, [view.currentContent, view.currentId]);
 
   const onFormChange = (next: LevelFormModel): void => {
     editor.setCurrentContent(serializeModelToYaml(next));
@@ -92,15 +88,19 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const onSave = (): void => {
     if (parsed.model !== null) {
       const errors = validateLevel(parsed.model);
-      console.log('[onSave]', { hasModel: parsed.model !== null, errorCount: errors.length, errors });
       if (errors.length > 0) {
-        setValidationErrors(errors);
+        setValidationState({ content: view.currentContent, errors });
         return;
       }
     }
-    setValidationErrors([]);
+    setValidationState({ content: null, errors: [] });
     void editor.saveCurrent();
   };
+
+  const validationErrors =
+    validationState.content !== null && validationState.content === view.currentContent
+      ? validationState.errors
+      : [];
 
   const onMigrate = (): void => {
     if (!view.canMigrate) return;

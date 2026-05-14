@@ -622,10 +622,8 @@ describe('EditorRoot integration (happy-dom)', () => {
       ta.dispatchEvent(new Event('input', { bubbles: true }));
       await tick();
 
-      const saveBtn = findByTestId<HTMLButtonElement>(host, 'editor-save')!;
-      console.log('[test] save disabled =', saveBtn.disabled, 'isDirty=', editor.isDirty);
-      saveBtn.click();
-      await tick(); await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-save')!.click();
+      await tick();
 
       expect(putSpy).not.toHaveBeenCalled();
 
