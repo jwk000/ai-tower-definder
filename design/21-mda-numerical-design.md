@@ -13,7 +13,7 @@
 **本文档是 Tower Defender 全部游戏数值的唯一权威来源。**
 
 - 一切单位属性（HP/ATK/AS/射程/造价/护甲/魔抗/移速/人口/奖励等）、经济数值（资源起始值/产出/造价/升级费）、波次曲线、天气修正系数——**只在本文档定义**。
-- 其它设计文档（`03-unit-data.md`、`05-combat-system.md`、`06-economy-system.md`、`07-map-level-system.md`、`11-weather-system.md` 等）**只描述字段语义、规则骨架、公式形态与机制行为**，不再持有数值表。
+- 其它设计文档（`20-units/21-unit-roster.md`、`05-combat-system.md`、`06-economy-system.md`、`07-map-level-system.md`、`11-weather-system.md` 等）**只描述字段语义、规则骨架、公式形态与机制行为**，不再持有数值表。
 - 代码侧（`src/data/gameData.ts`）必须与本文档完全对齐；如发生不一致，**以本文档为准并修复代码**。
 - 修改任何数值时，**只修改本文档**，然后据此同步代码与测试；其它文档无需改动。
 - 公式形态（如护甲减伤公式、攻速上限、移速下限）在 `05-combat-system.md` 中定义骨架，本文档定义其中的常数。
@@ -795,7 +795,7 @@ AOE因子：
 ### 11.2 迁移步骤
 
 1. **更新 `src/data/gameData.ts`**：调整所有塔、敌人、金矿、能量塔的配置数值
-2. **更新设计文档**：同步更新 `03-unit-data.md`、`05-combat-system.md`、`06-economy-system.md`
+2. **更新设计文档**：同步更新 `20-units/21-unit-roster.md`、`05-combat-system.md`、`06-economy-system.md`
 3. **运行全量测试**：`npm test` 确保改动不破坏现有测试
 4. **平衡性验证**：人工测试 TTK、DPS/G、波次难度
 5. **蝙蝠塔重构**：修改天气系统逻辑，使蝙蝠塔从"休眠/激活"变为"白天降攻/夜晚增攻"
@@ -805,9 +805,9 @@ AOE因子：
 
 | 本文档章节 | 影响的现有文档 |
 |-----------|--------------|
-| §4 塔类 | 覆盖 `03-unit-data.md` §1 |
-| §5 兵种 | 覆盖 `03-unit-data.md` §2 |
-| §6 敌方 | 覆盖 `03-unit-data.md` §3 |
+| §4 塔类 | 覆盖 `20-units/21-unit-roster.md` §2 |
+| §5 兵种 | 覆盖 `20-units/21-unit-roster.md` §3 |
+| §6 敌方 | 覆盖 `20-units/21-unit-roster.md` §4 |
 | §7 经济 | 覆盖 `06-economy-system.md` §2-7 |
 | §8 波次 | 覆盖 `05-combat-system.md` §5 |
 | §9 天气 | 覆盖 `11-weather-system.md` §2 |

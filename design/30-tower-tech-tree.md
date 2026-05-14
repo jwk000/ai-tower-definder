@@ -190,7 +190,7 @@
 
 #### 蝙蝠塔机制说明
 
-- 所有节点沿用 [03 §蝙蝠塔](./03-unit-data.md) 的 `weather_dependent_atk` 天气影响。
+- 所有节点沿用 [21-unit-roster §2.2 蝙蝠塔天气依赖](./20-units/21-unit-roster.md#蝙蝠塔bat_tower天气依赖) 的 `weather_dependent_atk` 天气影响。
 - 单路径设计因素：蝙蝠塔的"变量"来自天气系统，已经具备策略深度，无需再加路径。
 - 节点 2/3 的"+蝙蝠数"会**直接修改单位生成数量**（详见 [02-unit-system §蝙蝠生成](./02-unit-system.md)）。
 
@@ -341,8 +341,8 @@ interface TechTreeProgress {
 
 | 单位 ID | 旧文档定位 | 删除理由 | 角色承接 |
 |---|---|---|---|
-| `poison_vine_tower` | [22 §毒藤塔](./22-new-unit-design.md) — DOT 反物理，铁甲 TTK 11.7s | 角色被元素塔毒系路径完全覆盖 | 元素塔 · 毒系路径（巫毒塔/病毒塔） |
-| `ballista_tower` | [22 §弩炮塔](./22-new-unit-design.md) — 远程穿透单体，射程 320 | DPS/G 偏低（0.094–0.188），且穿透机制可由炮塔路径 2 终点承接 | 炮塔 · 路径 2 终点（战术炮塔的贯穿能力） |
+| `poison_vine_tower` | [archive §1 毒藤塔](./archive/deprecated-units-vine-ballista.md#1-毒藤塔vinetowerdot-持续伤害) — DOT 反物理，铁甲 TTK 11.7s | 角色被元素塔毒系路径完全覆盖 | 元素塔 · 毒系路径（巫毒塔/病毒塔） |
+| `ballista_tower` | [archive §2 弩炮塔](./archive/deprecated-units-vine-ballista.md#2-弩炮塔ballistatower远程穿透狙击) — 远程穿透单体，射程 320 | DPS/G 偏低（0.094–0.188），且穿透机制可由炮塔路径 2 终点承接 | 炮塔 · 路径 2 终点（战术炮塔的贯穿能力） |
 
 ### 删除影响清单
 
@@ -350,7 +350,7 @@ interface TechTreeProgress {
 - `config/cards/*.yaml`：删除对应卡牌定义。
 - `src/data/`：清理 `gameData.ts` 引用。
 - 关卡 YAML：扫描所有 `config/levels/*.yaml` 中的随机池，移除对应 ID。
-- [22-new-unit-design](./22-new-unit-design.md)：相关章节标记 ⚠️ DEPRECATED，并指向本文档对应路径。
+- [21-unit-roster](./20-units/21-unit-roster.md)（v3.1 R3 重构后承接 22-new-unit-design 的阵容内容）：废弃塔的角色承接关系已在 §2.1 / §10 体现。
 
 ---
 
@@ -358,12 +358,12 @@ interface TechTreeProgress {
 
 | 文档 | 改动 |
 |---|---|
-| [03-unit-data](./03-unit-data.md) | YAML 示例加 `techTree` 字段；删毒藤/弩炮配置 |
+| [21-unit-roster](./20-units/21-unit-roster.md) | YAML 示例加 `techTree` 字段；删毒藤/弩炮配置（已迁档案） |
 | [04-skill-buff](./04-skill-buff-system.md) | 新增机制：贯穿、传染（病毒塔）、全屏闪电、充能蓄力 |
 | [13-save-system](./13-save-system.md) | `CardEntry` 加 `techTree` 字段；明确 `instanceLevel` 不持久化；`baseLevel` 字段已移除 |
 | [19-missile-tower](./19-missile-tower.md) | 同坐标多发射（双联/集束）机制说明 |
 | [21-mda-numerical-design](./21-mda-numerical-design.md) | 加碎片成本表、路径重置成本与返还比例、闪电塔/真火塔概率与 CD 占位 |
-| [22-new-unit-design](./22-new-unit-design.md) | 毒藤塔/弩炮塔章节标记 DEPRECATED；冰塔改名元素塔；新增各路径节点定位 |
+| [21-unit-roster](./20-units/21-unit-roster.md) | 毒藤塔/弩炮塔已移到 archive；冰塔改名元素塔；新增各路径节点定位 |
 | [25-card-roguelike-refactor](./25-card-roguelike-refactor.md) | 卡池界面加科技树面板；明确关间节点不再提供塔升级；可提供碎片包/重置券 |
 | [README](./README.md) | 文档导航加入 30 |
 

@@ -45,7 +45,7 @@
 |------|------|---------|------|
 | 01 | [游戏概述](./01-game-overview.md) | ✅ v3.0 全文重写 | Run 循环、三资源认知锚点、与旧版差异 |
 | 02 | [单位系统](./02-unit-system.md) | 🔶 v3.0 §8/§9 追加 | 统一单位概念、配置驱动、卡牌生成入口、敌方攻击优先级 |
-| 03 | [单位配置数据](./03-unit-data.md) | 🔶 v3.1 §1.3 追加 | 单位属性、卡牌目录、**塔科技树字段规范**、ice_tower → elemental_tower 改名 |
+| 03 | [单位与卡牌阵容总表](./20-units/21-unit-roster.md) | ⭐ v3.1 R3 合并（原 03 + 22） | 单位字段语义、20 敌 + 20 友阵容清单、卡牌目录、塔科技树字段规范、ice_tower → elemental_tower 改名 |
 | 04 | [技能与Buff系统](./04-skill-buff-system.md) | 🔶 v3.1 §6 追加 | 技能/Buff 系统、法术卡子分类、**塔科技树新增 Buff（贯穿/传染/全屏闪电/激光蓄能）** |
 | 05 | [战斗数值系统](./05-combat-system.md) | 沿用 | 伤害公式、攻速/移速公式、难度曲线、眩晕/弹道规范 |
 | 06 | [经济系统](./06-economy-system.md) | ✅ v3.0 全文重写 | 三资源分层规则、关内能量回收、关间金币消费 |
@@ -64,7 +64,7 @@
 | 19 | [导弹塔设计](./19-missile-tower.md) | 🔶 v3.1 §4.3.1 追加 | 战略武器、全图射程、地格评分、大范围爆炸、**双联/集束同坐标多发射机制** |
 | 20 | [响应式布局](./20-responsive-layout.md) | 🔶 v3.0 §4.5 追加 | 锚点定位系统、v3.0 手牌区+关间+商店+秘境+卡池 9 类锚点 |
 | 21 | [MDA数值设计](./21-mda-numerical-design.md) | 🔶 v3.1 §20 追加 | 数值真理源、能量表/商品价/难度乘数/卡解锁价/碎片价、**塔科技树节点碎片成本与能力数值** |
-| 22 | [新单位设计](./22-new-unit-design.md) | 🔶 v3.1 顶部声明 | 整合到 20 敌 + 20 友阵容、含 abyss_lord 终战 Boss、**毒藤塔/弩炮塔废弃** |
+| 22 | ~~新单位设计~~ | ⛔ v3.1 R3 合并到 [21-unit-roster](./20-units/21-unit-roster.md) | 已并入阵容总表，本文件已删除；废弃单位见 [archive/](./archive/deprecated-units-vine-ballista.md) |
 | 23 | [AI 行为树统一方案](./23-ai-behavior-tree.md) | 🔶 v3.0 第六章追加 | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
 | 24 | [士兵AI行为设计](./24-soldier-ai-behavior.md) | 沿用 | 士兵 AI 四状态机、三圈模型、敌方反击规则、行为树映射 |
 | 25 | [卡牌 Roguelike 改造方案](./25-card-roguelike-refactor.md) | ⭐ v0.6 已批准 | **v3.0 单一权威来源**——14 章完整设计；v0.6 同步塔科技树（塔卡升级移出商店/技能卡，走 30） |
@@ -100,7 +100,7 @@
 **开发实现 v3.0**：
 1. [15-重构方案](./15-refactoring-plan.md) §7 分阶段实施
 2. [13-存档系统](./13-save-system.md) 数据结构
-3. [02-单位系统](./02-unit-system.md) §8 + [03-单位数据](./03-unit-data.md) §8 卡牌定义
+3. [02-单位系统](./02-unit-system.md) §8 + [21-unit-roster §7](./20-units/21-unit-roster.md#7-卡牌目录v30) 卡牌定义
 4. [21-MDA](./21-mda-numerical-design.md) §12-§18 v3.0 数值
 5. [16-美术资产](./16-art-assets-design.md) §13 卡牌视觉
 

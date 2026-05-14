@@ -297,7 +297,7 @@ class RunRandom {
 | **反射机甲** | L8 | 反弹 30% 受到的攻击 |
 | **强化自爆兽** | L7 | 接近塔时自爆造成 AoE |
 
-具体数值见 [21-MDA §6](./21-mda-numerical-design.md)。详细机制见 [03-unit-data](./03-unit-data.md) 与 [22-new-unit-design](./22-new-unit-design.md)。
+具体数值见 [21-MDA §6](./21-mda-numerical-design.md)。详细机制与阵容清单见 [21-unit-roster](./20-units/21-unit-roster.md)。
 
 ---
 
