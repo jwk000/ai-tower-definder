@@ -29,6 +29,7 @@ import {
   Boss,
   PlayerOwned,
 } from '../core/components.js';
+import type { CardConfig } from '../config/cardRegistry.js';
 
 export function computeEnergyBarRatio(current: number, max: number): number {
   if (max <= 0) return 0;
@@ -155,6 +156,80 @@ export function resolveCardToEntityType(
     return { entityType: 'unit', unitType: unitConfigId as UnitType };
   }
   return null;
+}
+
+// ============================================================
+// v3.0 roguelike — A4-UI A2 悬停详情卡片（design/14 §3.2 line 77）
+// 触发：鼠标悬停手牌槽 200ms 内；显示位置：手牌正上方 240×320，居中对齐
+// ============================================================
+
+export const CARD_TOOLTIP_WIDTH = 240;
+export const CARD_TOOLTIP_HEIGHT = 320;
+
+/** 详情卡片单行结构 — buildCardTooltipLines 输出 + renderHandTooltip 消费 */
+export interface CardTooltipLine {
+  /** 'name' = 顶部标题大字 / 'meta' = 稀有度+类型副标题 / 'energy' = 能量行 / 'desc' = 描述段落 / 'persist' = ✦ 跨波标记 / 'flavor' = 斜体风味文 */
+  kind: 'name' | 'meta' | 'energy' | 'desc' | 'persist' | 'flavor';
+  text: string;
+}
+
+/**
+ * v3.0 roguelike — 把 CardConfig 结构化为详情卡片显示行序列（纯函数）。
+ *
+ * 顺序固定：name → meta → energy →（persist 可选）→ desc →（flavor 可选）。
+ * 缺省字段（description / flavorText）安全跳过，不产生空行。
+ * meta 显示「稀有度首字母大写 · 类型中文」(common→Common · 单位/法术)。
+ * spell 卡的 spellSubtype 在当前阶段不进 meta（保持单行不溢出）。
+ */
+export function buildCardTooltipLines(config: CardConfig): CardTooltipLine[] {
+  const lines: CardTooltipLine[] = [];
+  lines.push({ kind: 'name', text: config.name });
+  const rarityLabel = config.rarity.charAt(0).toUpperCase() + config.rarity.slice(1);
+  const typeLabel = config.type === 'unit' ? '单位' : '法术';
+  lines.push({ kind: 'meta', text: `${rarityLabel} · ${typeLabel}` });
+  lines.push({ kind: 'energy', text: `◇ ${config.energyCost}` });
+  if (config.persistAcrossWaves) {
+    lines.push({ kind: 'persist', text: '✦ 跨波保留' });
+  }
+  if (config.description) {
+    lines.push({ kind: 'desc', text: config.description });
+  }
+  if (config.flavorText) {
+    lines.push({ kind: 'flavor', text: config.flavorText });
+  }
+  return lines;
+}
+
+/**
+ * v3.0 roguelike — 详情卡片在 design space 的左上角锚点（纯函数）。
+ *
+ * 基准：悬停卡的水平中线对齐 tooltip 水平中线；tooltip 底边与手牌区上边
+ * 留 12px 间隙。屏幕左/右边界 clamp 8px 边距，避免溢出可见区。
+ *
+ * 入参与 computeCardSlotsLayout / hitTestHandCard 完全对齐，
+ * 调用方传 design space 实际值（regionWidth=800 / cardWidth=120 / gap=16）。
+ */
+export function computeTooltipAnchor(
+  cardIndex: number,
+  handCount: number,
+  regionWidth: number,
+  cardWidth: number,
+  gap: number,
+): { x: number; y: number } {
+  const bounds = getHandZoneBounds();
+  const slots = computeCardSlotsLayout(handCount, regionWidth, cardWidth, gap);
+  const slot = slots[cardIndex];
+  if (!slot) {
+    return { x: bounds.centerX - CARD_TOOLTIP_WIDTH / 2, y: bounds.top - CARD_TOOLTIP_HEIGHT - 12 };
+  }
+  const cardCenterX = bounds.left + slot.x + cardWidth / 2;
+  let x = cardCenterX - CARD_TOOLTIP_WIDTH / 2;
+  const margin = 8;
+  const designW = 1920;
+  if (x < margin) x = margin;
+  if (x + CARD_TOOLTIP_WIDTH > designW - margin) x = designW - margin - CARD_TOOLTIP_WIDTH;
+  const y = bounds.top - CARD_TOOLTIP_HEIGHT - 12;
+  return { x, y };
 }
 
 // ============================================================
@@ -700,6 +775,96 @@ export class UISystem implements System {
     });
   }
 
+  /**
+   * v3.0 roguelike — A4-UI A2 悬停详情卡片（design/14 §3.2 line 77）。
+   *   - 鼠标位置由 getPointerPosition callback 提供（每帧最新值）
+   *   - hitTestHandCard 命中槽位 i → 取 runContext.hand[i] → CardConfig
+   *   - buildCardTooltipLines 结构化文本 + computeTooltipAnchor 定位
+   *   - 在所有手牌渲染之后绘制（保证 z-order 在最上）
+   *   - runContext 未装配 / getPointerPosition 未注入 / 未命中手牌 时静默跳过
+   *   - 拖卡 (BuildSystem.dragState != null) 期间不显示，避免与拖拽视觉重叠
+   */
+  private renderHandTooltip(): void {
+    const runContext = this._world?.runContext;
+    if (!runContext) return;
+    if (!this.getPointerPosition) return;
+    if (this.getDragState?.()) return;
+    const cards = runContext.hand.state.hand;
+    if (cards.length === 0) return;
+
+    const pos = this.getPointerPosition();
+    const idx = hitTestHandCard(pos.x, pos.y, cards.length);
+    if (idx < 0) return;
+
+    const card = cards[idx]!;
+    const config = runContext.registry.get(card.cardId);
+    if (!config) return;
+
+    const REGION_W = 800;
+    const CARD_W = 120;
+    const GAP = 16;
+    const anchor = computeTooltipAnchor(idx, cards.length, REGION_W, CARD_W, GAP);
+    const lines = buildCardTooltipLines(config);
+    const borderColor = RARITY_BORDER_COLORS[config.rarity];
+
+    this.renderer.push({
+      shape: 'rect',
+      x: anchor.x + CARD_TOOLTIP_WIDTH / 2,
+      y: anchor.y + CARD_TOOLTIP_HEIGHT / 2,
+      size: CARD_TOOLTIP_WIDTH, h: CARD_TOOLTIP_HEIGHT,
+      color: '#0d1b2a', alpha: 0.96,
+      stroke: borderColor, strokeWidth: 3,
+    });
+
+    let cursorY = anchor.y + 28;
+    for (const line of lines) {
+      switch (line.kind) {
+        case 'name':
+          this.infos.push({
+            x: anchor.x + CARD_TOOLTIP_WIDTH / 2, y: cursorY,
+            text: line.text, color: borderColor, size: 22, align: 'center',
+          });
+          cursorY += 30;
+          break;
+        case 'meta':
+          this.infos.push({
+            x: anchor.x + CARD_TOOLTIP_WIDTH / 2, y: cursorY,
+            text: line.text, color: '#90a4ae', size: 13, align: 'center',
+          });
+          cursorY += 24;
+          break;
+        case 'energy':
+          this.infos.push({
+            x: anchor.x + CARD_TOOLTIP_WIDTH / 2, y: cursorY,
+            text: line.text, color: '#bbdefb', size: 18, align: 'center',
+          });
+          cursorY += 28;
+          break;
+        case 'persist':
+          this.infos.push({
+            x: anchor.x + CARD_TOOLTIP_WIDTH / 2, y: cursorY,
+            text: line.text, color: '#ffc107', size: 14, align: 'center',
+          });
+          cursorY += 22;
+          break;
+        case 'desc':
+          this.infos.push({
+            x: anchor.x + 16, y: cursorY,
+            text: line.text, color: '#e0e0e0', size: 13,
+          });
+          cursorY += 20 * Math.max(1, Math.ceil(line.text.length / 20));
+          break;
+        case 'flavor':
+          this.infos.push({
+            x: anchor.x + CARD_TOOLTIP_WIDTH / 2, y: cursorY,
+            text: line.text, color: '#78909c', size: 11, align: 'center',
+          });
+          cursorY += 18;
+          break;
+      }
+    }
+  }
+
   private renderEnergyBar(): void {
     const runContext = this._world?.runContext;
     if (!runContext) return;
@@ -935,6 +1100,7 @@ export class UISystem implements System {
     if (available) {
       this.renderHandZone();
       this.renderDeckCounter();
+      this.renderHandTooltip();
     }
 
     if (panelY + panelH > LayoutManager.DESIGN_H) return;
