@@ -1,0 +1,21 @@
+# ============================================================
+# Tower Defender — 陷阱卡配置 (B3 扩展版)
+# ============================================================
+# 设计文档:
+#   - design/25-card-roguelike-refactor.md §2 卡牌系统
+#   - design/03-unit-data.md §8.1 单位/建筑卡目录（陷阱归此处）
+#   - design/21-mda-numerical-design.md §12.2 卡牌能量消耗表
+#
+# 字段约定见 src/config/cardRegistry.ts: CardConfig
+# 单位配置见 src/config/units/neutrals.yaml: spike_trap
+
+spike_trap_card:
+  name: 地刺
+  description: 在路径上铺设地刺，敌人踩中受伤
+  type: trap
+  rarity: common
+  energyCost: 2
+  unitConfigId: spike_trap
+  placement:
+    targetType: tile
+    range: path

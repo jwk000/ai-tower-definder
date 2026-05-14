@@ -1,0 +1,30 @@
+# ============================================================
+# Tower Defender — 生产建筑卡配置 (B3 扩展版)
+# ============================================================
+# 设计文档:
+#   - design/25-card-roguelike-refactor.md §2 卡牌系统
+#   - design/03-unit-data.md §8.1 单位/建筑卡目录
+#   - design/21-mda-numerical-design.md §12.2 卡牌能量消耗表
+#
+# 字段约定见 src/config/cardRegistry.ts: CardConfig
+# 单位配置见 src/config/units/buildings.yaml: gold_mine / energy_tower
+
+gold_mine_card:
+  name: 金矿
+  description: 每秒产出金币，长期收益建筑
+  type: production
+  rarity: rare
+  energyCost: 3
+  unitConfigId: gold_mine
+  placement:
+    targetType: tile
+
+energy_tower_card:
+  name: 能量塔
+  description: 每秒回复能量，长期收益建筑
+  type: production
+  rarity: rare
+  energyCost: 4
+  unitConfigId: energy_tower
+  placement:
+    targetType: tile

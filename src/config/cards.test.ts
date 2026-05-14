@@ -183,3 +183,65 @@ describe('A4-YAML loadAllCardConfigsSync 同步装载契约', () => {
     expect(cardConfigRegistry.getAll().length).toBeGreaterThanOrEqual(12);
   });
 });
+
+const B3_TRAP_PRODUCTION_CARDS = [
+  { id: 'spike_trap_card', unit: 'spike_trap', type: 'trap', rarity: 'common', energy: 2 },
+  { id: 'gold_mine_card', unit: 'gold_mine', type: 'production', rarity: 'rare', energy: 3 },
+  { id: 'energy_tower_card', unit: 'energy_tower', type: 'production', rarity: 'rare', energy: 4 },
+] as const;
+
+describe('B3 扩展版 陷阱/生产卡 YAML 配置', () => {
+  beforeAll(async () => {
+    cardConfigRegistry.clear();
+    for (const { unit } of B3_TRAP_PRODUCTION_CARDS) {
+      if (!unitConfigRegistry.get(unit)) {
+        unitConfigRegistry.register({ id: unit } as unknown as UnitConfig);
+      }
+    }
+    await loadAllCardConfigs();
+  });
+
+  describe.each(B3_TRAP_PRODUCTION_CARDS)('$id', ({ id, unit, type, rarity, energy }) => {
+    it(`type=${type} 且 unitConfigId=${unit}`, () => {
+      const cfg = cardConfigRegistry.get(id);
+      expect(cfg, `${id} 应已注册`).toBeDefined();
+      expect(cfg!.type).toBe(type);
+      expect(cfg!.unitConfigId).toBe(unit);
+    });
+
+    it(`稀有度 = ${rarity}`, () => {
+      expect(cardConfigRegistry.get(id)!.rarity).toBe(rarity);
+    });
+
+    it(`能量消耗 = ${energy}`, () => {
+      expect(cardConfigRegistry.get(id)!.energyCost).toBe(energy);
+    });
+
+    it('placement.targetType = tile', () => {
+      expect(cardConfigRegistry.get(id)!.placement.targetType).toBe('tile');
+    });
+
+    it('引用的 UnitConfig 真实存在', () => {
+      expect(unitConfigRegistry.get(unit), `${unit} 单位配置缺失`).toBeDefined();
+    });
+
+    it('有中文 name 与 description', () => {
+      const cfg = cardConfigRegistry.get(id)!;
+      expect(cfg.name).toBeTruthy();
+      expect(cfg.description).toBeTruthy();
+    });
+
+    it('ID 以 _card 结尾', () => {
+      expect(id.endsWith('_card')).toBe(true);
+    });
+  });
+
+  it('spike_trap_card.placement.range = path（陷阱仅可放在路径）', () => {
+    const cfg = cardConfigRegistry.get('spike_trap_card');
+    expect(cfg!.placement.range).toBe('path');
+  });
+
+  it('B3 后总卡数 ≥ 15 (12 A12 + 3 B3)', () => {
+    expect(cardConfigRegistry.getAll().length).toBeGreaterThanOrEqual(15);
+  });
+});
