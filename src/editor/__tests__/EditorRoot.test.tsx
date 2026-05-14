@@ -526,4 +526,158 @@ describe('EditorRoot integration (happy-dom)', () => {
     expect(findByTestId(host, 'editor-form-parse-error')).not.toBeNull();
     expect(findByTestId(host, 'panel-metadata')).toBeNull();
   });
+
+  describe('save-time validation (validateLevel integration)', () => {
+    const validL1Yaml =
+      'id: level_test\n' +
+      'name: Test\n' +
+      'map:\n' +
+      '  cols: 5\n' +
+      '  rows: 3\n' +
+      '  tileSize: 64\n' +
+      '  tiles:\n' +
+      '    - [spawn, path, path, path, base]\n' +
+      '    - [empty, empty, empty, empty, empty]\n' +
+      '    - [empty, empty, empty, empty, empty]\n' +
+      '  spawns:\n' +
+      '    - {id: spawn_0, row: 0, col: 0}\n' +
+      '  pathGraph:\n' +
+      '    nodes:\n' +
+      '      - {id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0}\n' +
+      '      - {id: n1, row: 0, col: 4, role: crystal_anchor}\n' +
+      '    edges:\n' +
+      '      - {from: n0, to: n1}\n' +
+      'waves:\n' +
+      '  - waveNumber: 1\n' +
+      '    spawnDelay: 0\n' +
+      '    enemies:\n' +
+      '      - {enemyType: goblin, count: 5, spawnInterval: 1}\n';
+
+    const invalidYamlNoEdgesSpawnUnreachable =
+      'id: level_bad\n' +
+      'name: Bad\n' +
+      'map:\n' +
+      '  cols: 5\n' +
+      '  rows: 3\n' +
+      '  tileSize: 64\n' +
+      '  tiles:\n' +
+      '    - [spawn, path, path, path, base]\n' +
+      '    - [empty, empty, empty, empty, empty]\n' +
+      '    - [empty, empty, empty, empty, empty]\n' +
+      '  spawns:\n' +
+      '    - {id: spawn_0, row: 0, col: 0}\n' +
+      '  pathGraph:\n' +
+      '    nodes:\n' +
+      '      - {id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0}\n' +
+      '      - {id: n1, row: 0, col: 4, role: crystal_anchor}\n' +
+      '    edges: []\n' +
+      'waves: []\n';
+
+    it('valid level: save proceeds and validation panel is not shown', async () => {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_test', filename: 'level_test.yaml' }] } },
+          'GET /__editor/levels/level_test': { status: 200, body: { id: 'level_test', content: validL1Yaml, mtime: 100 } },
+          'PUT /__editor/levels/level_test': { status: 200, body: { id: 'level_test', mtime: 200 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_test')!.click();
+      await tick(); await tick();
+
+      const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      ta.value = `${validL1Yaml}# touched\n`;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick();
+
+      expect(findByTestId(host, 'editor-validation-errors')).toBeNull();
+
+      findByTestId<HTMLButtonElement>(host, 'editor-save')!.click();
+      await tick(); await tick();
+
+      expect(editor.isDirty).toBe(false);
+      expect(editor.currentMtime).toBe(200);
+    });
+
+    it('invalid level: save is blocked, validation panel lists errors', async () => {
+      const putSpy = vi.fn();
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_bad', filename: 'level_bad.yaml' }] } },
+          'GET /__editor/levels/level_bad': { status: 200, body: { id: 'level_bad', content: invalidYamlNoEdgesSpawnUnreachable, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      (editor as unknown as { saveCurrent: typeof editor.saveCurrent }).saveCurrent = putSpy as never;
+
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_bad')!.click();
+      await tick(); await tick();
+
+      const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      ta.value = `${invalidYamlNoEdgesSpawnUnreachable}# touched\n`;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick();
+
+      const saveBtn = findByTestId<HTMLButtonElement>(host, 'editor-save')!;
+      console.log('[test] save disabled =', saveBtn.disabled, 'isDirty=', editor.isDirty);
+      saveBtn.click();
+      await tick(); await tick(); await tick();
+
+      expect(putSpy).not.toHaveBeenCalled();
+
+      const panel = findByTestId(host, 'editor-validation-errors');
+      expect(panel).not.toBeNull();
+
+      expect(findByTestId(host, 'editor-validation-error-I12_NO_EDGE')).not.toBeNull();
+      expect(findByTestId(host, 'editor-validation-error-I6_SPAWN_UNREACHABLE')).not.toBeNull();
+    });
+
+    it('YAML parse error: validation panel is NOT shown (parse error takes precedence)', async () => {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_x', filename: 'level_x.yaml' }] } },
+          'GET /__editor/levels/level_x': { status: 200, body: { id: 'level_x', content: 'not: : valid: [', mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_x')!.click();
+      await tick(); await tick();
+
+      expect(findByTestId(host, 'editor-validation-errors')).toBeNull();
+    });
+
+    it('fixing invalid level clears the validation panel after re-edit', async () => {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_bad', filename: 'level_bad.yaml' }] } },
+          'GET /__editor/levels/level_bad': { status: 200, body: { id: 'level_bad', content: invalidYamlNoEdgesSpawnUnreachable, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_bad')!.click();
+      await tick(); await tick();
+
+      const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      ta.value = `${invalidYamlNoEdgesSpawnUnreachable}# touch\n`;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-save')!.click();
+      await tick();
+      expect(findByTestId(host, 'editor-validation-errors')).not.toBeNull();
+
+      ta.value = validL1Yaml;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick();
+
+      expect(findByTestId(host, 'editor-validation-errors')).toBeNull();
+    });
+  });
 });

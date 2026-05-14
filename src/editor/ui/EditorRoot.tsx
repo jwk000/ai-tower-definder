@@ -5,6 +5,7 @@ import {
   serializeModelToYaml,
   type LevelFormModel,
 } from '../state/levelModel.js';
+import { validateLevel, type ValidationError } from '../state/levelValidation.js';
 import { MetadataPanel } from './panels/MetadataPanel.js';
 import { StartingPanel } from './panels/StartingPanel.js';
 import { AvailablePanel } from './panels/AvailablePanel.js';
@@ -57,6 +58,7 @@ function snapshot(editor: LevelEditor): ViewState {
 export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const [view, setView] = useState<ViewState>(() => snapshot(editor));
   const [tab, setTab] = useState<EditTab>('raw');
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
 
   useEffect(() => {
     const onChange = () => setView(snapshot(editor));
@@ -69,6 +71,10 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     () => tryParseModel(view.currentContent),
     [view.currentContent],
   );
+
+  useEffect(() => {
+    setValidationErrors([]);
+  }, [view.currentContent, view.currentId]);
 
   const onFormChange = (next: LevelFormModel): void => {
     editor.setCurrentContent(serializeModelToYaml(next));
@@ -84,6 +90,15 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
   };
 
   const onSave = (): void => {
+    if (parsed.model !== null) {
+      const errors = validateLevel(parsed.model);
+      console.log('[onSave]', { hasModel: parsed.model !== null, errorCount: errors.length, errors });
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+    }
+    setValidationErrors([]);
     void editor.saveCurrent();
   };
 
@@ -227,6 +242,28 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                   {view.status === 'saving' ? '保存中…' : '保存 (Ctrl+S)'}
                 </button>
               </div>
+              {validationErrors.length > 0 && (
+                <div style={validationPanelStyle} data-testid="editor-validation-errors">
+                  <div style={validationHeaderStyle}>
+                    ⚠️ 保存被阻塞：发现 {validationErrors.length} 个校验错误
+                  </div>
+                  <ul style={validationListStyle}>
+                    {validationErrors.map((err, i) => (
+                      <li
+                        key={`${err.code}-${i}`}
+                        data-testid={`editor-validation-error-${err.code}`}
+                        style={validationItemStyle}
+                      >
+                        <span style={validationCodeStyle}>{err.code}</span>
+                        <span style={validationMessageStyle}>{err.message}</span>
+                        {err.path.length > 0 && (
+                          <span style={validationPathStyle}>at {err.path.join('.')}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {tab === 'raw' ? (
                 <textarea
                   value={view.currentContent ?? ''}
@@ -498,4 +535,58 @@ const formErrorPreStyle = {
   fontSize: 12,
   whiteSpace: 'pre-wrap' as const,
   fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+};
+
+const validationPanelStyle = {
+  padding: '12px 16px',
+  background: '#3a2018',
+  borderBottom: '1px solid #5a3028',
+  color: '#ffd0c0',
+  fontSize: 12,
+  maxHeight: 200,
+  overflowY: 'auto' as const,
+};
+
+const validationHeaderStyle = {
+  fontWeight: 600,
+  fontSize: 13,
+  marginBottom: 8,
+  color: '#ffb89a',
+};
+
+const validationListStyle = {
+  listStyle: 'none',
+  padding: 0,
+  margin: 0,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: 4,
+};
+
+const validationItemStyle = {
+  display: 'flex',
+  gap: 8,
+  alignItems: 'baseline',
+  padding: '4px 8px',
+  background: '#2a1410',
+  borderRadius: 3,
+};
+
+const validationCodeStyle = {
+  color: '#ff9070',
+  fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+  fontSize: 11,
+  fontWeight: 600,
+  minWidth: 180,
+};
+
+const validationMessageStyle = {
+  flex: 1,
+  color: '#e8d0c8',
+};
+
+const validationPathStyle = {
+  color: '#a08070',
+  fontFamily: '"SF Mono", Menlo, Consolas, monospace',
+  fontSize: 11,
 };
