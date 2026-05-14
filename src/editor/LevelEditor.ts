@@ -1,6 +1,46 @@
+import { dump as yamlDump, load as yamlLoad } from 'js-yaml';
+import { migrateEnemyPathToGraph } from '../level/graph/migration.js';
+
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export type EditorStatus = 'idle' | 'loading' | 'saving' | 'error';
+
+function findMapObject(root: Record<string, unknown>): Record<string, unknown> | null {
+  if (root.map && typeof root.map === 'object' && !Array.isArray(root.map)) {
+    return root.map as Record<string, unknown>;
+  }
+  for (const v of Object.values(root)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const inner = (v as Record<string, unknown>).map;
+      if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+        return inner as Record<string, unknown>;
+      }
+    }
+  }
+  return null;
+}
+
+function findEnemyPath(root: Record<string, unknown>): unknown {
+  const map = findMapObject(root);
+  if (!map) return null;
+  return map.enemyPath;
+}
+
+function hasPathGraph(root: Record<string, unknown>): boolean {
+  const map = findMapObject(root);
+  if (!map) return false;
+  return map.pathGraph !== undefined && map.pathGraph !== null;
+}
+
+function rewriteMapInPlace(
+  root: Record<string, unknown>,
+  mutator: (m: Record<string, unknown>) => void,
+): Record<string, unknown> | null {
+  const map = findMapObject(root);
+  if (!map) return null;
+  mutator(map);
+  return map;
+}
 
 export interface LevelListEntry {
   id: string;
@@ -179,6 +219,59 @@ export class LevelEditor extends EventTarget {
       const msg = err instanceof Error ? err.message : 'fetch_failed';
       this.failWith(msg);
       return { ok: false, error: msg };
+    }
+  }
+
+  canMigrate(): boolean {
+    if (this._currentContent === null) return false;
+    const parsed = this.tryParseYaml(this._currentContent);
+    if (!parsed) return false;
+    const enemyPath = findEnemyPath(parsed);
+    if (!Array.isArray(enemyPath) || enemyPath.length < 2) return false;
+    return !hasPathGraph(parsed);
+  }
+
+  migrateCurrent(): Result<{ id: string | null }> {
+    if (this._currentContent === null) {
+      return { ok: false, error: 'no_current' };
+    }
+    const parsed = this.tryParseYaml(this._currentContent);
+    if (!parsed) {
+      return { ok: false, error: 'invalid_yaml' };
+    }
+    if (hasPathGraph(parsed)) {
+      return { ok: false, error: 'already_migrated' };
+    }
+    const enemyPath = findEnemyPath(parsed);
+    if (!Array.isArray(enemyPath) || enemyPath.length < 2) {
+      return { ok: false, error: 'no_enemy_path' };
+    }
+
+    try {
+      const result = migrateEnemyPathToGraph({ enemyPath });
+      const next = rewriteMapInPlace(parsed, (mapObj) => {
+        delete mapObj.enemyPath;
+        mapObj.spawns = result.spawns;
+        mapObj.pathGraph = result.pathGraph;
+      });
+      if (!next) return { ok: false, error: 'no_map_object' };
+
+      this._currentContent = yamlDump(parsed, { lineWidth: 120, noRefs: true });
+      this.emitChange();
+      return { ok: true, value: { id: this._currentId } };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'migrate_failed';
+      return { ok: false, error: msg };
+    }
+  }
+
+  private tryParseYaml(text: string): Record<string, unknown> | null {
+    try {
+      const v = yamlLoad(text);
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+      return v as Record<string, unknown>;
+    } catch {
+      return null;
     }
   }
 

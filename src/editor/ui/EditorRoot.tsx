@@ -13,6 +13,7 @@ interface ViewState {
   currentContent: string | null;
   isDirty: boolean;
   lastError: string | null;
+  canMigrate: boolean;
 }
 
 function snapshot(editor: LevelEditor): ViewState {
@@ -23,6 +24,7 @@ function snapshot(editor: LevelEditor): ViewState {
     currentContent: editor.currentContent,
     isDirty: editor.isDirty,
     lastError: editor.lastError,
+    canMigrate: editor.canMigrate(),
   };
 }
 
@@ -47,6 +49,12 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
 
   const onSave = (): void => {
     void editor.saveCurrent();
+  };
+
+  const onMigrate = (): void => {
+    if (!view.canMigrate) return;
+    if (!window.confirm('将当前关卡的 enemyPath 迁移为图模型（spawns + pathGraph）？\n迁移结果会写入编辑器，需手动保存。')) return;
+    editor.migrateCurrent();
   };
 
   const onDuplicate = async (): Promise<void> => {
@@ -145,6 +153,16 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                 <span style={{ color: '#e0e0e0', fontWeight: 600 }}>{view.currentId}</span>
                 {view.isDirty && <span style={dirtyBadgeStyle} data-testid="editor-dirty">● 未保存</span>}
                 <div style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  onClick={onMigrate}
+                  disabled={!view.canMigrate}
+                  style={{ ...migrateButtonStyle, opacity: view.canMigrate ? 1 : 0.4, cursor: view.canMigrate ? 'pointer' : 'not-allowed' }}
+                  data-testid="editor-migrate"
+                  title={view.canMigrate ? '迁移 enemyPath → spawns + pathGraph' : '无 enemyPath 或已迁移'}
+                >
+                  ↗ 迁移为图模型
+                </button>
                 <button
                   type="button"
                   onClick={onSave}
@@ -328,6 +346,16 @@ const saveButtonStyle = {
   padding: '6px 14px',
   borderRadius: 4,
   fontSize: 13,
+};
+
+const migrateButtonStyle = {
+  background: '#3a3a6a',
+  border: '1px solid #4a4a8a',
+  color: '#fff',
+  padding: '6px 12px',
+  borderRadius: 4,
+  fontSize: 12,
+  marginRight: 8,
 };
 
 const textareaStyle = {

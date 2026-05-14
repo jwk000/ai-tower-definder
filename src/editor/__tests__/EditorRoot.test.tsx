@@ -309,6 +309,98 @@ describe('EditorRoot integration (happy-dom)', () => {
     confirmSpy.mockRestore();
   });
 
+  it('migrate button: visible & enabled when current level has enemyPath', async () => {
+    const oldYaml = 'id: level_01\nname: Plains\nmap:\n  cols: 5\n  rows: 5\n  tileSize: 64\n  tiles: []\n  enemyPath:\n    - {row: 0, col: 0}\n    - {row: 0, col: 4}\n    - {row: 4, col: 4}\nwaves: []\n';
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: oldYaml, mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const btn = findByTestId<HTMLButtonElement>(host, 'editor-migrate');
+    expect(btn).not.toBeNull();
+    expect(btn!.disabled).toBe(false);
+  });
+
+  it('migrate button: disabled when current level already has pathGraph', async () => {
+    const newYaml = 'id: level_01\nmap:\n  cols: 5\n  rows: 5\n  tileSize: 64\n  tiles: []\n  spawns:\n    - {id: spawn_0, row: 0, col: 0}\n  pathGraph:\n    nodes:\n      - {id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0}\n      - {id: n1, row: 0, col: 4, role: crystal_anchor}\n    edges:\n      - {from: n0, to: n1}\nwaves: []\n';
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: newYaml, mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    const btn = findByTestId<HTMLButtonElement>(host, 'editor-migrate');
+    expect(btn).not.toBeNull();
+    expect(btn!.disabled).toBe(true);
+  });
+
+  it('migrate button: clicking rewrites textarea, marks dirty, does not auto-save', async () => {
+    const oldYaml = 'id: level_01\nmap:\n  cols: 5\n  rows: 5\n  tileSize: 64\n  tiles: []\n  enemyPath:\n    - {row: 0, col: 0}\n    - {row: 0, col: 4}\n    - {row: 4, col: 4}\nwaves: []\n';
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const putSpy = vi.fn();
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: oldYaml, mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    (editor as unknown as { saveCurrent: typeof editor.saveCurrent }).saveCurrent = putSpy as never;
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    findByTestId<HTMLButtonElement>(host, 'editor-migrate')!.click();
+    await tick(); await tick();
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(editor.isDirty).toBe(true);
+    const ta = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+    expect(ta.value).toContain('spawns');
+    expect(ta.value).toContain('pathGraph');
+    expect(ta.value).not.toContain('enemyPath');
+    confirmSpy.mockRestore();
+  });
+
+  it('migrate: cancelling confirm leaves content unchanged', async () => {
+    const oldYaml = 'id: level_01\nmap:\n  cols: 5\n  rows: 5\n  tileSize: 64\n  tiles: []\n  enemyPath:\n    - {row: 0, col: 0}\n    - {row: 0, col: 4}\nwaves: []\n';
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: oldYaml, mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    findByTestId<HTMLButtonElement>(host, 'editor-migrate')!.click();
+    await tick();
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(editor.isDirty).toBe(false);
+    expect(editor.currentContent).toBe(oldYaml);
+    confirmSpy.mockRestore();
+  });
+
   it('duplicate failure surfaces in error banner', async () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('level_existing');
     const editor = new LevelEditor({
