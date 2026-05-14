@@ -39,7 +39,14 @@ function buildSimpleMap(): MapConfig {
   const tiles: TileType[][] = [[TileType.Path, TileType.Empty]];
   return {
     name: 'wireup-map', cols: 2, rows: 1, tileSize: 64, tiles,
-    enemyPath: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
+    spawns: [{ id: 'sp', row: 0, col: 0 }],
+    pathGraph: {
+      nodes: [
+        { id: 's', row: 0, col: 0, role: 'spawn', spawnId: 'sp' },
+        { id: 'e', row: 0, col: 1, role: 'crystal_anchor' },
+      ],
+      edges: [{ from: 's', to: 'e' }],
+    },
   };
 }
 

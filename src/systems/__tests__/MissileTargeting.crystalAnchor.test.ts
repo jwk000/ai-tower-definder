@@ -12,23 +12,26 @@ import { evaluateMissileTarget } from '../MissileTargeting.js';
 import { RenderSystem } from '../RenderSystem.js';
 import type { MapConfig, GridPos } from '../../types/index.js';
 import { TileType } from '../../types/index.js';
+import { migrateEnemyPathToGraph } from '../../level/graph/migration.js';
 
 const TILE = 32;
 
-function makeMapWithEnemyPath(enemyPath: GridPos[], cols: number, rows: number): MapConfig {
+function makeMapWithWaypoints(waypoints: GridPos[], cols: number, rows: number): MapConfig {
   const tiles: TileType[][] = [];
   for (let r = 0; r < rows; r++) {
     const row: TileType[] = [];
     for (let c = 0; c < cols; c++) row.push(TileType.Path);
     tiles.push(row);
   }
+  const { pathGraph, spawns } = migrateEnemyPathToGraph({ enemyPath: waypoints });
   return {
     name: 'test',
     cols,
     rows,
     tileSize: TILE,
     tiles,
-    enemyPath,
+    pathGraph,
+    spawns,
   };
 }
 
@@ -66,19 +69,19 @@ function makeEnemy(world: TowerWorld, x: number, y: number): number {
   return eid;
 }
 
-describe('MissileTargeting B.13 — crystal_anchor base position', () => {
+describe('MissileTargeting B.13/B.15 — crystal_anchor base position', () => {
   beforeEach(() => {
     RenderSystem.sceneOffsetX = 0;
     RenderSystem.sceneOffsetY = 0;
   });
 
-  it('legacy enemyPath map: base position derived from crystal_anchor matches enemyPath tail', () => {
-    const enemyPath: GridPos[] = [
+  it('pathGraph migrated from waypoints: base position derived from crystal_anchor matches tail', () => {
+    const waypoints: GridPos[] = [
       { row: 0, col: 0 },
       { row: 0, col: 5 },
       { row: 4, col: 5 },
     ];
-    const map = makeMapWithEnemyPath(enemyPath, 10, 10);
+    const map = makeMapWithWaypoints(waypoints, 10, 10);
     const world = new TowerWorld();
     const towerX = 2 * TILE + TILE / 2;
     const towerY = 2 * TILE + TILE / 2;
@@ -93,13 +96,13 @@ describe('MissileTargeting B.13 — crystal_anchor base position', () => {
     expect(result!.col).toBe(4);
   });
 
-  it('explicit pathGraph overrides enemyPath: crystal_anchor sourced from graph node, not enemyPath tail', () => {
-    const enemyPath: GridPos[] = [
-      { row: 0, col: 0 },
-      { row: 0, col: 9 },
-    ];
+  it('explicit pathGraph: crystal_anchor sourced from graph node', () => {
     const map: MapConfig = {
-      ...makeMapWithEnemyPath(enemyPath, 10, 10),
+      name: 'test',
+      cols: 10,
+      rows: 10,
+      tileSize: TILE,
+      tiles: Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => TileType.Path)),
       pathGraph: {
         nodes: [
           { id: 's', row: 0, col: 0, role: 'spawn', spawnId: 'sp' },
@@ -116,12 +119,12 @@ describe('MissileTargeting B.13 — crystal_anchor base position', () => {
     const world = new TowerWorld();
     const tower = makeTower(world, 3 * TILE + TILE / 2, 3 * TILE + TILE / 2);
     const enemyNearGraphCrystal = makeEnemy(world, 4 * TILE + TILE / 2, 7 * TILE + TILE / 2);
-    const enemyNearEnemyPathTail = makeEnemy(world, 9 * TILE + TILE / 2, 0 * TILE + TILE / 2);
+    const enemyElsewhere = makeEnemy(world, 9 * TILE + TILE / 2, 0 * TILE + TILE / 2);
 
     const result = evaluateMissileTarget(
       world,
       tower,
-      [enemyNearGraphCrystal, enemyNearEnemyPathTail],
+      [enemyNearGraphCrystal, enemyElsewhere],
       map,
     );
 
@@ -131,11 +134,11 @@ describe('MissileTargeting B.13 — crystal_anchor base position', () => {
   });
 
   it('enemy near crystal_anchor scores higher than enemy far from it', () => {
-    const enemyPath: GridPos[] = [
+    const waypoints: GridPos[] = [
       { row: 0, col: 0 },
       { row: 0, col: 8 },
     ];
-    const map = makeMapWithEnemyPath(enemyPath, 12, 6);
+    const map = makeMapWithWaypoints(waypoints, 12, 6);
     const world = new TowerWorld();
     const tower = makeTower(world, 4 * TILE + TILE / 2, 2 * TILE + TILE / 2);
     const enemyNearBase = makeEnemy(world, 7 * TILE + TILE / 2, 0 * TILE + TILE / 2);

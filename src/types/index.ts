@@ -130,7 +130,6 @@ export interface MapConfig {
   rows: number;
   tileSize: number;
   tiles: TileType[][];
-  enemyPath: GridPos[];
   spawns?: import('../level/graph/types.js').SpawnPoint[];
   pathGraph?: import('../level/graph/types.js').PathGraph;
   tileColors?: Partial<Record<TileType, string>>;

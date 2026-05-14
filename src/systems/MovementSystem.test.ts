@@ -28,23 +28,26 @@ import {
 } from '../core/components.js';
 import { MovementSystem } from './MovementSystem.js';
 import { RenderSystem } from './RenderSystem.js';
-import type { MapConfig, GridPos } from '../types/index.js';
+import type { MapConfig } from '../types/index.js';
 import { TileType } from '../types/index.js';
 
 const TILE = 32;
 
 function makeMap(): MapConfig {
-  const waypoints: GridPos[] = [
-    { row: 0, col: 0 },
-    { row: 0, col: 1 },
-  ];
   return {
     name: 'test',
     cols: 2,
     rows: 1,
     tileSize: TILE,
     tiles: [[TileType.Spawn, TileType.Base]],
-    enemyPath: waypoints,
+    spawns: [{ id: 'sp', row: 0, col: 0 }],
+    pathGraph: {
+      nodes: [
+        { id: 's', row: 0, col: 0, role: 'spawn', spawnId: 'sp' },
+        { id: 'e', row: 0, col: 1, role: 'crystal_anchor' },
+      ],
+      edges: [{ from: 's', to: 'e' }],
+    },
   };
 }
 

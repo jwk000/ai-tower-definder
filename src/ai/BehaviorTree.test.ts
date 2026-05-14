@@ -1725,7 +1725,14 @@ describe('SelectMissileTargetNode（导弹塔地格评分目标选择）', () =>
       rows: 12,
       tileSize: 40,
       tiles: [],
-      enemyPath: [{ row: 11, col: 19 }],
+      spawns: [{ id: 'sp', row: 0, col: 0 }],
+      pathGraph: {
+        nodes: [
+          { id: 's', row: 0, col: 0, role: 'spawn', spawnId: 'sp' },
+          { id: 'e', row: 11, col: 19, role: 'crystal_anchor' },
+        ],
+        edges: [{ from: 's', to: 'e' }],
+      },
     };
   }
 

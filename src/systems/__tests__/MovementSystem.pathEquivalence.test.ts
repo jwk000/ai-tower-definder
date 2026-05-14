@@ -14,25 +14,28 @@ import { MovementSystem } from '../MovementSystem.js';
 import { RenderSystem } from '../RenderSystem.js';
 import type { MapConfig, GridPos } from '../../types/index.js';
 import { TileType } from '../../types/index.js';
+import { migrateEnemyPathToGraph } from '../../level/graph/migration.js';
 
 const TILE = 32;
 
-function makeMapWithPath(enemyPath: GridPos[]): MapConfig {
-  const maxRow = enemyPath.reduce((m, p) => Math.max(m, p.row), 0) + 1;
-  const maxCol = enemyPath.reduce((m, p) => Math.max(m, p.col), 0) + 1;
+function makeMapWithPath(waypoints: GridPos[]): MapConfig {
+  const maxRow = waypoints.reduce((m, p) => Math.max(m, p.row), 0) + 1;
+  const maxCol = waypoints.reduce((m, p) => Math.max(m, p.col), 0) + 1;
   const tiles: TileType[][] = [];
   for (let r = 0; r < maxRow; r++) {
     const row: TileType[] = [];
     for (let c = 0; c < maxCol; c++) row.push(TileType.Path);
     tiles.push(row);
   }
+  const { pathGraph, spawns } = migrateEnemyPathToGraph({ enemyPath: waypoints });
   return {
     name: 'test',
     cols: maxCol,
     rows: maxRow,
     tileSize: TILE,
     tiles,
-    enemyPath,
+    pathGraph,
+    spawns,
   };
 }
 
@@ -78,7 +81,7 @@ interface SimSnapshot {
   progress: number;
 }
 
-function runSim(map: MapConfig, ticks: number, dt: number): {
+function runSim(map: MapConfig, head: GridPos, ticks: number, dt: number): {
   positions: SimSnapshot[];
   baseHp: number;
 } {
@@ -86,8 +89,8 @@ function runSim(map: MapConfig, ticks: number, dt: number): {
   RenderSystem.sceneOffsetY = 0;
   const world = new TowerWorld();
   const sys = new MovementSystem(map);
-  const startX = map.enemyPath[0]!.col * TILE + TILE / 2;
-  const startY = map.enemyPath[0]!.row * TILE + TILE / 2;
+  const startX = head.col * TILE + TILE / 2;
+  const startY = head.row * TILE + TILE / 2;
   const eid = spawnEnemy(world, startX, startY, 80);
   const baseId = spawnBase(world, 100);
   const positions: SimSnapshot[] = [];
@@ -116,7 +119,7 @@ describe('MovementSystem B.12a — path equivalence after linearizeForLegacy ref
       { row: 0, col: 10 },
     ];
     const map = makeMapWithPath(path);
-    const { positions } = runSim(map, 80, 0.1);
+    const { positions } = runSim(map, path[0]!, 80, 0.1);
     const maxIndex = positions.reduce((m, p) => Math.max(m, p.pathIndex), 0);
     expect(maxIndex).toBe(path.length - 1);
     const atFinal = positions.find((p) => p.pathIndex === path.length - 1)!;
@@ -130,7 +133,7 @@ describe('MovementSystem B.12a — path equivalence after linearizeForLegacy ref
       { row: 3, col: 5 },
     ];
     const map = makeMapWithPath(path);
-    const { positions } = runSim(map, 100, 0.1);
+    const { positions } = runSim(map, path[0]!, 100, 0.1);
     const maxIndex = positions.reduce((m, p) => Math.max(m, p.pathIndex), 0);
     expect(maxIndex).toBe(path.length - 1);
     const atFinal = positions.find((p) => p.pathIndex === path.length - 1)!;
@@ -148,7 +151,7 @@ describe('MovementSystem B.12a — path equivalence after linearizeForLegacy ref
       { row: 6, col: 12 },
     ];
     const map = makeMapWithPath(path);
-    const { positions } = runSim(map, 300, 0.1);
+    const { positions } = runSim(map, path[0]!, 300, 0.1);
     const reachedIndices = new Set(positions.map((p) => p.pathIndex));
     for (let i = 0; i < path.length; i++) {
       expect(reachedIndices.has(i)).toBe(true);
@@ -161,7 +164,7 @@ describe('MovementSystem B.12a — path equivalence after linearizeForLegacy ref
       { row: 0, col: 2 },
     ];
     const map = makeMapWithPath(path);
-    const { baseHp } = runSim(map, 100, 0.1);
+    const { baseHp } = runSim(map, path[0]!, 100, 0.1);
     expect(baseHp).toBeLessThan(100);
   });
 });

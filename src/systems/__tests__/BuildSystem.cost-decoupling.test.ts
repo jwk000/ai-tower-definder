@@ -28,7 +28,14 @@ function buildSimpleMap(): MapConfig {
     rows: 3,
     tileSize: 64,
     tiles,
-    enemyPath: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }],
+    spawns: [{ id: 'sp', row: 0, col: 0 }],
+    pathGraph: {
+      nodes: [
+        { id: 's', row: 0, col: 0, role: 'spawn', spawnId: 'sp' },
+        { id: 'e', row: 0, col: 2, role: 'crystal_anchor' },
+      ],
+      edges: [{ from: 's', to: 'e' }],
+    },
   };
 }
 

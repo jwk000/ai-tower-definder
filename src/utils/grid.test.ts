@@ -16,7 +16,6 @@ function makeMap(tiles: TileType[][]): MapConfig {
     rows: tiles.length,
     tileSize: 64,
     tiles,
-    enemyPath: [],
   };
 }
 

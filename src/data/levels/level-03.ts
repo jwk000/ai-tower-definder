@@ -42,7 +42,6 @@ const MAP: MapConfig = {
   rows: 9,
   tileSize: 64,
   tiles: TILES,
-  enemyPath: PRIMARY_WAYPOINTS,
   pathGraph: PATH_GRAPH,
   spawns: SPAWNS,
   altSpawnPoints: [{ row: 0, col: 6 }],

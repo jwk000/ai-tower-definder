@@ -15,6 +15,7 @@ import {
   type GridPos,
   type UpgradeVisualRegistry,
 } from '../types/index.js';
+import { migrateEnemyPathToGraph } from '../level/graph/migration.js';
 
 // ---- Tower Configs ----
 
@@ -870,13 +871,16 @@ const MAP_01_WAYPOINTS: GridPos[] = [
   { row: 6, col: 20 },
 ];
 
+const MAP_01_GRAPH = migrateEnemyPathToGraph({ enemyPath: MAP_01_WAYPOINTS });
+
 export const MAP_01: MapConfig = {
   name: '第一关 — 平原',
   cols: 21,
   rows: 9,
   tileSize: 64,
   tiles: buildMapTiles(),
-  enemyPath: MAP_01_WAYPOINTS,
+  pathGraph: MAP_01_GRAPH.pathGraph,
+  spawns: MAP_01_GRAPH.spawns,
   neutralUnits: [],
 };
 
