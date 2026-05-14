@@ -183,3 +183,44 @@ src/
 4. **变更先入文档。** 任何验收问题或需求变更必须先写入文档，再修改代码。
 5. **始终用中文回复。** 本项目所有沟通必须使用中文。
 6. **开发日志。** 每次对话结束时，agent 必须写一份开发日志。日志按日期归档（每天一个文件），保留完整历史。
+
+<!-- UBF_MEMORY_SYSTEM_START -->
+## 记忆系统
+
+### ⚠️ 路径约束
+
+记忆分两级存储，根目录不同：
+
+- **项目记忆**：`ubf_agent_root/.memory/` — 项目目录下的子目录，存本项目的知识
+- **全局知识**：`$UBF_AI_ROOT/.memory/` — **独立的 git 仓库**（不在项目目录内），通过环境变量 `$UBF_AI_ROOT` 定位，存跨项目共享知识（me.md、conventions.md、stack.md 等）
+
+> `$UBF_AI_ROOT` 由 `/ubf_init` 自动发现并持久化到 shell 环境。访问全局知识前先确认该变量存在。
+
+> **⛔ 项目级记忆只写 `ubf_agent_root/.memory/`。全局仓库是只读参考，禁止在其中创建项目子目录。**
+
+### 目录分类
+
+| 目录 | 放什么 | 判定 |
+|------|--------|------|
+| **`modules/`** | 架构分析、技术原理、接口说明 | **会随理解加深而迭代** |
+| **`references/`** | 需求文档、产品规格、现状快照 | **不会迭代的只读基线**（⛔ 不可修改删除） |
+| `decisions/` | ADR 格式的取舍记录 | — |
+| `handoffs/` | 会话交接摘要 | — |
+| `known-issues/` | bug、workaround | — |
+
+### 读写规则
+
+- **读取**：先查 `_index.md`，再按需读具体文件
+- **写入**：写入后告知用户路径；`_index.md` 由脚本生成，**禁止手工编辑**
+- **命名**：`{中文标题}_V{版本}_{YYYY.MM.DD_HH.mm.ss}.md`（禁止冒号和空格）
+
+> **⚠️ 凡涉及记忆读写操作（检索、写入、交接、索引重建、归档），必须先加载 `ubf-memory` skill 再执行。** 该 skill 包含完整的操作规范、权限边界和脚本调用流程。
+
+### 项目记忆路径
+
+- 模块知识: `ubf_agent_root/.memory/modules/_index.md`
+- 参考资料: `ubf_agent_root/.memory/references/_index.md`
+- 项目决策: `ubf_agent_root/.memory/decisions/_index.md`
+- 最近交接: `ubf_agent_root/.memory/handoffs/_latest.md`
+- 已知问题: `ubf_agent_root/.memory/known-issues/_index.md`
+<!-- UBF_MEMORY_SYSTEM_END -->
