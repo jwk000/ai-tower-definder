@@ -6,20 +6,52 @@ export interface PathGraphIndex {
   graph: PathGraph;
   nodeById: Map<string, PathNode>;
   outEdges: Map<string, PathEdge[]>;
+  nodeIdxById: Map<string, number>;
 }
 
 export function buildPathGraphIndex(graph: PathGraph): PathGraphIndex {
   const nodeById = new Map<string, PathNode>();
   const outEdges = new Map<string, PathEdge[]>();
-  for (const n of graph.nodes) {
+  const nodeIdxById = new Map<string, number>();
+  for (let i = 0; i < graph.nodes.length; i++) {
+    const n = graph.nodes[i]!;
     nodeById.set(n.id, n);
     outEdges.set(n.id, []);
+    nodeIdxById.set(n.id, i);
   }
   for (const e of graph.edges) {
     const list = outEdges.get(e.from);
     if (list) list.push(e);
   }
-  return { graph, nodeById, outEdges };
+  return { graph, nodeById, outEdges, nodeIdxById };
+}
+
+export function findSpawnNodeIdx(index: PathGraphIndex, spawnId: string): number {
+  for (let i = 0; i < index.graph.nodes.length; i++) {
+    const n = index.graph.nodes[i]!;
+    if (n.role === 'spawn' && n.spawnId === spawnId) return i;
+  }
+  return -1;
+}
+
+export function chooseNextByIdx(
+  index: PathGraphIndex,
+  nodeIdx: number,
+  rng: GameRandom,
+): number {
+  const node = index.graph.nodes[nodeIdx];
+  if (!node) return -1;
+  const nextId = chooseNext(index, node.id, rng);
+  if (nextId === null) return -1;
+  return index.nodeIdxById.get(nextId) ?? -1;
+}
+
+export function resolvePortalByIdx(index: PathGraphIndex, nodeIdx: number): number {
+  const node = index.graph.nodes[nodeIdx];
+  if (!node) return -1;
+  const r = resolvePortal(index, node.id);
+  if (!r) return -1;
+  return index.nodeIdxById.get(r.teleportTo) ?? -1;
 }
 
 export function chooseNext(

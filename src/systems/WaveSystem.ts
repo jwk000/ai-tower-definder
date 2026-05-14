@@ -25,6 +25,15 @@ import { Sound } from '../utils/Sound.js';
 import { shapeTypeToVal } from '../utils/visualHelpers.js';
 import { resolveGraphFromMap } from '../level/graph/loaderAdapter.js';
 import type { SpawnPoint } from '../level/graph/types.js';
+import {
+  buildPathGraphIndex,
+  findSpawnNodeIdx,
+  chooseNextByIdx,
+  type PathGraphIndex,
+} from '../level/graph/PathGraph.js';
+import { getGlobalRandom } from '../utils/Random.js';
+
+const SENTINEL_NODE_IDX = 0xffff;
 
 // ---- bitecs query for alive enemy check ----
 
@@ -59,7 +68,7 @@ export class WaveSystem implements System {
   private world: TowerWorld;
   private waves: WaveConfig[];
   private currentWaveIndex: number = 0;
-  private spawnQueue: { enemyType: EnemyType; count: number; interval: number }[] = [];
+  private spawnQueue: { enemyType: EnemyType; count: number; interval: number; spawnId?: string }[] = [];
   private spawnTimer: number = 0;
   private spawnIntervalTimer: number = 0;
   private spawnedInWave: number = 0;
@@ -79,6 +88,7 @@ export class WaveSystem implements System {
   private spawnSoundCounter: number = 0;
 
   private readonly resolvedSpawns: readonly SpawnPoint[];
+  private readonly pathGraphIndex: PathGraphIndex;
 
   constructor(
     world: TowerWorld,
@@ -92,7 +102,9 @@ export class WaveSystem implements System {
   ) {
     this.world = world;
     this.waves = waves;
-    this.resolvedSpawns = resolveGraphFromMap(map).spawns;
+    const resolved = resolveGraphFromMap(map);
+    this.resolvedSpawns = resolved.spawns;
+    this.pathGraphIndex = buildPathGraphIndex(resolved.pathGraph);
   }
 
   get currentWave(): number {
@@ -147,32 +159,34 @@ export class WaveSystem implements System {
       const wave = generateEndlessWave(this.currentWaveIndex + 1);
       this.isBossWave = wave.isBossWave ?? false;
       if (this.isBossWave) Sound.play('wave_boss');
-      this.spawnQueue = wave.enemies.map((g) => ({
-        enemyType: g.enemyType,
-        count: g.count,
-        interval: g.spawnInterval,
-      }));
-      this.spawnTimer = wave.spawnDelay;
-      this.spawnIntervalTimer = 0;
-      this.spawnedInWave = 0;
-      this.totalInWave = wave.enemies.reduce((sum, g) => sum + g.count, 0);
-      this.waveActive = true;
-      this.setPhase(GamePhase.Battle);
-      this.onWaveStart?.();
-      return;
-    }
-
-    if (this.currentWaveIndex >= this.waves.length) return;
-
-    Sound.play('wave_start');
-    const wave = this.waves[this.currentWaveIndex]!;
-    this.isBossWave = wave.isBossWave ?? false;
-    if (this.isBossWave) Sound.play('wave_boss');
     this.spawnQueue = wave.enemies.map((g) => ({
       enemyType: g.enemyType,
       count: g.count,
       interval: g.spawnInterval,
+      spawnId: g.spawnId,
     }));
+    this.spawnTimer = wave.spawnDelay;
+    this.spawnIntervalTimer = 0;
+    this.spawnedInWave = 0;
+    this.totalInWave = wave.enemies.reduce((sum, g) => sum + g.count, 0);
+    this.waveActive = true;
+    this.setPhase(GamePhase.Battle);
+    this.onWaveStart?.();
+    return;
+  }
+
+  if (this.currentWaveIndex >= this.waves.length) return;
+
+  Sound.play('wave_start');
+  const wave = this.waves[this.currentWaveIndex]!;
+  this.isBossWave = wave.isBossWave ?? false;
+  if (this.isBossWave) Sound.play('wave_boss');
+  this.spawnQueue = wave.enemies.map((g) => ({
+    enemyType: g.enemyType,
+    count: g.count,
+    interval: g.spawnInterval,
+    spawnId: g.spawnId,
+  }));
     this.spawnTimer = wave.spawnDelay;
     this.spawnIntervalTimer = 0;
     this.spawnedInWave = 0;
@@ -219,7 +233,7 @@ export class WaveSystem implements System {
       this.spawnIntervalTimer -= dt;
       if (this.spawnIntervalTimer <= 0) {
         const group = this.spawnQueue[0]!;
-        this.spawnEnemy(group.enemyType);
+        this.spawnEnemy(group.enemyType, group.spawnId);
         group.count--;
         this.spawnedInWave++;
 
@@ -268,16 +282,21 @@ export class WaveSystem implements System {
     return false;
   }
 
-  private spawnEnemy(type: EnemyType): void {
+  private spawnEnemy(type: EnemyType, spawnId?: string): void {
     const config = ENEMY_CONFIGS[type];
     if (!config) return;
 
-    const spawn = this.resolvedSpawns[0]!;
+    const effectiveSpawnId = spawnId ?? this.resolvedSpawns[0]!.id;
+    const spawnNodeIdx = findSpawnNodeIdx(this.pathGraphIndex, effectiveSpawnId);
+    const fallbackIdx = spawnNodeIdx >= 0 ? spawnNodeIdx : 0;
+    const spawnNode = this.pathGraphIndex.graph.nodes[fallbackIdx]!;
     const ts = this.map.tileSize;
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
-    const x = spawn.col * ts + ts / 2 + ox;
-    const y = spawn.row * ts + ts / 2 + oy;
+    const x = spawnNode.col * ts + ts / 2 + ox;
+    const y = spawnNode.row * ts + ts / 2 + oy;
+
+    const targetIdx = chooseNextByIdx(this.pathGraphIndex, fallbackIdx, getGlobalRandom().wave);
 
     const eid = this.world.createEntity();
     const rgb = hexToRGB(config.color);
@@ -292,6 +311,11 @@ export class WaveSystem implements System {
     this.world.addComponent(eid, Movement, {
       speed: config.speed,
       moveMode: MoveModeVal.FollowPath,
+      pathIndex: 0,
+      progress: 0,
+      spawnIdx: fallbackIdx,
+      currentNodeIdx: fallbackIdx,
+      targetNodeIdx: targetIdx >= 0 ? targetIdx : SENTINEL_NODE_IDX,
     });
     this.world.addComponent(eid, UnitTag, {
       isEnemy: 1,

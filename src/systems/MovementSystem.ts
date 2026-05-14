@@ -3,11 +3,19 @@ import {
   Position, Movement, Health, UnitTag, Stunned, Frozen, Slowed, MoveModeVal,
   Visual, Attack, Projectile, DeathEffect, Trap, Category, CategoryVal,
 } from '../core/components.js';
-import type { MapConfig, GridPos } from '../types/index.js';
+import type { MapConfig } from '../types/index.js';
 import { RenderSystem } from './RenderSystem.js';
 import { getEffectiveValue } from './BuffSystem.js';
 import { resolveGraphFromMap } from '../level/graph/loaderAdapter.js';
-import { linearizeForLegacy } from '../level/graph/PathGraph.js';
+import {
+  buildPathGraphIndex,
+  chooseNextByIdx,
+  resolvePortalByIdx,
+  type PathGraphIndex,
+} from '../level/graph/PathGraph.js';
+import { getGlobalRandom } from '../utils/Random.js';
+
+const SENTINEL_NODE_IDX = 0xffff;
 
 interface CollisionResult {
   blocked: boolean;
@@ -28,47 +36,51 @@ export class MovementSystem implements System {
   /** Query: base objective entities (Category.Objective) for damage on enemy reach-end */
   private baseQuery = defineQuery([Position, Health, Category]);
 
-  private readonly path: readonly GridPos[];
+  private readonly pathIndex: PathGraphIndex;
 
   constructor(private map: MapConfig) {
     const resolved = resolveGraphFromMap(map);
-    this.path = linearizeForLegacy({ pathGraph: resolved.pathGraph, spawns: resolved.spawns });
+    this.pathIndex = buildPathGraphIndex(resolved.pathGraph);
+  }
+
+  /** Public accessor — WaveSystem reads to initialize enemy node indices on spawn. */
+  getPathIndex(): PathGraphIndex {
+    return this.pathIndex;
   }
 
   update(world: TowerWorld, dt: number): void {
     const entities = this.movingQuery(world.world);
-    const path = this.path;
     const ts = this.map.tileSize;
     const ox = RenderSystem.sceneOffsetX;
     const oy = RenderSystem.sceneOffsetY;
+    const nodes = this.pathIndex.graph.nodes;
 
     for (let i = 0; i < entities.length; i++) {
       const eid = entities[i]!;
 
-      // Only process enemy units
       if (UnitTag.isEnemy[eid] !== 1) continue;
-
-      // Skip stunned entities
       if (Stunned.timer[eid]! > 0) continue;
-
-      // Skip frozen entities — completely immobilized
       if (hasComponent(world.world, Frozen, eid)) continue;
-
-      // Skip if not in follow-path mode (e.g. hold-position)
       if (Movement.moveMode[eid] !== MoveModeVal.FollowPath) continue;
 
-      const pathIndex = Movement.pathIndex[eid]!;
+      let currentIdx = Movement.currentNodeIdx[eid] ?? SENTINEL_NODE_IDX;
+      let targetIdx = Movement.targetNodeIdx[eid] ?? SENTINEL_NODE_IDX;
 
-      // Reached end of path — damage base and destroy
-      if (pathIndex >= path.length - 1) {
-        this.onReachEnd(world, eid);
-        continue;
+      if (currentIdx === SENTINEL_NODE_IDX || currentIdx >= nodes.length) continue;
+
+      if (targetIdx === SENTINEL_NODE_IDX || targetIdx >= nodes.length) {
+        targetIdx = chooseNextByIdx(this.pathIndex, currentIdx, getGlobalRandom().wave);
+        if (targetIdx < 0) {
+          this.onReachEnd(world, eid);
+          continue;
+        }
+        Movement.targetNodeIdx[eid] = targetIdx;
+        Movement.progress[eid] = 0;
       }
 
-      const current = path[pathIndex]!;
-      const next = path[pathIndex + 1]!;
+      const current = nodes[currentIdx]!;
+      const next = nodes[targetIdx]!;
 
-      // World-space coordinates of current and next waypoint
       const cx = current.col * ts + ts / 2 + ox;
       const cy = current.row * ts + ts / 2 + oy;
       const nx = next.col * ts + ts / 2 + ox;
@@ -78,7 +90,26 @@ export class MovementSystem implements System {
       const dy = ny - cy;
       const segmentLen = Math.sqrt(dx * dx + dy * dy);
 
-      if (segmentLen <= 0) continue;
+      if (segmentLen <= 0) {
+        currentIdx = targetIdx;
+        Movement.currentNodeIdx[eid] = currentIdx;
+        Movement.progress[eid] = 0;
+        const portalDest = resolvePortalByIdx(this.pathIndex, currentIdx);
+        if (portalDest >= 0) {
+          currentIdx = portalDest;
+          Movement.currentNodeIdx[eid] = currentIdx;
+          const dest = nodes[portalDest]!;
+          Position.x[eid] = dest.col * ts + ts / 2 + ox;
+          Position.y[eid] = dest.row * ts + ts / 2 + oy;
+        }
+        if (nodes[currentIdx]!.role === 'crystal_anchor') {
+          this.onReachEnd(world, eid);
+          continue;
+        }
+        const nextTarget = chooseNextByIdx(this.pathIndex, currentIdx, getGlobalRandom().wave);
+        Movement.targetNodeIdx[eid] = nextTarget >= 0 ? nextTarget : SENTINEL_NODE_IDX;
+        continue;
+      }
 
       const rawSpeed = Movement.speed[eid]!;
       const buff = getEffectiveValue(eid, 'speed');
@@ -96,11 +127,30 @@ export class MovementSystem implements System {
       let newY: number;
 
       if (progress >= 1.0) {
-        // Reached waypoint — advance to next
-        Movement.pathIndex[eid] = pathIndex + 1;
+        currentIdx = targetIdx;
+        Movement.currentNodeIdx[eid] = currentIdx;
         Movement.progress[eid] = 0;
         newX = nx;
         newY = ny;
+
+        const portalDest = resolvePortalByIdx(this.pathIndex, currentIdx);
+        if (portalDest >= 0) {
+          currentIdx = portalDest;
+          Movement.currentNodeIdx[eid] = currentIdx;
+          const dest = nodes[portalDest]!;
+          newX = dest.col * ts + ts / 2 + ox;
+          newY = dest.row * ts + ts / 2 + oy;
+        }
+
+        if (nodes[currentIdx]!.role === 'crystal_anchor') {
+          Position.x[eid] = newX;
+          Position.y[eid] = newY;
+          this.onReachEnd(world, eid);
+          continue;
+        }
+
+        const nextTarget = chooseNextByIdx(this.pathIndex, currentIdx, getGlobalRandom().wave);
+        Movement.targetNodeIdx[eid] = nextTarget >= 0 ? nextTarget : SENTINEL_NODE_IDX;
       } else {
         Movement.progress[eid] = progress;
         newX = cx + dx * progress;

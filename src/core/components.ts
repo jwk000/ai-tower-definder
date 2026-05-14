@@ -239,18 +239,21 @@ export const Projectile = defineComponent({
 // 移动组件
 // ============================================================
 
-/** 移动能力 */
+/** 移动能力（D.6 真图遍历：design/60-tech/64-level-editor.md §4.5.3）。0xFFFF = sentinel/未初始化。 */
 export const Movement = defineComponent({
-  speed: Types.f32,        // 基准速度（px/s）
-  currentSpeed: Types.f32, // 当前实际速度（受Buff影响）
+  speed: Types.f32,
+  currentSpeed: Types.f32,
   targetX: Types.f32,
   targetY: Types.f32,
-  pathIndex: Types.ui16,   // 当前路径索引
-  progress: Types.f32,     // 路段进度(0-1)
-  moveMode: Types.ui8,     // MoveModeVal
-  homeX: Types.f32,        // 出生/部署位置
+  pathIndex: Types.ui16,
+  progress: Types.f32,
+  moveMode: Types.ui8,
+  homeX: Types.f32,
   homeY: Types.f32,
-  moveRange: Types.f32,    // 移动范围限制
+  moveRange: Types.f32,
+  spawnIdx: Types.ui16,
+  currentNodeIdx: Types.ui16,
+  targetNodeIdx: Types.ui16,
 });
 
 // ============================================================

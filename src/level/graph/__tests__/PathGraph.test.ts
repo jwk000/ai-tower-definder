@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPathGraphIndex,
   chooseNext,
+  chooseNextByIdx,
   resolvePortal,
+  resolvePortalByIdx,
   findCycle,
   canReachCrystalAnchor,
   validateGeometry,
   findDeadEndNodes,
   validateGraphAlgorithms,
+  findSpawnNodeIdx,
 } from '../PathGraph.js';
 import type { PathGraph, PathNode, PathEdge } from '../types.js';
 import { GameRandom } from '../../../utils/Random.js';
@@ -411,5 +414,112 @@ describe('validateGraphAlgorithms — 汇总入口', () => {
       waves: [],
     };
     expect(validateGraphAlgorithms(cfg)).toEqual([]);
+  });
+});
+
+describe('D.6 节点索引层（uint16 ECS 友好）', () => {
+  describe('buildPathGraphIndex.nodeIdxById', () => {
+    it('返回 id → nodes 数组下标的映射', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      expect(idx.nodeIdxById.get('a0')).toBe(0);
+      expect(idx.nodeIdxById.get('a1')).toBe(1);
+      expect(idx.nodeIdxById.get('a2')).toBe(2);
+      expect(idx.nodeIdxById.size).toBe(3);
+    });
+
+    it('nodes[nodeIdxById.get(id)!] 等价于 nodeById.get(id)', () => {
+      const g = portalGraph();
+      const idx = buildPathGraphIndex(g);
+      for (const n of g.nodes) {
+        const i = idx.nodeIdxById.get(n.id)!;
+        expect(idx.graph.nodes[i]).toBe(idx.nodeById.get(n.id));
+      }
+    });
+  });
+
+  describe('findSpawnNodeIdx — spawnId → spawn 节点下标', () => {
+    it('线性图返回唯一 spawn 节点的下标', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      expect(findSpawnNodeIdx(idx, 'spawn_a')).toBe(0);
+    });
+
+    it('未定义 spawnId 返回 -1', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      expect(findSpawnNodeIdx(idx, 'spawn_zzz')).toBe(-1);
+    });
+
+    it('多 spawn 图各返回对应节点', () => {
+      const g: PathGraph = {
+        nodes: [
+          node('a0', 0, 0, 'spawn', { spawnId: 'spawn_a' }),
+          node('b0', 8, 0, 'spawn', { spawnId: 'spawn_b' }),
+          node('x', 0, 10, 'crystal_anchor'),
+        ],
+        edges: [edge('a0', 'x'), edge('b0', 'x')],
+      };
+      const idx = buildPathGraphIndex(g);
+      expect(findSpawnNodeIdx(idx, 'spawn_a')).toBe(0);
+      expect(findSpawnNodeIdx(idx, 'spawn_b')).toBe(1);
+    });
+  });
+
+  describe('chooseNextByIdx — uint16 索引版本', () => {
+    it('线性图返回唯一后继的下标', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      const rng = new GameRandom(42);
+      expect(chooseNextByIdx(idx, 0, rng)).toBe(1);
+      expect(chooseNextByIdx(idx, 1, rng)).toBe(2);
+    });
+
+    it('crystal_anchor 终点返回 -1', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      const rng = new GameRandom(42);
+      expect(chooseNextByIdx(idx, 2, rng)).toBe(-1);
+    });
+
+    it('分支节点确定性随机：相同种子相同下标', () => {
+      const g = branchGraph();
+      const idx = buildPathGraphIndex(g);
+      const r1 = new GameRandom(777);
+      const r2 = new GameRandom(777);
+      expect(chooseNextByIdx(idx, 1, r1)).toBe(chooseNextByIdx(idx, 1, r2));
+    });
+
+    it('非法节点下标返回 -1', () => {
+      const g = linearGraph();
+      const idx = buildPathGraphIndex(g);
+      const rng = new GameRandom(42);
+      expect(chooseNextByIdx(idx, 999, rng)).toBe(-1);
+    });
+  });
+
+  describe('resolvePortalByIdx — uint16 索引版本', () => {
+    it('portal 节点返回 teleportTo 的下标', () => {
+      const g = portalGraph();
+      const idx = buildPathGraphIndex(g);
+      const portalIdx = idx.nodeIdxById.get('a1')!;
+      const targetIdx = idx.nodeIdxById.get('b0')!;
+      expect(resolvePortalByIdx(idx, portalIdx)).toBe(targetIdx);
+    });
+
+    it('非 portal 节点返回 -1', () => {
+      const g = portalGraph();
+      const idx = buildPathGraphIndex(g);
+      expect(resolvePortalByIdx(idx, 0)).toBe(-1);
+    });
+
+    it('teleportTo 指向不存在节点也返回 -1（防御性）', () => {
+      const g: PathGraph = {
+        nodes: [node('a0', 0, 0, 'portal', { teleportTo: 'GHOST' })],
+        edges: [],
+      };
+      const idx = buildPathGraphIndex(g);
+      expect(resolvePortalByIdx(idx, 0)).toBe(-1);
+    });
   });
 });

@@ -72,13 +72,16 @@ function makeEnemyAtEnd(
   opts: { atk: number; withAttackComponent?: boolean },
 ): number {
   const eid = world.createEntity();
-  world.addComponent(eid, Position, { x: 0, y: 0 });
+  world.addComponent(eid, Position, { x: TILE + TILE / 2, y: TILE / 2 });
   world.addComponent(eid, Health, { current: 60, max: 60, armor: 0, magicResist: 0 });
   world.addComponent(eid, Movement, {
     speed: 50,
     moveMode: MoveModeVal.FollowPath,
     pathIndex: 1,
     progress: 0,
+    spawnIdx: 0,
+    currentNodeIdx: 1,
+    targetNodeIdx: 0xffff,
   });
   world.addComponent(eid, UnitTag, {
     isEnemy: 1,

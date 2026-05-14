@@ -436,6 +436,7 @@ export interface WaveEnemyGroup {
   enemyType: EnemyType;
   count: number;
   spawnInterval: number;
+  spawnId?: string;
 }
 
 export interface WaveConfig {
