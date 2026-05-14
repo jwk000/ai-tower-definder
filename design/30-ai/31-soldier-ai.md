@@ -864,3 +864,24 @@ private aggroTable: Map<number, { targetId: number; expireTime: number; totalDam
 > - 现有设计文档: `02-unit-system.md` (单位系统/行为规则), `05-combat-system.md` (战斗数值), `23-ai-behavior-tree.md` (BT 节点规格)
 > - 现有代码: `src/systems/UnitSystem.ts`, `src/systems/EnemyAttackSystem.ts`, `src/systems/AISystem.ts`, `src/ai/BehaviorTree.ts`, `src/ai/presets/aiConfigs.ts`, `src/systems/LifecycleSystem.ts`, `src/main.ts:upgradeUnit`
 > - 经典参考: Kingdom Rush 兵营单位（集结/反击/嘲讽）、皇室战争 单位AI（警戒/追击/返回）、《魔兽世界》坦克嘲讽机制（threat / fixate）
+
+---
+
+## 13. v3.1 一致性核对
+
+> 本表为「沿用类」文档的固定审计项，对照 v3.0/v3.1 关键变更逐项给出本文档的现状。
+
+| v3.0/v3.1 关键变更 | 本文档影响 | 当前状态 |
+|---|---|---|
+| 三资源（能量/金币/碎片）替换金币/人口/能量 | §12 已加 v3.1 TODO 标记：旧版关内金币升级机制已废弃 | 🔶 |
+| 工具栏部署 → 手牌区出卡 | §12 已加 v3.1 TODO：士兵从工具栏部署改为手牌区拖卡 | 🔶 |
+| 塔升级 L1-L5 → 关外科技树 | §12 已加 v3.1 TODO：士兵 path 科技树设计延后，等塔科技树（[60-tech/22-tower-tech-tree.md](../20-units/22-tower-tech-tree.md)）落地后参照重设计 | 🔶 |
+| 毒藤塔/弩炮塔废弃 | 无相关条目 | ✅ |
+
+> 状态图例：✅ 已同步 / 🔶 部分同步 / ❌ 未处理
+
+## 修订历史
+
+| 版本 | 日期 | 修订者 | 摘要 |
+|---|---|---|---|
+| v3.1-audit | 2026-05-14 | doc-refactor | R5 追加 v3.1 一致性核对章节 |
