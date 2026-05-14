@@ -10,6 +10,7 @@ import {
   type WaveConfig,
   type GridPos,
 } from '../../types/index.js';
+import { migrateEnemyPathToGraph } from '../../level/graph/migration.js';
 
 const WAYPOINTS: GridPos[] = [
   { row: 0, col: 2 },
@@ -39,6 +40,8 @@ const TILES: TileType[][] = [
   [TileType.Path,TileType.Path,TileType.Path,TileType.Blocked,TileType.Path,TileType.Path,TileType.Path,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty,TileType.Empty],
 ];
 
+const { pathGraph: PATH_GRAPH, spawns: SPAWNS } = migrateEnemyPathToGraph({ enemyPath: WAYPOINTS });
+
 const MAP: MapConfig = {
   name: '沙漠',
   cols: 21,
@@ -46,6 +49,8 @@ const MAP: MapConfig = {
   tileSize: 64,
   tiles: TILES,
   enemyPath: WAYPOINTS,
+  pathGraph: PATH_GRAPH,
+  spawns: SPAWNS,
   tileColors: {
     [TileType.Empty]: '#dcc89a',
     [TileType.Path]: '#a89078',

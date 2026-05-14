@@ -10,6 +10,7 @@ import {
   type WaveConfig,
   type GridPos,
 } from '../../types/index.js';
+import { migrateEnemyPathToGraph } from '../../level/graph/migration.js';
 
 const WAYPOINTS: GridPos[] = [
   { row: 0, col: 1 },
@@ -41,6 +42,8 @@ const TILES: TileType[][] = [
   [TileType.Blocked,TileType.Empty,TileType.Blocked,TileType.Empty,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Path,TileType.Base],
 ];
 
+const { pathGraph: PATH_GRAPH, spawns: SPAWNS } = migrateEnemyPathToGraph({ enemyPath: WAYPOINTS });
+
 const MAP: MapConfig = {
   name: '火山',
   cols: 21,
@@ -48,6 +51,8 @@ const MAP: MapConfig = {
   tileSize: 64,
   tiles: TILES,
   enemyPath: WAYPOINTS,
+  pathGraph: PATH_GRAPH,
+  spawns: SPAWNS,
   tileColors: {
     [TileType.Empty]: '#7d5a4e',
     [TileType.Path]: '#a08870',
