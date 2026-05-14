@@ -461,6 +461,32 @@ export class UISystem implements System {
   /** Cached world reference — set at beginning of each update() call */
   private _world: TowerWorld | null = null;
 
+  /**
+   * v3.0 roguelike — A4-UI A3 牌组/弃牌堆全览模态状态。
+   *   - 'closed': 无 overlay，正常输入路由
+   *   - 'deck': 展示牌堆 (runContext.deck.state.drawPile)
+   *   - 'discard': 展示弃牌堆 (runContext.deck.state.discardPile)
+   * design/14 §3.2 line 78；design/09 §3.4 line 165-166。
+   * 切换由 handleClick 内部驱动；战斗中可打开但不暂停（仅查看）。
+   */
+  private overlayMode: 'closed' | 'deck' | 'discard' = 'closed';
+
+  isOverlayOpen(): boolean {
+    return this.overlayMode !== 'closed';
+  }
+
+  openDeckOverlay(): void {
+    this.overlayMode = 'deck';
+  }
+
+  openDiscardOverlay(): void {
+    this.overlayMode = 'discard';
+  }
+
+  closeOverlay(): void {
+    this.overlayMode = 'closed';
+  }
+
   selectEnemy(id: number): void {
     this.selectedEntityId = null;
     this.selectedEntityType = null;
@@ -1232,6 +1258,112 @@ export class UISystem implements System {
     this.renderHandZone();
     this.renderDeckCounter();
     this.renderHandTooltip();
+    this.renderDeckOverlay();
+  }
+
+  /**
+   * v3.0 roguelike — A4-UI A3 牌组/弃牌堆全览模态渲染。
+   *   - 全屏半透明遮罩（design/09 §3.4 line 165 半透明面板）
+   *   - 中央 1100×700 模态，标题 + 网格平铺所有卡（小卡 64×88）
+   *   - 数据源 runContext.deck.state.{drawPile, discardPile}
+   *   - 渲染顺序：在 renderHandTooltip 之后，确保 z-order 最顶
+   *   - 容错：runContext 未装配 / overlayMode='closed' 静默跳过
+   */
+  private renderDeckOverlay(): void {
+    if (this.overlayMode === 'closed') return;
+    const runContext = this._world?.runContext;
+    if (!runContext) return;
+
+    const cards = this.overlayMode === 'deck'
+      ? runContext.deck.state.drawPile
+      : runContext.deck.state.discardPile;
+    const layout = buildDeckOverlayLayout(cards.length);
+
+    this.renderer.push({
+      shape: 'rect',
+      x: LayoutManager.DESIGN_W / 2,
+      y: LayoutManager.DESIGN_H / 2,
+      size: LayoutManager.DESIGN_W,
+      h: LayoutManager.DESIGN_H,
+      color: '#000000',
+      alpha: 0.6,
+    });
+
+    this.renderer.push({
+      shape: 'rect',
+      x: layout.modal.x + layout.modal.w / 2,
+      y: layout.modal.y + layout.modal.h / 2,
+      size: layout.modal.w,
+      h: layout.modal.h,
+      color: '#1a2332',
+      alpha: 0.95,
+      stroke: this.overlayMode === 'deck' ? '#1e88e5' : '#6d4c41',
+      strokeWidth: 3,
+    });
+
+    const titleText = this.overlayMode === 'deck'
+      ? `📚 牌堆 (${cards.length})`
+      : `🗑 弃牌堆 (${cards.length})`;
+    this.infos.push({
+      x: layout.title.x,
+      y: layout.title.y + 20,
+      text: titleText,
+      color: '#ffffff',
+      size: 24,
+      align: 'left',
+    });
+
+    for (const cell of layout.cells) {
+      const instance = cards[cell.index];
+      if (instance === undefined) continue;
+      const config = runContext.registry.get(instance.cardId);
+      const rarityColor = config !== undefined ? RARITY_BORDER_COLORS[config.rarity] : '#444';
+      this.renderer.push({
+        shape: 'rect',
+        x: cell.x + cell.w / 2,
+        y: cell.y + cell.h / 2,
+        size: cell.w,
+        h: cell.h,
+        color: '#2a3441',
+        stroke: rarityColor,
+        strokeWidth: 2,
+      });
+      if (config !== undefined) {
+        this.infos.push({
+          x: cell.x + cell.w / 2,
+          y: cell.y + 8,
+          text: cardTypeGlyph(config.type),
+          color: '#bbb',
+          size: 12,
+          align: 'center',
+        });
+        this.infos.push({
+          x: cell.x + cell.w / 2,
+          y: cell.y + cell.h / 2,
+          text: config.name,
+          color: '#ffffff',
+          size: 11,
+          align: 'center',
+        });
+        this.infos.push({
+          x: cell.x + cell.w / 2,
+          y: cell.y + cell.h - 12,
+          text: `◇${config.energyCost}`,
+          color: '#42a5f5',
+          size: 12,
+          align: 'center',
+        });
+      }
+    }
+
+    this.infos.push({
+      x: layout.closeHintAt.x,
+      y: layout.closeHintAt.y,
+      text: '点击空白处或图标关闭',
+      color: '#888',
+      size: 14,
+      align: 'center',
+    });
   }
 
 
@@ -1852,6 +1984,35 @@ export class UISystem implements System {
   // ============================================================
 
   handleClick(x: number, y: number): boolean {
+    if (this.overlayMode !== 'closed') {
+      const layout = buildDeckOverlayLayout(0);
+      const region = classifyOverlayClick(x, y, layout.modal);
+      if (region === 'icon-deck') {
+        if (this.overlayMode === 'deck') this.closeOverlay();
+        else this.openDeckOverlay();
+        return true;
+      }
+      if (region === 'icon-discard') {
+        if (this.overlayMode === 'discard') this.closeOverlay();
+        else this.openDiscardOverlay();
+        return true;
+      }
+      if (region === 'outside-modal') {
+        this.closeOverlay();
+        return true;
+      }
+      return true;
+    }
+
+    if (hitTestDeckIcon(x, y)) {
+      this.openDeckOverlay();
+      return true;
+    }
+    if (hitTestDiscardIcon(x, y)) {
+      this.openDiscardOverlay();
+      return true;
+    }
+
     for (const btn of this.buttons) {
       const enabled = typeof btn.enabled === 'function' ? btn.enabled() : btn.enabled;
       if (enabled && x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h) {
