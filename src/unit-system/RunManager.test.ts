@@ -46,9 +46,12 @@ describe('RunManager — 验收 §3.1 卡组构筑 / §3.5 跨关流程', () => 
       expect(RARITY_WEIGHTS.legendary).toBe(3);
     });
 
-    it('保底类型清单覆盖所有 CardType', () => {
+    it('保底类型清单覆盖所有 CardType (B3 扩展版：4 类)', () => {
       expect(GUARANTEED_TYPES).toContain('unit');
       expect(GUARANTEED_TYPES).toContain('spell');
+      expect(GUARANTEED_TYPES).toContain('trap');
+      expect(GUARANTEED_TYPES).toContain('production');
+      expect(GUARANTEED_TYPES).toHaveLength(4);
     });
   });
 

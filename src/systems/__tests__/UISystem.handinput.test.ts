@@ -3,6 +3,8 @@ import {
   hitTestHandCard,
   resolveCardToEntityType,
   getHandZoneBounds,
+  cardTypeLabel,
+  cardTypeGlyph,
 } from '../UISystem.js';
 import { TowerType, UnitType } from '../../types/index.js';
 
@@ -99,5 +101,48 @@ describe('UISystem.resolveCardToEntityType', () => {
 
   it('returns null for undefined / empty input', () => {
     expect(resolveCardToEntityType(undefined)).toBeNull();
+  });
+
+  it('B3 扩展：resolves spike_trap to trap entityType', () => {
+    expect(resolveCardToEntityType('spike_trap')).toEqual({ entityType: 'trap' });
+  });
+
+  it('B3 扩展：resolves ProductionType values to production entityType', () => {
+    expect(resolveCardToEntityType('gold_mine')).toEqual({
+      entityType: 'production',
+      productionType: 'gold_mine',
+    });
+    expect(resolveCardToEntityType('energy_tower')).toEqual({
+      entityType: 'production',
+      productionType: 'energy_tower',
+    });
+  });
+
+  it('B3 扩展：energy_tower 优先匹配 production 而非 _tower 后缀', () => {
+    const r = resolveCardToEntityType('energy_tower');
+    expect(r).not.toBeNull();
+    expect(r!.entityType).toBe('production');
+  });
+});
+
+describe('UISystem.cardTypeLabel / cardTypeGlyph (B3 扩展)', () => {
+  it('cardTypeLabel 覆盖 4 类 CardType', () => {
+    expect(cardTypeLabel('unit')).toBe('单位');
+    expect(cardTypeLabel('spell')).toBe('法术');
+    expect(cardTypeLabel('trap')).toBe('陷阱');
+    expect(cardTypeLabel('production')).toBe('生产');
+  });
+
+  it('cardTypeGlyph 覆盖 4 类 CardType 且各不相同', () => {
+    const glyphs = [
+      cardTypeGlyph('unit'),
+      cardTypeGlyph('spell'),
+      cardTypeGlyph('trap'),
+      cardTypeGlyph('production'),
+    ];
+    expect(new Set(glyphs).size).toBe(4);
+    for (const g of glyphs) {
+      expect(g.length).toBeGreaterThan(0);
+    }
   });
 });

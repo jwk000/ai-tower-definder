@@ -29,7 +29,7 @@ import {
   Boss,
   PlayerOwned,
 } from '../core/components.js';
-import type { CardConfig } from '../config/cardRegistry.js';
+import type { CardConfig, CardType } from '../config/cardRegistry.js';
 
 export function computeEnergyBarRatio(current: number, max: number): number {
   if (max <= 0) return 0;
@@ -124,23 +124,54 @@ export function hitTestHandCard(
   return -1;
 }
 
+export function cardTypeLabel(type: CardType): string {
+  switch (type) {
+    case 'unit':       return '单位';
+    case 'spell':      return '法术';
+    case 'trap':       return '陷阱';
+    case 'production': return '生产';
+  }
+}
+
+export function cardTypeGlyph(type: CardType): string {
+  switch (type) {
+    case 'unit':       return '⚔';
+    case 'spell':      return '✦';
+    case 'trap':       return '✜';
+    case 'production': return '⛏';
+  }
+}
+
 /**
  * v3.0 roguelike — 把 CardConfig.unitConfigId 映射成可被 BuildSystem.startDrag 消费的实体描述。
  *
- * 当前覆盖范围（A4-UI 阶段）：
- *   - `<X>_tower` → entityType='tower', towerType=TowerType.X
- *   - 已知 UnitType 值 → entityType='unit', unitType=UnitType.X
+ * 覆盖范围（B3 扩展版）：
+ *   - `<X>_tower` → entityType='tower'    （X 必须在 TowerType enum）
+ *   - 已知 UnitType 值 → entityType='unit'
+ *   - 'spike_trap' → entityType='trap'
+ *   - ProductionType enum 值 ('gold_mine' | 'energy_tower') → entityType='production'
  *
- * 其他卡（archer/priest/engineer 等尚无对应 ECS 单位实现）返回 null，
- * 调用方应拒绝出卡并保留能量。Phase B 引入新单位时此映射会随 enum 自动扩展。
+ * 未识别返回 null，调用方应拒绝出卡并保留能量。
  */
-export function resolveCardToEntityType(
-  unitConfigId: string | undefined,
-):
+export type ResolvedCardEntity =
   | { entityType: 'tower'; towerType: TowerType }
   | { entityType: 'unit'; unitType: UnitType }
-  | null {
+  | { entityType: 'trap' }
+  | { entityType: 'production'; productionType: ProductionType };
+
+export function resolveCardToEntityType(
+  unitConfigId: string | undefined,
+): ResolvedCardEntity | null {
   if (!unitConfigId) return null;
+
+  const productionValues = Object.values(ProductionType) as string[];
+  if (productionValues.includes(unitConfigId)) {
+    return { entityType: 'production', productionType: unitConfigId as ProductionType };
+  }
+
+  if (unitConfigId === 'spike_trap') {
+    return { entityType: 'trap' };
+  }
 
   if (unitConfigId.endsWith('_tower')) {
     const stem = unitConfigId.slice(0, -'_tower'.length);
@@ -185,7 +216,7 @@ export function buildCardTooltipLines(config: CardConfig): CardTooltipLine[] {
   const lines: CardTooltipLine[] = [];
   lines.push({ kind: 'name', text: config.name });
   const rarityLabel = config.rarity.charAt(0).toUpperCase() + config.rarity.slice(1);
-  const typeLabel = config.type === 'unit' ? '单位' : '法术';
+  const typeLabel = cardTypeLabel(config.type);
   lines.push({ kind: 'meta', text: `${rarityLabel} · ${typeLabel}` });
   lines.push({ kind: 'energy', text: `◇ ${config.energyCost}` });
   if (config.persistAcrossWaves) {
@@ -676,7 +707,7 @@ export class UISystem implements System {
         stroke: '#37474f', strokeWidth: 1,
       });
 
-      const glyph = config.type === 'unit' ? '⚔' : '✦';
+      const glyph = cardTypeGlyph(config.type);
       this.infos.push({
         x: cardCenterX, y: artCenterY,
         text: glyph,

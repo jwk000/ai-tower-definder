@@ -33,10 +33,10 @@ export const RARITY_WEIGHTS: Record<CardRarity, number> = {
 export const RUN_DECK_SIZE = 12;
 
 /**
- * 设计 §2.2 保底类型清单。当前 CardType 只有 unit/spell（building 归 unit 子类）。
- * Phase B 法术卡上线后，此清单语义不变；卡池中某类型为空时跳过其保底。
+ * 设计 §2.2 保底类型清单 — B3 扩展到 4 类（unit/spell/trap/production）。
+ * 卡池中某类型为空时跳过其保底；任何新增 CardType 必须在此处显式声明否则起手抽不到。
  */
-export const GUARANTEED_TYPES: readonly CardType[] = ['unit', 'spell'] as const;
+export const GUARANTEED_TYPES: readonly CardType[] = ['unit', 'spell', 'trap', 'production'] as const;
 
 export interface RunManagerOptions {
   registry: CardConfigRegistry;

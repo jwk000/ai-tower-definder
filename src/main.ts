@@ -893,15 +893,13 @@ this.world.registerSystem(this.weatherSystem);
       Sound.play('build_deny');
       return true;
     }
-    if (cfg.type !== 'unit') {
-      // 法术卡：A4-UI 暂不直接施法（Phase B SpellCastSystem 接入前先拒绝），保留能量
+    if (cfg.type === 'spell') {
       Sound.play('build_deny');
       return true;
     }
 
     const mapping = resolveCardToEntityType(cfg.unitConfigId);
     if (!mapping) {
-      // 卡定义有效但 ECS 还没接入此单位/塔，保守拒绝避免脏数据
       Sound.play('build_deny');
       return true;
     }
@@ -912,10 +910,19 @@ this.world.registerSystem(this.weatherSystem);
       return true;
     }
 
-    if (mapping.entityType === 'tower') {
-      this.buildSystem.startDrag('tower', { towerType: mapping.towerType });
-    } else {
-      this.buildSystem.startDrag('unit', { unitType: mapping.unitType });
+    switch (mapping.entityType) {
+      case 'tower':
+        this.buildSystem.startDrag('tower', { towerType: mapping.towerType });
+        break;
+      case 'unit':
+        this.buildSystem.startDrag('unit', { unitType: mapping.unitType });
+        break;
+      case 'trap':
+        this.buildSystem.startDrag('trap');
+        break;
+      case 'production':
+        this.buildSystem.startDrag('production', { productionType: mapping.productionType });
+        break;
     }
     return true;
   }
