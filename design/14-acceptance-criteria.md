@@ -75,7 +75,7 @@
 - [ ] 法术卡释放后立即进入弃牌堆
 - [x] 手牌区 UI 拖拽出卡，能量不足时灰显（A4-UI Step 2 `44c18d3` 灰显 + Step 3 `0be21c6` 拖卡桥接）
 - [x] 卡牌悬停弹出详情卡片（A4-UI A2 `408c2fd` 240×320 详情卡，含 name/meta/energy/persist/desc/flavor 6 行；`buildCardTooltipLines` + `computeTooltipAnchor` 双纯函数 + 14 单测）
-- [ ] 牌组/弃牌堆点击可查看全览
+- [x] 牌组/弃牌堆点击可查看全览（A4-UI A3-a `4cfeb2d` 纯函数层 23 单测 + A3-b `dae44a5` 模态状态机 + handleClick 路由 + renderDeckOverlay 14 单测；DECK_ICON_HIT/DISCARD_ICON_HIT 60×80@1720/1780×920；模态 1100×700 居中半透明 0.95 alpha，0.6 黑遮罩；网格小卡 64×88 13 列；三种关闭：点空白/再次点同图标/切换不同图标）
 
 ### 3.3 能量系统（关内出卡资源）
 
