@@ -39,3 +39,6 @@ tmp/
 /playwright-report/
 /playwright/.cache/
 .tmp-debug
+
+# Level editor recycle bin (DEV runtime artifact, see design/29 §8)
+.editor-trash/
