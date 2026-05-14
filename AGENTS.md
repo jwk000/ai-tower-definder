@@ -1,6 +1,6 @@
 # AGENTS.md — 塔防游戏（Tower Defender）
 
-> 设计文档: `design/README.md` | 重构方案: `design/15-refactoring-plan.md`
+> 设计文档: `design/README.md` | 架构权威: `design/60-tech/60-architecture.md`
 
 ## ⛔ 核心铁律：每完成一个任务立即提交代码
 
@@ -70,7 +70,7 @@ npm run release      # clean + typecheck + build
 
 ## 架构
 
-**配置驱动 + 规则引擎 + bitecs ECS + PixiJS WebGL** 四层架构。详见 [`design/15-refactoring-plan.md`](./design/15-refactoring-plan.md) §2-§5。
+**配置驱动 + 规则引擎 + bitecs ECS + PixiJS WebGL** 四层架构。详见 [`design/60-tech/60-architecture.md`](./design/60-tech/60-architecture.md) §2-§5。
 
 - **ECS 框架**: [`bitecs`](https://github.com/NateTheGreatt/bitecs) —— 数据导向 ECS，SoA（Structure of Arrays）内存布局，类型安全查询。
 - **渲染**: PixiJS WebGL —— `Graphics`（几何图形）+ `ParticleContainer`（粒子特效）+ `Container`（分层管理），程序化几何图形构成所有视觉元素。
@@ -146,7 +146,7 @@ src/
 - `RenderSystem` 同步实体组件到 PixiJS Display Object，按 Y 坐标排序场景实体。
 - `UIRenderer` / `UISystem` 在最顶层 Container 绘制 HUD、工具栏、手牌区、弹窗等。
 - 文本使用 PixiJS `Text` 对象，与图形共用同一渲染管线。
-- 设计分辨率 1920×1080，UI 锚点定位详见 [`design/20-responsive-layout.md`](./design/20-responsive-layout.md)。
+- 设计分辨率 1920×1080，UI 锚点定位详见 [`design/40-presentation/41-responsive-layout.md`](./design/40-presentation/41-responsive-layout.md)。
 
 ### 输入派发
 

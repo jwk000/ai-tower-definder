@@ -1,117 +1,159 @@
 # Tower Defender — 设计文档索引
 
-> 版本: v3.1 | 日期: 2026-05-14 | 卡牌 + Roguelike 长征版 · 塔科技树
->
-> **v3.1 增量（2026-05-14）**：塔升级模型从"关内线性 L1-L5"重构为"关外卡池科技树（路径互斥 + 节点线性解锁）"。
-> - 权威方案：[30-tower-tech-tree](./20-units/22-tower-tech-tree.md)（新建）
-> - 同步影响：03 / 04 / 13 / 19 / 21 / 22 / 25
-> - 关内禁升级，关外卡池消耗碎片解锁；路径可重置（返还 70% 碎片）
-> - 废弃：毒藤塔、弩炮塔（其能力承接到病毒塔/战术炮塔）
-> - 改名：冰塔 → 元素塔（默认冰形态，三路径覆盖冰/火/毒）
-> - 存档版本：v2.0.0 → v2.1.0，自动迁移 baseLevel
+> 版本: v3.1 · 卡牌 + Roguelike 长征版 · 塔科技树
+> 最后整理: 2026-05-14（R0–R6 文档重构）
 
 ---
 
-## ⚠️ 数值真理源规则（必读）
+## ⚠️ 数值真理源（必读）
 
-**[21-MDA数值设计](./50-data-numerical/50-mda.md) 是全部游戏数值的唯一权威来源。**
+**[50-mda（MDA 驱动的全局数值设计）](./50-data-numerical/50-mda.md) 是全部游戏数值的唯一权威来源。**
 
-- 修改数值时**只改 21 文档**，然后据此同步代码（`src/data/gameData.ts`）与测试。
-- 其它文档（如 03、05、06、07、11）**只描述字段语义/公式骨架/规则边界**，不再持有数值表。
-- 若发现旧文档残留数值与 21 冲突，**视为 BUG，必须删除残留并以 21 为准**。
-- 提 PR 时若改了数值，PR 标题应以 `[数值]` 前缀，便于审阅。
-
----
-
-## ⚡ v3.0 形态变更声明（必读）
-
-**v3.0 将塔防游戏改造为「卡牌 + Roguelike 长征」形态。**
-
-- **权威方案**：[25 - 卡牌 Roguelike 改造方案](./10-gameplay/10-roguelike-loop.md) v0.4（已批准，进入实施），所有 v3.0 改动以此为准
-- **核心变更**：
-  - 删除无尽模式与三星机制
-  - 删除工具栏部署，全部改为**手牌区拖卡**
-  - 引入三资源：**能量 E**（关内出卡）/ **金币 G**（关间商店/秘境）/ **火花碎片**（meta 永久解锁）
-  - 单局 Run = 8 关连闯 + 终战 Boss，水晶 HP 全程继承（水晶无敌但秒杀入侵敌人，每杀 -1 HP）
-  - 关间二选一节点：商店或秘境
-- **存档版本**: v1.1.0 → v2.0.0，v1.1 旧存档自动迁移并发放补偿碎片
-- **影响范围**：1/2/3/6/7/8/9/13/14/15/16/20/21/22/23 共 15 个文档已同步 v3.0
+- 修改数值时**只改 50-mda**，然后据此同步代码（`src/data/gameData.ts`）与测试。
+- 其它文档只描述字段语义/公式骨架/规则边界，**不再持有数值表**。
+- 若发现某文档残留数值与 50-mda 冲突，**视为 BUG，必须删除残留并以 50-mda 为准**。
+- 提 PR 时若改了数值，PR 标题以 `[数值]` 前缀。
 
 ---
 
-## 文档导航
+## ⚡ v3.0 / v3.1 形态变更声明（必读）
 
-| 编号 | 文档 | v3.0 状态 | 内容 |
-|------|------|---------|------|
-| 01 | [游戏概述](./00-vision/00-game-overview.md) | ✅ v3.0 全文重写 | Run 循环、三资源认知锚点、与旧版差异 |
-| 02 | [单位系统](./20-units/20-unit-system.md) | 🔶 v3.0 §8/§9 追加 | 统一单位概念、配置驱动、卡牌生成入口、敌方攻击优先级 |
-| 03 | [单位与卡牌阵容总表](./20-units/21-unit-roster.md) | ⭐ v3.1 R3 合并（原 03 + 22） | 单位字段语义、20 敌 + 20 友阵容清单、卡牌目录、塔科技树字段规范、ice_tower → elemental_tower 改名 |
-| 04 | [技能与Buff系统](./20-units/23-skill-buff.md) | 🔶 v3.1 §6 追加 | 技能/Buff 系统、法术卡子分类、**塔科技树新增 Buff（贯穿/传染/全屏闪电/激光蓄能）** |
-| 05 | [战斗数值系统](./20-units/24-combat.md) | 沿用 | 伤害公式、攻速/移速公式、难度曲线、眩晕/弹道规范 |
-| 06 | [经济系统](./10-gameplay/11-economy.md) | ✅ v3.0 全文重写 | 三资源分层规则、关内能量回收、关间金币消费 |
-| 07 | [地图与关卡系统](./10-gameplay/13-map-level.md) | ✅ v3.0 全文重写 | 21×9 网格、8 关 + 终战、6 个 PRNG 流隔离 |
-| 08 | [游戏模式](./10-gameplay/12-game-modes.md) | ✅ v3.0 全文重写 | Run 模式（仅此一种）、关卡内难度 4 阶段沿用 |
-| 09 | [UI/UX设计](./40-presentation/40-ui-ux.md) | ✅ v3.0 全文重写 | 手牌区、关间面板、商店、秘境、卡池、Run 结算、主菜单简化 |
-| 10 | [音效系统](./40-presentation/46-audio.md) | 🔶 v3.0 §15 追加 | 39 + 24 = 63 音效，新增卡牌/关间/商店/秘境/碎片音效 |
-| 11 | [天气系统](./10-gameplay/14-weather.md) | 沿用 | 5种天气、数值影响矩阵、视觉特效、天气切换机制 |
-| 12 | [视觉特效](./40-presentation/44-visual-effects.md) | 沿用 | PixiJS 渲染引擎下的图层结构、粒子特效、过渡动画 |
-| 13 | [存档系统](./60-tech/61-save-system.md) | 🔶 v3.1 §1.1/§1.2/§6.2 追加 | 存档 v2.1.0、CardCollection、OngoingRun、CardEntry.techTree、v2.0→v2.1 迁移 |
-| 14 | [验收标准](./00-vision/01-acceptance-criteria.md) | ✅ v3.0 全文重写 | §3 v3.0 验收清单 14 节、§4 保留 v1.1 项、§7 12 项回归 |
-| 15 | [重构方案](./60-tech/60-architecture.md) | 🔶 v3.0 第七章追加 | 技术选型、配置驱动、规则引擎、v3.0 分阶段实施路线图 |
-| 16 | [美术资产设计](./40-presentation/42-art-assets.md) | 🔶 v3.0 第十三章追加 | 11层场景分层、复合几何、§12 等级升级、§13 卡牌视觉规范 |
-| 17 | [场景表现增强](./40-presentation/43-scene-decoration.md) | 沿用 | 动态环境生物、全屏环境特效、静态装饰物升级、降级策略 |
-| 18 | [图层系统](./40-presentation/45-layer-system.md) | 沿用 | 6层垂直空间层级、层级交互规则、渲染排序 |
-| 19 | [导弹塔设计](./20-units/26-missile-special.md) | 🔶 v3.1 §4.3.1 追加 | 战略武器、全图射程、地格评分、大范围爆炸、**双联/集束同坐标多发射机制** |
-| 20 | [响应式布局](./40-presentation/41-responsive-layout.md) | 🔶 v3.0 §4.5 追加 | 锚点定位系统、v3.0 手牌区+关间+商店+秘境+卡池 9 类锚点 |
-| 21 | [MDA数值设计](./50-data-numerical/50-mda.md) | 🔶 v3.1 §20 追加 | 数值真理源、能量表/商品价/难度乘数/卡解锁价/碎片价、**塔科技树节点碎片成本与能力数值** |
-| 22 | ~~新单位设计~~ | ⛔ v3.1 R3 合并到 [21-unit-roster](./20-units/21-unit-roster.md) | 已并入阵容总表，本文件已删除；废弃单位见 [archive/](./archive/deprecated-units-vine-ballista.md) |
-| 23 | [AI 行为树统一方案](./30-ai/30-behavior-tree.md) | 🔶 v3.0 第六章追加 | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
-| 24 | [士兵AI行为设计](./30-ai/31-soldier-ai.md) | 沿用 | 士兵 AI 四状态机、三圈模型、敌方反击规则、行为树映射 |
-| 25 | [卡牌 Roguelike 改造方案](./10-gameplay/10-roguelike-loop.md) | ⭐ v0.6 已批准 | **v3.0 单一权威来源**——14 章完整设计；v0.6 同步塔科技树（塔卡升级移出商店/技能卡，走 30） |
-| 26 | [脆弱状态](./20-units/25-vulnerability.md) | 沿用 | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
-| 27 | [调试系统](./60-tech/63-debug.md) | 沿用 | 跨界面调试入口、一键通关、金币+99999、行为树查看弹窗 |
-| 28 | [阵营语义重构](./60-tech/62-faction-refactor.md) | 📝 草案 | 去 isEnemy 双轨、isHostileTo API、Phase A→F 分阶段迁移路线 |
-| 29 | [关卡编辑器](./60-tech/64-level-editor.md) | ✅ v1.0 已批准 | 游戏内集成编辑器、调试入口、Vite 插件文件 API、**图模型路径**（多生成口 + DAG 分支加权随机 + 传送门跳转 + 敌人锁定 spawn 子图）/波次/池/难度全字段编辑 + 一键试玩。UI 选定 Preact，DEV-only |
-| 30 | [塔科技树](./20-units/22-tower-tech-tree.md) | ⭐ v3.1 新建 | **塔升级权威来源**——关外卡池科技树：7 塔节点详细设计、路径互斥规则、碎片成本、YAML/存档结构、路径重置、UI 草图、废弃单位清单 |
+**v3.0 将塔防游戏改造为「卡牌 + Roguelike 长征」形态；v3.1 进一步把塔升级迁至关外科技树。**
 
-> 状态图例：✅ 全文重写 / 🔶 章节追加 / 沿用 / ⭐ 权威方案 / 📝 草案
+- **核心权威文档**（⭐ = authoritative）：
+  - ⭐ [10-roguelike-loop](./10-gameplay/10-roguelike-loop.md) — Run 长征循环、三资源、手牌区、关间节点、火花碎片 meta
+  - ⭐ [22-tower-tech-tree](./20-units/22-tower-tech-tree.md) — 塔升级关外科技树（路径互斥 + 节点线性解锁）
+  - ⭐ [50-mda](./50-data-numerical/50-mda.md) — 全局数值真理源
+  - ⭐ [64-level-editor](./60-tech/64-level-editor.md) — 关卡编辑器（DEV-only，YAML schema 权威）
+  - ⭐ [60-architecture](./60-tech/60-architecture.md) — 系统架构、ECS 规则、规则引擎、Pipeline 顺序
+
+- **三资源**：能量 E（关内出卡）/ 金币 G（关间商店/秘境）/ 火花碎片（meta 永久解锁）；严格分层、不可互转（除 Run 结束金币 → 碎片）。
+- **Run 长征**：8 关连闯 + 终战 Boss，水晶 HP 全程继承（无敌 + 秒杀机制），死亡从第 1 关重开。
+- **塔升级**：v3.1 起改为**关外卡池科技树**，关内禁升级；废弃毒藤塔 / 弩炮塔（→ [archive/](./archive/deprecated-units-vine-ballista.md)）；`ice_tower` → `elemental_tower`（默认冰形态，路径覆盖冰/火/毒）。
+- **存档版本**：v2.0.0（游戏未发布，无迁移代码）。
 
 ---
 
-## 架构核心思想（v3.0 更新）
+## 分层目录
 
-1. **一切皆单位** — 塔、士兵、敌人、中立机关本质相同，差别在于配置
-2. **一切皆卡牌** — v3.0 所有可部署内容都是卡牌（单位卡 / 法术卡 / 陷阱卡 / 生产卡）
-3. **配置驱动** — 单位/卡牌静态属性 + 动态行为规则全在配置中
-4. **行为树驱动 AI** — 所有单位行为统一由行为树配置驱动（详见 [23](./30-ai/30-behavior-tree.md)）
-5. **三资源轴** — 能量 E（关内）/ 金币 G（Run）/ 火花碎片（meta）严格分层、不可互转（除 Run 结束金币→碎片）
-6. **Run 长征** — 8 关连闯 + 终战，水晶 HP 全程继承（无敌 + 秒杀机制），死亡从第 1 关重开
-7. **数值真理源** — [21-MDA](./50-data-numerical/50-mda.md) 是数值唯一权威来源
+文档按职责分 7 层。每层一个子目录，文件名前两位数字 = 层号，后两位 = 层内顺序。
+
+### `00-vision/` — 项目愿景与验收
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [00-game-overview](./00-vision/00-game-overview.md) | stable | 游戏概述、Run 循环、三资源认知锚点 |
+| [01-acceptance-criteria](./00-vision/01-acceptance-criteria.md) | stable | 验收清单（v3.0 全文重写，含 v1.1 保留项 + 回归项） |
+
+### `10-gameplay/` — 玩法与系统
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [10-roguelike-loop](./10-gameplay/10-roguelike-loop.md) | ⭐ authoritative | **v3.0 单一权威**：卡牌化 + Roguelike 长征 14 章完整设计 |
+| [11-economy](./10-gameplay/11-economy.md) | stable | 三资源分层规则、关内能量回收、关间金币消费 |
+| [12-game-modes](./10-gameplay/12-game-modes.md) | stable | Run 模式（仅此一种）、关卡内难度 4 阶段 |
+| [13-map-level](./10-gameplay/13-map-level.md) | stable | 21×9 网格、8 关 + 终战、6 个 PRNG 流隔离 |
+| [14-weather](./10-gameplay/14-weather.md) | stable · v3.1 audit | 5 种天气、数值影响矩阵（仅影响战斗，不影响经济） |
+
+### `20-units/` — 单位与战斗
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [20-unit-system](./20-units/20-unit-system.md) | stable | 统一单位概念、配置驱动、卡牌生成入口 |
+| [21-unit-roster](./20-units/21-unit-roster.md) | stable | **R3 合并**（原 03 + 22）：单位字段语义、20 敌+20 友阵容、卡牌目录 |
+| [22-tower-tech-tree](./20-units/22-tower-tech-tree.md) | ⭐ authoritative | **v3.1 塔升级权威**：7 塔节点、路径互斥、碎片成本、YAML/存档结构 |
+| [23-skill-buff](./20-units/23-skill-buff.md) | stable | 技能/Buff 系统、法术卡子分类、`instanceLevel` 通过法术卡递增 |
+| [24-combat](./20-units/24-combat.md) | stable · v3.1 audit | 战斗公式骨架、攻速/移速、眩晕/弹道规范 |
+| [25-vulnerability](./20-units/25-vulnerability.md) | stable · v3.1 audit | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
+| [26-missile-special](./20-units/26-missile-special.md) | stable | 导弹塔：战略武器、全图射程、地格评分、大范围爆炸 |
+
+### `30-ai/` — AI 行为
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [30-behavior-tree](./30-ai/30-behavior-tree.md) | stable | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
+| [31-soldier-ai](./30-ai/31-soldier-ai.md) | stable · v3.1 audit | 士兵 AI 四状态机、三圈模型；§12 升级机制延后（M5） |
+
+### `40-presentation/` — 视觉表现层
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [40-ui-ux](./40-presentation/40-ui-ux.md) | stable | 手牌区、关间面板、商店、秘境、卡池、Run 结算、主菜单 |
+| [41-responsive-layout](./40-presentation/41-responsive-layout.md) | stable | 锚点定位系统、v3.0 9 类锚点（手牌区+关间+商店+秘境+卡池） |
+| [42-art-assets](./40-presentation/42-art-assets.md) | stable | 11 层场景分层、复合几何、等级升级视觉、卡牌视觉规范 |
+| [43-scene-decoration](./40-presentation/43-scene-decoration.md) | stable · v3.1 audit | 动态环境生物、全屏环境特效、静态装饰物升级 |
+| [44-visual-effects](./40-presentation/44-visual-effects.md) | stable · v3.1 audit | PixiJS 图层结构、粒子特效、过渡动画 |
+| [45-layer-system](./40-presentation/45-layer-system.md) | stable · v3.1 audit | 6 层垂直空间层级、层级交互规则、渲染排序 |
+| [46-audio](./40-presentation/46-audio.md) | stable | 63 个音效（含卡牌/关间/商店/秘境/碎片新增 24 个） |
+
+### `50-data-numerical/` — 数值
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [50-mda](./50-data-numerical/50-mda.md) | ⭐ authoritative | **数值真理源**：能量表、商品价、难度乘数、卡解锁价、碎片价、科技节点数值 |
+
+### `60-tech/` — 技术与工具
+
+| 文档 | 状态 | 简介 |
+|---|---|---|
+| [60-architecture](./60-tech/60-architecture.md) | ⭐ authoritative | 系统架构、ECS 规则、规则引擎、Pipeline 8 阶段顺序 |
+| [61-save-system](./60-tech/61-save-system.md) | stable | 存档 v2.0.0、CardCollection、OngoingRun、CardEntry.techTree |
+| [62-faction-refactor](./60-tech/62-faction-refactor.md) | stable | 阵营语义重构：去 isEnemy 双轨、isHostileTo API |
+| [63-debug](./60-tech/63-debug.md) | stable · v3.1 audit | 调试系统：跨界面调试入口、一键通关、行为树查看 |
+| [64-level-editor](./60-tech/64-level-editor.md) | ⭐ authoritative | **关卡编辑器**：图模型路径、波次/池/难度全字段、一键试玩、Preact UI |
+
+### `archive/` — 归档
+
+不再作为需求来源，仅供回溯：
+- [deprecated-units-vine-ballista](./archive/deprecated-units-vine-ballista.md) — 毒藤塔 / 弩炮塔完整原设计
+- [deprecated-l3-passives](./archive/deprecated-l3-passives.md) — L3 被动技能表（已被科技树节点取代）
+- [塔防游戏单位设计参考](./archive/塔防游戏单位设计参考.md) — 早期单位研究笔记
+- [研究总结](./archive/研究总结.md) — 早期总览研究
+
+### `dev-logs/` — 开发日志
+
+按日期归档，记录每日决策与重构详情。
 
 ---
 
-## v3.0 阅读路径建议
+## 架构核心思想
 
-**首次了解 v3.0 全貌**：
-1. [25-卡牌 Roguelike 改造方案](./10-gameplay/10-roguelike-loop.md)（权威方案，必读）
-2. [01-游戏概述](./00-vision/00-game-overview.md)（认知锚点）
-3. [09-UI/UX](./40-presentation/40-ui-ux.md)（界面流程）
+1. **一切皆单位** — 塔、士兵、敌人、中立机关本质相同，差别只在配置。
+2. **一切皆卡牌** — v3.0 所有可部署内容都是卡牌（单位卡 / 法术卡 / 陷阱卡 / 生产卡）。
+3. **配置驱动** — 单位/卡牌静态属性 + 动态行为规则全在配置中。
+4. **行为树驱动 AI** — 单位行为统一由行为树配置驱动（[30-behavior-tree](./30-ai/30-behavior-tree.md)）。
+5. **三资源轴** — 能量 / 金币 / 火花碎片 严格分层、不可互转。
+6. **Run 长征** — 8 关连闯 + 终战，水晶 HP 全程继承（无敌 + 秒杀机制）。
+7. **数值真理源** — [50-mda](./50-data-numerical/50-mda.md) 是数值唯一权威来源。
 
-**开发实现 v3.0**：
-1. [15-重构方案](./60-tech/60-architecture.md) §7 分阶段实施
-2. [13-存档系统](./60-tech/61-save-system.md) 数据结构
-3. [02-单位系统](./20-units/20-unit-system.md) §8 + [21-unit-roster §7](./20-units/21-unit-roster.md#7-卡牌目录v30) 卡牌定义
-4. [21-MDA](./50-data-numerical/50-mda.md) §12-§18 v3.0 数值
-5. [16-美术资产](./40-presentation/42-art-assets.md) §13 卡牌视觉
+---
+
+## 阅读路径建议
+
+**首次了解 v3.1 全貌**：
+1. ⭐ [10-roguelike-loop](./10-gameplay/10-roguelike-loop.md)（权威方案，必读）
+2. [00-game-overview](./00-vision/00-game-overview.md)（认知锚点）
+3. [40-ui-ux](./40-presentation/40-ui-ux.md)（界面流程）
+4. ⭐ [22-tower-tech-tree](./20-units/22-tower-tech-tree.md)（塔升级新模型）
+
+**开发实现 v3.1**：
+1. ⭐ [60-architecture](./60-tech/60-architecture.md) §7 分阶段实施
+2. [61-save-system](./60-tech/61-save-system.md) 数据结构
+3. [20-unit-system](./20-units/20-unit-system.md) §8 + [21-unit-roster §7](./20-units/21-unit-roster.md) 卡牌定义
+4. ⭐ [50-mda](./50-data-numerical/50-mda.md) §12-§20 v3.0/v3.1 数值
+5. [42-art-assets](./40-presentation/42-art-assets.md) §13 卡牌视觉
 
 **特定子系统**：
-- 商店/秘境：[09 §UI](./40-presentation/40-ui-ux.md) + [25 §3 关间节点](./10-gameplay/10-roguelike-loop.md)
-- 敌方 AI 智能化：[23 §6 威胁度评分](./30-ai/30-behavior-tree.md)
-- 火花碎片经济：[06 §经济](./10-gameplay/11-economy.md) + [21 §17](./50-data-numerical/50-mda.md#17-火花碎片获取与消费数值v30)
-- 存档迁移：[13 §迁移](./60-tech/61-save-system.md)
+- 商店 / 秘境：[40-ui-ux](./40-presentation/40-ui-ux.md) + [10-roguelike-loop §3](./10-gameplay/10-roguelike-loop.md)
+- 敌方 AI 智能化：[30-behavior-tree §6](./30-ai/30-behavior-tree.md)
+- 火花碎片经济：[11-economy](./10-gameplay/11-economy.md) + [50-mda §17](./50-data-numerical/50-mda.md)
+- 关卡编辑：⭐ [64-level-editor](./60-tech/64-level-editor.md)
 
 ---
 
-## 备份说明
+## 文档贡献规范
 
-原设计文档（含代码实现细节）已备份至 `design-backup/` 目录，不再作为需求来源。
+- 新建文档：复制 [`_template.md`](./_template.md) 到对应层目录，填写 frontmatter（必填 `title` / `status` / `authority-for`）。
+- 内部链接：同层用 `./文件名.md`，跨层用 `../目标层/文件名.md`。
+- 任何重大改动 → 在 `修订历史` 表追加一行 + 同步更新 [dev-logs](./dev-logs/) 当日日志。
+- 数值改动 → **只改 50-mda**，其它文档只描述字段语义。
