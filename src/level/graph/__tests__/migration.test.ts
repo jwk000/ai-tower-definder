@@ -177,35 +177,45 @@ describe('migrateEnemyPathToGraph — 行为等价性（线性图 ↔ 数组推�
   });
 });
 
-describe('migrateEnemyPathToGraph — L1-L5 真实 YAML 保真', () => {
+// B.15 起 yaml fixture 已迁移为 pathGraph + spawns 编码，enemyPath 字段不再存在。
+describe('L1-L5 真实 YAML 内嵌 pathGraph 合规验证（B.15）', () => {
   const levelsDir = resolve(__dirname, '../../../config/levels');
   const yamlFiles = readdirSync(levelsDir)
     .filter((f) => /^level-\d+\.yaml$/.test(f))
     .sort();
 
-  const findEnemyPath = (obj: unknown): OldGridPos[] | null => {
+  interface RawSpawns { id: string; row: number; col: number }
+  interface RawNode { id: string; row: number; col: number; role: string; spawnId?: string }
+  interface RawEdge { from: string; to: string; weight?: number }
+  interface RawPathGraph { nodes: RawNode[]; edges: RawEdge[] }
+  interface RawMap { spawns?: RawSpawns[]; pathGraph?: RawPathGraph }
+
+  const findMap = (obj: unknown): RawMap | null => {
     if (!obj || typeof obj !== 'object') return null;
     const rec = obj as Record<string, unknown>;
-    if (Array.isArray(rec.enemyPath)) return rec.enemyPath as OldGridPos[];
+    if (rec.map && typeof rec.map === 'object') return rec.map as RawMap;
     for (const v of Object.values(rec)) {
-      const found = findEnemyPath(v);
+      const found = findMap(v);
       if (found) return found;
     }
     return null;
   };
 
-  it.each(yamlFiles)('%s 迁移后 schema + 算法层全部通过', (file) => {
+  it.each(yamlFiles)('%s 内嵌 pathGraph 通过 schema + 算法层 + 单链遍历', (file) => {
     const text = readFileSync(resolve(levelsDir, file), 'utf-8');
     const raw = yamlLoad(text);
-    const enemyPath = findEnemyPath(raw);
-    expect(enemyPath).not.toBeNull();
-    expect(enemyPath!.length).toBeGreaterThanOrEqual(2);
-
-    const r = migrateEnemyPathToGraph({ enemyPath: enemyPath! });
+    const map = findMap(raw);
+    expect(map).not.toBeNull();
+    expect(map!.spawns).toBeDefined();
+    expect(map!.pathGraph).toBeDefined();
+    expect(Array.isArray(map!.spawns)).toBe(true);
+    expect(map!.spawns!.length).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(map!.pathGraph!.nodes)).toBe(true);
+    expect(map!.pathGraph!.nodes.length).toBeGreaterThanOrEqual(2);
 
     const cfg = {
-      spawns: r.spawns,
-      pathGraph: r.pathGraph,
+      spawns: map!.spawns,
+      pathGraph: map!.pathGraph,
       waves: [
         {
           waveNumber: 1,
@@ -219,20 +229,19 @@ describe('migrateEnemyPathToGraph — L1-L5 真实 YAML 保真', () => {
       throw new Error(`${file} schema: ${JSON.stringify(schema.error.issues)}`);
     }
 
-    const errs = validateGraphAlgorithms(cfg);
+    const errs = validateGraphAlgorithms(schema.data);
     if (errs.length > 0) {
       throw new Error(`${file} 算法层错误: ${errs.join(' | ')}`);
     }
 
-    const idx = buildPathGraphIndex(r.pathGraph);
+    const idx = buildPathGraphIndex(schema.data.pathGraph);
     const rng = new GameRandom(0);
-    const traversed: number[] = [];
+    const reachableFromSpawn = new Set<string>();
     let cur: string | null = 'n0';
     while (cur !== null) {
-      const m = /^n(\d+)$/.exec(cur);
-      if (m) traversed.push(Number(m[1]));
+      reachableFromSpawn.add(cur);
       cur = chooseNext(idx, cur, rng);
     }
-    expect(traversed).toEqual(enemyPath!.map((_, i) => i));
+    expect(reachableFromSpawn.size).toBe(schema.data.pathGraph.nodes.length);
   });
 });

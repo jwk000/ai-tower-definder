@@ -1,196 +1,502 @@
-# ============================================================
-# Tower Defender — Level 05: 城堡 (Castle)
-# Boss level — final fortress, maze-like corridors
-# ============================================================
-# Tile codes: 0=empty, 1=path, 2=blocked, 3=spawn, 4=base
-# Enemy/tower names: lowercase strings (no TS enums)
-# ============================================================
-
 L5_castle:
   name: 城堡
   theme: castle
   description: 迷宫般的城堡路径，考验你的全部防御能力
-  sceneDescription: >-
-    远古要塞的深处，敌人的主力部队已全面占领此地。石墙与石柱形成迷宫走廊，
-    所有敌人类型全部登场。第10波和第15波指挥官亲自率队冲锋。
-    五路精英混编，是对防御体系的终极考验。
+  sceneDescription: 远古要塞的深处，敌人的主力部队已全面占领此地。石墙与石柱形成迷宫走廊， 所有敌人类型全部登场。第10波和第15波指挥官亲自率队冲锋。 五路精英混编，是对防御体系的终极考验。
   unlockPrevLevelId: L4_volcano
   unlockStarsRequired: 0
-
-  # ── Map ──────────────────────────────────────────────────
   map:
     name: 城堡
     cols: 21
     rows: 9
     tileSize: 64
-
-    # 21 columns × 9 rows tile grid
-    # 0=empty  1=path  2=blocked  3=spawn  4=base
     tiles:
-      - [2,2,0,2,0,2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [3,2,1,2,0,2,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [2,1,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [2,0,1,1,1,2,2,1,1,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [0,0,2,0,1,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [0,1,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4]
-      - [0,1,2,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [0,1,2,1,2,1,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
-      - [2,0,0,0,2,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0]
-
-    # Enemy path waypoints (row, col)
-    enemyPath:
-      - {row: 1, col: 0}
-      - {row: 1, col: 2}
-      - {row: 3, col: 2}
-      - {row: 3, col: 4}
-      - {row: 5, col: 4}
-      - {row: 5, col: 1}
-      - {row: 7, col: 1}
-      - {row: 7, col: 5}
-      - {row: 5, col: 5}
-      - {row: 5, col: 7}
-      - {row: 3, col: 7}
-      - {row: 3, col: 8}
-      - {row: 5, col: 8}
-      - {row: 5, col: 20}
-
-    # Tile colors (hex)
+      - - 2
+        - 2
+        - 0
+        - 2
+        - 0
+        - 2
+        - 0
+        - 2
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 3
+        - 2
+        - 1
+        - 2
+        - 0
+        - 2
+        - 0
+        - 2
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 2
+        - 1
+        - 0
+        - 0
+        - 0
+        - 2
+        - 0
+        - 0
+        - 2
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 2
+        - 0
+        - 1
+        - 1
+        - 1
+        - 2
+        - 2
+        - 1
+        - 1
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 0
+        - 0
+        - 2
+        - 0
+        - 1
+        - 2
+        - 0
+        - 1
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 0
+        - 1
+        - 2
+        - 2
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 1
+        - 4
+      - - 0
+        - 1
+        - 2
+        - 0
+        - 2
+        - 0
+        - 1
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 0
+        - 1
+        - 2
+        - 1
+        - 2
+        - 1
+        - 0
+        - 2
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+      - - 2
+        - 0
+        - 0
+        - 0
+        - 2
+        - 0
+        - 2
+        - 2
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
+        - 0
     tileColors:
       empty: '#37474f'
       path: '#616161'
       blocked: '#1a1a1a'
       spawn: '#fff176'
       base: '#42a5f5'
-
-    sceneDescription: >-
-      一座被遗忘的远古要塞内部。厚重的石墙和巨大的石柱构成了迷宫般的走廊，
-      墙壁上的火炬是唯一的光源，投下摇曳的阴影。地面上散落着坍塌的碎石，
-      敌人的主力部队已经占领了这座要塞，准备以此为据点发动最终进攻。
-      这是最后的防线，退无可退。
-
-    # Scenario obstacle decorations (visual only, no gameplay impact)
+    sceneDescription: 一座被遗忘的远古要塞内部。厚重的石墙和巨大的石柱构成了迷宫般的走廊， 墙壁上的火炬是唯一的光源，投下摇曳的阴影。地面上散落着坍塌的碎石， 敌人的主力部队已经占领了这座要塞，准备以此为据点发动最终进攻。 这是最后的防线，退无可退。
     obstaclePlacements:
-      - {type: brazier, row: 0, col: 8}
-      - {type: brazier, row: 2, col: 19}
-      - {type: brazier, row: 4, col: 14}
-      - {type: brazier, row: 7, col: 19}
-      - {type: brazier, row: 6, col: 1}
-      - {type: rubble, row: 0, col: 14}
-      - {type: rubble, row: 2, col: 11}
-      - {type: rubble, row: 3, col: 14}
-      - {type: rubble, row: 4, col: 10}
-      - {type: rubble, row: 6, col: 16}
-      - {type: rubble, row: 7, col: 0}
-      - {type: rubble, row: 8, col: 14}
-      - {type: pillar, row: 0, col: 4}
-      - {type: pillar, row: 2, col: 4}
-      - {type: pillar, row: 6, col: 9}
-      - {type: pillar, row: 8, col: 5}
-      - {type: pillar, row: 8, col: 18}
-
-  # ── Waves ─────────────────────────────────────────────────
-  # 15 waves total — waves 10 and 15 are boss waves
+      - type: brazier
+        row: 0
+        col: 8
+      - type: brazier
+        row: 2
+        col: 19
+      - type: brazier
+        row: 4
+        col: 14
+      - type: brazier
+        row: 7
+        col: 19
+      - type: brazier
+        row: 6
+        col: 1
+      - type: rubble
+        row: 0
+        col: 14
+      - type: rubble
+        row: 2
+        col: 11
+      - type: rubble
+        row: 3
+        col: 14
+      - type: rubble
+        row: 4
+        col: 10
+      - type: rubble
+        row: 6
+        col: 16
+      - type: rubble
+        row: 7
+        col: 0
+      - type: rubble
+        row: 8
+        col: 14
+      - type: pillar
+        row: 0
+        col: 4
+      - type: pillar
+        row: 2
+        col: 4
+      - type: pillar
+        row: 6
+        col: 9
+      - type: pillar
+        row: 8
+        col: 5
+      - type: pillar
+        row: 8
+        col: 18
+    spawns:
+      - id: spawn_0
+        row: 1
+        col: 0
+    pathGraph:
+      nodes:
+        - id: n0
+          row: 1
+          col: 0
+          role: spawn
+          spawnId: spawn_0
+        - id: n1
+          row: 1
+          col: 2
+          role: waypoint
+        - id: n2
+          row: 3
+          col: 2
+          role: waypoint
+        - id: n3
+          row: 3
+          col: 4
+          role: waypoint
+        - id: n4
+          row: 5
+          col: 4
+          role: waypoint
+        - id: n5
+          row: 5
+          col: 1
+          role: waypoint
+        - id: n6
+          row: 7
+          col: 1
+          role: waypoint
+        - id: n7
+          row: 7
+          col: 5
+          role: waypoint
+        - id: n8
+          row: 5
+          col: 5
+          role: waypoint
+        - id: n9
+          row: 5
+          col: 7
+          role: waypoint
+        - id: n10
+          row: 3
+          col: 7
+          role: waypoint
+        - id: n11
+          row: 3
+          col: 8
+          role: waypoint
+        - id: n12
+          row: 5
+          col: 8
+          role: waypoint
+        - id: n13
+          row: 5
+          col: 20
+          role: crystal_anchor
+      edges:
+        - from: n0
+          to: n1
+        - from: n1
+          to: n2
+        - from: n2
+          to: n3
+        - from: n3
+          to: n4
+        - from: n4
+          to: n5
+        - from: n5
+          to: n6
+        - from: n6
+          to: n7
+        - from: n7
+          to: n8
+        - from: n8
+          to: n9
+        - from: n9
+          to: n10
+        - from: n10
+          to: n11
+        - from: n11
+          to: n12
+        - from: n12
+          to: n13
   waves:
     - waveNumber: 1
       enemies:
-        - {enemyType: grunt, count: 8, spawnInterval: 1.2}
+        - enemyType: grunt
+          count: 8
+          spawnInterval: 1.2
       spawnDelay: 2
-
     - waveNumber: 2
       enemies:
-        - {enemyType: grunt, count: 10, spawnInterval: 1.0}
+        - enemyType: grunt
+          count: 10
+          spawnInterval: 1
       spawnDelay: 2
-
     - waveNumber: 3
       enemies:
-        - {enemyType: grunt, count: 5, spawnInterval: 1.0}
-        - {enemyType: runner, count: 4, spawnInterval: 0.6}
+        - enemyType: grunt
+          count: 5
+          spawnInterval: 1
+        - enemyType: runner
+          count: 4
+          spawnInterval: 0.6
       spawnDelay: 2
-
     - waveNumber: 4
       enemies:
-        - {enemyType: heavy, count: 4, spawnInterval: 1.8}
+        - enemyType: heavy
+          count: 4
+          spawnInterval: 1.8
       spawnDelay: 2
-
     - waveNumber: 5
       enemies:
-        - {enemyType: runner, count: 6, spawnInterval: 0.5}
-        - {enemyType: mage, count: 2, spawnInterval: 1.5}
+        - enemyType: runner
+          count: 6
+          spawnInterval: 0.5
+        - enemyType: mage
+          count: 2
+          spawnInterval: 1.5
       spawnDelay: 2
-
     - waveNumber: 6
       enemies:
-        - {enemyType: heavy, count: 5, spawnInterval: 1.8}
-        - {enemyType: grunt, count: 4, spawnInterval: 1.0}
+        - enemyType: heavy
+          count: 5
+          spawnInterval: 1.8
+        - enemyType: grunt
+          count: 4
+          spawnInterval: 1
       spawnDelay: 3
-
     - waveNumber: 7
       enemies:
-        - {enemyType: heavy, count: 3, spawnInterval: 2.0}
-        - {enemyType: mage, count: 4, spawnInterval: 1.5}
-        - {enemyType: runner, count: 3, spawnInterval: 0.6}
+        - enemyType: heavy
+          count: 3
+          spawnInterval: 2
+        - enemyType: mage
+          count: 4
+          spawnInterval: 1.5
+        - enemyType: runner
+          count: 3
+          spawnInterval: 0.6
       spawnDelay: 3
-
     - waveNumber: 8
       enemies:
-        - {enemyType: exploder, count: 5, spawnInterval: 1.0}
-        - {enemyType: runner, count: 4, spawnInterval: 0.5}
+        - enemyType: exploder
+          count: 5
+          spawnInterval: 1
+        - enemyType: runner
+          count: 4
+          spawnInterval: 0.5
       spawnDelay: 2
-
     - waveNumber: 9
       enemies:
-        - {enemyType: heavy, count: 6, spawnInterval: 1.6}
-        - {enemyType: mage, count: 3, spawnInterval: 1.5}
+        - enemyType: heavy
+          count: 6
+          spawnInterval: 1.6
+        - enemyType: mage
+          count: 3
+          spawnInterval: 1.5
       spawnDelay: 3
-
     - waveNumber: 10
       isBossWave: true
       enemies:
-        - {enemyType: boss_commander, count: 1, spawnInterval: 0}
-        - {enemyType: heavy, count: 3, spawnInterval: 1.8}
-        - {enemyType: exploder, count: 3, spawnInterval: 1.2}
+        - enemyType: boss_commander
+          count: 1
+          spawnInterval: 0
+        - enemyType: heavy
+          count: 3
+          spawnInterval: 1.8
+        - enemyType: exploder
+          count: 3
+          spawnInterval: 1.2
       spawnDelay: 3
-
     - waveNumber: 11
       enemies:
-        - {enemyType: mage, count: 6, spawnInterval: 1.5}
-        - {enemyType: runner, count: 5, spawnInterval: 0.5}
+        - enemyType: mage
+          count: 6
+          spawnInterval: 1.5
+        - enemyType: runner
+          count: 5
+          spawnInterval: 0.5
       spawnDelay: 2
-
     - waveNumber: 12
       enemies:
-        - {enemyType: heavy, count: 5, spawnInterval: 1.6}
-        - {enemyType: exploder, count: 4, spawnInterval: 1.0}
+        - enemyType: heavy
+          count: 5
+          spawnInterval: 1.6
+        - enemyType: exploder
+          count: 4
+          spawnInterval: 1
       spawnDelay: 3
-
     - waveNumber: 13
       enemies:
-        - {enemyType: heavy, count: 4, spawnInterval: 1.8}
-        - {enemyType: mage, count: 4, spawnInterval: 1.5}
-        - {enemyType: runner, count: 4, spawnInterval: 0.5}
+        - enemyType: heavy
+          count: 4
+          spawnInterval: 1.8
+        - enemyType: mage
+          count: 4
+          spawnInterval: 1.5
+        - enemyType: runner
+          count: 4
+          spawnInterval: 0.5
       spawnDelay: 3
-
     - waveNumber: 14
       enemies:
-        - {enemyType: heavy, count: 6, spawnInterval: 1.6}
-        - {enemyType: mage, count: 5, spawnInterval: 1.5}
-        - {enemyType: exploder, count: 4, spawnInterval: 1.0}
+        - enemyType: heavy
+          count: 6
+          spawnInterval: 1.6
+        - enemyType: mage
+          count: 5
+          spawnInterval: 1.5
+        - enemyType: exploder
+          count: 4
+          spawnInterval: 1
       spawnDelay: 3
-
     - waveNumber: 15
       isBossWave: true
       enemies:
-        - {enemyType: boss_commander, count: 1, spawnInterval: 0}
-        - {enemyType: heavy, count: 4, spawnInterval: 1.8}
-        - {enemyType: mage, count: 3, spawnInterval: 1.5}
-        - {enemyType: runner, count: 4, spawnInterval: 0.5}
+        - enemyType: boss_commander
+          count: 1
+          spawnInterval: 0
+        - enemyType: heavy
+          count: 4
+          spawnInterval: 1.8
+        - enemyType: mage
+          count: 3
+          spawnInterval: 1.5
+        - enemyType: runner
+          count: 4
+          spawnInterval: 0.5
       spawnDelay: 4
-
-  # ── Starting Resources ────────────────────────────────────
   startingGold: 400
-
-  # ── Available Towers ──────────────────────────────────────
-  # All 6 tower types available in this level
   availableTowers:
     - arrow
     - cannon
@@ -198,13 +504,7 @@ L5_castle:
     - lightning
     - laser
     - bat
-
-  # ── Available Units ───────────────────────────────────────
-  # No player units in this level
   availableUnits: []
-
-  # ── Weather Pool ──────────────────────────────────────────
-  # Random initial weather selected from this pool
   weatherPool:
     - rain
     - night
