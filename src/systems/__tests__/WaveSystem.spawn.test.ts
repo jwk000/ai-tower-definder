@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { defineQuery } from 'bitecs';
 import { WaveSystem } from '../WaveSystem.js';
 import { TowerWorld } from '../../core/World.js';
 import { GamePhase, EnemyType, type WaveConfig, type MapConfig } from '../../types/index.js';
-import { Position } from '../../core/components.js';
+import { Position, UnitTag } from '../../core/components.js';
 import { RenderSystem } from '../RenderSystem.js';
 import { migrateEnemyPathToGraph } from '../../level/graph/migration.js';
+
+const enemyQuery = defineQuery([Position, UnitTag]);
 
 function makeBaseMap(): Omit<MapConfig, 'spawns' | 'pathGraph'> {
   return { name: 'test', cols: 10, rows: 10, tileSize: 64, tiles: [[]] };
@@ -19,14 +22,10 @@ function makeSingleWave(): WaveConfig[] {
 }
 
 function findEnemyPosition(world: TowerWorld): { x: number; y: number } | null {
-  let result: { x: number; y: number } | null = null;
-  for (let eid = 0; eid < 10000; eid++) {
-    if (world.hasComponent(eid, Position)) {
-      result = { x: Position.x[eid]!, y: Position.y[eid]!  };
-      break;
-    }
-  }
-  return result;
+  const eids = enemyQuery(world.world);
+  if (eids.length === 0) return null;
+  const eid = eids[0]!;
+  return { x: Position.x[eid]!, y: Position.y[eid]! };
 }
 
 describe('WaveSystem B.15 — spawn coords via resolveGraphFromMap (pathGraph-only)', () => {
