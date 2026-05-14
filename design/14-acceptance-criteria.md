@@ -69,12 +69,12 @@
 
 - [ ] 默认手牌上限 4，永久升级可达 8
 - [ ] 每波开始抽卡补满手牌
-- [ ] persistAcrossWaves=true 的法术卡跨波保留（手牌右上角 ✦ 标识）
+- [x] persistAcrossWaves=true 的法术卡跨波保留（手牌右上角 ✦ 角标）（A4-UI A1 `76a0897` 角标改造为右上角金色 ✦，size 18 color `#ffc107`/暗金 `#5a4a14`）
 - [ ] 牌组用尽时弃牌堆自动洗回
 - [ ] 出卡后该卡进入弃牌堆（单位/建筑卡 = 该实例死亡后不回弃牌堆）
 - [ ] 法术卡释放后立即进入弃牌堆
 - [x] 手牌区 UI 拖拽出卡，能量不足时灰显（A4-UI Step 2 `44c18d3` 灰显 + Step 3 `0be21c6` 拖卡桥接）
-- [ ] 卡牌悬停弹出详情卡片
+- [x] 卡牌悬停弹出详情卡片（A4-UI A2 `408c2fd` 240×320 详情卡，含 name/meta/energy/persist/desc/flavor 6 行；`buildCardTooltipLines` + `computeTooltipAnchor` 双纯函数 + 14 单测）
 - [ ] 牌组/弃牌堆点击可查看全览
 
 ### 3.3 能量系统（关内出卡资源）
@@ -204,8 +204,8 @@
 - [ ] 主菜单**无**关卡选择网格
 - [ ] **无**无尽模式入口
 - [ ] **无**三星菱形显示
-- [ ] HUD **无**人口（👥）和倒计时（⏳）
-- [ ] 工具栏被**手牌区**完全替代
+- [x] HUD **无**人口（👥）和倒计时（⏳）（B3-d `66725a8` 删除 `buildTopHUD` 人口段，`💰${gold} 👥${pop}/${maxPop}` → `💰${gold}`）
+- [x] 工具栏被**手牌区**完全替代（B3-d `66725a8` 删除 `buildBottomPanel` 旧建造按钮 grid 200 行；卡池 B3-b `d66e4ff` 补齐陷阱 `spike_trap_card` + 生产 `gold_mine_card` / `energy_tower_card` 共 3 张卡；CardType 4 类 B3-a `dbd7f48`）
 - [ ] 关内**无**升级塔按钮触发金币消耗
 
 ---
