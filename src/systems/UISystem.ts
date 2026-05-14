@@ -263,6 +263,114 @@ export function computeTooltipAnchor(
   return { x, y };
 }
 
+/**
+ * v3.0 roguelike — A4-UI A3 牌组/弃牌堆全览面板纯函数层。
+ * 设计文档锚点：
+ *   - design/14-acceptance-criteria.md §3.2 line 78 牌组/弃牌堆点击可查看全览
+ *   - design/09-ui-ux.md §3.4 line 165-166 点击图标弹出半透明面板
+ *   - design/20-responsive-layout.md §4.5.1 牌堆图标 anchor bottom-right offset(-200,-160) size 50×70
+ *                                          弃牌堆图标 anchor bottom-right offset(-140,-160) size 50×70
+ *
+ * 与 renderDeckCounter 共享几何常量：DESIGN_W=1920, DESIGN_H=1080
+ *   - 牌堆图标 (rightX-200, bottomY-160, 50, 70) = (1720, 920, 50, 70)
+ *   - 弃牌堆图标 (rightX-140, bottomY-160, 50, 70) = (1780, 920, 50, 70)
+ *
+ * 命中盒采用 inclusive-low / exclusive-high 半开区间（业界 hit test 惯例）。
+ */
+export const DECK_ICON_HIT = { x: 1720, y: 920, w: 50, h: 70 } as const;
+export const DISCARD_ICON_HIT = { x: 1780, y: 920, w: 50, h: 70 } as const;
+
+function inHitBox(px: number, py: number, box: { x: number; y: number; w: number; h: number }): boolean {
+  return px >= box.x && px < box.x + box.w && py >= box.y && py < box.y + box.h;
+}
+
+export function hitTestDeckIcon(px: number, py: number): boolean {
+  return inHitBox(px, py, DECK_ICON_HIT);
+}
+
+export function hitTestDiscardIcon(px: number, py: number): boolean {
+  return inHitBox(px, py, DISCARD_ICON_HIT);
+}
+
+/**
+ * A3 overlay 模态面板几何：
+ *   - 模态 1100×700 居中于 1920×1080 → modal at (410, 190)
+ *   - padding 32，title 区上方 60 高，cell 区 64×88（0.4 倍详情卡尺寸，与 A2 详情卡 240×320 同比例缩放）
+ *   - cell gap 12，每行 (1100 - 64) / (64 + 12) = 13.6 → 13 列
+ *   - closeHint 在 modal 底部 padding 内（提示用户：点空白外关闭）
+ */
+export const OVERLAY_MODAL_W = 1100;
+export const OVERLAY_MODAL_H = 700;
+export const OVERLAY_CARD_W = 64;
+export const OVERLAY_CARD_H = 88;
+const OVERLAY_PADDING = 32;
+const OVERLAY_TITLE_H = 60;
+const OVERLAY_CELL_GAP = 12;
+const OVERLAY_DESIGN_W = 1920;
+const OVERLAY_DESIGN_H = 1080;
+
+export interface OverlayCardCell {
+  index: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface OverlayLayout {
+  modal: { x: number; y: number; w: number; h: number };
+  title: { x: number; y: number };
+  cells: OverlayCardCell[];
+  closeHintAt: { x: number; y: number };
+}
+
+export function buildDeckOverlayLayout(cardCount: number): OverlayLayout {
+  const modal = {
+    x: (OVERLAY_DESIGN_W - OVERLAY_MODAL_W) / 2,
+    y: (OVERLAY_DESIGN_H - OVERLAY_MODAL_H) / 2,
+    w: OVERLAY_MODAL_W,
+    h: OVERLAY_MODAL_H,
+  };
+  const innerLeft = modal.x + OVERLAY_PADDING;
+  const innerTop = modal.y + OVERLAY_PADDING + OVERLAY_TITLE_H;
+  const innerWidth = modal.w - OVERLAY_PADDING * 2;
+  const colStride = OVERLAY_CARD_W + OVERLAY_CELL_GAP;
+  const cols = Math.max(1, Math.floor((innerWidth + OVERLAY_CELL_GAP) / colStride));
+
+  const cells: OverlayCardCell[] = [];
+  for (let i = 0; i < cardCount; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    cells.push({
+      index: i,
+      x: innerLeft + col * colStride,
+      y: innerTop + row * (OVERLAY_CARD_H + OVERLAY_CELL_GAP),
+      w: OVERLAY_CARD_W,
+      h: OVERLAY_CARD_H,
+    });
+  }
+
+  return {
+    modal,
+    title: { x: modal.x + OVERLAY_PADDING, y: modal.y + OVERLAY_PADDING },
+    cells,
+    closeHintAt: { x: modal.x + modal.w / 2, y: modal.y + modal.h - OVERLAY_PADDING },
+  };
+}
+
+export type OverlayClickRegion = 'icon-deck' | 'icon-discard' | 'inside-modal' | 'outside-modal';
+
+export function classifyOverlayClick(
+  px: number,
+  py: number,
+  modal: { x: number; y: number; w: number; h: number },
+): OverlayClickRegion {
+  if (hitTestDeckIcon(px, py)) return 'icon-deck';
+  if (hitTestDiscardIcon(px, py)) return 'icon-discard';
+  if (inHitBox(px, py, modal)) return 'inside-modal';
+  return 'outside-modal';
+}
+
 // ============================================================
 // TowerType numeric ID → enum mapping (matches BuildSystem)
 // ============================================================
