@@ -423,4 +423,107 @@ describe('EditorRoot integration (happy-dom)', () => {
     expect(banner!.textContent).toMatch(/target_exists/);
     promptSpy.mockRestore();
   });
+
+  it('shows Form/RAW tab switcher when a level is loaded', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'id: level_01\nname: Plains\nmap:\n  cols: 10\n  rows: 8\n  tileSize: 64\n  tiles: []\nwaves: []\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    expect(findByTestId(host, 'editor-tab-form')).not.toBeNull();
+    expect(findByTestId(host, 'editor-tab-raw')).not.toBeNull();
+  });
+
+  it('RAW tab is active by default; textarea is visible', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'id: level_01\nname: Plains\nmap:\n  cols: 10\n  rows: 8\n  tileSize: 64\n  tiles: []\nwaves: []\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    expect(findByTestId(host, 'editor-textarea')).not.toBeNull();
+    expect(findByTestId(host, 'panel-metadata')).toBeNull();
+  });
+
+  it('switching to Form tab shows the 5 panels', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'id: level_01\nname: Plains\nmap:\n  cols: 10\n  rows: 8\n  tileSize: 64\n  tiles: []\nwaves: []\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+
+    findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+    await tick();
+
+    expect(findByTestId(host, 'panel-metadata')).not.toBeNull();
+    expect(findByTestId(host, 'panel-starting')).not.toBeNull();
+    expect(findByTestId(host, 'panel-available')).not.toBeNull();
+    expect(findByTestId(host, 'panel-waves')).not.toBeNull();
+    expect(findByTestId(host, 'panel-weather')).not.toBeNull();
+    expect(findByTestId(host, 'editor-textarea')).toBeNull();
+  });
+
+  it('editing a form panel updates YAML content and marks dirty', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'id: level_01\nname: Plains\nmap:\n  cols: 10\n  rows: 8\n  tileSize: 64\n  tiles: []\nwaves: []\n', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+    await tick();
+
+    expect(findByTestId(host, 'editor-dirty')).toBeNull();
+
+    const nameInput = findByTestId<HTMLInputElement>(host, 'metadata-name')!;
+    nameInput.value = 'Renamed';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick(); await tick();
+
+    expect(findByTestId(host, 'editor-dirty')).not.toBeNull();
+    expect(editor.currentContent).toContain('name: Renamed');
+  });
+
+  it('Form tab shows fallback when YAML is unparseable', async () => {
+    const editor = new LevelEditor({
+      fetch: makeFetch({
+        'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+        'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'this is: : not valid yaml: [', mtime: 100 } },
+      }),
+      baseUrl: '/__editor',
+    });
+    render(<EditorRoot editor={editor} onClose={onClose} />, host);
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+    await tick(); await tick();
+    findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+    await tick();
+
+    expect(findByTestId(host, 'editor-form-parse-error')).not.toBeNull();
+    expect(findByTestId(host, 'panel-metadata')).toBeNull();
+  });
 });

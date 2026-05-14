@@ -1,5 +1,31 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { LevelEditor, LevelListEntry, EditorStatus } from '../LevelEditor.js';
+import {
+  parseYamlToModel,
+  serializeModelToYaml,
+  type LevelFormModel,
+} from '../state/levelModel.js';
+import { MetadataPanel } from './panels/MetadataPanel.js';
+import { StartingPanel } from './panels/StartingPanel.js';
+import { AvailablePanel } from './panels/AvailablePanel.js';
+import { WaveListPanel } from './panels/WaveListPanel.js';
+import { WeatherPanel } from './panels/WeatherPanel.js';
+
+type EditTab = 'form' | 'raw';
+
+interface ParseResult {
+  model: LevelFormModel | null;
+  error: string | null;
+}
+
+function tryParseModel(content: string | null): ParseResult {
+  if (content === null) return { model: null, error: null };
+  try {
+    return { model: parseYamlToModel(content), error: null };
+  } catch (e) {
+    return { model: null, error: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 export interface EditorRootProps {
   editor: LevelEditor;
@@ -30,6 +56,7 @@ function snapshot(editor: LevelEditor): ViewState {
 
 export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const [view, setView] = useState<ViewState>(() => snapshot(editor));
+  const [tab, setTab] = useState<EditTab>('raw');
 
   useEffect(() => {
     const onChange = () => setView(snapshot(editor));
@@ -37,6 +64,15 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     void editor.refreshList();
     return () => editor.removeEventListener('change', onChange);
   }, [editor]);
+
+  const parsed = useMemo<ParseResult>(
+    () => tryParseModel(view.currentContent),
+    [view.currentContent],
+  );
+
+  const onFormChange = (next: LevelFormModel): void => {
+    editor.setCurrentContent(serializeModelToYaml(next));
+  };
 
   const onPickLevel = (id: string): void => {
     void editor.loadLevel(id);
@@ -152,6 +188,24 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
               <div style={editToolbarStyle}>
                 <span style={{ color: '#e0e0e0', fontWeight: 600 }}>{view.currentId}</span>
                 {view.isDirty && <span style={dirtyBadgeStyle} data-testid="editor-dirty">● 未保存</span>}
+                <div style={tabGroupStyle}>
+                  <button
+                    type="button"
+                    data-testid="editor-tab-form"
+                    onClick={() => setTab('form')}
+                    style={tab === 'form' ? tabButtonActiveStyle : tabButtonStyle}
+                  >
+                    表单
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="editor-tab-raw"
+                    onClick={() => setTab('raw')}
+                    style={tab === 'raw' ? tabButtonActiveStyle : tabButtonStyle}
+                  >
+                    YAML
+                  </button>
+                </div>
                 <div style={{ flex: 1 }} />
                 <button
                   type="button"
@@ -173,13 +227,38 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                   {view.status === 'saving' ? '保存中…' : '保存 (Ctrl+S)'}
                 </button>
               </div>
-              <textarea
-                value={view.currentContent ?? ''}
-                onInput={onEdit}
-                style={textareaStyle}
-                spellcheck={false}
-                data-testid="editor-textarea"
-              />
+              {tab === 'raw' ? (
+                <textarea
+                  value={view.currentContent ?? ''}
+                  onInput={onEdit}
+                  style={textareaStyle}
+                  spellcheck={false}
+                  data-testid="editor-textarea"
+                />
+              ) : parsed.model === null ? (
+                <div style={formErrorStyle} data-testid="editor-form-parse-error">
+                  YAML 解析失败，请切回 YAML 标签页修复：
+                  <pre style={formErrorPreStyle}>{parsed.error ?? '(unknown error)'}</pre>
+                </div>
+              ) : (
+                <div style={formScrollStyle} data-testid="editor-form-container">
+                  <div data-testid="panel-metadata">
+                    <MetadataPanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                  <div data-testid="panel-starting">
+                    <StartingPanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                  <div data-testid="panel-available">
+                    <AvailablePanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                  <div data-testid="panel-waves">
+                    <WaveListPanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                  <div data-testid="panel-weather">
+                    <WeatherPanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <p style={{ color: '#888', fontSize: 14, padding: 20 }}>从左侧选择一个关卡开始编辑</p>
@@ -371,4 +450,52 @@ const textareaStyle = {
   lineHeight: 1.5,
   resize: 'none' as const,
   outline: 'none',
+};
+
+const tabGroupStyle = {
+  display: 'flex',
+  gap: 4,
+  marginLeft: 12,
+};
+
+const tabButtonStyle = {
+  background: 'transparent',
+  border: '1px solid #3a3a4a',
+  color: '#a0a0b0',
+  padding: '4px 12px',
+  borderRadius: 4,
+  fontSize: 12,
+  cursor: 'pointer',
+};
+
+const tabButtonActiveStyle = {
+  ...tabButtonStyle,
+  background: '#2a5a3a',
+  border: '1px solid #3a7a4a',
+  color: '#fff',
+};
+
+const formScrollStyle = {
+  flex: 1,
+  overflowY: 'auto' as const,
+  padding: '16px',
+  background: '#15151e',
+};
+
+const formErrorStyle = {
+  flex: 1,
+  padding: '20px',
+  color: '#ffb4b4',
+  background: '#2a1818',
+  fontSize: 13,
+};
+
+const formErrorPreStyle = {
+  marginTop: 8,
+  padding: 12,
+  background: '#1a0e0e',
+  borderRadius: 4,
+  fontSize: 12,
+  whiteSpace: 'pre-wrap' as const,
+  fontFamily: '"SF Mono", Menlo, Consolas, monospace',
 };
