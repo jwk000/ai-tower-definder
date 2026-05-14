@@ -399,10 +399,11 @@ class TowerDefenderGame extends Game {
     }
 
     // ---- Build system ----
+    // v3.0 卡牌流：BuildSystem 不再扣金币（关内部署由 RunContext.energy 在 tryPlayHandCard 扣）。
+    // registerBuild 仍以 cost meta 触发，供回收退款机制溯源。
     this.buildSystem = new BuildSystem(
       map,
       () => this.phase,
-      (amount) => this.economy.spendGold(amount),
       (eid, cost) => this.economy.registerBuild(eid, cost),
     );
 

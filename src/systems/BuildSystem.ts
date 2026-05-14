@@ -150,8 +150,11 @@ export class BuildSystem implements System {
   // —— 构造参数 ——
   private map: MapConfig;
   private getPhase: () => GamePhase;
-  private spendGold: (amount: number) => boolean;
-  /** Called after a build entity is successfully created, with the cost spent. P1-#11. */
+  /**
+   * v3.0 卡牌流：onBuilt 仅作 meta 通知，传入的 cost 用于 EconomySystem.registerBuild
+   * 回收退款溯源，并非"已扣金币"的回执。关内部署资源由 RunContext.energy 在
+   * tryPlayHandCard → runPlayCard 中已扣，BuildSystem 不再扣金币。
+   */
   private onBuilt: ((entityId: number, cost: number) => void) | undefined;
 
   // —— 每帧由 update() 注入 ——
@@ -163,12 +166,10 @@ export class BuildSystem implements System {
   constructor(
     map: MapConfig,
     getPhase: () => GamePhase,
-    spendGold: (amount: number) => boolean,
     onBuilt?: (entityId: number, cost: number) => void,
   ) {
     this.map = map;
     this.getPhase = getPhase;
-    this.spendGold = spendGold;
     this.onBuilt = onBuilt;
   }
 
@@ -304,8 +305,6 @@ export class BuildSystem implements System {
     const config = TOWER_CONFIGS[tt];
     if (!config) { this.cancelDrag(); return false; }
 
-    if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
-
     const eid = this.createTowerEntity(world, x, y, row, col, tt);
     this.onBuilt?.(eid, config.cost);
     this.cancelDrag();
@@ -313,11 +312,10 @@ export class BuildSystem implements System {
   }
 
   private placeTrap(world: TowerWorld, x: number, y: number, row: number, col: number): number | false {
-    const TRAP_COST = 40;
-    if (!this.spendGold(TRAP_COST)) { this.cancelDrag(); return false; }
+    const TRAP_REFUND_META = 40;
 
     const eid = this.createTrapEntity(world, x, y, row, col);
-    this.onBuilt?.(eid, TRAP_COST);
+    this.onBuilt?.(eid, TRAP_REFUND_META);
     this.cancelDrag();
     return eid;
   }
@@ -328,8 +326,6 @@ export class BuildSystem implements System {
 
     const config = PRODUCTION_CONFIGS[pt];
     if (!config) { this.cancelDrag(); return false; }
-
-    if (!this.spendGold(config.cost)) { this.cancelDrag(); return false; }
 
     const eid = this.createProductionEntity(world, x, y, row, col, pt);
     this.onBuilt?.(eid, config.cost);
