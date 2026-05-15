@@ -7,14 +7,23 @@ export interface MapViewProps {
   model: MapPreviewModel;
   onTileClick: (row: number, col: number, button: number) => void;
   graphModel?: GraphModel;
+  onNodeClick?: (nodeId: string) => void;
+  onEdgeClick?: (from: string, to: string) => void;
+  onOverlayBlankClick?: (px: number, py: number) => void;
 }
 
-export function MapView({ model, onTileClick, graphModel }: MapViewProps) {
+export function MapView({ model, onTileClick, graphModel, onNodeClick, onEdgeClick, onOverlayBlankClick }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<MapCanvas | null>(null);
   const overlayRef = useRef<GraphOverlay | null>(null);
   const clickRef = useRef(onTileClick);
   clickRef.current = onTileClick;
+  const nodeClickRef = useRef(onNodeClick);
+  nodeClickRef.current = onNodeClick;
+  const edgeClickRef = useRef(onEdgeClick);
+  edgeClickRef.current = onEdgeClick;
+  const blankClickRef = useRef(onOverlayBlankClick);
+  blankClickRef.current = onOverlayBlankClick;
 
   const hasMap = model.rows > 0 && model.cols > 0;
 
@@ -28,7 +37,25 @@ export function MapView({ model, onTileClick, graphModel }: MapViewProps) {
     canvasRef.current = canvas;
     const overlay = new GraphOverlay(host);
     overlayRef.current = overlay;
+
+    const overlayEl = overlay.canvas;
+    overlayEl.style.pointerEvents = 'auto';
+    function handleOverlayClick(ev: MouseEvent) {
+      const hit = overlayRef.current?.hitTest(ev.offsetX, ev.offsetY) ?? null;
+      if (hit === null) {
+        blankClickRef.current?.(ev.offsetX, ev.offsetY);
+        return;
+      }
+      if (hit.kind === 'node') {
+        nodeClickRef.current?.(hit.nodeId);
+      } else if (hit.kind === 'edge') {
+        edgeClickRef.current?.(hit.from, hit.to);
+      }
+    }
+    overlayEl.addEventListener('mousedown', handleOverlayClick);
+
     return () => {
+      overlayEl.removeEventListener('mousedown', handleOverlayClick);
       canvas.dispose();
       canvasRef.current = null;
       overlay.dispose();

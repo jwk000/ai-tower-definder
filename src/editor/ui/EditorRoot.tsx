@@ -19,6 +19,19 @@ import type { MapPreviewModel } from '../preview/MapCanvas.js';
 import type { GraphModel } from '../preview/graphDrawOps.js';
 import { SpawnPanel } from './panels/SpawnPanel.js';
 import { addSpawn, removeSpawn, renameSpawn } from '../state/spawnOps.js';
+import { GraphToolbar, type GraphTool } from './panels/GraphToolbar.js';
+import { NodePanel } from './panels/NodePanel.js';
+import {
+  addNode,
+  removeNode,
+  addEdge,
+  removeEdge,
+  setNodeRole,
+  setPortalTarget,
+  setEdgeWeight,
+  generateNodeId,
+} from '../state/graphOps.js';
+import type { PathGraph, PathNodeRole } from '../../level/graph/types.js';
 
 type EditTab = 'form' | 'raw';
 
@@ -114,6 +127,9 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const [tab, setTab] = useState<EditTab>('raw');
   const [validationState, setValidationState] = useState<{ content: string | null; errors: ValidationError[] }>({ content: null, errors: [] });
   const [brushTile, setBrushTile] = useState<string>(BRUSH_TILE_TYPES[1] ?? 'path');
+  const [graphTool, setGraphTool] = useState<GraphTool>('select');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [pendingEdgeFrom, setPendingEdgeFrom] = useState<string | null>(null);
 
   useEffect(() => {
     const onChange = () => setView(snapshot(editor));
@@ -162,6 +178,84 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     }
 
     editor.setCurrentContent(serializeModelToYaml({ ...parsed.model, map: nextMap }));
+  };
+
+  const applyGraphChange = (nextGraph: PathGraph): void => {
+    if (parsed.model === null) return;
+    const nextMap = { ...parsed.model.map, pathGraph: nextGraph };
+    editor.setCurrentContent(serializeModelToYaml({ ...parsed.model, map: nextMap }));
+  };
+
+  const onNodeClick = (nodeId: string): void => {
+    if (graphTool === 'select') {
+      setSelectedNodeId(nodeId);
+    } else if (graphTool === 'delete') {
+      if (parsed.model === null) return;
+      const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+      applyGraphChange(removeNode(graph, nodeId));
+      if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    } else if (graphTool === 'add-edge') {
+      if (pendingEdgeFrom === null) {
+        setPendingEdgeFrom(nodeId);
+      } else if (pendingEdgeFrom !== nodeId) {
+        if (parsed.model !== null) {
+          const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+          try {
+            applyGraphChange(addEdge(graph, { from: pendingEdgeFrom, to: nodeId }));
+          } catch { /* cycle or missing node — silently skip */ }
+        }
+        setPendingEdgeFrom(null);
+      }
+    } else if (graphTool === 'mark-branch') {
+      if (parsed.model === null) return;
+      const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+      const node = graph.nodes.find((n) => n.id === nodeId);
+      if (node !== undefined && node.role !== 'spawn' && node.role !== 'crystal_anchor') {
+        applyGraphChange(setNodeRole(graph, nodeId, 'branch'));
+      }
+    }
+  };
+
+  const onEdgeClick = (from: string, to: string): void => {
+    if (graphTool === 'delete') {
+      if (parsed.model === null) return;
+      const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+      applyGraphChange(removeEdge(graph, from, to));
+    }
+  };
+
+  const onGraphCanvasClick = (row: number, col: number): void => {
+    if (graphTool === 'add-node' || graphTool === 'add-portal') {
+      if (parsed.model === null) return;
+      const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+      const role: PathNodeRole = graphTool === 'add-portal' ? 'portal' : 'waypoint';
+      const id = generateNodeId(graph.nodes.map((n) => n.id));
+      applyGraphChange(addNode(graph, { id, row, col, role }));
+    }
+  };
+
+  const onSetNodeRole = (nodeId: string, role: PathNodeRole): void => {
+    if (parsed.model === null) return;
+    const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+    applyGraphChange(setNodeRole(graph, nodeId, role));
+  };
+
+  const onSetPortalTarget = (nodeId: string, target: string | undefined): void => {
+    if (parsed.model === null) return;
+    const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+    applyGraphChange(setPortalTarget(graph, nodeId, target));
+  };
+
+  const onSetEdgeWeight = (from: string, to: string, weight: number): void => {
+    if (parsed.model === null) return;
+    const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+    applyGraphChange(setEdgeWeight(graph, from, to, weight));
+  };
+
+  const onEdgeDelete = (from: string, to: string): void => {
+    if (parsed.model === null) return;
+    const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+    applyGraphChange(removeEdge(graph, from, to));
   };
 
   const onRemoveSpawn = (spawnId: string): void => {
@@ -381,7 +475,39 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                 <div style={formScrollStyle} data-testid="editor-form-container">
                   <div data-testid="panel-map">
                     <MapToolbar activeTile={brushTile} onSelectTile={setBrushTile} />
-                    <MapView model={previewModel} onTileClick={onTileClick} graphModel={graphModel} />
+                    <GraphToolbar activeTool={graphTool} onSelectTool={setGraphTool} />
+                    <MapView
+                      model={previewModel}
+                      onTileClick={onTileClick}
+                      graphModel={graphModel}
+                      onNodeClick={onNodeClick}
+                      onEdgeClick={onEdgeClick}
+                      onOverlayBlankClick={(px, py) => {
+                        const tileSize = previewModel.tileSize > 0 ? previewModel.tileSize : 64;
+                        const row = Math.floor(py / tileSize);
+                        const col = Math.floor(px / tileSize);
+                        onGraphCanvasClick(row, col);
+                      }}
+                    />
+                    {selectedNodeId !== null && parsed.model !== null && (() => {
+                      const graph = parsed.model.map.pathGraph ?? { nodes: [], edges: [] };
+                      const selNode = graph.nodes.find((n) => n.id === selectedNodeId) ?? null;
+                      const outEdges = graph.edges.filter((e) => e.from === selectedNodeId);
+                      const inEdges = graph.edges.filter((e) => e.to === selectedNodeId);
+                      return (
+                        <NodePanel
+                          node={selNode}
+                          outEdges={outEdges}
+                          inEdges={inEdges}
+                          allNodes={graph.nodes}
+                          spawns={parsed.model.map.spawns ?? []}
+                          onSetRole={onSetNodeRole}
+                          onSetPortalTarget={onSetPortalTarget}
+                          onRemoveEdge={onEdgeDelete}
+                          onSetEdgeWeight={onSetEdgeWeight}
+                        />
+                      );
+                    })()}
                     <SpawnPanel
                       spawns={parsed.model.map.spawns ?? []}
                       onRemoveSpawn={onRemoveSpawn}

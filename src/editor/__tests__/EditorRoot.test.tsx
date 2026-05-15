@@ -789,6 +789,138 @@ describe('EditorRoot integration (happy-dom)', () => {
     });
   });
 
+  describe('graph toolbar + node panel integration (B4)', () => {
+    const yamlWithGraph =
+      'id: level_01\n' +
+      'name: Plains\n' +
+      'map:\n' +
+      '  cols: 3\n' +
+      '  rows: 2\n' +
+      '  tileSize: 32\n' +
+      '  tiles:\n' +
+      '    - [spawn, path, path]\n' +
+      '    - [empty, empty, empty]\n' +
+      '  spawns:\n' +
+      '    - {id: spawn_a, row: 0, col: 0}\n' +
+      '  pathGraph:\n' +
+      '    nodes:\n' +
+      '      - {id: n_a, row: 0, col: 0, role: spawn, spawnId: spawn_a}\n' +
+      '      - {id: n_b, row: 0, col: 2, role: crystal_anchor}\n' +
+      '    edges:\n' +
+      '      - {from: n_a, to: n_b}\n' +
+      'waves: []\n';
+
+    async function openFormWithGraph(): Promise<LevelEditor> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: yamlWithGraph, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+      await tick(); await tick();
+      return editor;
+    }
+
+    it('Form tab shows graph toolbar with 6 tool buttons', async () => {
+      await openFormWithGraph();
+      expect(findByTestId(host, 'graph-toolbar')).not.toBeNull();
+      for (const tool of ['select', 'add-node', 'add-edge', 'delete', 'mark-branch', 'add-portal']) {
+        expect(findByTestId(host, `graph-tool-${tool}`)).not.toBeNull();
+      }
+    });
+
+    it('select tool is active by default (aria-pressed=true)', async () => {
+      await openFormWithGraph();
+      const selectBtn = findByTestId<HTMLButtonElement>(host, 'graph-tool-select')!;
+      expect(selectBtn.getAttribute('aria-pressed')).toBe('true');
+      const addNodeBtn = findByTestId<HTMLButtonElement>(host, 'graph-tool-add-node')!;
+      expect(addNodeBtn.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('clicking a tool button switches the active tool', async () => {
+      await openFormWithGraph();
+      findByTestId<HTMLButtonElement>(host, 'graph-tool-add-node')!.click();
+      await tick();
+      expect(findByTestId<HTMLButtonElement>(host, 'graph-tool-add-node')!.getAttribute('aria-pressed')).toBe('true');
+      expect(findByTestId<HTMLButtonElement>(host, 'graph-tool-select')!.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('clicking canvas in add-node mode adds a new node to the graph', async () => {
+      const editor = await openFormWithGraph();
+      findByTestId<HTMLButtonElement>(host, 'graph-tool-add-node')!.click();
+      await tick();
+
+      const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+      expect(overlayCanvas).not.toBeNull();
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 32 + 16 });
+      Object.defineProperty(ev, 'offsetY', { value: 32 + 16 });
+      overlayCanvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.pathGraph?.nodes.length).toBeGreaterThan(2);
+    });
+
+    it('clicking a node in select mode shows the NodePanel', async () => {
+      await openFormWithGraph();
+      const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+      const cx = 0 * 32 + 16;
+      const cy = 0 * 32 + 16;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: cx });
+      Object.defineProperty(ev, 'offsetY', { value: cy });
+      overlayCanvas.dispatchEvent(ev);
+      await tick(); await tick();
+      expect(findByTestId(host, 'node-panel')).not.toBeNull();
+    });
+
+    it('delete tool: clicking a node removes it from the graph', async () => {
+      const editor = await openFormWithGraph();
+      findByTestId<HTMLButtonElement>(host, 'graph-tool-delete')!.click();
+      await tick();
+
+      const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+      const cx = 2 * 32 + 16;
+      const cy = 0 * 32 + 16;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: cx });
+      Object.defineProperty(ev, 'offsetY', { value: cy });
+      overlayCanvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      const ids = model.map.pathGraph?.nodes.map((n) => n.id) ?? [];
+      expect(ids).not.toContain('n_b');
+    });
+
+    it('delete tool: clicking an edge removes it from the graph', async () => {
+      const editor = await openFormWithGraph();
+      findByTestId<HTMLButtonElement>(host, 'graph-tool-delete')!.click();
+      await tick();
+
+      const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+      const x1 = 0 * 32 + 16;
+      const x2 = 2 * 32 + 16;
+      const midX = (x1 + x2) / 2;
+      const midY = 0 * 32 + 16;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: midX });
+      Object.defineProperty(ev, 'offsetY', { value: midY + 3 });
+      overlayCanvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.pathGraph?.edges ?? []).toHaveLength(0);
+    });
+  });
+
   describe('spawn tile integration (I1/I2 invariant)', () => {
     const baseYaml =
       'id: level_01\n' +

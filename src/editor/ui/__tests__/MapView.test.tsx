@@ -89,4 +89,71 @@ describe('MapView (Preact wrapper around MapCanvas)', () => {
     expect(host.querySelector('[data-testid="editor-map-empty"]')).not.toBeNull();
     expect(host.querySelector('canvas')).toBeNull();
   });
+
+  it('calls onNodeClick with nodeId when hitTest returns a node hit', async () => {
+    const onNodeClick = vi.fn();
+    const onEdgeClick = vi.fn();
+    const TILE = 10;
+    const graph = {
+      nodes: [{ id: 'n_a', row: 0, col: 0, role: 'waypoint' as const }],
+      edges: [],
+    };
+    const graphModel = { graph, spawns: [], tileSize: TILE };
+    render(
+      <MapView
+        model={makeModel([['empty', 'empty']], TILE)}
+        onTileClick={vi.fn()}
+        graphModel={graphModel}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+      />,
+      host,
+    );
+    await tick(); await tick();
+    const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+    const cx = 0 * TILE + TILE / 2;
+    const cy = 0 * TILE + TILE / 2;
+    const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+    Object.defineProperty(ev, 'offsetX', { value: cx });
+    Object.defineProperty(ev, 'offsetY', { value: cy });
+    overlayCanvas.dispatchEvent(ev);
+    expect(onNodeClick).toHaveBeenCalledWith('n_a');
+    expect(onEdgeClick).not.toHaveBeenCalled();
+  });
+
+  it('calls onEdgeClick with from/to when hitTest returns an edge hit', async () => {
+    const onNodeClick = vi.fn();
+    const onEdgeClick = vi.fn();
+    const TILE = 32;
+    const graph = {
+      nodes: [
+        { id: 'n_a', row: 0, col: 0, role: 'waypoint' as const },
+        { id: 'n_b', row: 0, col: 2, role: 'waypoint' as const },
+      ],
+      edges: [{ from: 'n_a', to: 'n_b' }],
+    };
+    const graphModel = { graph, spawns: [], tileSize: TILE };
+    render(
+      <MapView
+        model={makeModel([['empty', 'empty', 'empty']], TILE)}
+        onTileClick={vi.fn()}
+        graphModel={graphModel}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+      />,
+      host,
+    );
+    await tick(); await tick();
+    const overlayCanvas = host.querySelector('[data-testid="editor-graph-overlay"]') as HTMLCanvasElement;
+    const x1 = 0 * TILE + TILE / 2;
+    const x2 = 2 * TILE + TILE / 2;
+    const midX = (x1 + x2) / 2;
+    const midY = 0 * TILE + TILE / 2;
+    const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+    Object.defineProperty(ev, 'offsetX', { value: midX });
+    Object.defineProperty(ev, 'offsetY', { value: midY + 3 });
+    overlayCanvas.dispatchEvent(ev);
+    expect(onEdgeClick).toHaveBeenCalledWith('n_a', 'n_b');
+    expect(onNodeClick).not.toHaveBeenCalled();
+  });
 });

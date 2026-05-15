@@ -69,4 +69,80 @@ describe('GraphOverlay', () => {
     expect(canvases).toHaveLength(1);
     overlay.dispose();
   });
+
+  describe('hitTest', () => {
+    const TILE = 32;
+
+    function overlayWithTwoNodes() {
+      const graph: PathGraph = {
+        nodes: [
+          { id: 'n_a', row: 0, col: 0, role: 'waypoint' },
+          { id: 'n_b', row: 0, col: 2, role: 'waypoint' },
+        ],
+        edges: [{ from: 'n_a', to: 'n_b' }],
+      };
+      const overlay = new GraphOverlay(host);
+      overlay.setModel(makeModel(graph), 4, 2);
+      return overlay;
+    }
+
+    it('returns null when no model has been set', () => {
+      const overlay = new GraphOverlay(host);
+      expect(overlay.hitTest(0, 0)).toBeNull();
+      overlay.dispose();
+    });
+
+    it('hits a node when pointer is within 10px of its center', () => {
+      const overlay = overlayWithTwoNodes();
+      const cx = 0 * TILE + TILE / 2;
+      const cy = 0 * TILE + TILE / 2;
+      const hit = overlay.hitTest(cx + 5, cy + 5);
+      expect(hit).toEqual({ kind: 'node', nodeId: 'n_a' });
+      overlay.dispose();
+    });
+
+    it('hits second node by its center', () => {
+      const overlay = overlayWithTwoNodes();
+      const cx = 2 * TILE + TILE / 2;
+      const cy = 0 * TILE + TILE / 2;
+      const hit = overlay.hitTest(cx, cy);
+      expect(hit).toEqual({ kind: 'node', nodeId: 'n_b' });
+      overlay.dispose();
+    });
+
+    it('returns null when pointer is more than 10px away from any node', () => {
+      const overlay = overlayWithTwoNodes();
+      const hit = overlay.hitTest(0, 0);
+      expect(hit).toBeNull();
+      overlay.dispose();
+    });
+
+    it('hits an edge when pointer is within 5px of the line segment', () => {
+      const overlay = overlayWithTwoNodes();
+      const x1 = 0 * TILE + TILE / 2;
+      const x2 = 2 * TILE + TILE / 2;
+      const midX = (x1 + x2) / 2;
+      const midY = 0 * TILE + TILE / 2;
+      const hit = overlay.hitTest(midX, midY + 3);
+      expect(hit).toEqual({ kind: 'edge', from: 'n_a', to: 'n_b' });
+      overlay.dispose();
+    });
+
+    it('nodes take priority over edges in hitTest', () => {
+      const graph: PathGraph = {
+        nodes: [
+          { id: 'n_a', row: 0, col: 0, role: 'waypoint' },
+          { id: 'n_b', row: 0, col: 1, role: 'waypoint' },
+        ],
+        edges: [{ from: 'n_a', to: 'n_b' }],
+      };
+      const overlay = new GraphOverlay(host);
+      overlay.setModel(makeModel(graph), 3, 2);
+      const cx = 0 * TILE + TILE / 2;
+      const cy = 0 * TILE + TILE / 2;
+      const hit = overlay.hitTest(cx, cy);
+      expect(hit?.kind).toBe('node');
+      overlay.dispose();
+    });
+  });
 });
