@@ -1995,6 +1995,371 @@ e_steel_artisan:
       - type: play_sound
         sound: SFX_BOSS_DIE
 
+---
+
+# 孢子幼体 — 快速小型孢子单位，死亡释放孢子云强化周围友军
+e_sporeling:
+  id: e_sporeling
+  name: 孢子幼体
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 60
+    atk: 6
+    attackSpeed: 1.0
+    range: 0
+    speed: 80
+    armor: 0
+    mr: 10
+    damageType: physical
+
+  reward:
+    gold: 8
+
+  visual:
+    shape: circle
+    color: "#a5d6a7"
+    size: 20
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: release_spore_cloud
+        radius: 80
+        duration: 4
+        buffHpPct: 30
+        buffSpdPct: 20
+        buffAtkPct: 20
+      - type: play_effect
+        effect: death_spore
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌丝感染体 — 中型近战，死亡分裂为 2 只孢子幼体
+e_myco_charger:
+  id: e_myco_charger
+  name: 菌丝感染体
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 180
+    atk: 14
+    attackSpeed: 0.9
+    range: 32
+    speed: 65
+    armor: 20
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: circle
+    color: "#66bb6a"
+    size: 34
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: split_into
+        unitId: e_sporeling
+        count: 2
+      - type: play_effect
+        effect: death_split
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 扭曲女巫 — 远程支援单位，可对我方士兵施加变形控制
+e_warped_witch:
+  id: e_warped_witch
+  name: 扭曲女巫
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 160
+    atk: 18
+    attackSpeed: 0.5
+    range: 220
+    speed: 55
+    armor: 10
+    mr: 55
+    damageType: magic
+
+  reward:
+    gold: 28
+
+  visual:
+    shape: circle
+    color: "#ce93d8"
+    size: 28
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: polymorph_sheep
+      name: 变形诅咒
+      cooldown: 10
+      range: 220
+      duration: 6
+      description: "对我方士兵施加变形 6s，不能攻击不能移动"
+
+  lifecycle:
+    onAttack:
+      - type: apply_buff
+        target: soldier
+        buffId: polymorph_sheep
+        duration: 6
+        effects:
+          - cannot_attack
+          - cannot_move
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌母蘑菇 — 驻守型召唤单位，原地持续召唤孢子幼体
+e_brood_mother:
+  id: e_brood_mother
+  name: 菌母蘑菇
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 380
+    atk: 0
+    attackSpeed: 0
+    range: 0
+    speed: 0
+    armor: 50
+    mr: 40
+    damageType: physical
+
+  reward:
+    gold: 50
+
+  visual:
+    shape: circle
+    color: "#8d6e63"
+    size: 44
+
+  behavior:
+    targetSelection: none
+    attackMode: none
+    movementMode: hold_position
+
+  lifecycle:
+    onCondition:
+      condition: "interval_4s"
+      effects:
+        - type: spawn_unit
+          unitId: e_sporeling
+          count: 2
+          maxActive: 8
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_boss_small
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 腐疫吐液者 — 远程毒液单位，攻击留下持续伤害毒池
+e_blight_spitter:
+  id: e_blight_spitter
+  name: 腐疫吐液者
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 140
+    atk: 16
+    attackSpeed: 0.7
+    range: 180
+    speed: 60
+    armor: 15
+    mr: 35
+    damageType: magic
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: circle
+    color: "#9ccc65"
+    size: 30
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onAttack:
+      - type: create_poison_pool
+        radius: 40
+        duration: 3
+        dps: 30
+        effect: poison_pool
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌核之母 — 关 7 二形态 Mini-Boss，召唤菌母；HP<50% 切换形态对玩家最强塔施加变形
+e_mycelial_core:
+  id: e_mycelial_core
+  name: 菌核之母
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 2000
+    atk: 0
+    attackSpeed: 0
+    range: 0
+    speed: 0
+    armor: 80
+    mr: 50
+    damageType: physical
+
+  reward:
+    gold: 350
+    energy: 70
+
+  visual:
+    shape: circle
+    color: "#558b2f"
+    size: 72
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: none
+    attackMode: none
+    movementMode: hold_position
+
+  ai_tree: mycelial_core_ai
+
+  skills:
+    - id: summon_brood_mother
+      name: 召唤菌母
+      cooldown: 0
+      range: 0
+      value: 2
+      description: "形态 1：召唤 2 只 e_brood_mother"
+    - id: polymorph_mushroom
+      name: 真菌变形
+      cooldown: 20
+      range: 0
+      duration: 10
+      description: "形态 2：对玩家最强塔施加变形 10s，无法攻击"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: spawn_unit
+        unitId: e_brood_mother
+        count: 2
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: stat_change
+          hp: 1500
+          atk: 30
+          attackSpeed: 0.6
+          speed: 50
+          armor: 40
+          mr: 40
+        - type: apply_buff
+          target: strongest_player_tower
+          buffId: polymorph_mushroom
+          duration: 10
+          effects:
+            - cannot_attack
+        - type: play_effect
+          effect: boss_rage
+        - type: change_color
+          color: "#1b5e20"
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+
 # ============================================================
 # 关 8 — 异界终战 敌人
 # ============================================================
@@ -2363,367 +2728,3 @@ e_old_one_warden:
         sound: SFX_BOSS_DIE
       - type: final_victory
 
----
-
-# 孢子幼体 — 快速小型孢子单位，死亡释放孢子云强化周围友军
-e_sporeling:
-  id: e_sporeling
-  name: 孢子幼体
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L1
-
-  stats:
-    hp: 60
-    atk: 6
-    attackSpeed: 1.0
-    range: 0
-    speed: 80
-    armor: 0
-    mr: 10
-    damageType: physical
-
-  reward:
-    gold: 8
-
-  visual:
-    shape: circle
-    color: "#a5d6a7"
-    size: 20
-
-  behavior:
-    targetSelection: nearest
-    attackMode: single_target
-    movementMode: follow_path
-
-  lifecycle:
-    onDeath:
-      - type: drop_gold
-      - type: release_spore_cloud
-        radius: 80
-        duration: 4
-        buffHpPct: 30
-        buffSpdPct: 20
-        buffAtkPct: 20
-      - type: play_effect
-        effect: death_spore
-      - type: play_sound
-        sound: SFX_ENEMY_DIE
-    onHit:
-      - type: play_effect
-        effect: flash
-    onCreate:
-      - type: play_sound
-        sound: SFX_ENEMY_SPAWN
-
----
-
-# 菌丝感染体 — 中型近战，死亡分裂为 2 只孢子幼体
-e_myco_charger:
-  id: e_myco_charger
-  name: 菌丝感染体
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L2
-
-  stats:
-    hp: 180
-    atk: 14
-    attackSpeed: 0.9
-    range: 32
-    speed: 65
-    armor: 20
-    mr: 30
-    damageType: physical
-
-  reward:
-    gold: 22
-
-  visual:
-    shape: circle
-    color: "#66bb6a"
-    size: 34
-
-  behavior:
-    targetSelection: nearest
-    attackMode: single_target
-    movementMode: follow_path
-
-  lifecycle:
-    onDeath:
-      - type: drop_gold
-      - type: split_into
-        unitId: e_sporeling
-        count: 2
-      - type: play_effect
-        effect: death_split
-      - type: play_sound
-        sound: SFX_ENEMY_DIE
-    onHit:
-      - type: play_effect
-        effect: flash
-    onCreate:
-      - type: play_sound
-        sound: SFX_ENEMY_SPAWN
-
----
-
-# 扭曲女巫 — 远程支援单位，可对我方士兵施加变形控制
-e_warped_witch:
-  id: e_warped_witch
-  name: 扭曲女巫
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L1
-
-  stats:
-    hp: 160
-    atk: 18
-    attackSpeed: 0.5
-    range: 220
-    speed: 55
-    armor: 10
-    mr: 55
-    damageType: magic
-
-  reward:
-    gold: 28
-
-  visual:
-    shape: circle
-    color: "#ce93d8"
-    size: 28
-
-  behavior:
-    targetSelection: nearest
-    attackMode: single_target
-    movementMode: follow_path
-
-  skills:
-    - id: polymorph_sheep
-      name: 变形诅咒
-      cooldown: 10
-      range: 220
-      duration: 6
-      description: "对我方士兵施加变形 6s，不能攻击不能移动"
-
-  lifecycle:
-    onAttack:
-      - type: apply_buff
-        target: soldier
-        buffId: polymorph_sheep
-        duration: 6
-        effects:
-          - cannot_attack
-          - cannot_move
-    onDeath:
-      - type: drop_gold
-      - type: play_effect
-        effect: death_basic
-      - type: play_sound
-        sound: SFX_ENEMY_DIE
-    onHit:
-      - type: play_effect
-        effect: flash
-    onCreate:
-      - type: play_sound
-        sound: SFX_ENEMY_SPAWN
-
----
-
-# 菌母蘑菇 — 驻守型召唤单位，原地持续召唤孢子幼体
-e_brood_mother:
-  id: e_brood_mother
-  name: 菌母蘑菇
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L2
-
-  stats:
-    hp: 380
-    atk: 0
-    attackSpeed: 0
-    range: 0
-    speed: 0
-    armor: 50
-    mr: 40
-    damageType: physical
-
-  reward:
-    gold: 50
-
-  visual:
-    shape: circle
-    color: "#8d6e63"
-    size: 44
-
-  behavior:
-    targetSelection: none
-    attackMode: none
-    movementMode: hold_position
-
-  lifecycle:
-    onCondition:
-      condition: "interval_4s"
-      effects:
-        - type: spawn_unit
-          unitId: e_sporeling
-          count: 2
-          maxActive: 8
-    onDeath:
-      - type: drop_gold
-      - type: play_effect
-        effect: death_boss_small
-      - type: play_sound
-        sound: SFX_ENEMY_DIE
-    onCreate:
-      - type: play_sound
-        sound: SFX_ENEMY_SPAWN
-
----
-
-# 腐疫吐液者 — 远程毒液单位，攻击留下持续伤害毒池
-e_blight_spitter:
-  id: e_blight_spitter
-  name: 腐疫吐液者
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L2
-
-  stats:
-    hp: 140
-    atk: 16
-    attackSpeed: 0.7
-    range: 180
-    speed: 60
-    armor: 15
-    mr: 35
-    damageType: magic
-
-  reward:
-    gold: 22
-
-  visual:
-    shape: circle
-    color: "#9ccc65"
-    size: 30
-
-  behavior:
-    targetSelection: nearest
-    attackMode: single_target
-    movementMode: follow_path
-
-  lifecycle:
-    onAttack:
-      - type: create_poison_pool
-        radius: 40
-        duration: 3
-        dps: 30
-        effect: poison_pool
-    onDeath:
-      - type: drop_gold
-      - type: play_effect
-        effect: death_basic
-      - type: play_sound
-        sound: SFX_ENEMY_DIE
-    onHit:
-      - type: play_effect
-        effect: flash
-    onCreate:
-      - type: play_sound
-        sound: SFX_ENEMY_SPAWN
-
----
-
-# 菌核之母 — 关 7 二形态 Mini-Boss，召唤菌母；HP<50% 切换形态对玩家最强塔施加变形
-e_mycelial_core:
-  id: e_mycelial_core
-  name: 菌核之母
-  category: enemy
-  faction: fungal
-  layer: ground
-  tier: L3
-  isBoss: true
-
-  stats:
-    hp: 2000
-    atk: 0
-    attackSpeed: 0
-    range: 0
-    speed: 0
-    armor: 80
-    mr: 50
-    damageType: physical
-
-  reward:
-    gold: 350
-    energy: 70
-
-  visual:
-    shape: circle
-    color: "#558b2f"
-    size: 72
-    outline: true
-    crown: true
-
-  behavior:
-    targetSelection: none
-    attackMode: none
-    movementMode: hold_position
-
-  ai_tree: mycelial_core_ai
-
-  skills:
-    - id: summon_brood_mother
-      name: 召唤菌母
-      cooldown: 0
-      range: 0
-      value: 2
-      description: "形态 1：召唤 2 只 e_brood_mother"
-    - id: polymorph_mushroom
-      name: 真菌变形
-      cooldown: 20
-      range: 0
-      duration: 10
-      description: "形态 2：对玩家最强塔施加变形 10s，无法攻击"
-
-  lifecycle:
-    onCreate:
-      - type: hp_bar_boss
-      - type: spawn_unit
-        unitId: e_brood_mother
-        count: 2
-      - type: play_sound
-        sound: SFX_BOSS_SPAWN
-    onCondition:
-      condition: "hp_ratio < 0.5"
-      fireOnce: true
-      effects:
-        - type: enter_phase2
-        - type: stat_change
-          hp: 1500
-          atk: 30
-          attackSpeed: 0.6
-          speed: 50
-          armor: 40
-          mr: 40
-        - type: apply_buff
-          target: strongest_player_tower
-          buffId: polymorph_mushroom
-          duration: 10
-          effects:
-            - cannot_attack
-        - type: play_effect
-          effect: boss_rage
-        - type: change_color
-          color: "#1b5e20"
-    onKill:
-      - type: play_effect
-        effect: boss_death
-      - type: play_sound
-        sound: SFX_BOSS_DIE
