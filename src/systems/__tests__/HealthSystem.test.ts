@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { addComponent, hasComponent } from 'bitecs';
+import { addComponent, defineQuery, hasComponent } from 'bitecs';
 
 import { Game } from '../../core/Game.js';
 import { DeadTag, Health, Position } from '../../core/components.js';
 import { createHealthSystem } from '../HealthSystem.js';
 import { createLifecycleSystem } from '../LifecycleSystem.js';
+
+const livingMortals = defineQuery([Health]);
 
 function spawnMortal(game: Game, hp: number): number {
   const eid = game.world.addEntity();
@@ -75,7 +77,7 @@ describe('LifecycleSystem', () => {
 
     expect(onDeath).toHaveBeenCalledTimes(1);
     expect(onDeath).toHaveBeenCalledWith(eid, {}, game.world);
-    expect(game.world.isDestroyed(eid)).toBe(true);
+    expect(livingMortals(game.world)).not.toContain(eid);
   });
 
   it('still destroys entities that have no onDeath rules attached', () => {
@@ -87,7 +89,7 @@ describe('LifecycleSystem', () => {
 
     game.tick(0.1);
 
-    expect(game.world.isDestroyed(eid)).toBe(true);
+    expect(livingMortals(game.world)).not.toContain(eid);
   });
 
   it('clears RuleEngine bindings for the destroyed entity', () => {
