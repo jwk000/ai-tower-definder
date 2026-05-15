@@ -68,5 +68,9 @@ export const Attack = defineComponent({
   cooldownLeft: Types.f32,
 });
 
+export const Crystal = defineComponent({
+  radius: Types.f32,
+});
+
 export const DeadTag = defineComponent();
 export const JustSpawnedTag = defineComponent();
