@@ -1,7 +1,7 @@
 # Tower Defender — 设计文档索引
 
-> 版本: v3.1 · 卡牌 + Roguelike 长征版 · 塔科技树
-> 最后整理: 2026-05-14（R0–R6 文档重构）
+> 版本: v3.2 · 卡牌 + Roguelike 长征版 · 塔科技树 · 陷阱/法术/中立完整化
+> 最后整理: 2026-05-15（v3.2 8 关蓝图 + 三类单位 + 39 敌阵容 + 8 关 YAML 全量落地）
 
 ---
 
@@ -55,6 +55,7 @@
 | [13-map-level](./10-gameplay/13-map-level.md) | stable | 21×9 网格、8 关 + 终战、6 个 PRNG 流隔离 |
 | [14-weather](./10-gameplay/14-weather.md) | stable · v3.1 audit | 5 种天气、数值影响矩阵（仅影响战斗，不影响经济） |
 | [15-level-themes](./10-gameplay/15-level-themes.md) | ⭐ authoritative | **8 关主题/敌人/数值权威**：8 主题、43 敌人档案（7 旧+36 新）、6 Boss（含 mini）、9 字段数值签名、跨关交叉校验 |
+| [16-level-blueprints](./10-gameplay/16-level-blueprints.md) | ⭐ authoritative | **8 关详细蓝图**：每关 grid/tile/pathGraph/spawn/waves/obstacles/特殊机关完整蓝图，落地 YAML 配置的唯一权威 |
 
 ### `20-units/` — 单位与战斗
 
