@@ -1,0 +1,509 @@
+id: level_08
+name: 异界终战
+description: 虚空裂缝撕裂大地中央，旧日支配者从异界降临。双路钳形地形汇聚于中央水晶，关 2-7 精英混编潮水般涌来，随后异界先驱开启传送门召唤援军，最终三形态终极 Boss 降临。这是 Run 的最终考验，胜则封印虚空，败则轮回重启。
+sceneDescription: 巨型虚空裂缝横贯战场中央，紫黑色能量涌动的大地分裂为南北两翼。北路从 S0 沿裂缝边缘蜿蜒向东折向中央水晶，南路对称镜像。四根异界石柱矗立场中，现实扭曲光晕笼罩整个战场。水晶锚点悬浮于战场正中，不断吸收四面八方的虚空能量——这是最后的防线。
+map:
+  cols: 25
+  rows: 11
+  tileSize: 64
+  tiles:
+    # row 0
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 1
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 2
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 3
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 4
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - base
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 6
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 9
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 10
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+  tileColors:
+    empty: '#1a0a2e'
+    path: '#4a1a6e'
+    blocked: '#2d0a4e'
+    spawn: '#ff0088'
+    base: '#00ffcc'
+  obstacles:
+    - { type: void_rift, row: 2, col: 15 }
+    - { type: void_rift, row: 2, col: 20 }
+    - { type: void_rift, row: 8, col: 15 }
+    - { type: void_rift, row: 8, col: 20 }
+    - { type: alien_pillar, row: 0, col: 12 }
+    - { type: alien_pillar, row: 10, col: 12 }
+    - { type: alien_pillar, row: 5, col: 2 }
+    - { type: alien_pillar, row: 5, col: 22 }
+    - { type: corrupted_obelisk, row: 3, col: 18 }
+    - { type: corrupted_obelisk, row: 7, col: 18 }
+    - { type: corrupted_obelisk, row: 3, col: 3 }
+    - { type: corrupted_obelisk, row: 7, col: 3 }
+    - { type: reality_warp, row: 0, col: 20 }
+    - { type: reality_warp, row: 5, col: 20 }
+    - { type: reality_warp, row: 10, col: 20 }
+  spawns:
+    - id: spawn_0
+      row: 1
+      col: 0
+    - id: spawn_1
+      row: 9
+      col: 0
+  pathGraph:
+    nodes:
+      - { id: n0, row: 1, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 1, col: 6, role: waypoint }
+      - { id: n2, row: 4, col: 6, role: waypoint }
+      - { id: n3, row: 4, col: 11, role: waypoint }
+      - { id: n4, row: 5, col: 11, role: waypoint }
+      - { id: n5, row: 5, col: 12, role: crystal_anchor }
+      - { id: n6, row: 6, col: 11, role: waypoint }
+      - { id: n7, row: 6, col: 6, role: waypoint }
+      - { id: n8, row: 9, col: 6, role: waypoint }
+      - { id: n9, row: 9, col: 0, role: spawn, spawnId: spawn_1 }
+    edges:
+      - { from: n0, to: n1 }
+      - { from: n1, to: n2 }
+      - { from: n2, to: n3 }
+      - { from: n3, to: n4 }
+      - { from: n4, to: n5 }
+      - { from: n9, to: n8 }
+      - { from: n8, to: n7 }
+      - { from: n7, to: n6 }
+      - { from: n6, to: n4 }
+waves:
+  # 阶段 1 — 混编精英（12 子波，关 2-7 精英 50% 体量混编）
+  - waveNumber: 1
+    spawnDelay: 2
+    enemies:
+      - { enemyType: e_giant_beetle, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_yeti_charger, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 2
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_kraken_tendril, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_petrify_oracle, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 3
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_repair_bot, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_clockwork_grunt, count: 2, spawnInterval: 1.0 }
+      - { enemyType: e_warped_witch, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 4
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_acid_artillery, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_ice_witch, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 5
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_temple_priest, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_jungle_zealot, count: 3, spawnInterval: 1.0 }
+      - { enemyType: e_brine_charger, count: 2, spawnInterval: 1.0 }
+  - waveNumber: 6
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_steam_lancer, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_myco_charger, count: 3, spawnInterval: 1.0 }
+  - waveNumber: 7
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_blood_trickster, count: 2, spawnInterval: 0.8 }
+      - { enemyType: e_corsair_pikeman, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 8
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_glacier_titan, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_minecart_juggernaut, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 9
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_petrify_oracle, count: 1, spawnInterval: 1.5 }
+  - waveNumber: 10
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_repair_bot, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_steam_lancer, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_yeti_charger, count: 2, spawnInterval: 1.5 }
+  - waveNumber: 11
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_kraken_tendril, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_warped_witch, count: 2, spawnInterval: 1.5 }
+  - waveNumber: 12
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_giant_beetle, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_blight_spitter, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_ice_witch, count: 1, spawnInterval: 1.5 }
+  # 阶段 2 — 异界先驱（10 子波，4 全新虚空兵种 + portal 召唤）
+  - waveNumber: 13
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_void_blinker, count: 4, spawnInterval: 0.8 }
+  - waveNumber: 14
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_eye_of_collapse, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_cursed_avenger, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 15
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_void_blinker, count: 3, spawnInterval: 0.8 }
+      - { enemyType: e_cursed_avenger, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 16
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_eye_of_collapse, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_void_blinker, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 17
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_cursed_avenger, count: 3, spawnInterval: 0.8 }
+      - { enemyType: e_void_blinker, count: 3, spawnInterval: 0.8 }
+  - waveNumber: 18
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_eye_of_collapse, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_cursed_avenger, count: 3, spawnInterval: 0.8 }
+  - waveNumber: 19
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_void_blinker, count: 4, spawnInterval: 0.8 }
+      - { enemyType: e_eye_of_collapse, count: 2, spawnInterval: 1.5 }
+  - waveNumber: 20
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_cursed_avenger, count: 4, spawnInterval: 0.8 }
+      - { enemyType: e_void_blinker, count: 3, spawnInterval: 0.8 }
+  - waveNumber: 21
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_eye_of_collapse, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_cursed_avenger, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 22
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_void_blinker, count: 4, spawnInterval: 0.8 }
+      - { enemyType: e_eye_of_collapse, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_cursed_avenger, count: 3, spawnInterval: 0.8 }
+  # 阶段 3 — 旧日支配者 Boss 战（三形态终极 Boss）
+  - waveNumber: 23
+    spawnDelay: 30
+    isBossWave: true
+    enemies:
+      - { enemyType: e_old_one_warden, count: 1, spawnInterval: 0 }
+      - { enemyType: e_void_thrall, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_cursed_avenger, count: 3, spawnInterval: 0.8 }
+starting:
+  gold: 0
+  energy: 0
+  maxPopulation: 6
+available:
+  towers:
+    - arrow
+    - cannon
+    - frost
+    - lightning
+    - flame
+    - poison
+    - lightning_storm
+    - sniper
+    - virus
+    - void
+  units:
+    - swordsman
+    - archer
+    - knight
+    - mage
+    - priest
+    - paladin
+    - engineer
+    - druid
+    - hero
+weather:
+  pool:
+    - void
+  initial: void
+banPool: []
+neutralPool: []
+
+# ============================================================
+# 设计稿引用：16-blueprints §9 / 数值乘数：50-mda §21.2 enemyHpMult=1.8 enemyDmgMult=1.6 enemySpeedMult=1.15
+# Flavor: BOSS（单超长波三阶段） / 目标时长 25-30 min / 22 子波 + Boss = 23 waves
+# 直接 spawn ~107 + portal 召唤 ~30 / 通关 HP 损失预算：剩余 HP 决定 Run 是否通关
+# ============================================================

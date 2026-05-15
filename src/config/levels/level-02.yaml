@@ -1,17 +1,15 @@
-id: L2_desert
-name: 沙漠
-theme: desert
-description: 蜿蜒的沙漠路径，岩石阻碍了建造空间
-sceneDescription: 古代商路的沙漠遗迹。沙漠掠夺者、沙岩铠甲兵和沙漠术士据守此地。第6波强盗头目现身，第12波沙虫巨兽压阵。岩石限制了防御塔的布置。
+id: level_02
+name: 沙漠虫潮
+description: 灼热沙漠中双路虫群汹涌而来。钻地蠕虫从隧道口突袭，蝗虫群从空中压制，母虫坐镇压轴。玩家须同时防御地面与隧道两个战线，考验多路部署与防控节奏。
+sceneDescription: 正午烈日炙烤的荒漠平原，焦黄沙土在热浪中微微颤抖。西侧两处虫巢巨穴（0,2）与（0,6）各自向东延伸出一条蚁道，在东端汇聚于水晶基座（20,4）。沙丘起伏处埋伏着隧道口，随时可能喷出钻地蠕虫；天际偶有沙暴席卷而过，塔楼射程在风沙中骤降。
 map:
-  name: 沙漠
   cols: 21
   rows: 9
   tileSize: 64
   tiles:
+    # row 0
     - - empty
       - empty
-      - spawn
       - empty
       - empty
       - empty
@@ -30,14 +28,10 @@ map:
       - empty
       - empty
       - empty
+      - empty
+    # row 1
     - - empty
       - empty
-      - path
-      - empty
-      - blocked
-      - empty
-      - empty
-      - blocked
       - empty
       - empty
       - empty
@@ -51,36 +45,37 @@ map:
       - empty
       - empty
       - empty
-    - - blocked
       - empty
-      - path
-      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 2 (top path: spawn -> col 20)
+    - - spawn
       - path
       - path
-      - blocked
       - path
       - path
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+    # row 3
     - - empty
       - empty
-      - path
-      - path
-      - path
-      - path
-      - empty
-      - empty
-      - path
       - empty
       - empty
       - empty
@@ -93,34 +88,38 @@ map:
       - empty
       - empty
       - empty
-    - - blocked
       - empty
-      - path
       - empty
-      - path
       - empty
-      - blocked
       - empty
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
+      - empty
+      - empty
+      - empty
+    # row 4 (merge zone: col 20 = base)
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
       - base
+    # row 5
     - - empty
       - empty
-      - path
-      - path
-      - blocked
-      - path
-      - path
       - empty
       - empty
       - empty
@@ -135,55 +134,63 @@ map:
       - empty
       - empty
       - empty
-    - - path
-      - path
-      - path
-      - blocked
-      - path
-      - path
-      - path
       - empty
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - blocked
-      - empty
-      - empty
-      - empty
-      - path
-      - blocked
-      - path
-      - blocked
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - path
-      - path
-      - path
-      - blocked
+    # row 6 (bot path: spawn -> col 20)
+    - - spawn
       - path
       - path
       - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
       - empty
       - empty
       - empty
@@ -199,259 +206,125 @@ map:
       - empty
       - empty
   tileColors:
-    empty: '#c9a96e'
-    path: '#8b7355'
-    blocked: '#795548'
-    spawn: '#e6c44d'
+    empty: '#c2a050'
+    path: '#a07830'
+    blocked: '#78582a'
+    spawn: '#ff8f00'
     base: '#1e88e5'
   obstacles:
-    - type: rock
-      row: 0
-      col: 6
-    - type: rock
-      row: 0
-      col: 14
-    - type: rock
-      row: 3
-      col: 15
-    - type: rock
-      row: 7
-      col: 18
-    - type: rock
-      row: 6
-      col: 13
-    - type: cactus
-      row: 1
-      col: 10
-    - type: cactus
-      row: 2
-      col: 18
-    - type: cactus
-      row: 5
-      col: 16
-    - type: cactus
-      row: 7
-      col: 3
-    - type: cactus
-      row: 8
-      col: 9
-    - type: bones
-      row: 1
-      col: 14
-    - type: bones
-      row: 3
-      col: 10
-    - type: bones
-      row: 5
-      col: 19
-    - type: bones
-      row: 7
-      col: 0
-    - type: bones
-      row: 8
-      col: 16
+    - { type: cactus, row: 1, col: 4 }
+    - { type: cactus, row: 1, col: 10 }
+    - { type: cactus, row: 1, col: 16 }
+    - { type: cactus, row: 4, col: 8 }
+    - { type: cactus, row: 4, col: 15 }
+    - { type: cactus, row: 7, col: 4 }
+    - { type: cactus, row: 7, col: 16 }
+    - { type: sand_dune, row: 3, col: 12 }
+    - { type: sand_dune, row: 5, col: 6 }
+    - { type: sand_dune, row: 8, col: 10 }
+    - { type: tunnel_entrance, row: 2, col: 8 }
+    - { type: tunnel_entrance, row: 6, col: 8 }
+    - { type: tunnel_exit, row: 4, col: 12 }
   spawns:
     - id: spawn_0
-      row: 0
-      col: 2
+      row: 2
+      col: 0
+    - id: spawn_1
+      row: 6
+      col: 0
   pathGraph:
     nodes:
-      - id: n0
-        row: 0
-        col: 2
-        role: spawn
-        spawnId: spawn_0
-      - id: n1
-        row: 3
-        col: 2
-        role: waypoint
-      - id: n2
-        row: 3
-        col: 5
-        role: waypoint
-      - id: n3
-        row: 6
-        col: 5
-        role: waypoint
-      - id: n4
-        row: 6
-        col: 1
-        role: waypoint
-      - id: n5
-        row: 8
-        col: 1
-        role: waypoint
-      - id: n6
-        row: 8
-        col: 6
-        role: waypoint
-      - id: n7
-        row: 5
-        col: 6
-        role: waypoint
-      - id: n8
-        row: 5
-        col: 3
-        role: waypoint
-      - id: n9
-        row: 2
-        col: 3
-        role: waypoint
-      - id: n10
-        row: 2
-        col: 8
-        role: waypoint
-      - id: n11
-        row: 4
-        col: 8
-        role: waypoint
-      - id: n12
-        row: 4
-        col: 20
-        role: crystal_anchor
+      - { id: n0, row: 2, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 6, col: 0, role: spawn, spawnId: spawn_1 }
+      - { id: n2, row: 2, col: 20, role: merge }
+      - { id: n3, row: 6, col: 20, role: merge }
+      - { id: n4, row: 4, col: 20, role: crystal_anchor }
     edges:
-      - from: n0
-        to: n1
-      - from: n1
-        to: n2
-      - from: n2
-        to: n3
-      - from: n3
-        to: n4
-      - from: n4
-        to: n5
-      - from: n5
-        to: n6
-      - from: n6
-        to: n7
-      - from: n7
-        to: n8
-      - from: n8
-        to: n9
-      - from: n9
-        to: n10
-      - from: n10
-        to: n11
-      - from: n11
-        to: n12
+      - { from: n0, to: n2 }
+      - { from: n1, to: n3 }
+      - { from: n2, to: n4 }
+      - { from: n3, to: n4 }
+waves:
+  # 设计稿 §3.4 精炼方案：10 波 SWARM flavor，总敌数 91
+  - waveNumber: 1
+    spawnDelay: 2
+    enemies:
+      - { enemyType: e_kraal_grunt, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 2
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_kraal_grunt, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_burrow_worm, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 3
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_locust_swarm, count: 4, spawnInterval: 0.3 }
+      - { enemyType: e_kraal_grunt, count: 2, spawnInterval: 1.0 }
+  - waveNumber: 4
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_kraal_grunt, count: 5, spawnInterval: 1.0 }
+      - { enemyType: e_burrow_worm, count: 2, spawnInterval: 0.8 }
+  - waveNumber: 5
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_acid_artillery, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_kraal_grunt, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_locust_swarm, count: 2, spawnInterval: 0.3 }
+  - waveNumber: 6
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_burrow_worm, count: 4, spawnInterval: 0.8 }
+      - { enemyType: e_locust_swarm, count: 5, spawnInterval: 0.3 }
+      - { enemyType: e_kraal_grunt, count: 3, spawnInterval: 1.0 }
+  - waveNumber: 7
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_giant_beetle, count: 1, spawnInterval: 0 }
+      - { enemyType: e_kraal_grunt, count: 6, spawnInterval: 1.0 }
+      - { enemyType: e_burrow_worm, count: 3, spawnInterval: 0.8 }
+  - waveNumber: 8
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_locust_swarm, count: 6, spawnInterval: 0.3 }
+      - { enemyType: e_acid_artillery, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_kraal_grunt, count: 5, spawnInterval: 1.0 }
+  - waveNumber: 9
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_giant_beetle, count: 1, spawnInterval: 0 }
+      - { enemyType: e_burrow_worm, count: 4, spawnInterval: 0.8 }
+      - { enemyType: e_locust_swarm, count: 5, spawnInterval: 0.3 }
+  - waveNumber: 10
+    spawnDelay: 30
+    isBossWave: true
+    enemies:
+      - { enemyType: e_queen_mother, count: 1, spawnInterval: 0 }
+      - { enemyType: e_giant_beetle, count: 1, spawnInterval: 0 }
+      - { enemyType: e_kraal_grunt, count: 6, spawnInterval: 1.0 }
+      - { enemyType: e_burrow_worm, count: 6, spawnInterval: 0.8 }
 starting:
-  gold: 250
+  gold: 0
+  energy: 0
+  maxPopulation: 6
 available:
   towers:
     - arrow
     - cannon
-    - laser
-  units: []
+    - frost
+  units:
+    - swordsman
+    - archer
 weather:
   pool:
-    - sunny
-    - fog
-    - night
-  initial: sunny
-banPool: null
-neutralPool: null
-waves:
-  - waveNumber: 1
-    enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1.3
-    spawnDelay: 2
-  - waveNumber: 2
-    enemies:
-      - enemyType: grunt
-        count: 8
-        spawnInterval: 1.1
-    spawnDelay: 2
-  - waveNumber: 3
-    enemies:
-      - enemyType: grunt
-        count: 4
-        spawnInterval: 1
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.7
-    spawnDelay: 2
-  - waveNumber: 4
-    enemies:
-      - enemyType: runner
-        count: 8
-        spawnInterval: 0.5
-    spawnDelay: 2
-  - waveNumber: 5
-    enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1
-      - enemyType: heavy
-        count: 2
-        spawnInterval: 2
-    spawnDelay: 3
-  - waveNumber: 6
-    isBossWave: true
-    enemies:
-      - enemyType: grunt
-        count: 3
-        spawnInterval: 1
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
-      - enemyType: runner
-        count: 2
-        spawnInterval: 0.6
-    spawnDelay: 3
-  - waveNumber: 7
-    enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-    spawnDelay: 2
-  - waveNumber: 8
-    enemies:
-      - enemyType: mage
-        count: 3
-        spawnInterval: 1.5
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.6
-    spawnDelay: 2
-  - waveNumber: 9
-    enemies:
-      - enemyType: grunt
-        count: 5
-        spawnInterval: 1
-      - enemyType: exploder
-        count: 3
-        spawnInterval: 1.2
-    spawnDelay: 2
-  - waveNumber: 10
-    enemies:
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
-      - enemyType: mage
-        count: 3
-        spawnInterval: 1.5
-    spawnDelay: 3
-  - waveNumber: 11
-    enemies:
-      - enemyType: runner
-        count: 5
-        spawnInterval: 0.5
-      - enemyType: exploder
-        count: 4
-        spawnInterval: 1
-    spawnDelay: 2
-  - waveNumber: 12
-    isBossWave: true
-    enemies:
-      - enemyType: boss_beast
-        count: 1
-        spawnInterval: 0
-      - enemyType: heavy
-        count: 3
-        spawnInterval: 1.8
-      - enemyType: runner
-        count: 3
-        spawnInterval: 0.5
-    spawnDelay: 4
+    - sandstorm
+  initial: sandstorm
+banPool: []
+neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §3
+# 数值乘数：50-mda §21.2  enemyHpMult=0.95  enemyDmgMult=0.9  enemySpeedMult=1.05
+# Flavor: SWARM  目标时长 7-9 min  总敌数 ~92  实际 91
+# 通关 HP 损失预算：5-15
+# ============================================================

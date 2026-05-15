@@ -1,0 +1,346 @@
+id: level_07
+name: 孢子菌林
+description: 幽暗的菌林深处，5 处菌母巢穴散布于地图各角落，源源不断地孵化孢子幼体。玩家须在孢子雾的持续侵蚀下优先清除菌母，才能阻断无休止的虫群浪潮。本关是 Run 第 7 关，SUMMONER 剧本的极限考验。
+sceneDescription: 灰紫色天空下的腐生菌林，21 格宽的地面被厚厚的菌丝毯覆盖。中央直道（row 4）从西侧 S0 蔓延至东侧水晶 B，两侧各有 2-3 处巨型菌母巢穴发出幽光。空气中漂浮着淡紫色孢子雾，玩家士兵在此呼吸便会受到持续伤害。
+map:
+  cols: 21
+  rows: 9
+  tileSize: 64
+  tiles:
+    # row 0
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 1
+    - - empty
+      - empty
+      - empty
+      - blocked
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - blocked
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - blocked
+      - empty
+      - empty
+      - empty
+    # row 2
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 3
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 4 (主路 spawn -> base)
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - base
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 6
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - blocked
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - blocked
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+  tileColors:
+    empty: '#2d1f4e'
+    path: '#6b4f3a'
+    blocked: '#5a3d7a'
+    spawn: '#ff8f00'
+    base: '#1e88e5'
+  obstacles:
+    - { type: mold_spawner, row: 1, col: 3 }
+    - { type: mold_spawner, row: 1, col: 10 }
+    - { type: mold_spawner, row: 1, col: 17 }
+    - { type: mold_spawner, row: 7, col: 4 }
+    - { type: mold_spawner, row: 7, col: 11 }
+    - { type: mushroom_cluster, row: 2, col: 5 }
+    - { type: mushroom_cluster, row: 2, col: 15 }
+    - { type: mushroom_cluster, row: 6, col: 5 }
+    - { type: mushroom_cluster, row: 6, col: 15 }
+    - { type: mushroom_cluster, row: 3, col: 8 }
+    - { type: mushroom_cluster, row: 5, col: 12 }
+    - { type: spore_pod, row: 0, col: 8 }
+    - { type: spore_pod, row: 0, col: 14 }
+    - { type: spore_pod, row: 8, col: 7 }
+    - { type: spore_pod, row: 8, col: 13 }
+    - { type: hyphal_root, row: 3, col: 2 }
+    - { type: hyphal_root, row: 5, col: 18 }
+    - { type: hyphal_root, row: 8, col: 20 }
+  spawns:
+    - id: spawn_0
+      row: 4
+      col: 0
+  pathGraph:
+    nodes:
+      - { id: n0, row: 4, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 4, col: 20, role: crystal_anchor }
+    edges:
+      - { from: n0, to: n1 }
+waves:
+  - waveNumber: 1
+    spawnDelay: 2
+    enemies:
+      - { enemyType: e_sporeling, count: 6, spawnInterval: 0.4 }
+  - waveNumber: 2
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 1, spawnInterval: 0 }
+      - { enemyType: e_sporeling, count: 4, spawnInterval: 0.4 }
+  - waveNumber: 3
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_myco_charger, count: 3, spawnInterval: 1.0 }
+      - { enemyType: e_sporeling, count: 5, spawnInterval: 0.4 }
+  - waveNumber: 4
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 1, spawnInterval: 0 }
+      - { enemyType: e_warped_witch, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_myco_charger, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 5
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_blight_spitter, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_sporeling, count: 7, spawnInterval: 0.4 }
+      - { enemyType: e_myco_charger, count: 3, spawnInterval: 1.0 }
+  - waveNumber: 6
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 2, spawnInterval: 0 }
+      - { enemyType: e_myco_charger, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 7
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_warped_witch, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_sporeling, count: 8, spawnInterval: 0.4 }
+  - waveNumber: 8
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 1, spawnInterval: 0 }
+      - { enemyType: e_blight_spitter, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_myco_charger, count: 5, spawnInterval: 1.0 }
+  - waveNumber: 9
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_myco_charger, count: 6, spawnInterval: 1.0 }
+      - { enemyType: e_sporeling, count: 8, spawnInterval: 0.4 }
+  - waveNumber: 10
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_warped_witch, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_blight_spitter, count: 4, spawnInterval: 1.5 }
+      - { enemyType: e_myco_charger, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 11
+    spawnDelay: 30
+    enemies:
+      - { enemyType: e_brood_mother, count: 3, spawnInterval: 0 }
+      - { enemyType: e_warped_witch, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_myco_charger, count: 5, spawnInterval: 1.0 }
+  - waveNumber: 12
+    spawnDelay: 30
+    isBossWave: true
+    enemies:
+      - { enemyType: e_myco_charger, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_blight_spitter, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_mycelial_core, count: 1, spawnInterval: 0 }
+starting:
+  gold: 0
+  energy: 0
+  maxPopulation: 6
+available:
+  towers:
+    - arrow
+    - cannon
+    - frost
+    - lightning
+    - flame
+    - poison
+    - lightning_storm
+    - sniper
+    - virus
+  units:
+    - swordsman
+    - archer
+    - knight
+    - mage
+    - priest
+    - paladin
+    - engineer
+    - druid
+weather:
+  pool:
+    - spore_mist
+  initial: spore_mist
+banPool: []
+neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §8
+# 数值乘数：50-mda §21.2  enemyHpMult=1.35  enemyDmgMult=1.3  enemySpeedMult=1.1
+# Flavor: SUMMONER  目标时长 10-12 min  总敌数 102 直接 spawn + 22 菌母自刷 = 124
+# 通关 HP 损失预算：20-40
+# ============================================================

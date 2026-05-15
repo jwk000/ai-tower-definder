@@ -1,0 +1,430 @@
+id: level_06
+name: 齿轮工厂
+description: 锈蚀的巨型齿轮悬在头顶，传送带横贯厂区中央。三条流水线同时涌入的机械敌人在烟雾中疾速推进，炼钢大师在最终波次驾驶双形态战车压境。玩家需应对三路同步压力与传送带加速机关，在灰霾笼罩的厂区完成最后的防守。
+sceneDescription: 蒸汽朋克风格的地下铸造厂，铁灰色厂房顶部的烟囱不断喷出煤烟。上方（row 0）和下方（row 8）两条重型轨道与中央传送带（row 3 col 3-19）构成三路并行流水线，三路敌军最终在东侧熔炉塔（col 20）前汇合冲击水晶锚点。
+map:
+  cols: 21
+  rows: 11
+  tileSize: 64
+  tiles:
+    # row 0
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+    # row 1
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 2
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 3 (传送带主路 + 水晶锚点)
+    - - empty
+      - empty
+      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - base
+    # row 4 (中路 spawn)
+    - - spawn
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 6
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 8 (下路 spawn)
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+    # row 9
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 10
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+  tileColors:
+    empty: '#4a4a4a'
+    path: '#7a6550'
+    blocked: '#2d2d2d'
+    spawn: '#ff8f00'
+    base: '#1e88e5'
+  obstacles:
+    - { type: conveyor_belt, row: 3, col: 3 }
+    - { type: conveyor_belt, row: 3, col: 4 }
+    - { type: conveyor_belt, row: 3, col: 5 }
+    - { type: conveyor_belt, row: 3, col: 6 }
+    - { type: conveyor_belt, row: 3, col: 7 }
+    - { type: conveyor_belt, row: 3, col: 8 }
+    - { type: conveyor_belt, row: 3, col: 9 }
+    - { type: conveyor_belt, row: 3, col: 10 }
+    - { type: conveyor_belt, row: 3, col: 11 }
+    - { type: conveyor_belt, row: 3, col: 12 }
+    - { type: conveyor_belt, row: 3, col: 13 }
+    - { type: conveyor_belt, row: 3, col: 14 }
+    - { type: conveyor_belt, row: 3, col: 15 }
+    - { type: conveyor_belt, row: 3, col: 16 }
+    - { type: conveyor_belt, row: 3, col: 17 }
+    - { type: conveyor_belt, row: 3, col: 18 }
+    - { type: conveyor_belt, row: 3, col: 19 }
+    - { type: gear_decoration, row: 1, col: 8 }
+    - { type: gear_decoration, row: 1, col: 14 }
+    - { type: gear_decoration, row: 9, col: 8 }
+    - { type: gear_decoration, row: 9, col: 14 }
+    - { type: steam_pipe, row: 5, col: 4 }
+    - { type: steam_pipe, row: 5, col: 16 }
+    - { type: steam_pipe, row: 6, col: 10 }
+    - { type: coal_pile, row: 2, col: 5 }
+    - { type: coal_pile, row: 7, col: 12 }
+    - { type: coal_pile, row: 10, col: 18 }
+  spawns:
+    - id: spawn_0
+      row: 0
+      col: 0
+    - id: spawn_1
+      row: 4
+      col: 0
+    - id: spawn_2
+      row: 8
+      col: 0
+  pathGraph:
+    nodes:
+      - { id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 0, col: 20, role: waypoint }
+      - { id: n2, row: 3, col: 20, role: crystal_anchor }
+      - { id: n3, row: 4, col: 0, role: spawn, spawnId: spawn_1 }
+      - { id: n4, row: 4, col: 3, role: waypoint }
+      - { id: n5, row: 3, col: 3, role: waypoint }
+      - { id: n6, row: 8, col: 0, role: spawn, spawnId: spawn_2 }
+      - { id: n7, row: 8, col: 20, role: waypoint }
+    edges:
+      - { from: n0, to: n1 }
+      - { from: n1, to: n2 }
+      - { from: n3, to: n4 }
+      - { from: n4, to: n5 }
+      - { from: n5, to: n2 }
+      - { from: n6, to: n7 }
+      - { from: n7, to: n2 }
+waves:
+  # 设计稿 §7：14 波 GAUNTLET flavor，总敌数 138，波间冷场 15s
+  - waveNumber: 1
+    spawnDelay: 2
+    enemies:
+      - { enemyType: e_clockwork_grunt, count: 8, spawnInterval: 1.0 }
+  - waveNumber: 2
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_steam_lancer, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_clockwork_grunt, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 3
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_hammergrub_drone, count: 3, spawnInterval: 0.6 }
+      - { enemyType: e_clockwork_grunt, count: 5, spawnInterval: 1.0 }
+  - waveNumber: 4
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_repair_bot, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_steam_lancer, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_clockwork_grunt, count: 4, spawnInterval: 1.0 }
+  - waveNumber: 5
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_clockwork_grunt, count: 10, spawnInterval: 1.0 }
+      - { enemyType: e_hammergrub_drone, count: 3, spawnInterval: 0.6 }
+  - waveNumber: 6
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_steam_lancer, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_repair_bot, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_clockwork_grunt, count: 6, spawnInterval: 1.0 }
+  - waveNumber: 7
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_minecart_juggernaut, count: 1, spawnInterval: 0 }
+      - { enemyType: e_clockwork_grunt, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_hammergrub_drone, count: 3, spawnInterval: 0.6 }
+  - waveNumber: 8
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_repair_bot, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_steam_lancer, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_clockwork_grunt, count: 5, spawnInterval: 1.0 }
+  - waveNumber: 9
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_hammergrub_drone, count: 5, spawnInterval: 0.6 }
+      - { enemyType: e_clockwork_grunt, count: 6, spawnInterval: 1.0 }
+      - { enemyType: e_steam_lancer, count: 2, spawnInterval: 1.5 }
+  - waveNumber: 10
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_minecart_juggernaut, count: 1, spawnInterval: 0 }
+      - { enemyType: e_clockwork_grunt, count: 5, spawnInterval: 1.0 }
+      - { enemyType: e_repair_bot, count: 1, spawnInterval: 2.0 }
+  - waveNumber: 11
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_steam_lancer, count: 4, spawnInterval: 1.5 }
+      - { enemyType: e_clockwork_grunt, count: 5, spawnInterval: 1.0 }
+      - { enemyType: e_hammergrub_drone, count: 4, spawnInterval: 0.6 }
+  - waveNumber: 12
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_repair_bot, count: 3, spawnInterval: 2.0 }
+      - { enemyType: e_steam_lancer, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_minecart_juggernaut, count: 1, spawnInterval: 0 }
+  - waveNumber: 13
+    spawnDelay: 15
+    enemies:
+      - { enemyType: e_clockwork_grunt, count: 12, spawnInterval: 1.0 }
+      - { enemyType: e_hammergrub_drone, count: 5, spawnInterval: 0.6 }
+  - waveNumber: 14
+    spawnDelay: 15
+    isBossWave: true
+    enemies:
+      - { enemyType: e_steel_artisan, count: 1, spawnInterval: 0 }
+      - { enemyType: e_clockwork_grunt, count: 8, spawnInterval: 1.0 }
+      - { enemyType: e_steam_lancer, count: 1, spawnInterval: 1.5 }
+starting:
+  gold: 0
+  energy: 0
+  maxPopulation: 6
+available:
+  towers:
+    - arrow
+    - cannon
+    - frost
+    - lightning
+    - flame
+    - poison
+    - lightning_storm
+    - sniper
+  units:
+    - swordsman
+    - archer
+    - knight
+    - mage
+    - priest
+    - paladin
+    - engineer
+weather:
+  pool:
+    - smog
+  initial: smog
+banPool: []
+neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §7 / design/50-data-numerical/50-mda.md §21.2 / design/10-gameplay/15-level-themes.md §7
+# 数值乘数：50-mda §21.2  enemyHpMult=1.4  enemyDmgMult=1.25
+# Flavor: GAUNTLET  波间冷场 15s（其他关 30s）
+# 目标时长 11-13 min  总敌数 138
+# 通关 HP 损失预算：15-35
+# ============================================================

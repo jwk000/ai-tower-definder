@@ -1,449 +1,330 @@
-id: L3_tundra
-name: 冰原
-theme: tundra
-description: 双路线冰原地形，路径上的敌人会被减速
-sceneDescription: 永冻之地的冰原战场。冰原斥候和冰面滑行者从两条路线同时进攻。第5波、第13波冰霜将领指挥作战，第15波冰原猛犸与将领联手。冰晶和冰封的树木散落在雪地中。
+id: level_03
+name: 极地暴雪要塞
+description: 冰封的极北要塞，S 形蜿蜒的雪道贯穿整片冰原。冰霜雪怪在暴风雪的掩护下列阵攻来，冰面减速区与霜冻塔联动是击退双泰坦的关键。
+sceneDescription: 永夜降临的极北要塞，21 格宽的冰原在暴风雪中若隐若现。从西侧寨门 (0,4) 出发的雪路蜿蜒 S 形穿越冰原，两段冰面 (row=7 col=14-17) 是天然减速带，最终抵达东侧水晶锚点 (20,4)。厚实的冰柱与积雪堆散布四周，寒风呼啸不止。
 map:
-  name: 冰原
   cols: 21
   rows: 9
   tileSize: 64
   tiles:
-    - - 0
-      - 3
-      - 0
-      - 0
-      - 0
-      - 0
-      - 3
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 1
-      - 0
-      - 0
-      - 1
-      - 1
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 1
-      - 1
-      - 1
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 1
-      - 1
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-    - - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 0
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 1
-      - 4
-  altSpawnPoints:
-    - row: 0
-      col: 6
+    # row 0
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 1
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 2
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 3
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 4 (spawn S0 -> S 形主路 -> base B)
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - base
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 6
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+    # row 7 (含冰面格 col 14-17 在路径上)
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
   tileColors:
-    empty: '#cfd8dc'
-    path: '#90a4ae'
-    spawn: '#4dd0e1'
-    base: '#42a5f5'
+    empty: '#b0c4de'
+    path: '#e8e8f0'
+    blocked: '#546e7a'
+    spawn: '#ff8f00'
+    base: '#1e88e5'
   obstacles:
-    - type: ice_crystal
-      row: 0
-      col: 3
-    - type: ice_crystal
-      row: 0
-      col: 10
-    - type: ice_crystal
-      row: 2
-      col: 15
-    - type: ice_crystal
-      row: 5
-      col: 10
-    - type: ice_crystal
-      row: 7
-      col: 2
-    - type: snow_tree
-      row: 1
-      col: 10
-    - type: snow_tree
-      row: 4
-      col: 16
-    - type: snow_tree
-      row: 6
-      col: 14
-    - type: frozen_rock
-      row: 0
-      col: 17
-    - type: frozen_rock
-      row: 2
-      col: 10
-    - type: frozen_rock
-      row: 5
-      col: 17
-    - type: frozen_rock
-      row: 7
-      col: 12
-    - type: frozen_rock
-      row: 8
-      col: 0
+    - { type: ice_tile, row: 7, col: 14 }
+    - { type: ice_tile, row: 7, col: 15 }
+    - { type: ice_tile, row: 7, col: 16 }
+    - { type: ice_tile, row: 7, col: 17 }
+    - { type: snow_pile, row: 2, col: 10 }
+    - { type: snow_pile, row: 5, col: 8 }
+    - { type: snow_pile, row: 6, col: 18 }
+    - { type: snow_pile, row: 8, col: 4 }
+    - { type: ice_pillar, row: 3, col: 12 }
+    - { type: ice_pillar, row: 5, col: 3 }
+    - { type: ice_pillar, row: 6, col: 10 }
+    - { type: ice_pillar, row: 8, col: 16 }
   spawns:
     - id: spawn_0
-      row: 0
-      col: 1
+      row: 4
+      col: 0
   pathGraph:
     nodes:
-      - id: n0
-        row: 0
-        col: 1
-        role: spawn
-        spawnId: spawn_0
-      - id: n1
-        row: 3
-        col: 1
-        role: waypoint
-      - id: n2
-        row: 3
-        col: 4
-        role: waypoint
-      - id: n3
-        row: 6
-        col: 4
-        role: waypoint
-      - id: n4
-        row: 6
-        col: 7
-        role: waypoint
-      - id: n5
-        row: 8
-        col: 7
-        role: waypoint
-      - id: n6
-        row: 8
-        col: 20
-        role: crystal_anchor
+      - { id: n0, row: 4, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 4, col: 6, role: waypoint }
+      - { id: n2, row: 1, col: 6, role: waypoint }
+      - { id: n3, row: 1, col: 14, role: waypoint }
+      - { id: n4, row: 7, col: 14, role: waypoint }
+      - { id: n5, row: 7, col: 20, role: waypoint }
+      - { id: n6, row: 4, col: 20, role: crystal_anchor }
     edges:
-      - from: n0
-        to: n1
-      - from: n1
-        to: n2
-      - from: n2
-        to: n3
-      - from: n3
-        to: n4
-      - from: n4
-        to: n5
-      - from: n5
-        to: n6
+      - { from: n0, to: n1 }
+      - { from: n1, to: n2 }
+      - { from: n2, to: n3 }
+      - { from: n3, to: n4 }
+      - { from: n4, to: n5 }
+      - { from: n5, to: n6 }
 waves:
+  # 设计稿 §4.4：10 波 SIEGE flavor，总敌数 64
   - waveNumber: 1
-    enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1.3
     spawnDelay: 2
+    enemies:
+      - { enemyType: e_yeti_runt, count: 3, spawnInterval: 1.0 }
   - waveNumber: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 8
-        spawnInterval: 1.1
-    spawnDelay: 2
+      - { enemyType: e_yeti_runt, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_frost_lancer, count: 1, spawnInterval: 1.5 }
   - waveNumber: 3
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 5
-        spawnInterval: 1
-      - enemyType: runner
-        count: 3
-        spawnInterval: 0.7
-    spawnDelay: 2
+      - { enemyType: e_yeti_charger, count: 1, spawnInterval: 1.8 }
+      - { enemyType: e_yeti_runt, count: 4, spawnInterval: 1.0 }
   - waveNumber: 4
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 10
-        spawnInterval: 1
-    spawnDelay: 2
+      - { enemyType: e_ice_witch, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_frost_lancer, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_yeti_runt, count: 3, spawnInterval: 1.0 }
   - waveNumber: 5
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 3
-        spawnInterval: 1
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
-    spawnDelay: 3
-    isBossWave: true
+      - { enemyType: e_yeti_charger, count: 2, spawnInterval: 1.8 }
+      - { enemyType: e_yeti_runt, count: 4, spawnInterval: 1.0 }
   - waveNumber: 6
+    spawnDelay: 30
     enemies:
-      - enemyType: runner
-        count: 7
-        spawnInterval: 0.6
-      - enemyType: mage
-        count: 3
-        spawnInterval: 1.5
-    spawnDelay: 2
-    spawnPointIndex: 1
+      - { enemyType: e_ice_witch, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_frost_lancer, count: 3, spawnInterval: 1.5 }
+      - { enemyType: e_yeti_runt, count: 3, spawnInterval: 1.0 }
   - waveNumber: 7
+    spawnDelay: 30
     enemies:
-      - enemyType: runner
-        count: 8
-        spawnInterval: 0.5
-    spawnDelay: 2
+      - { enemyType: e_yeti_charger, count: 2, spawnInterval: 1.8 }
+      - { enemyType: e_ice_witch, count: 1, spawnInterval: 2.0 }
+      - { enemyType: e_yeti_runt, count: 4, spawnInterval: 1.0 }
   - waveNumber: 8
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-    spawnDelay: 2
-    spawnPointIndex: 0
+      - { enemyType: e_yeti_charger, count: 3, spawnInterval: 1.8 }
+      - { enemyType: e_frost_lancer, count: 3, spawnInterval: 1.5 }
   - waveNumber: 9
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1
-      - enemyType: exploder
-        count: 4
-        spawnInterval: 1.2
-    spawnDelay: 2
-    spawnPointIndex: 1
+      - { enemyType: e_ice_witch, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_frost_lancer, count: 4, spawnInterval: 1.5 }
+      - { enemyType: e_yeti_runt, count: 3, spawnInterval: 1.0 }
   - waveNumber: 10
-    enemies:
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-    spawnDelay: 3
-    spawnPointIndex: 0
-  - waveNumber: 11
-    enemies:
-      - enemyType: runner
-        count: 6
-        spawnInterval: 0.5
-      - enemyType: heavy
-        count: 3
-        spawnInterval: 2
-    spawnDelay: 2
-    spawnPointIndex: 1
-  - waveNumber: 12
-    enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-      - enemyType: exploder
-        count: 5
-        spawnInterval: 1
-    spawnDelay: 3
-    spawnPointIndex: 0
-  - waveNumber: 13
-    enemies:
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.6
-    spawnDelay: 3
+    spawnDelay: 30
     isBossWave: true
-    spawnPointIndex: 0
-  - waveNumber: 14
     enemies:
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
-      - enemyType: exploder
-        count: 3
-        spawnInterval: 1.2
-    spawnDelay: 2
-    spawnPointIndex: 1
-  - waveNumber: 15
-    enemies:
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
-      - enemyType: boss_beast
-        count: 1
-        spawnInterval: 2
-      - enemyType: heavy
-        count: 2
-        spawnInterval: 1.8
-    spawnDelay: 4
-    isBossWave: true
-    spawnPointIndex: 0
-startingGold: 300
-availableTowers:
-  - arrow
-  - ice
-  - bat
-availableUnits: []
-unlockStarsRequired: 0
-unlockPrevLevelId: L2_desert
-weatherPool:
-  - snow
-  - fog
-  - night
+      - { enemyType: e_glacier_titan, count: 2, spawnInterval: 3.0 }
+      - { enemyType: e_yeti_charger, count: 2, spawnInterval: 1.8 }
+      - { enemyType: e_yeti_runt, count: 6, spawnInterval: 1.0 }
+starting:
+  gold: 0
+  energy: 0
+  maxPopulation: 6
+available:
+  towers:
+    - arrow
+    - cannon
+    - frost
+    - lightning
+  units:
+    - swordsman
+    - archer
+    - knight
+weather:
+  pool:
+    - blizzard
+  initial: blizzard
 banPool: []
 neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §4
+# 数值乘数：50-mda §21.2  enemyHpMult=1.25  enemyDmgMult=1.05  enemySpeedMult=0.9
+# Flavor: SIEGE  目标时长 8-10 min  总敌数 64
+# 通关 HP 损失预算：0-10
+# ============================================================

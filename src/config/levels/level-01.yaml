@@ -1,12 +1,101 @@
 id: level_01
-name: 平原
-description: 青翠的草原上点缀着野花和灌木丛。一条土路从村庄延伸而来，蜿蜒穿过田野。这里是哥布林侦察兵经常出没的地方，村民们已经加固了道路尽头的基地。微风吹过，草浪起伏，看似平静的表面下暗藏杀机。
-sceneDescription: 广袤的草原上，一条宽阔的土路从山脚蜿蜒而出，横穿整个平原后折返，经过麦田和农舍，最终通向那座被村民加固过的石墙基地。哥布林侦察兵常年沿此路南下劫掠，如今村民们已在沿途布下防御。
+name: 边境绿野
+description: 翠绿的草原上一条直道从西延伸到东。哥布林从远方涌来，村民们以最简单的箭塔和弩弓抵御第一波入侵。本关是 Run 的起始，教学单 spawn 直线推进与建塔基本操作。
+sceneDescription: 春末黄昏的边境草原，最后一缕阳光斜照过 21 格宽的平原。从西侧寨门 (0,4) 一路向东延伸到东侧水晶 (20,4) 的土路是哥布林南下的唯一通道。两侧麦田随风起伏，几棵孤树点缀其间。
 map:
   cols: 21
   rows: 9
   tileSize: 64
   tiles:
+    # row 0
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 1
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 2
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 3
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 4 (主路 spawn -> base)
     - - spawn
       - path
       - path
@@ -27,175 +116,95 @@ map:
       - path
       - path
       - path
-      - path
-    - - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - path
-    - - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - path
-    - - empty
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-    - - empty
-      - path
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - empty
-      - path
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - empty
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-    - - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - path
-    - - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
       - base
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 6
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
   tileColors:
     empty: '#3a7d44'
     path: '#a1887f'
@@ -203,219 +212,71 @@ map:
     spawn: '#ff8f00'
     base: '#1e88e5'
   obstacles:
-    - type: tree
-      row: 1
-      col: 8
-    - type: tree
-      row: 2
-      col: 15
-    - type: tree
-      row: 4
-      col: 18
-    - type: tree
-      row: 7
-      col: 5
-    - type: tree
-      row: 8
-      col: 17
-    - type: bush
-      row: 1
-      col: 3
-    - type: bush
-      row: 2
-      col: 10
-    - type: bush
-      row: 4
-      col: 10
-    - type: bush
-      row: 5
-      col: 12
-    - type: bush
-      row: 7
-      col: 16
-    - type: bush
-      row: 8
-      col: 5
-    - type: flower
-      row: 3
-      col: 0
-    - type: flower
-      row: 4
-      col: 15
-    - type: flower
-      row: 5
-      col: 18
-    - type: flower
-      row: 7
-      col: 10
-    - type: flower
-      row: 8
-      col: 12
+    - { type: tree, row: 1, col: 6 }
+    - { type: tree, row: 2, col: 13 }
+    - { type: tree, row: 6, col: 8 }
+    - { type: tree, row: 7, col: 17 }
+    - { type: bush, row: 1, col: 11 }
+    - { type: bush, row: 6, col: 14 }
+    - { type: bush, row: 7, col: 4 }
+    - { type: flower, row: 2, col: 6 }
+    - { type: flower, row: 7, col: 11 }
+    - { type: flower, row: 6, col: 18 }
   spawns:
     - id: spawn_0
-      row: 0
+      row: 4
       col: 0
   pathGraph:
     nodes:
-      - id: n0
-        row: 0
-        col: 0
-        role: spawn
-        spawnId: spawn_0
-      - id: n1
-        row: 0
-        col: 20
-        role: waypoint
-      - id: n2
-        row: 1
-        col: 20
-        role: waypoint
-      - id: n3
-        row: 2
-        col: 20
-        role: waypoint
-      - id: n4
-        row: 3
-        col: 20
-        role: waypoint
-      - id: n5
-        row: 3
-        col: 1
-        role: waypoint
-      - id: n6
-        row: 4
-        col: 1
-        role: waypoint
-      - id: n7
-        row: 5
-        col: 1
-        role: waypoint
-      - id: n8
-        row: 6
-        col: 1
-        role: waypoint
-      - id: n9
-        row: 6
-        col: 20
-        role: waypoint
-      - id: n10
-        row: 7
-        col: 20
-        role: waypoint
-      - id: n11
-        row: 8
-        col: 20
-        role: crystal_anchor
+      - { id: n0, row: 4, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 4, col: 20, role: crystal_anchor }
     edges:
-      - from: n0
-        to: n1
-      - from: n1
-        to: n2
-      - from: n2
-        to: n3
-      - from: n3
-        to: n4
-      - from: n4
-        to: n5
-      - from: n5
-        to: n6
-      - from: n6
-        to: n7
-      - from: n7
-        to: n8
-      - from: n8
-        to: n9
-      - from: n9
-        to: n10
-      - from: n10
-        to: n11
+      - { from: n0, to: n1 }
 waves:
+  # 设计稿 §2.4：8 波 BASELINE flavor，总敌数 56
   - waveNumber: 1
     spawnDelay: 2
     enemies:
-      - enemyType: grunt
-        count: 5
-        spawnInterval: 1.5
+      - { enemyType: grunt, count: 4, spawnInterval: 1.5 }
   - waveNumber: 2
-    spawnDelay: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 8
-        spawnInterval: 1.2
+      - { enemyType: grunt, count: 5, spawnInterval: 1.0 }
+      - { enemyType: runner, count: 2, spawnInterval: 0.6 }
   - waveNumber: 3
-    spawnDelay: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1
-      - enemyType: runner
-        count: 3
-        spawnInterval: 0.6
+      - { enemyType: grunt, count: 6, spawnInterval: 1.0 }
+      - { enemyType: runner, count: 2, spawnInterval: 0.6 }
   - waveNumber: 4
-    spawnDelay: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 10
-        spawnInterval: 1
+      - { enemyType: heavy, count: 1, spawnInterval: 0 }
+      - { enemyType: grunt, count: 4, spawnInterval: 1.0 }
   - waveNumber: 5
-    spawnDelay: 3
-    isBossWave: true
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 4
-        spawnInterval: 1.2
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
+      - { enemyType: mage, count: 1, spawnInterval: 0 }
+      - { enemyType: runner, count: 3, spawnInterval: 0.5 }
+      - { enemyType: grunt, count: 3, spawnInterval: 1.0 }
   - waveNumber: 6
-    spawnDelay: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: runner
-        count: 6
-        spawnInterval: 0.6
-      - enemyType: grunt
-        count: 4
-        spawnInterval: 1
+      - { enemyType: exploder, count: 2, spawnInterval: 1.5 }
+      - { enemyType: grunt, count: 5, spawnInterval: 1.0 }
   - waveNumber: 7
-    spawnDelay: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
+      - { enemyType: heavy, count: 2, spawnInterval: 2.0 }
+      - { enemyType: mage, count: 2, spawnInterval: 1.5 }
+      - { enemyType: runner, count: 3, spawnInterval: 0.5 }
   - waveNumber: 8
-    spawnDelay: 3
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 2
-        spawnInterval: 2
-      - enemyType: runner
-        count: 5
-        spawnInterval: 0.5
-      - enemyType: exploder
-        count: 2
-        spawnInterval: 1.5
-  - waveNumber: 9
-    spawnDelay: 2
-    enemies:
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-      - enemyType: heavy
-        count: 3
-        spawnInterval: 2
-  - waveNumber: 10
-    spawnDelay: 4
-    isBossWave: true
-    enemies:
-      - enemyType: boss_beast
-        count: 1
-        spawnInterval: 0
-      - enemyType: grunt
-        count: 4
-        spawnInterval: 0.8
-      - enemyType: exploder
-        count: 2
-        spawnInterval: 1.2
+      - { enemyType: heavy, count: 2, spawnInterval: 2.0 }
+      - { enemyType: mage, count: 2, spawnInterval: 1.5 }
+      - { enemyType: exploder, count: 2, spawnInterval: 1.5 }
+      - { enemyType: grunt, count: 3, spawnInterval: 1.0 }
 starting:
   gold: 200
   energy: 50
@@ -433,3 +294,10 @@ weather:
   initial: random_from_pool
 banPool: []
 neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §2
+# 数值乘数：50-mda §21.2  enemyHpMult=0.8  enemyDmgMult=0.8
+# Flavor: BASELINE  目标时长 5-7 min  总敌数 56
+# 通关 HP 损失预算：0-3
+# ============================================================

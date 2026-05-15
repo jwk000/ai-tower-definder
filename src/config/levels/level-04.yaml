@@ -1,16 +1,14 @@
-id: L4_volcano
-name: 火山
-theme: volcano
-description: 熔岩地形限制了建造空间，敌人拥有火焰抗性
-sceneDescription: 活火山的斜坡上，岩浆河从裂缝中涌出，将黑曜石般的大地切割成支离破碎的岛屿。烧焦的树干像炭化的骨骼指向天空，火山砾石铺满了所有可以立足的地方。火山灰如黑雪般飘落，空气中弥漫着硫磺的气味。敌人在这种极端环境中如鱼得水。
+id: level_04
+name: 失落神庙
+description: 丛林深处的沉没神庙，两条钳形通道将守军拦截点一分为二。上古石柱机关横亘要道，石化巨像在最终波次从幽暗中醒来，以毁灭性的质量石化横扫一切抵抗。
+sceneDescription: 赤道密林笼罩的远古神庙遗址，21 格宽的丛林沼地被两条蜿蜒钳形古道贯穿。上路从西北 spawn S0 (row=2,col=0) 沿 row 2 水平东进，在 col=10 折向南方与下路汇合；下路从西南 spawn S1 (row=6,col=0) 沿 row 6 水平东进，同样在 col=10 折向北方与上路会合，随后由 row 4 直抵东侧水晶 B (row=4,col=20)。八根神庙石柱林立于汇合段两侧，残破的古像点缀路旁，藤蔓蔓延每一道裂隙。
 map:
-  name: 火山
   cols: 21
   rows: 9
   tileSize: 64
   tiles:
+    # row 0
     - - empty
-      - spawn
       - empty
       - empty
       - empty
@@ -30,20 +28,41 @@ map:
       - empty
       - empty
       - empty
+      - empty
+    # row 1
     - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 2 (上路 spawn S0 → col=10 汇合点)
+    - - spawn
       - path
-      - blocked
-      - empty
-      - empty
-      - blocked
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
       - empty
       - empty
       - empty
@@ -51,12 +70,11 @@ map:
       - empty
       - empty
       - empty
+      - empty
+      - empty
+      - empty
+    # row 3
     - - empty
-      - path
-      - blocked
-      - path
-      - empty
-      - blocked
       - empty
       - empty
       - empty
@@ -65,40 +83,6 @@ map:
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - blocked
-      - empty
-      - path
-      - blocked
-      - blocked
-      - empty
-      - path
-      - path
-      - path
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - blocked
-      - empty
-      - path
-      - blocked
-      - blocked
-      - path
       - empty
       - path
       - empty
@@ -111,18 +95,8 @@ map:
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
+    # row 4 (汇合后主路 col=10 → base col=20)
     - - empty
-      - path
-      - path
-      - path
-      - path
-      - blocked
-      - path
-      - blocked
-      - path
       - empty
       - empty
       - empty
@@ -132,61 +106,6 @@ map:
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
-    - - empty
-      - path
-      - blocked
-      - empty
-      - path
-      - path
-      - path
-      - blocked
-      - path
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - empty
-      - path
-      - path
-      - blocked
-      - path
-      - path
-      - blocked
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    - - blocked
-      - empty
-      - blocked
-      - empty
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
       - path
       - path
       - path
@@ -198,294 +117,225 @@ map:
       - path
       - path
       - base
+    # row 5
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 6 (下路 spawn S1 → col=10 汇合点)
+    - - spawn
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 7
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+    # row 8
+    - - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
   tileColors:
-    empty: '#4e342e'
-    path: '#8d6e63'
-    blocked: '#d32f2f'
-    spawn: '#ff5722'
+    empty: '#4a3728'
+    path: '#7a6550'
+    blocked: '#2d2416'
+    spawn: '#ff8f00'
     base: '#1e88e5'
-  sceneDescription: 活火山的斜坡上，岩浆河从裂缝中涌出，将黑曜石般的大地切割成支离破碎的岛屿。烧焦的树干像炭化的骨骼指向天空，火山砾石铺满了所有可以立足的地方。火山灰如黑雪般飘落，空气中弥漫着硫磺的气味。敌人在这种极端环境中如鱼得水。
-  obstaclePlacements:
-    - type: lava_vent
-      row: 0
-      col: 13
-    - type: lava_vent
-      row: 0
-      col: 18
-    - type: lava_vent
-      row: 2
-      col: 14
-    - type: lava_vent
-      row: 6
-      col: 15
-    - type: scorched_tree
-      row: 1
-      col: 8
-    - type: scorched_tree
-      row: 3
-      col: 16
-    - type: scorched_tree
-      row: 4
-      col: 10
-    - type: scorched_tree
-      row: 7
-      col: 0
-    - type: volcanic_rock
-      row: 1
-      col: 16
-    - type: volcanic_rock
-      row: 2
-      col: 9
-    - type: volcanic_rock
-      row: 4
-      col: 18
-    - type: volcanic_rock
-      row: 5
-      col: 14
-    - type: volcanic_rock
-      row: 6
-      col: 19
-    - type: volcanic_rock
-      row: 7
-      col: 16
+  obstacles:
+    - { type: temple_pillar, row: 1, col: 9 }
+    - { type: temple_pillar, row: 1, col: 10 }
+    - { type: temple_pillar, row: 2, col: 11 }
+    - { type: temple_pillar, row: 3, col: 11 }
+    - { type: temple_pillar, row: 5, col: 11 }
+    - { type: temple_pillar, row: 6, col: 11 }
+    - { type: temple_pillar, row: 7, col: 9 }
+    - { type: temple_pillar, row: 7, col: 10 }
+    - { type: ancient_statue, row: 0, col: 5 }
+    - { type: ancient_statue, row: 0, col: 15 }
+    - { type: ancient_statue, row: 8, col: 5 }
+    - { type: ancient_statue, row: 8, col: 15 }
+    - { type: vine_overgrowth, row: 3, col: 3 }
+    - { type: vine_overgrowth, row: 5, col: 3 }
+    - { type: vine_overgrowth, row: 4, col: 17 }
   spawns:
     - id: spawn_0
-      row: 0
-      col: 1
+      row: 2
+      col: 0
+    - id: spawn_1
+      row: 6
+      col: 0
   pathGraph:
     nodes:
-      - id: n0
-        row: 0
-        col: 1
-        role: spawn
-        spawnId: spawn_0
-      - id: n1
-        row: 2
-        col: 1
-        role: waypoint
-      - id: n2
-        row: 2
-        col: 3
-        role: waypoint
-      - id: n3
-        row: 5
-        col: 3
-        role: waypoint
-      - id: n4
-        row: 5
-        col: 1
-        role: waypoint
-      - id: n5
-        row: 7
-        col: 1
-        role: waypoint
-      - id: n6
-        row: 7
-        col: 4
-        role: waypoint
-      - id: n7
-        row: 5
-        col: 4
-        role: waypoint
-      - id: n8
-        row: 5
-        col: 6
-        role: waypoint
-      - id: n9
-        row: 3
-        col: 6
-        role: waypoint
-      - id: n10
-        row: 3
-        col: 8
-        role: waypoint
-      - id: n11
-        row: 6
-        col: 8
-        role: waypoint
-      - id: n12
-        row: 6
-        col: 5
-        role: waypoint
-      - id: n13
-        row: 8
-        col: 5
-        role: waypoint
-      - id: n14
-        row: 8
-        col: 20
-        role: crystal_anchor
+      - { id: n0, row: 2, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 2, col: 10, role: waypoint }
+      - { id: n2, row: 4, col: 10, role: waypoint }
+      - { id: n3, row: 4, col: 20, role: crystal_anchor }
+      - { id: n4, row: 6, col: 0, role: spawn, spawnId: spawn_1 }
+      - { id: n5, row: 6, col: 10, role: waypoint }
     edges:
-      - from: n0
-        to: n1
-      - from: n1
-        to: n2
-      - from: n2
-        to: n3
-      - from: n3
-        to: n4
-      - from: n4
-        to: n5
-      - from: n5
-        to: n6
-      - from: n6
-        to: n7
-      - from: n7
-        to: n8
-      - from: n8
-        to: n9
-      - from: n9
-        to: n10
-      - from: n10
-        to: n11
-      - from: n11
-        to: n12
-      - from: n12
-        to: n13
-      - from: n13
-        to: n14
+      - { from: n0, to: n1 }
+      - { from: n1, to: n2 }
+      - { from: n2, to: n3 }
+      - { from: n4, to: n5 }
+      - { from: n5, to: n2 }
 waves:
+  # 设计稿 §5.4：10 波 ELITE-SPIKE flavor，总敌数 78
   - waveNumber: 1
-    enemies:
-      - enemyType: grunt
-        count: 8
-        spawnInterval: 1.2
     spawnDelay: 2
+    enemies:
+      - { enemyType: e_temple_guard, count: 3, spawnInterval: 1.2 }
+      - { enemyType: e_jungle_zealot, count: 2, spawnInterval: 1.0 }
   - waveNumber: 2
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 10
-        spawnInterval: 1
-    spawnDelay: 2
+      - { enemyType: e_jungle_zealot, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_temple_guard, count: 2, spawnInterval: 1.2 }
   - waveNumber: 3
+    spawnDelay: 30
     enemies:
-      - enemyType: grunt
-        count: 6
-        spawnInterval: 1
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.6
-    spawnDelay: 2
+      - { enemyType: e_temple_priest, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_jungle_zealot, count: 3, spawnInterval: 1.0 }
+      - { enemyType: e_temple_guard, count: 2, spawnInterval: 1.2 }
   - waveNumber: 4
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-    spawnDelay: 2
+      - { enemyType: e_petrify_oracle, count: 1, spawnInterval: 1.8 }
+      - { enemyType: e_temple_guard, count: 4, spawnInterval: 1.2 }
+      - { enemyType: e_jungle_zealot, count: 2, spawnInterval: 1.0 }
   - waveNumber: 5
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 3
-        spawnInterval: 2
-      - enemyType: grunt
-        count: 4
-        spawnInterval: 1
-    spawnDelay: 3
+      - { enemyType: e_revival_idol, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_jungle_zealot, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_temple_guard, count: 2, spawnInterval: 1.2 }
   - waveNumber: 6
+    spawnDelay: 30
     enemies:
-      - enemyType: runner
-        count: 8
-        spawnInterval: 0.5
-      - enemyType: mage
-        count: 3
-        spawnInterval: 1.5
-    spawnDelay: 2
+      - { enemyType: e_temple_priest, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_temple_guard, count: 3, spawnInterval: 1.2 }
+      - { enemyType: e_jungle_zealot, count: 3, spawnInterval: 1.0 }
   - waveNumber: 7
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 6
-        spawnInterval: 1.6
-    spawnDelay: 2
+      - { enemyType: e_petrify_oracle, count: 1, spawnInterval: 1.8 }
+      - { enemyType: e_temple_priest, count: 1, spawnInterval: 1.5 }
+      - { enemyType: e_jungle_zealot, count: 4, spawnInterval: 1.0 }
+      - { enemyType: e_temple_guard, count: 3, spawnInterval: 1.2 }
   - waveNumber: 8
+    spawnDelay: 30
     enemies:
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-      - enemyType: exploder
-        count: 4
-        spawnInterval: 1.2
-    spawnDelay: 2
+      - { enemyType: e_revival_idol, count: 2, spawnInterval: 2.0 }
+      - { enemyType: e_temple_priest, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_temple_guard, count: 4, spawnInterval: 1.2 }
   - waveNumber: 9
+    spawnDelay: 30
     enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.6
-    spawnDelay: 2
+      - { enemyType: e_petrify_oracle, count: 2, spawnInterval: 1.8 }
+      - { enemyType: e_jungle_zealot, count: 5, spawnInterval: 1.0 }
+      - { enemyType: e_temple_guard, count: 3, spawnInterval: 1.2 }
   - waveNumber: 10
-    enemies:
-      - enemyType: boss_commander
-        count: 1
-        spawnInterval: 0
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
-    spawnDelay: 3
+    spawnDelay: 30
     isBossWave: true
-  - waveNumber: 11
     enemies:
-      - enemyType: mage
-        count: 5
-        spawnInterval: 1.5
-      - enemyType: exploder
-        count: 5
-        spawnInterval: 1
-    spawnDelay: 2
-  - waveNumber: 12
-    enemies:
-      - enemyType: heavy
-        count: 4
-        spawnInterval: 1.8
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-    spawnDelay: 3
-  - waveNumber: 13
-    enemies:
-      - enemyType: heavy
-        count: 6
-        spawnInterval: 1.6
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.5
-    spawnDelay: 2
-  - waveNumber: 14
-    enemies:
-      - enemyType: heavy
-        count: 5
-        spawnInterval: 1.8
-      - enemyType: mage
-        count: 4
-        spawnInterval: 1.5
-      - enemyType: exploder
-        count: 3
-        spawnInterval: 1.2
-    spawnDelay: 3
-  - waveNumber: 15
-    enemies:
-      - enemyType: boss_beast
-        count: 1
-        spawnInterval: 0
-      - enemyType: heavy
-        count: 3
-        spawnInterval: 1.8
-      - enemyType: runner
-        count: 4
-        spawnInterval: 0.5
-    spawnDelay: 4
-    isBossWave: true
-startingGold: 350
-availableTowers:
-  - arrow
-  - cannon
-  - lightning
-  - laser
-availableUnits: []
-unlockStarsRequired: 0
-unlockPrevLevelId: L3_tundra
-weatherPool:
-  - sunny
-  - rain
-  - fog
+      - { enemyType: e_stone_colossus, count: 1, spawnInterval: 0 }
+      - { enemyType: e_petrify_oracle, count: 2, spawnInterval: 1.8 }
+      - { enemyType: e_temple_priest, count: 2, spawnInterval: 1.5 }
+      - { enemyType: e_jungle_zealot, count: 6, spawnInterval: 1.0 }
+starting:
+  gold: 0
+  energy: 0
+  maxPopulation: 6
+available:
+  towers:
+    - arrow
+    - cannon
+    - frost
+    - lightning
+    - flame
+  units:
+    - swordsman
+    - archer
+    - knight
+    - mage
+weather:
+  pool:
+    - fog
+  initial: fog
+banPool: []
+neutralPool: []
+
+# ============================================================
+# 设计稿引用：design/10-gameplay/16-level-blueprints.md §5 / 数值乘数：50-mda §21.2  enemyHpMult=1.15  enemyDmgMult=1.15
+# Flavor: ELITE-SPIKE  目标时长 7-9 min  总敌数 78
+# 通关 HP 损失预算：5-15
+# ============================================================
