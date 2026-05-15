@@ -35,6 +35,21 @@
 | S8 | 商店仅 2 槽（1 单位卡 + 1 SP 兑换） | 48-shop-redesign-v34 §1：8 槽 | `src/ui/ShopPanel.ts` | P3 |
 | S9 | 秘境仅 2 事件（零成本退出 + 30G→5SP） | 27-traps-spells-scene §5：14 事件池 | `src/config/mystic-events.yaml` | P3 |
 | S10 | 技能树仅箭塔 1 路径 2 节点 | 22a-22e：~200 节点全单位树 | `src/config/units/tower_arrow.yaml` | P4 |
+| S11 | grunt onDeath `drop_gold` handler 无 params 时兜底 10G | enemies.yaml 数值表预期通过 params 显式传 | `src/__tests__/content.integration.test.ts` drop_gold handler | P3 |
+| S12 | loader 用 `.passthrough()` 静默丢弃 v3.4 未实现的 v3.3 YAML 字段（passives / cost.upgrade[] / behavior / weather / banPool / tileColors / obstacles / layer / tier / damageType / armor / mr / reward 等） | 各 v3.3 YAML 含完整字段集 | `src/config/loader.ts` 全 schema | P2-P6（按字段所属系统逐项替换） |
+| S13 | loader 显式硬拒 `shop_item` CardType | 48-shop-redesign-v34 §6 拓展 CardType | `src/config/loader.ts` parseCardConfig | P3 |
+| S14 | 8 个视觉/音效 lifecycle handler 注册为 noop stub（`leave_ruins` / `play_effect` / `play_sound` / `flash_color` / `spawn_projectile` / `spawn_lightning_bolt` / `spawn_laser_beam` / `spawn_bat_swarm`） | 42-art-assets / 44-visual-effects / 46-audio | `src/test-helpers/vfxStubs.ts`（测试期）→ Wave 5 渲染系统真实实现 | P6（Wave 5 渲染层接入时） |
+| S15 | L1 卡池仅 `arrow_tower_card` + `cannon_tower_card` 两张（cards/towers.yaml 中其余 4 张 ice/lightning/laser/bat 不进入 MVP DeckSystem 抽样池）。**记录于 Wave 5 W5.0，但实现推迟到 Wave 6+ 内容扩展** | 21-unit-roster: MVP 应有 6 塔卡 | `src/unit-system/DeckSystem.ts` 池构造调用方 | P6+ |
+| S16 | 秘境事件 YAML 在 Wave 5 W5.A 落地，仅含 2 事件（零成本退出 + 30G→5SP），不实现 14 事件池 | 27-traps-spells-scene §5：14 事件 + 5/14 高风险 | `src/config/mystic-events.yaml` | P3 |
+| S17 | loader 静默丢弃 `rarity: common/rare/epic` 字段（被 `.passthrough()` 兜走），DeckSystem 沿用均匀抽样，不按稀有度权重 | 21-unit-roster / 10-roguelike-loop §2.4 | `src/unit-system/DeckSystem.ts` / `src/config/loader.ts` | P4 |
+
+**新增简化点 guardrail（S18+ 适用）**：
+
+任何新增简化点 S18+ 必须满足：
+
+1. **同 commit 落地**：记录追溯表的 commit **必须**包含引入该简化的代码变更，不可分提交。
+2. **三字段齐备**：替换阶段（P1-P7）+ 影响模块（文件路径）+ 偏离的设计文档引用（章节号）三项不可省略。
+3. **不可作为推迟实现的逃逸口**：简化点必须对应真实的代码 / 配置 / 测试取舍，不可用于「我懒得做这个就记一笔 S 项」。
 
 ---
 
