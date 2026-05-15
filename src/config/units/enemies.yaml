@@ -1648,3 +1648,736 @@ e_tide_warlord:
         effect: boss_death
       - type: play_sound
         sound: SFX_BOSS_DIE
+
+# ============================================================
+# 关 8 — 异界终战 敌人
+# ============================================================
+
+---
+
+# 虚空闪烁者 — 每6s瞬移接近水晶，死亡后开启虚空传送门
+e_void_blinker:
+  id: e_void_blinker
+  name: 虚空闪烁者
+  category: enemy
+  faction: void
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 280
+    atk: 32
+    attackSpeed: 0.7
+    range: 32
+    speed: 60
+    armor: 30
+    mr: 40
+    damageType: physical
+
+  reward:
+    gold: 35
+
+  visual:
+    shape: circle
+    color: "#7b1fa2"
+    size: 30
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: void_blink
+      name: 虚空闪现
+      cooldown: 6
+      range: 128
+      value: 128
+      description: "每6s向水晶方向瞬移128px"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: spawn_portal
+        duration: 8
+        spawnUnit: e_void_thrall
+        spawnInterval: 2
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 虚空奴仆 — 仅由虚空传送门召唤，无技能的基础虚空炮灰
+e_void_thrall:
+  id: e_void_thrall
+  name: 虚空奴仆
+  category: enemy
+  faction: void
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 80
+    atk: 10
+    attackSpeed: 1.0
+    range: 0
+    speed: 75
+    armor: 5
+    mr: 15
+    damageType: physical
+
+  reward:
+    gold: 10
+
+  visual:
+    shape: circle
+    color: "#4a148c"
+    size: 20
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      summonedOnly: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 摧塔之眼 — 静止远程炮台，对塔标记毁灭倒计时，击杀则解除所有标记
+e_eye_of_collapse:
+  id: e_eye_of_collapse
+  name: 摧塔之眼
+  category: enemy
+  faction: void
+  layer: ground
+  tier: L3
+
+  stats:
+    hp: 220
+    atk: 25
+    attackSpeed: 0.5
+    range: 280
+    speed: 0
+    armor: 20
+    mr: 50
+    damageType: magic
+
+  reward:
+    gold: 36
+
+  visual:
+    shape: hexagon
+    color: "#b71c1c"
+    size: 36
+    outline: true
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: hold_position
+    special:
+      canAttackBuildings: true
+
+  skills:
+    - id: mark_for_destruction
+      name: 毁灭标记
+      cooldown: 10
+      range: 280
+      value: 10
+      description: "对目标塔施加毁灭标记，10s倒计时结束后永久摧毁该塔；击杀本单位立即取消所有标记"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: cancel_marks
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 诅咒复仇者 — 攻击时对相邻敌方施加易爆诅咒，被诅咒者死亡触发AOE清场
+e_cursed_avenger:
+  id: e_cursed_avenger
+  name: 诅咒复仇者
+  category: enemy
+  faction: void
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 240
+    atk: 22
+    attackSpeed: 0.7
+    range: 32
+    speed: 60
+    armor: 30
+    mr: 35
+    damageType: physical
+
+  reward:
+    gold: 32
+
+  visual:
+    shape: circle
+    color: "#880e4f"
+    size: 32
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: curse_volatile
+      name: 易爆诅咒
+      cooldown: 0
+      range: 0
+      value: 5
+      description: "攻击时对相邻敌方单位附加易爆诅咒（5s），被诅咒者死亡时在半径80px内触发AOE清场（含玩家友军）"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 旧日支配者 — 关8终战三形态Boss：形态1超高物甲/形态2超高魔抗/形态3免控狂暴
+e_old_one_warden:
+  id: e_old_one_warden
+  name: 旧日支配者
+  category: enemy
+  faction: void
+  layer: ground
+  tier: L4
+  isBoss: true
+
+  stats:
+    hp: 3500
+    atk: 70
+    attackSpeed: 0.5
+    range: 96
+    speed: 40
+    armor: 400
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 500
+    energy: 100
+
+  visual:
+    shape: circle
+    color: "#1a0033"
+    size: 96
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+      immune_to_crystal_kill: true
+
+  ai_tree: old_one_warden_ai
+
+  skills:
+    - id: void_eruption
+      name: 虚空喷发
+      cooldown: 15
+      range: 200
+      value: 80
+      description: "200px范围AOE 80魔法伤害+随机击退所有命中单位"
+    - id: mass_summon
+      name: 虚空群召
+      cooldown: 20
+      range: 150
+      value: 4
+      description: "召唤4只虚空奴仆；形态2/3额外召唤2只诅咒复仇者"
+    - id: reality_warp
+      name: 现实扭曲
+      cooldown: 18
+      range: 300
+      value: 8
+      description: "对场上3个随机玩家塔施加虚空扭曲debuff（8s，ATK-50%），形态3升至5个目标"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+      - type: play_effect
+        effect: boss_void_enter
+    onCondition:
+      - condition: "hp_ratio < 0.66"
+        fireOnce: true
+        phase: 2
+        effects:
+          - type: enter_phase2
+          - type: play_effect
+            effect: boss_phase_shift
+          - type: pause_world
+            duration: 1.5
+          - type: change_color
+            color: "#0d47a1"
+            blend: 0.5
+          - type: stat_change
+            armorOverride: 0
+            mrOverride: 400
+            hpSet: 4500
+            atkOverride: 55
+            attackSpeedOverride: 0.4
+            speedOverride: 35
+            rangeOverride: 240
+            damageTypeOverride: magic
+          - type: play_sound
+            sound: SFX_BOSS_PHASE2
+      - condition: "hp_ratio < 0.33"
+        fireOnce: true
+        phase: 3
+        effects:
+          - type: enter_phase3
+          - type: play_effect
+            effect: boss_phase_shift
+          - type: pause_world
+            duration: 1.5
+          - type: change_color
+            color: "#b71c1c"
+            blend: 0.6
+          - type: stat_change
+            armorOverride: 0
+            mrOverride: 0
+            hpSet: 3000
+            atkOverride: 80
+            attackSpeedOverride: 0.9
+            speedOverride: 80
+            rangeOverride: 32
+            damageTypeOverride: physical
+          - type: apply_buff
+            buffId: immune_to_slow
+          - type: apply_buff
+            buffId: immune_to_stun
+          - type: apply_buff
+            buffId: immune_to_freeze
+          - type: play_sound
+            sound: SFX_BOSS_PHASE3
+    onKill:
+      - type: boss_death
+      - type: play_effect
+        effect: boss_death_void
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+      - type: final_victory
+
+---
+
+# 孢子幼体 — 快速小型孢子单位，死亡释放孢子云强化周围友军
+e_sporeling:
+  id: e_sporeling
+  name: 孢子幼体
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 60
+    atk: 6
+    attackSpeed: 1.0
+    range: 0
+    speed: 80
+    armor: 0
+    mr: 10
+    damageType: physical
+
+  reward:
+    gold: 8
+
+  visual:
+    shape: circle
+    color: "#a5d6a7"
+    size: 20
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: release_spore_cloud
+        radius: 80
+        duration: 4
+        buffHpPct: 30
+        buffSpdPct: 20
+        buffAtkPct: 20
+      - type: play_effect
+        effect: death_spore
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌丝感染体 — 中型近战，死亡分裂为 2 只孢子幼体
+e_myco_charger:
+  id: e_myco_charger
+  name: 菌丝感染体
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 180
+    atk: 14
+    attackSpeed: 0.9
+    range: 32
+    speed: 65
+    armor: 20
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: circle
+    color: "#66bb6a"
+    size: 34
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: split_into
+        unitId: e_sporeling
+        count: 2
+      - type: play_effect
+        effect: death_split
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 扭曲女巫 — 远程支援单位，可对我方士兵施加变形控制
+e_warped_witch:
+  id: e_warped_witch
+  name: 扭曲女巫
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 160
+    atk: 18
+    attackSpeed: 0.5
+    range: 220
+    speed: 55
+    armor: 10
+    mr: 55
+    damageType: magic
+
+  reward:
+    gold: 28
+
+  visual:
+    shape: circle
+    color: "#ce93d8"
+    size: 28
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: polymorph_sheep
+      name: 变形诅咒
+      cooldown: 10
+      range: 220
+      duration: 6
+      description: "对我方士兵施加变形 6s，不能攻击不能移动"
+
+  lifecycle:
+    onAttack:
+      - type: apply_buff
+        target: soldier
+        buffId: polymorph_sheep
+        duration: 6
+        effects:
+          - cannot_attack
+          - cannot_move
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌母蘑菇 — 驻守型召唤单位，原地持续召唤孢子幼体
+e_brood_mother:
+  id: e_brood_mother
+  name: 菌母蘑菇
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 380
+    atk: 0
+    attackSpeed: 0
+    range: 0
+    speed: 0
+    armor: 50
+    mr: 40
+    damageType: physical
+
+  reward:
+    gold: 50
+
+  visual:
+    shape: circle
+    color: "#8d6e63"
+    size: 44
+
+  behavior:
+    targetSelection: none
+    attackMode: none
+    movementMode: hold_position
+
+  lifecycle:
+    onCondition:
+      condition: "interval_4s"
+      effects:
+        - type: spawn_unit
+          unitId: e_sporeling
+          count: 2
+          maxActive: 8
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_boss_small
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 腐疫吐液者 — 远程毒液单位，攻击留下持续伤害毒池
+e_blight_spitter:
+  id: e_blight_spitter
+  name: 腐疫吐液者
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 140
+    atk: 16
+    attackSpeed: 0.7
+    range: 180
+    speed: 60
+    armor: 15
+    mr: 35
+    damageType: magic
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: circle
+    color: "#9ccc65"
+    size: 30
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onAttack:
+      - type: create_poison_pool
+        radius: 40
+        duration: 3
+        dps: 30
+        effect: poison_pool
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 菌核之母 — 关 7 二形态 Mini-Boss，召唤菌母；HP<50% 切换形态对玩家最强塔施加变形
+e_mycelial_core:
+  id: e_mycelial_core
+  name: 菌核之母
+  category: enemy
+  faction: fungal
+  layer: ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 2000
+    atk: 0
+    attackSpeed: 0
+    range: 0
+    speed: 0
+    armor: 80
+    mr: 50
+    damageType: physical
+
+  reward:
+    gold: 350
+    energy: 70
+
+  visual:
+    shape: circle
+    color: "#558b2f"
+    size: 72
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: none
+    attackMode: none
+    movementMode: hold_position
+
+  ai_tree: mycelial_core_ai
+
+  skills:
+    - id: summon_brood_mother
+      name: 召唤菌母
+      cooldown: 0
+      range: 0
+      value: 2
+      description: "形态 1：召唤 2 只 e_brood_mother"
+    - id: polymorph_mushroom
+      name: 真菌变形
+      cooldown: 20
+      range: 0
+      duration: 10
+      description: "形态 2：对玩家最强塔施加变形 10s，无法攻击"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: spawn_unit
+        unitId: e_brood_mother
+        count: 2
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: stat_change
+          hp: 1500
+          atk: 30
+          attackSpeed: 0.6
+          speed: 50
+          armor: 40
+          mr: 40
+        - type: apply_buff
+          target: strongest_player_tower
+          buffId: polymorph_mushroom
+          duration: 10
+          effects:
+            - cannot_attack
+        - type: play_effect
+          effect: boss_rage
+        - type: change_color
+          color: "#1b5e20"
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
