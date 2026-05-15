@@ -141,9 +141,11 @@
 
 ---
 
-### Wave 2 — 战斗垂直切片（约 2 天 · 10 commits）
+### Wave 2 — 战斗垂直切片 ✅ 已完成（2026-05-16）
 
 **目标**：证明一个完整战斗回路可工作（spawn → 移动 → 攻击 → 死亡）。**先证明运行时正确，再处理内容广度**。
+
+**实际产出**：W2.1-W2.10 全部落地 + 1 个跨系统集成测试文件（3 用例）；100/100 测试绿；三命令门 `typecheck && test && build` 全过。CrystalSystem 实现简化：无 Boss 免疫分支（boss 系统延后到 Wave 5）。`remove_self` handler 未在 Wave 2 引入（陷阱系统延后到 Wave 4 配置广度时）。`UnitFactory.test.ts` 实际路径为 `src/factories/__tests__/UnitFactory.test.ts`（不在 `src/systems/__tests__/`）。
 
 > **W1.6 推迟的 4 个 MVP RuleHandler 在本 Wave 内分散落地**（每个 handler 配对其首次使用的系统）：
 > - `deal_damage` 与 W2.4 AttackSystem 同提交
