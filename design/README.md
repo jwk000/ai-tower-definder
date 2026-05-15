@@ -54,6 +54,7 @@
 | [12-game-modes](./10-gameplay/12-game-modes.md) | stable | Run 模式（仅此一种）、关卡内难度 4 阶段 |
 | [13-map-level](./10-gameplay/13-map-level.md) | stable | 21×9 网格、8 关 + 终战、6 个 PRNG 流隔离 |
 | [14-weather](./10-gameplay/14-weather.md) | stable · v3.1 audit | 5 种天气、数值影响矩阵（仅影响战斗，不影响经济） |
+| [15-level-themes](./10-gameplay/15-level-themes.md) | ⭐ authoritative | **8 关主题/敌人/数值权威**：8 主题、43 敌人档案（7 旧+36 新）、6 Boss（含 mini）、9 字段数值签名、跨关交叉校验 |
 
 ### `20-units/` — 单位与战斗
 
