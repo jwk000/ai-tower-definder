@@ -117,7 +117,7 @@
 | W1.3 | Pipeline 阶段顺序测试：注册 3 个系统到不同阶段 → 验证执行顺序 = 8 阶段拓扑 | 红 | `src/core/__tests__/pipeline.test.ts` | `test: add pipeline phase ordering coverage` |
 | W1.4 | 实现 Pipeline | 绿 | `src/core/pipeline.ts` | `refactor(roguelike): implement 8-phase pipeline orchestration` |
 | W1.5 | RuleEngine 分发测试：registerHandler + dispatch 调用正确 handler；未注册事件静默忽略 | 红 | `src/core/__tests__/RuleEngine.test.ts` | `test: add RuleEngine dispatch and handler registration coverage` |
-| W1.6 | 实现 RuleEngine + 4 个 MVP handler（`deal_damage` / `deal_aoe_damage` / `apply_buff` / `remove_self`） | 绿 | `src/core/RuleEngine.ts`、`src/core/RuleHandlers.ts` | `refactor(roguelike): implement RuleEngine with MVP handler set` |
+| W1.6 | 实现 RuleEngine 分发核心（仅引擎，**handler 推迟到 W2** —— 依赖未定义的组件，强行写会违反 TDD） | 绿 | `src/core/RuleEngine.ts` | `refactor(roguelike): implement RuleEngine dispatch core` |
 | W1.7 | 核心组件定义（Position / Health / Movement / Visual / Faction / UnitTag / Lifecycle / Owner） | 同步写 schema 测试 | `src/core/components.ts`、`src/core/__tests__/components.test.ts` | `refactor(roguelike): define core ECS components for v3.4 MVP` |
 | W1.8 | 主循环装配：PixiJS App + Game.tick(dt) 手动可步进；浏览器渲染 21×9 × 64px 黑底网格 | 集成测试用 manual stepping | `src/main.ts`、`src/render/Renderer.ts`、`src/core/__tests__/Game.test.ts` | `feat: wire PixiJS app with deterministic Game.tick stepping` |
 
@@ -138,6 +138,12 @@
 ### Wave 2 — 战斗垂直切片（约 2 天 · 10 commits）
 
 **目标**：证明一个完整战斗回路可工作（spawn → 移动 → 攻击 → 死亡）。**先证明运行时正确，再处理内容广度**。
+
+> **W1.6 推迟的 4 个 MVP RuleHandler 在本 Wave 内分散落地**（每个 handler 配对其首次使用的系统）：
+> - `deal_damage` 与 W2.4 AttackSystem 同提交
+> - `deal_aoe_damage` 与 W2.4 同提交（火球术 / 爆炸塔需要）
+> - `apply_buff` 在 BuffSystem 任务中（如未来的燃烧 DoT；MVP 仅引入骨架）
+> - `remove_self` 与 W2.10 TrapSystem / Crystal 死亡触发同提交
 
 | # | 任务 | TDD 步骤 | 产出 | 提交 |
 |---|---|---|---|---|
@@ -431,3 +437,4 @@ MVP 完成 = 以下全部通过：
 | 2.0 | 2026-05-15 | **Momus 第 1 轮评审后大改**：按 Wave 0-7（系统稳定性顺序）重新组织；每个任务显式 TDD 红绿步骤；加入 §2 三层测试架构、§4 并行化模型、§5 设计需求 → 测试映射矩阵、§8 提交计划速查；commit 节奏从「按任务粒度」改为「test commit + impl commit 配对」 |
 | 2.1 | 2026-05-15 | **Momus 第 2 轮评审后修订**：（1）Wave 0 分 4 步保绿归档，避免「全量 mv 后红一整段」；改用 `src/legacy/` 而非顶层 `src.legacy/`；（2）Wave 1 DoD 措辞从「100% 覆盖」改为「核心运行时契约行为覆盖」+ 新增 Wave 1 后契约冻结条款；（3）Wave 6 `chore:` 改 `refactor(roguelike):`；（4）每 Wave 加显式命令门；（5）§2.3 Layer 3 明确为状态机驱动 + happy-dom 少量 + 不做像素截图；（6）§0 简化清单升级为 10 项追溯表带「计划替换阶段」列。**注**：Momus 提出的「英文重写」未采纳——本项目 AGENTS.md 第 5 条铁律要求中文沟通，计划文档面向中文团队 |
 | **2.2** | **2026-05-15** | **新分支策略调整**（Momus v2.1 已批准，本次为分支策略相关 Wave 0 简化）：（1）从 `rougelike` 切出新分支 `rougelike-v34`，旧分支冻结作 v3.3 归档；（2）确认现有 `src/config/**` YAML（按 v3.4 设计生成）可复用作 Wave 4 基线；（3）Wave 0 从「4 步保绿归档到 `src/legacy/`」简化为「2 步直接清空 src/ 非 config/ 内容」；commits 从 4 降至 2；总 commits ~50 降至 ~48；（4）§0 代码起点表述更新；（5）后续 Wave 1-7 不变 |
+| **2.3** | **2026-05-15** | **W1.6 RuleHandler 推迟到 Wave 2**：执行过程中发现原 W1.6 计划「实现 RuleEngine + 4 个 MVP handler」存在依赖反转 —— 4 个 handler (deal_damage / deal_aoe_damage / apply_buff / remove_self) 操作 Health / Position / Buff 组件，而组件在 W1.7 才定义。如果在 W1.6 时写 handler 会写出"为凑数而存在"的占位代码，违反 TDD 红绿原则。修订：W1.6 仅 ship RuleEngine 引擎核心（注册表 + 分发 + entityRules 表），4 handler 分散到 Wave 2 各系统中"配对首次使用的系统"同提交。Wave 1 契约冻结条款不受影响：API 表面（registerHandler / attachRules / dispatch / clearRules）与 9 个事件名都在 W1.6 冻结，只是 handler 群体的实现推迟 |
