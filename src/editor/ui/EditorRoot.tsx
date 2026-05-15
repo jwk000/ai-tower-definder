@@ -16,6 +16,7 @@ import { WeatherPanel } from './panels/WeatherPanel.js';
 import { MapToolbar, BRUSH_TILE_TYPES } from './panels/MapToolbar.js';
 import { MapView } from './MapView.js';
 import type { MapPreviewModel } from '../preview/MapCanvas.js';
+import type { GraphModel } from '../preview/graphDrawOps.js';
 import { SpawnPanel } from './panels/SpawnPanel.js';
 import { addSpawn, removeSpawn, renameSpawn } from '../state/spawnOps.js';
 
@@ -85,6 +86,14 @@ function buildPreviewModel(map: MapModel): MapPreviewModel {
   };
 }
 
+function buildGraphModel(map: MapModel): GraphModel {
+  return {
+    graph: map.pathGraph ?? { nodes: [], edges: [] },
+    spawns: map.spawns ?? [],
+    tileSize: map.tileSize > 0 ? map.tileSize : 64,
+  };
+}
+
 function withTileAt(model: LevelFormModel, row: number, col: number, tile: string): LevelFormModel {
   const oldTiles = model.map.tiles;
   if (row < 0 || row >= oldTiles.length) return model;
@@ -122,6 +131,11 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     () => parsed.model !== null
       ? buildPreviewModel(parsed.model.map)
       : { cols: 0, rows: 0, tileSize: 64, tiles: [] },
+    [parsed.model],
+  );
+
+  const graphModel = useMemo<GraphModel | undefined>(
+    () => parsed.model !== null ? buildGraphModel(parsed.model.map) : undefined,
     [parsed.model],
   );
 
@@ -367,7 +381,7 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                 <div style={formScrollStyle} data-testid="editor-form-container">
                   <div data-testid="panel-map">
                     <MapToolbar activeTile={brushTile} onSelectTile={setBrushTile} />
-                    <MapView model={previewModel} onTileClick={onTileClick} />
+                    <MapView model={previewModel} onTileClick={onTileClick} graphModel={graphModel} />
                     <SpawnPanel
                       spawns={parsed.model.map.spawns ?? []}
                       onRemoveSpawn={onRemoveSpawn}

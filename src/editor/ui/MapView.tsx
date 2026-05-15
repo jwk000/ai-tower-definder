@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { MapCanvas, type MapPreviewModel } from '../preview/MapCanvas.js';
+import { GraphOverlay } from '../preview/GraphOverlay.js';
+import type { GraphModel } from '../preview/graphDrawOps.js';
 
 export interface MapViewProps {
   model: MapPreviewModel;
   onTileClick: (row: number, col: number, button: number) => void;
+  graphModel?: GraphModel;
 }
 
-export function MapView({ model, onTileClick }: MapViewProps) {
+export function MapView({ model, onTileClick, graphModel }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<MapCanvas | null>(null);
+  const overlayRef = useRef<GraphOverlay | null>(null);
   const clickRef = useRef(onTileClick);
   clickRef.current = onTileClick;
 
@@ -22,9 +26,13 @@ export function MapView({ model, onTileClick }: MapViewProps) {
       onTileClick: (row, col, ev) => clickRef.current(row, col, ev.button),
     });
     canvasRef.current = canvas;
+    const overlay = new GraphOverlay(host);
+    overlayRef.current = overlay;
     return () => {
       canvas.dispose();
       canvasRef.current = null;
+      overlay.dispose();
+      overlayRef.current = null;
     };
   }, [hasMap]);
 
@@ -32,6 +40,12 @@ export function MapView({ model, onTileClick }: MapViewProps) {
     if (canvasRef.current === null) return;
     canvasRef.current.setModel(model);
   }, [model]);
+
+  useEffect(() => {
+    if (overlayRef.current === null) return;
+    const gm = graphModel ?? { graph: { nodes: [], edges: [] }, spawns: [], tileSize: model.tileSize };
+    overlayRef.current.setModel(gm, model.cols, model.rows);
+  }, [graphModel, model.cols, model.rows, model.tileSize]);
 
   if (!hasMap) {
     return (
