@@ -21,8 +21,8 @@ function normalizeColor(raw: unknown): number {
 const StatsSchema = z
   .object({
     hp: z.number().nonnegative(),
-    atk: z.number().nonnegative(),
-    attackSpeed: z.number().nonnegative(),
+    atk: z.number().nonnegative().optional(),
+    attackSpeed: z.number().nonnegative().optional(),
     range: z.number().nonnegative().optional(),
     speed: z.number().nonnegative().optional(),
   })
@@ -94,8 +94,8 @@ export function parseUnitConfig(yamlText: string): UnitConfig {
     faction: parsed.faction,
     stats: {
       hp: parsed.stats.hp,
-      atk: parsed.stats.atk,
-      attackSpeed: parsed.stats.attackSpeed,
+      atk: parsed.stats.atk ?? 0,
+      attackSpeed: parsed.stats.attackSpeed ?? 0,
       range: parsed.stats.range ?? 0,
       speed: parsed.stats.speed ?? 0,
     },
