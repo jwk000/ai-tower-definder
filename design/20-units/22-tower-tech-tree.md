@@ -1,27 +1,54 @@
 ---
-title: 塔科技树系统
-status: authoritative
+title: 塔科技树系统（v3.4 已废弃）
+status: deprecated
 version: 1.0.0
 last-modified: 2026-05-14
-authority-for:
-  - tower-tech-tree
-  - tech-nodes
-  - shard-economy
-  - tower-upgrade-mechanic
-supersedes: []
+deprecated-at: 2026-05-15
+deprecated-by-version: v3.4
+authority-for: []
+superseded-by:
+  - 20-units/22-skill-tree-overview.md
+  - 20-units/22a-skill-tree-tower.md
+  - 40-presentation/48-shop-redesign-v34.md
 cross-refs:
-  - 10-gameplay/10-roguelike-loop.md
-  - 50-data-numerical/50-mda.md
-  - 20-units/21-unit-roster.md
+  - v3.4-MAJOR-MIGRATION.md
+  - 20-units/22-skill-tree-overview.md
+  - 20-units/22a-skill-tree-tower.md
+  - 40-presentation/48-shop-redesign-v34.md
 ---
 
-# 塔科技树系统
+# 塔科技树系统（v3.4 已废弃）
 
-> 版本: v1.0 | 日期: 2026-05-14 | 状态: 设计阶段
+> 🛑 **v3.4 形态级重构 ─ 本文档已彻底废弃**
 >
-> 取代旧版「线性等级升级」模型，将塔升级移至关外卡池界面，以「路径互斥科技树」呈现。本文档为塔升级机制的唯一权威来源（Single Source of Truth）。
+> **废弃日期**: 2026-05-15 · **废弃原因**: 火花碎片整体废弃 + meta 永久积累机制取消
 >
-> 数值占位：所有具体数值（碎片成本、概率、CD、伤害倍率等）以 [21-MDA](../50-data-numerical/50-mda.md) 为权威，本文档只描述字段语义、机制骨架、路径结构。
+> **接替文档（第 3 轮 2026-05-15 全部已落地）**：
+> - ⭐ [22-skill-tree-overview](./22-skill-tree-overview.md) v1.0.0 — **通用骨架权威**（节点结构 / 路径互斥 / SP 单价锚点 / YAML schema / RunManager 接口）
+> - ⭐ [22a-skill-tree-tower](./22a-skill-tree-tower.md) v1.0.0 — **7 塔技能树详设权威**（**蓝本式继承本文档 §4 七塔节点设计**：节点 ID / 名称 / 形态梯度完整保留，仅做 v3.4 字段重命名 `shardCost→spCost` / `techTree→skillTree`）
+> - ⭐ [48-shop-redesign-v34 §2.3](../40-presentation/48-shop-redesign-v34.md#23-技能点资源语义) — 技能点资源语义
+>
+> **本文档原 authority-for 4 项全部失效**：
+> - ~~`tower-tech-tree`~~ → 由 [22a-skill-tree-tower](./22a-skill-tree-tower.md)（v1.0.0 已落地）接替
+> - ~~`tech-nodes`~~ → 由 [22-skill-tree-overview](./22-skill-tree-overview.md)（v1.0.0 已落地）接替
+> - ~~`shard-economy`~~ → **彻底废弃**，无接替（火花碎片词汇不再存在）
+> - ~~`tower-upgrade-mechanic`~~ → 由 [48-shop-redesign-v34 §2.3](../40-presentation/48-shop-redesign-v34.md#23-技能点资源语义) + [22a-skill-tree-tower](./22a-skill-tree-tower.md) 共同接替
+>
+> **请阅读**：
+> - 📘 [v3.4-MAJOR-MIGRATION](../v3.4-MAJOR-MIGRATION.md) — v3.4 形态变更主声明
+> - 📘 [22-skill-tree-overview](./22-skill-tree-overview.md) — 通用骨架（首选阅读）
+> - 📘 [22a-skill-tree-tower](./22a-skill-tree-tower.md) — 7 塔技能树详设（本文档塔节点设计的直接继承者）
+> - 📘 [48-shop-redesign-v34](../40-presentation/48-shop-redesign-v34.md) — v3.4 商店 + 技能点资源权威
+>
+> **本文档保留作历史归档**，仅供回溯设计演变。**新开发禁止参考本文档实现，请直接读 22a-skill-tree-tower**。
+>
+> ---
+>
+> 以下原文保留，但 v3.4 已不再适用：
+>
+> ~~取代旧版「线性等级升级」模型，将塔升级移至关外卡池界面，以「路径互斥科技树」呈现。本文档为塔升级机制的唯一权威来源（Single Source of Truth）。~~
+>
+> ~~数值占位：所有具体数值（碎片成本、概率、CD、伤害倍率等）以 [21-MDA](../50-data-numerical/50-mda.md) 为权威，本文档只描述字段语义、机制骨架、路径结构。~~
 
 ---
 
