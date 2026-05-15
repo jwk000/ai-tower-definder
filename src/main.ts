@@ -75,7 +75,8 @@ import { createRunContext, startWaveEffect, endWaveEffect, playCard as runPlayCa
 import { SpellSystem } from './unit-system/SpellSystem.js';
 import type { CardConfig } from './config/cardRegistry.js';
 import type { CardInstance } from './unit-system/types.js';
-import { loadAllCardConfigsSync } from './config/loader.js';
+import { loadAllCardConfigsSync, loadAllUnitConfigs } from './config/loader.js';
+import { injectEnemyConfigsFromRegistry } from './data/levels/enemyBridge.js';
 
 // ---- Debug system imports ----
 import { DebugManager } from './debug/DebugManager.js';
@@ -1368,16 +1369,27 @@ this.world.registerSystem(this.weatherSystem);
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 if (!canvas) throw new Error('Canvas element not found');
 
-// Phase A4-YAML: 启动期同步装载所有卡牌 YAML 到 cardConfigRegistry，
-// 使 initBattle 里 createRunContext 能拿到非空 registry 抽出 12 张开局卡组。
-// 同步语义来自 import.meta.glob({ eager: true })，详见 src/config/loader.ts。
-loadAllCardConfigsSync();
+// ================================================================
+// Roguelike YAML-driven boot sequence
+// ================================================================
+// 依赖链（顺序不可换）：
+//   1. loadAllCardConfigsSync()      ← cardConfigRegistry 填充（createRunContext 依赖）
+//   2. await loadAllUnitConfigs()    ← unitConfigRegistry 填充（含 enemies/towers/soldiers/buildings）
+//   3. injectEnemyConfigsFromRegistry()  ← 用 YAML 数据覆盖 ENEMY_CONFIGS 静态 stub
+//   4. new TowerDefenderGame(canvas) ← 此时所有 registry/configs 就绪
+//
+// 1/3 是同步（import.meta.glob eager），2 是 async（Promise 包装但内部 sync）。
+// 整体延迟为零，但必须 await 以保证类型契约。
+// 设计依据：design/10-gameplay/16-level-blueprints.md（关卡 YAML 单一数据源）。
+void (async () => {
+  loadAllCardConfigsSync();
+  await loadAllUnitConfigs();
+  injectEnemyConfigsFromRegistry();
 
-const game = new TowerDefenderGame(canvas);
-game.start();
+  const game = new TowerDefenderGame(canvas);
+  game.start();
 
-if (import.meta.env.DEV) {
-  void (async () => {
+  if (import.meta.env.DEV) {
     const { bootstrapEditor, attachF2Hotkey } = await import('./editor/index.js');
     const { LevelEditor } = await import('./editor/LevelEditor.js');
     const { mountEditorRoot } = await import('./editor/mount.js');
@@ -1390,9 +1402,9 @@ if (import.meta.env.DEV) {
     game.debugManager.setOpenLevelEditorCallback(() => handle.open());
     (window as unknown as Record<string, unknown>).levelEditor = levelEditor;
     (window as unknown as Record<string, unknown>).editorHandle = handle;
-  })();
-}
+  }
 
-window.addEventListener('resize', () => game.resize());
-(window as unknown as Record<string, unknown>).game = game;
-(window as unknown as Record<string, unknown>).Sound = Sound;
+  window.addEventListener('resize', () => game.resize());
+  (window as unknown as Record<string, unknown>).game = game;
+  (window as unknown as Record<string, unknown>).Sound = Sound;
+})();

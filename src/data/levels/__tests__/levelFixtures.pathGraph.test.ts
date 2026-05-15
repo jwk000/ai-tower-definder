@@ -1,18 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { LEVEL_01 } from '../level-01.js';
-import { LEVEL_02 } from '../level-02.js';
-import { LEVEL_03 } from '../level-03.js';
-import { LEVEL_04 } from '../level-04.js';
-import { LEVEL_05 } from '../level-05.js';
+import { LEVELS } from '../index.js';
 import type { MapConfig } from '../../../types/index.js';
 
-const fixtures: { name: string; map: MapConfig }[] = [
-  { name: 'level-01', map: LEVEL_01.map },
-  { name: 'level-02', map: LEVEL_02.map },
-  { name: 'level-03', map: LEVEL_03.map },
-  { name: 'level-04', map: LEVEL_04.map },
-  { name: 'level-05', map: LEVEL_05.map },
-];
+const fixtures: { name: string; map: MapConfig }[] = LEVELS.map((l) => ({
+  name: l.id,
+  map: l.map,
+}));
 
 describe('Level fixtures B.15 — pathGraph + spawns self-consistency (no enemyPath)', () => {
   for (const { name, map } of fixtures) {
