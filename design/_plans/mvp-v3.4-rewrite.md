@@ -87,7 +87,7 @@
 > 每个原子提交满足：**1 逻辑变更 + 1 可测结果 + 1 回滚单元**。
 > Commit 前缀：`refactor(roguelike):`（roguelike 重构铁律生效）/ `test:`（仅添加测试）/ `feat:`（在已有架构上新增功能）/ `fix:`/ `docs:`。
 
-### Wave 0 — 范围锁定与清空（约 0.3 天 · 2 commits）
+### Wave 0 — 范围锁定与清空（约 0.3 天 · 2 commits） ✅ **已完成**（2026-05-15）
 
 **目标**：在新分支 `rougelike-v34` 上**直接删除 v3.3 实现**（旧分支 `rougelike` 即归档），保留可复用的 YAML 配置基线，建立空白工程入口。
 
@@ -106,9 +106,15 @@
 
 ---
 
-### Wave 1 — 运行时基石（约 1.5 天 · 8 commits）
+### Wave 1 — 运行时基石（约 1.5 天 · 8 commits） ✅ **已完成**（2026-05-15）
 
 **目标**：建立 World + Pipeline + RuleEngine + 核心组件契约。所有后续 Wave 依赖本 Wave。
+
+**完成验证**（2026-05-15）：
+- 三命令门：`npm run typecheck`、`npm test`（53/53 pass）、`npm run build`（1.13s）均绿
+- 5 个测试文件：World(10) + pipeline(8) + RuleEngine(14) + components(15) + Game(6)
+- 浏览器渲染验证延后到 Wave 6 smoke 测试阶段（happy-dom 不支持 WebGL，无法在 unit 测试中验证 21×9 网格画面 —— 已在 W1.8 渲染 commit 的 commit message 中记录此延后）
+- Wave 1 契约冻结：World API / Pipeline 8 阶段 / RuleEngine 9 事件 + handler 签名 / 8 组件 + 3 枚举 / Game.tick(dt) 入口
 
 | # | 任务 | TDD 步骤 | 产出 | 提交 |
 |---|---|---|---|---|
