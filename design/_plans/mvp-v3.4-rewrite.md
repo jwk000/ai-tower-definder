@@ -44,6 +44,10 @@
 | S17 | loader 静默丢弃 `rarity: common/rare/epic` 字段（被 `.passthrough()` 兜走），DeckSystem 沿用均匀抽样，不按稀有度权重 | 21-unit-roster / 10-roguelike-loop §2.4 | `src/unit-system/DeckSystem.ts` / `src/config/loader.ts` | P4 |
 | S18 | SkillTree 效果绑定走 panel intent → RunManager 直接改 ECS 组件路径，**不走 RuleEngine**；理由：技能树效果是持久属性 buff，非生命周期事件，与 `RuleEngine.dispatch(LifecycleEvent, ...)` 语义不匹配 | 22-skill-tree-overview §2 / 60-architecture §3.规则引擎 | `src/ui/SkillTreePanel.ts` / 待 Wave 6+ `RunManager` 接入 | P5 |
 | S19 | arrow_tower 技能树 MVP 以 TS 常量 `ARROW_TOWER_SKILL_TREE` 落地，**不进 YAML**；其余 6 塔 + 6 士兵 + 9 陷阱 + 14 法术 + 2 建筑共 36 单位的 skillTree 全部推迟到 Wave 6+ 内容扩展期 | 22-skill-tree-overview §3.YAML schema / 22a-22e | `src/ui/SkillTreePanel.ts` | P5 |
+| S20 | `main.ts` Wave 6 wire 不接 `HandSystem` / `DeckSystem` / `EnergySystem` / `CardSpawnSystem` / `CardRegistry`、不连任何 UI 输入回调（卡牌拖放 / 商店购买 / 秘境选择 / 技能树点投入），main 仅装 RunController + 5 个核心 ECS system（Movement/Attack/Crystal/Health/Lifecycle）+ UIPresenter；演示路径（按钮触发 startRun / completeLevel / pickInterLevel / returnToMainMenu + 卡牌打出连 CardSpawn）推迟到 Wave 7+ | 10-roguelike-loop §2.3-§2.7 演示闭环 / 40-ui-ux §3 手牌区 / 48-shop-redesign-v34 §3 商店交互 | `src/main.ts` 启动装配 | P3（Wave 7+ 演示路径专项 Wave） |
+| S21 | `projectUIFrame()` 把 `HUD.RunState.phase` 字段写死 `'battle'`，因 `RunManager.phase`（Run-level 四相位 `Idle/Battle/InterLevel/Result`）与 HUD.phase（单关 `deployment/battle/wave-break/victory/defeat`）语义不同；MVP 仅 Battle 相位调 `presenter.present()`，写死 `'battle'` 视觉一致，但 wave-break / victory / defeat 等关内细分相位推迟 | 40-ui-ux §2 HUD 状态机 / 10-roguelike-loop §4 关内 wave 节奏 | `src/main.ts` projectUIFrame / `src/ui/HUD.ts` RunState | P3（Wave 7+ 接 WaveSystem 时补） |
+| S22 | `projectUIFrame()` 把 `HandState` 投空集合 `{ cards: [], energy: 0 }`，HandPanel 渲染 0 个槽；MVP main.ts 未实例化 HandSystem/EnergySystem，HUD/Hand 视觉可空跑 | 10-roguelike-loop §2.3 / 40-ui-ux §3 手牌固定 4 张上限 | `src/main.ts` projectUIFrame / `src/ui/HandPanel.ts` HandState | P3（同 S20，Wave 7+ HandSystem 接入时补） |
+| S23 | `main.ts` 不注册 `drop_gold` `RuleHandler`、不实例化 `EconomySystem`，MVP 战场敌人死亡不掉金、不显示金币累积；现有集成测试 `run.integration.test.ts` 中 economy 整合保留（手工注册 handler 调 `econ.addGold`），仅前端展示链路延后 | 10-roguelike-loop §2.5 单关金币产出 / 11-economy §2 金币流 | `src/main.ts` 启动装配 / `src/systems/EconomySystem.ts` | P3（同 S20，Wave 7+ 演示路径 wire EconomySystem + drop_gold handler） |
 
 **新增简化点 guardrail（S18+ 适用）**：
 
@@ -290,20 +294,31 @@ W3.7-W3.8 实际多了一个 `CardRegistry` 类（计划任务表未列出），
 
 ---
 
-### Wave 6 — 回归加固（约 1 天 · 4-6 commits）
+### Wave 6 — Run 闭环装配 + 冒烟（约 1.5 天 · 4 commits）✅ **已完成**（2026-05-16）
 
-**目标**：消除重写过程中的漂移，证明系统作为整体可工作。
+**目标**：把 Wave 5 各 UI 面板从 stub 状态接入真实 RunManager 状态机；wire `main.ts` 让 ticker 真正驱动 ECS Pipeline；MVP 单 Run 闭环从测试层延伸到运行时层。
 
-| # | 任务 | TDD 步骤 | 产出 | 提交 |
-|---|---|---|---|---|
-| W6.1 | 冒烟测试：主菜单 → 开 Run → L1 → 通关 → 3 选 1（依次测三个选项）→ 结算 → 主菜单 | 集成 | `src/__tests__/smoke.test.ts` | `test: add end-to-end smoke coverage for MVP flow` |
-| W6.2 | 修复冒烟测试发现的回归（每个 bug：先写失败测试，再修复，再绿） | TDD | 视情况 | `fix: ...`（视情况多个 commit） |
-| W6.3 | 性能基线：50 实体 + 全特效场景 FPS ≥ 60；记录基线数据 | 手动测量 | `design/dev-logs/2026-05-15-mvp-perf-baseline.md` | `docs: record MVP performance baseline` |
-| W6.4 | 删除已被新实现完全替代且无引用的脚手架（保守策略：MVP 不删 `src/legacy/`，仅删 W0.2 期间引入的临时桥接代码） | — | — | `refactor(roguelike): remove verified-unused rewrite scaffolding` |
+**v2 计划（Momus APPROVED-WITH-ENRICHMENT）9-13 commits 压缩为 4 实落 commits**（D4：MVP 快开发模式合并 commit）：
 
-**Wave 6 命令门**：`npm run typecheck && npm test && npm run build`
+| # | 任务 | 实际产出 | 提交 |
+|---|---|---|---|
+| W6.1-W6.3 | RunManager 扩展为 Run-level 状态机 + Run 级资源（gold/sp/crystalHp/crystalHpMax/progress）；新建 RunController 协调器（按 phase 切 4 个场景容器 visible + 仅 Battle 相位 tick Game）；新建 UIPresenter（HUD + HandPanel 运行时呈现器，由 RunController 在 Battle 相位调 present(frame)，不进 Pipeline） | `src/unit-system/RunManager.ts` 181 行 / `src/core/RunController.ts` 89 行 / `src/ui/UIPresenter.ts` 99 行 | `dcd6fe5 feat(run): extend RunManager + add RunController + UIPresenter [W6.1-W6.3]` |
+| W6.4 | wire `src/main.ts`：装 RunController + 4 phase 场景 Container + 5 个核心 system（Movement/Attack/Crystal/Health/Lifecycle）到 Pipeline + UIPresenter；ticker 改驱 `runController.tick(dt)`；新增 `projectUIFrame()` 把 RunManager → HUD/HandPanel 视图模型 | `src/main.ts` 129 行 | `feat(boot): wire RunController + MVP pipeline into main [W6.4]` |
+| W6.5 | 扩展 `src/__tests__/run.integration.test.ts` 追加 `'MVP run flow smoke'` describe，端到端覆盖 victory + defeat 两条路径：phase 切换、scene visibility、game.tick 仅 Battle 相位被调（spy 验证）、Result 后 returnToMainMenu 资源清零 | +2 测试 case（263 total） | `test(smoke): MVP run flow integration coverage [W6.5]` |
+| W6.7 | 收尾：本表标 ✅，§0 追溯表补 S20-S23（main.ts wire 简化点）；W6.6 修 bug 槽位空跑（W6.5 冒烟一发通过，无回归） | 本文件 | `docs(plan): mark Wave 6 complete and record S20+ simplifications [W6.7]` |
 
-**Wave 6 DoD**：冒烟测试全绿；性能基线达标；无已知回归。
+**实际命令门验证**：
+- W6.4 commit 时：`npm run typecheck` 绿 / `npm test` 261/261 / `npm run build` 1.16s 通过
+- W6.5 commit 时：`npm run typecheck` 绿 / `npm test` 263/263
+- W6.7 commit 时：本文件仅文档变更，无需 build
+
+**性能基线推迟**：v2 计划的「50 实体 FPS ≥ 60 性能基线」推迟到 Wave 7+ 演示路径专项 Wave（届时才有 WaveSystem 持续 spawn 大量敌人的测量场景，MVP wire 阶段只有空 Game tick，测量无意义）。
+
+**Wave 6 命令门**：`npm run typecheck && npm test && npm run build` ✅ 全绿
+
+**Wave 6 DoD**：✅ 4 commits 落地（W6.1-W6.3 三合一 + W6.4 + W6.5 + W6.7）；✅ 263/263 测试全绿（W6 增量 +2 smoke case）；✅ build 通过；✅ 无已知回归；✅ 简化点 S20-S23 已记入追溯表。
+
+**简化点（W6.7 同提交记录）**：S20（main.ts 不接 HandSystem/输入回调）/ S21（HUD.phase 写死 battle）/ S22（HandState 空集合）/ S23（drop_gold handler 未注册）—— 4 项均指向 Wave 7+ 演示路径专项 Wave，guardrail 三规则均满足。
 
 ---
 
@@ -501,3 +516,4 @@ MVP 完成 = 以下全部通过：
 | **2.3** | **2026-05-15** | **W1.6 RuleHandler 推迟到 Wave 2**：执行过程中发现原 W1.6 计划「实现 RuleEngine + 4 个 MVP handler」存在依赖反转 —— 4 个 handler (deal_damage / deal_aoe_damage / apply_buff / remove_self) 操作 Health / Position / Buff 组件，而组件在 W1.7 才定义。如果在 W1.6 时写 handler 会写出"为凑数而存在"的占位代码，违反 TDD 红绿原则。修订：W1.6 仅 ship RuleEngine 引擎核心（注册表 + 分发 + entityRules 表），4 handler 分散到 Wave 2 各系统中"配对首次使用的系统"同提交。Wave 1 契约冻结条款不受影响：API 表面（registerHandler / attachRules / dispatch / clearRules）与 9 个事件名都在 W1.6 冻结，只是 handler 群体的实现推迟 |
 | **2.4** | **2026-05-15** | **W2.4 ProjectileSystem 推迟 + deal_damage handler 不引入**：实施 W2.4 时确认 MVP 只有箭塔一种攻击单位，hit-scan（同帧扣血）已足够。引入 Projectile 实体 + 飞行插值 + 命中判定 system 是过度工程，不为 MVP 验收提供任何新功能。修订：W2.4 只 ship AttackSystem hit-scan 版本；deal_damage RuleHandler 也不在此 Wave 引入（hit-scan 直接写 Health.current，无需走 handler 调度）；deal_damage 调整为「首次需要间接伤害的 Wave 引入」，例如未来的 AoE 法术、爆炸塔、Trap 触发。ProjectileSystem 同理 —— 加入第一个弹道型单位时一并实现 |
 | **2.5** | **2026-05-16** | **形态级决策：放弃行为树作为 AI 实现方式**（产品 owner 决策，本会话于 W2.6 完成后归档）。AI 产品需求**全部保留**（士兵四状态机、Boss 阶段切换、嘲讽、AOE 主目标、威胁度评分等），仅实现方式由 BT 改为规则引擎驱动的 `targetSelection` / `attackMode` / 生命周期 `RuleHandler` 配置路径。S6 已实质降级（追溯表早已写「不接行为树」），P5 标题从「AI 行为树」改为「AI 完整化（规则引擎）」。文档影响：30-behavior-tree 整体 deprecated；31-soldier-ai 局部 deprecated（仅 §6/§7 行为树映射段作废，§1-§5 / §10-§12 需求段保留为权威）；60-architecture §5.3 整节 deprecated；README 30-ai 层描述同步。新增决策文档 [`00-vision/decisions/2026-05-16_drop-behavior-tree.md`](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)。**代码层零影响**：本决策落地时 rougelike-v34 尚未引入任何 BT 代码（W2.6 完成，71/71 测试绿）；Wave 5/7 实装高级 AI 时按规则引擎路径设计 |
+| **2.6** | **2026-05-16** | **Wave 6 完成**：v2 计划 9-13 commits 压缩为 4 实落 commits（W6.1-W6.3 三合一 `dcd6fe5` + W6.4 wire main + W6.5 smoke + W6.7 收尾）。RunManager 扩展为 Run-level 状态机 + Run 级资源；新建 RunController 协调器 + UIPresenter 呈现器；main.ts wire 5 个核心 system（Movement/Attack/Crystal/Health/Lifecycle）+ 4 phase 场景 Container + ticker 改驱 runController.tick；run.integration.test.ts 追加 'MVP run flow smoke' 2 case 端到端覆盖 victory + defeat 路径。263/263 测试全绿 / typecheck / build 三命令门通过。性能基线推迟到 Wave 7+ 演示路径专项 Wave（MVP wire 阶段无 WaveSystem 持续 spawn，测量无意义）。新增 4 项简化点 S20-S23（main.ts wire 取舍清单），guardrail 三规则均满足，目标 P3 替换阶段。下一步进入 Wave 7+ 演示路径（补 WaveSystem/ProjectileSystem/BuildSystem + HandSystem 输入连线 + EconomySystem drop_gold handler）→ 接最终 Wave 7 发布门 |
