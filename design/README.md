@@ -1,7 +1,7 @@
 # Tower Defender — 设计文档索引
 
-> 版本: v3.2 · 卡牌 + Roguelike 长征版 · 塔科技树 · 陷阱/法术/中立完整化
-> 最后整理: 2026-05-15（v3.2 8 关蓝图 + 三类单位 + 39 敌阵容 + 8 关 YAML 全量落地）
+> 版本: v3.3 · 卡牌 + Roguelike 长征版 · 塔科技树 · 陷阱/法术/中立完整化 · 关卡路线图 UI
+> 最后整理: 2026-05-15（v3.3 关卡路线图 + 关后 3 选 1 面板 + ESC 退出 Run 确认）
 
 ---
 
@@ -88,6 +88,7 @@
 | [44-visual-effects](./40-presentation/44-visual-effects.md) | stable · v3.1 audit | PixiJS 图层结构、粒子特效、过渡动画 |
 | [45-layer-system](./40-presentation/45-layer-system.md) | stable · v3.1 audit | 6 层垂直空间层级、层级交互规则、渲染排序 |
 | [46-audio](./40-presentation/46-audio.md) | stable | 63 个音效（含卡牌/关间/商店/秘境/碎片新增 24 个） |
+| [47-level-map-ui](./40-presentation/47-level-map-ui.md) | ⭐ authoritative · v3.3 | **关卡路线图 UI 权威**：Mario 风格 9 节点 + 三状态切换 + 关后 3 选 1（商店/秘境/跳过） + 终战特例 + ESC 退出 Run 确认 |
 
 ### `50-data-numerical/` — 数值
 
