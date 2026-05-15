@@ -98,9 +98,6 @@ src/
                      HealthSystem / EconomySystem / BuildSystem / UnitSystem
                      SkillSystem / BuffSystem / BossSystem / ProductionSystem
                      TrapSystem / WeatherSystem / LifecycleSystem / RenderSystem 等
-  ai/                行为树（复杂 AI 补充，简单 AI 走配置规则）
-    BehaviorTree.ts
-    presets/         boss_commander_ai / abyss_lord_ai 等行为树定义
   render/            PixiJS 渲染层
     Renderer.ts / MapRenderer.ts / EntityRenderer.ts
     ProjectileRenderer.ts / ParticleRenderer.ts / UIRenderer.ts
@@ -110,7 +107,7 @@ src/
   components/        旧版组件包装（重构遗留，逐步迁移到 core/components.ts）
   input/             InputManager.ts —— 事件队列，每帧 flush
   data/              运行时数据/公式（balance.ts、EndlessWaveGenerator.ts）
-  debug/             调试系统（一键通关、行为树查看等）
+  debug/             调试系统（一键通关等）
   utils/             通用工具（runRandom 6 流 PRNG、debugLog 等）
   types/             共享类型、配置接口、枚举
 ```
@@ -128,7 +125,7 @@ src/
   4. `PHASE_GAMEPLAY` —— 移动 / 攻击 / 弹道 / 技能 / 陷阱 / 生产
   5. `PHASE_LIFECYCLE` —— 生命周期事件分发 + 死亡检测
   6. `PHASE_CREATION` —— 建造 / 实体新建
-  7. `PHASE_AI` —— 行为树执行
+  7. `PHASE_AI` —— 高级 AI 决策（预留阶段，v3.4 暂未启用任何 AI 系统；所有单位决策走规则引擎驱动的目标选择/攻击模式）
   8. `PHASE_RENDER` —— `RenderSystem` + `UISystem`，始终最后
 - **死亡实体清理**: `destroyEntity(eid)` 标记延迟删除，在 `World.update()` 末尾统一 `removeEntity` 清理。
 
@@ -136,8 +133,7 @@ src/
 
 - **生命周期事件**: `onCreate` / `onDeath` / `onHit` / `onAttack` / `onKill` / `onUpgrade` / `onDestroy` / `onEnter` / `onLeave`。
 - **触发流程**: 系统检测事件 → 调用 `ruleEngine.dispatch(event, entity, context)` → 引擎查找该单位配置的规则 → 执行对应 `RuleHandler`（如 `deal_aoe_damage`、`apply_buff`、`spawn_unit`）。
-- **行为规则**: 单位配置中声明 `targetSelection` / `attackMode` / `movementMode`，规则引擎在 AttackSystem / MovementSystem 中提供决策。
-- **行为树补充**: 若单位配置了 `ai_tree`，则行为树接管目标选择和攻击决策；生命周期规则仍由规则引擎处理。两者互不冲突。
+- **行为规则**: 单位配置中声明 `targetSelection` / `attackMode` / `movementMode`，规则引擎在 AttackSystem / MovementSystem 中提供决策。所有 AI 决策（含 Boss、高级敌人）一律走该路径，v3.4 起不再使用行为树。
 - **新增规则**: 在 `core/RuleHandlers.ts` 注册新 handler，再在单位 YAML 中引用，无需改动系统代码。
 
 ### 渲染层级（PixiJS）
@@ -173,7 +169,7 @@ src/
 - **新增关卡**: 在 `config/levels/*.yaml` 编写波次与随机池配置。
 - **新增组件**: 在 `core/components.ts` 用 `defineComponent` 定义新字段集合 → 在需要的系统中 `defineQuery` 引用 → 添加挂载/移除逻辑。
 - **新增生命周期/行为规则**: 在 `core/RuleHandlers.ts` 注册新 handler → 在单位 YAML 中通过名字引用，无需改系统。
-- **新增行为树节点**: 在 `ai/BehaviorTree.ts` 添加节点类型 → 在 `ai/presets/` 中编写行为树预设 → 单位配置 `ai_tree` 字段引用。
+
 
 ## 开发流程
 

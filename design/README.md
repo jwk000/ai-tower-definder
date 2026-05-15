@@ -124,10 +124,13 @@
 
 ### `30-ai/` — AI 行为
 
+> **⚠️ v3.4 实现层决策（2026-05-16）**：放弃**行为树作为实现方式**，但 AI 产品需求保留。所有 AI（含士兵四状态机、Boss、高级敌人）改走规则引擎驱动的 `targetSelection` / `attackMode` / `movementMode` 配置路径 + 生命周期 `RuleHandler`。
+> 决策溯源：[00-vision/decisions/2026-05-16_drop-behavior-tree.md](./00-vision/decisions/2026-05-16_drop-behavior-tree.md)
+
 | 文档 | 状态 | 简介 |
 |---|---|---|
-| [30-behavior-tree](./30-ai/30-behavior-tree.md) | stable | BT 接管所有单位 AI、ScoreSelectTarget 评分节点 |
-| [31-soldier-ai](./30-ai/31-soldier-ai.md) | stable · v3.1 audit | 士兵 AI 四状态机、三圈模型；§12 升级机制延后（M5） |
+| [30-behavior-tree](./30-ai/30-behavior-tree.md) | 🛑 **deprecated (v3.4)** | ~~BT 引擎、节点接口规格、ScoreSelectTarget 评分节点~~（整体作废，BT 不再使用） |
+| [31-soldier-ai](./30-ai/31-soldier-ai.md) | ⚠️ **partial deprecated (v3.4)** | **§1-§5 / §10-§12 需求段保留**（四状态机 / 三圈模型 / 嘲讽 / AOE 主目标 / 升级 = 产品权威）；§6-§7 行为树映射段作废 |
 
 ### `40-presentation/` — 视觉表现层
 
@@ -180,7 +183,7 @@
 1. **一切皆单位** — 塔、士兵、敌人、中立机关本质相同，差别只在配置。
 2. **一切皆卡牌** — v3.0 所有可部署内容都是卡牌（单位卡 / 法术卡 / 陷阱卡 / 生产卡）。
 3. **配置驱动** — 单位/卡牌静态属性 + 动态行为规则全在配置中。
-4. **行为树驱动 AI** — 单位行为统一由行为树配置驱动（[30-behavior-tree](./30-ai/30-behavior-tree.md)）。
+4. **规则引擎驱动 AI**（v3.4） — 单位行为由配置中的 `targetSelection` / `attackMode` / `movementMode` + 生命周期 `RuleHandler` 共同驱动，统一走规则引擎。~~v3.0/v3.1 时期的行为树方案~~ 已于 2026-05-16 决策放弃（详见 [decisions/2026-05-16_drop-behavior-tree.md](./00-vision/decisions/2026-05-16_drop-behavior-tree.md)）。
 5. **三资源轴（v3.4）** — 能量 / 金币 / **技能点** 严格分层、不可互转。Run 结束全部清零，无 meta 积累。
 6. **Run 长征** — 8 关连闯 + 终战，水晶 HP 全程继承（无敌 + 秒杀机制）。
 7. **数值真理源** — [50-mda](./50-data-numerical/50-mda.md) 是数值唯一权威来源。
@@ -205,7 +208,7 @@
 **特定子系统**：
 - 商店（v3.4 权威）：⭐ [48-shop-redesign-v34](./40-presentation/48-shop-redesign-v34.md)
 - 秘境：[40-ui-ux](./40-presentation/40-ui-ux.md) + [10-roguelike-loop §3](./10-gameplay/10-roguelike-loop.md)（v3.4 待重构）
-- 敌方 AI 智能化：[30-behavior-tree §6](./30-ai/30-behavior-tree.md)
+- 敌方 AI 智能化：~~[30-behavior-tree §6](./30-ai/30-behavior-tree.md)~~ → **v3.4 已 deprecated**；改由 `targetSelection: threat_score` 配置规则在 AttackSystem 中处理，待 v3.4 第 4 轮代码改造时补充设计文档
 - ~~火花碎片经济~~ → **v3.4 已废弃**，改为技能点：[48-shop-redesign-v34 §2](./40-presentation/48-shop-redesign-v34.md#2-资源架构v34-三资源)
 - 关卡编辑：⭐ [64-level-editor](./60-tech/64-level-editor.md)
 

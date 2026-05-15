@@ -400,7 +400,7 @@ MVP 完成 = 以下全部通过：
 | **P2 — 关卡扩展** | L2-L8 + 终战；波次蓝图全实现；天气系统接入 | 1-2 周 |
 | **P3 — 商店 + 秘境完整** | 8 槽商店 + 14 事件秘境 + 30% 高风险事件 | 1 周 |
 | **P4 — 技能树完整** | 22a-22e 所有单位技能树共 ~200 节点 + ~92 RuleHandler | 2-3 周 |
-| **P5 — AI 行为树** | BehaviorTree 引擎接入；boss_commander_ai / abyss_lord_ai | 1-2 周 |
+| **P5 — AI 完整化（规则引擎）** | 士兵四状态机 / Boss 阶段切换 / 威胁度评分 等 AI 需求按 [`30-ai/31-soldier-ai.md`](../30-ai/31-soldier-ai.md) §1-§5 / §10-§12 + `RuleHandler` 落地；~~BehaviorTree 引擎接入~~ 已于 v2.5 移除（[决策](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)） | 1-2 周 |
 | **P6 — 渲染打磨** | 粒子特效 / 装饰 / 天气视觉 / buff 图标 / 受伤闪烁等 | 1-2 周 |
 | **P7 — 测试与平衡** | Playwright E2E / 数值平衡 / Hero Score 完整公式 / 成就 | 持续 |
 
@@ -445,3 +445,4 @@ MVP 完成 = 以下全部通过：
 | **2.2** | **2026-05-15** | **新分支策略调整**（Momus v2.1 已批准，本次为分支策略相关 Wave 0 简化）：（1）从 `rougelike` 切出新分支 `rougelike-v34`，旧分支冻结作 v3.3 归档；（2）确认现有 `src/config/**` YAML（按 v3.4 设计生成）可复用作 Wave 4 基线；（3）Wave 0 从「4 步保绿归档到 `src/legacy/`」简化为「2 步直接清空 src/ 非 config/ 内容」；commits 从 4 降至 2；总 commits ~50 降至 ~48；（4）§0 代码起点表述更新；（5）后续 Wave 1-7 不变 |
 | **2.3** | **2026-05-15** | **W1.6 RuleHandler 推迟到 Wave 2**：执行过程中发现原 W1.6 计划「实现 RuleEngine + 4 个 MVP handler」存在依赖反转 —— 4 个 handler (deal_damage / deal_aoe_damage / apply_buff / remove_self) 操作 Health / Position / Buff 组件，而组件在 W1.7 才定义。如果在 W1.6 时写 handler 会写出"为凑数而存在"的占位代码，违反 TDD 红绿原则。修订：W1.6 仅 ship RuleEngine 引擎核心（注册表 + 分发 + entityRules 表），4 handler 分散到 Wave 2 各系统中"配对首次使用的系统"同提交。Wave 1 契约冻结条款不受影响：API 表面（registerHandler / attachRules / dispatch / clearRules）与 9 个事件名都在 W1.6 冻结，只是 handler 群体的实现推迟 |
 | **2.4** | **2026-05-15** | **W2.4 ProjectileSystem 推迟 + deal_damage handler 不引入**：实施 W2.4 时确认 MVP 只有箭塔一种攻击单位，hit-scan（同帧扣血）已足够。引入 Projectile 实体 + 飞行插值 + 命中判定 system 是过度工程，不为 MVP 验收提供任何新功能。修订：W2.4 只 ship AttackSystem hit-scan 版本；deal_damage RuleHandler 也不在此 Wave 引入（hit-scan 直接写 Health.current，无需走 handler 调度）；deal_damage 调整为「首次需要间接伤害的 Wave 引入」，例如未来的 AoE 法术、爆炸塔、Trap 触发。ProjectileSystem 同理 —— 加入第一个弹道型单位时一并实现 |
+| **2.5** | **2026-05-16** | **形态级决策：放弃行为树作为 AI 实现方式**（产品 owner 决策，本会话于 W2.6 完成后归档）。AI 产品需求**全部保留**（士兵四状态机、Boss 阶段切换、嘲讽、AOE 主目标、威胁度评分等），仅实现方式由 BT 改为规则引擎驱动的 `targetSelection` / `attackMode` / 生命周期 `RuleHandler` 配置路径。S6 已实质降级（追溯表早已写「不接行为树」），P5 标题从「AI 行为树」改为「AI 完整化（规则引擎）」。文档影响：30-behavior-tree 整体 deprecated；31-soldier-ai 局部 deprecated（仅 §6/§7 行为树映射段作废，§1-§5 / §10-§12 需求段保留为权威）；60-architecture §5.3 整节 deprecated；README 30-ai 层描述同步。新增决策文档 [`00-vision/decisions/2026-05-16_drop-behavior-tree.md`](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)。**代码层零影响**：本决策落地时 rougelike-v34 尚未引入任何 BT 代码（W2.6 完成，71/71 测试绿）；Wave 5/7 实装高级 AI 时按规则引擎路径设计 |

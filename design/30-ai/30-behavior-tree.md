@@ -1,15 +1,31 @@
 ---
 title: AI 行为树统一方案
-status: stable
+status: deprecated
 version: 1.0.0
+deprecated-since: 2026-05-16
+deprecation-reason: v3.4 放弃行为树，改走规则引擎驱动的目标选择/攻击模式
 last-modified: 2026-05-14
-authority-for:
-  - behavior-tree-runtime
-  - bt-nodes
+authority-for: []
 supersedes: []
 cross-refs:
-  - 30-ai/31-soldier-ai.md
-  - 20-units/20-unit-system.md
+  - 00-vision/decisions/2026-05-16_drop-behavior-tree.md
+---
+
+> # 🛑 v3.4 已 DEPRECATED（实现方式作废，需求由其它文档承接）
+>
+> **本文档自 2026-05-16 起不再作为实现规格来源**，仅供 v3.3 及之前形态的历史回溯。
+>
+> **v3.4 决策**: 放弃**行为树作为 AI 实现方式**。但 AI 产品需求保留：
+> - 士兵四状态机、三圈模型、嘲讽、AOE 主目标 → 仍由 [`31-soldier-ai.md`](./31-soldier-ai.md) §1-§5 / §10-§12 承载（实现方式由 BT 改为规则引擎）
+> - Boss 阶段切换、复杂决策 → 由生命周期 `RuleHandler`（`onHpThreshold` / `onPhaseTransition`）+ 多候选 `targetSelection` 承载
+> - 敌方威胁度评分（§6 ScoreSelectTarget） → 由 `targetSelection: threat_score` 配置规则承载，规则引擎在 AttackSystem 中查表打分
+>
+> **决策溯源**: [`design/00-vision/decisions/2026-05-16_drop-behavior-tree.md`](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)
+>
+> **替代设计**: 待 v3.4 第 4 轮代码改造时补出 `30-ai-rules.md`（暂定名），描述 AttackSystem / MovementSystem / SkillSystem 在配置驱动模式下的目标选择、攻击决策、状态机落地细则。
+>
+> 以下原文保留供回溯，不再维护。
+
 ---
 
 # AI 行为树统一方案

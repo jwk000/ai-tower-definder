@@ -350,17 +350,30 @@ function attackSystem(world: World): void {
 }
 ```
 
-### 5.3 行为树集成
+### 5.3 ~~行为树集成~~ 🛑 v3.4 已 DEPRECATED（实现方式作废，AI 需求保留）
 
-行为树作为特殊的行为规则提供者：
+> **2026-05-16 决策**：放弃**行为树作为实现方式**，但 AI 产品需求全部保留。本节原描述的 `ai_tree` 配置字段、boss_commander_ai / abyss_lord_ai 等行为树预设、`src/ai/BehaviorTree.ts` 引擎全部废弃。
+>
+> **新方案**：所有 AI（含士兵四状态机、Boss、高级敌人）走 §5.1 / §5.2 描述的规则引擎路径——
+> - 配置中声明 `targetSelection` / `attackMode` / `movementMode` + 生命周期 `RuleHandler`
+> - 由 AttackSystem / MovementSystem / SkillSystem 等具体系统在每帧 query 中查阅
+> - 状态字段（如士兵 `state: 警戒/追击/战斗/游荡`）挂在 ECS 组件上，状态转换由帧内条件检测触发
+> - Boss 阶段切换由 `onHpThreshold` / `onPhaseTransition` 等生命周期事件 + `RuleHandler` 实现，不再需要 BT `Once` 装饰节点
+>
+> **AI 需求出处**:
+> - 士兵 AI: [`30-ai/31-soldier-ai.md`](../30-ai/31-soldier-ai.md) §1-§5 / §10-§12（需求段仍权威）
+> - 敌方威胁度评分: ~~[`30-ai/30-behavior-tree.md §6`](../30-ai/30-behavior-tree.md)~~ → v3.4 由 `targetSelection: threat_score` 配置承载
+>
+> **决策溯源**: [`design/00-vision/decisions/2026-05-16_drop-behavior-tree.md`](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)
+
+~~行为树作为特殊的行为规则提供者：~~
 
 ```yaml
+# 🛑 v3.4 已废弃 ai_tree 字段；保留示例仅供历史回溯
 boss_commander:
   behavior:
-    ai_tree: boss_commander_ai  # 使用行为树而非声明式规则
+    ai_tree: boss_commander_ai
 ```
-
-规则引擎在加载时检测：若配置了 `ai_tree`，则行为树接管目标选择和攻击决策；生命周期规则仍由规则引擎处理。两者互不冲突。
 
 ---
 

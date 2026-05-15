@@ -2,13 +2,43 @@
 title: 士兵 AI 行为设计
 status: stable
 version: 1.0.0
-last-modified: 2026-05-14
+last-modified: 2026-05-16
 authority-for:
   - soldier-ai-spec
 supersedes: []
 cross-refs:
-  - 30-ai/30-behavior-tree.md
+  - 00-vision/decisions/2026-05-16_drop-behavior-tree.md
   - 20-units/21-unit-roster.md
+---
+
+> # ⚠️ v3.4 实现层局部 DEPRECATED（需求保留）
+>
+> **2026-05-16 决策**：放弃**行为树作为实现方式**，但士兵 AI 的**产品需求全部保留**。
+>
+> **需求保留段（仍是权威）**：
+> - §1 设计评审
+> - §2 概念定义：三圈模型（警戒圈 / 追击圈 / 攻击圈）
+> - §3 状态机定义（警戒 / 追击 / 战斗 / 游荡 四状态）
+> - §4 状态转换规则
+> - §5 数值规格（射程、速度等）
+> - §10 嘲讽机制
+> - §11 AOE 主目标策略
+> - §12 升级机制
+>
+> **已 DEPRECATED 段（实现方式作废）**：
+> - § 6 行为树映射（§6.1 现有 BT 结构 / §6.2 新版士兵 BT 设计 / §6.3 新增 BT 节点）—— 行为树作为实现框架已放弃
+> - 涉及 `src/ai/BehaviorTree.ts`、`AISystem`、`aiConfigs.ts`、`BehaviorTreeViewer` 的所有代码引用
+>
+> **v3.4 替代实现路径**：四状态机由规则引擎在 AttackSystem / MovementSystem 中实现——
+> - 状态字段挂在士兵 ECS 组件上（如 `SoldierAI.state: enum`）
+> - 状态转换由帧内条件检测触发（圈范围 query + cooldown 计时）
+> - 攻击/移动/嘲讽优先级仍按 §3-§5 / §10 规格
+> - 升级 §12 通过 `onUpgrade` 生命周期 `RuleHandler` 实现
+>
+> 待 v3.4 实装时补出 `30-ai/31-soldier-ai-rules.md`（暂定名）描述规则引擎落地细节，与本文档需求段交叉引用。
+>
+> **决策溯源**: [`design/00-vision/decisions/2026-05-16_drop-behavior-tree.md`](../00-vision/decisions/2026-05-16_drop-behavior-tree.md)
+
 ---
 
 # 士兵 AI 行为设计
@@ -16,6 +46,7 @@ cross-refs:
 > 我方可移动单位（统称"士兵"）的AI行为：警戒/追击/战斗/游荡 状态机设计
 >
 > 版本: v2.2 | 日期: 2026-05-13 | 状态: §6.2 行为树已实装（4 套士兵 AI）；§10 嘲讽 + §11 AOE + §12 升级已落地
+> v3.4 更新（2026-05-16）：行为树实现方式废弃，需求段（§1-§5 / §10-§12）保留为产品权威
 
 ---
 
