@@ -1,5 +1,5 @@
 import { Pipeline } from './pipeline.js';
-import { RuleEngine } from './RuleEngine.js';
+import type { RuleEngine } from './RuleEngine.js';
 import { createTowerWorld, type TowerWorld } from './World.js';
 
 const MAX_DT_SECONDS = 0.25;
@@ -12,7 +12,7 @@ export class Game {
   constructor() {
     this.world = createTowerWorld();
     this.pipeline = new Pipeline();
-    this.ruleEngine = new RuleEngine();
+    this.ruleEngine = this.world.ruleEngine;
   }
 
   tick(dt: number): void {

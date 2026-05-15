@@ -5,6 +5,8 @@ import {
   type IWorld,
 } from 'bitecs';
 
+import type { RuleEngine } from './RuleEngine.js';
+
 export interface WorldTime {
   dt: number;
   elapsed: number;
@@ -12,20 +14,25 @@ export interface WorldTime {
 
 export interface TowerWorld extends IWorld {
   readonly time: WorldTime;
+  ruleEngine: RuleEngine;
   addEntity(): number;
   destroyEntity(eid: number): void;
   isDestroyed(eid: number): boolean;
   flushDeferred(): number;
 }
 
+import { RuleEngine as RuleEngineClass } from './RuleEngine.js';
+
 export function createTowerWorld(): TowerWorld {
   const base = createWorld() as IWorld;
   const time: WorldTime = { dt: 0, elapsed: 0 };
   const alive = new Set<number>();
   const destroyed = new Set<number>();
+  const ruleEngine = new RuleEngineClass();
 
   return Object.assign(base, {
     time,
+    ruleEngine,
     addEntity(): number {
       const eid = bitecsAddEntity(base);
       alive.add(eid);
