@@ -399,3 +399,616 @@ boss_beast:
         effect: boss_death
       - type: play_sound
         sound: SFX_BOSS_DIE
+
+---
+# 钻地蠕虫 — 关2沙漠虫潮，钻地免伤变体
+e_burrow_worm:
+  id: e_burrow_worm
+  name: 钻地蠕虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 70
+    atk: 8
+    attackSpeed: 1.0
+    speed: 90
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 12
+
+  visual:
+    shape: rectangle
+    color: "#8b5a2b"
+    size: 30
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canTunnel: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 蝗虫群 — 关2沙漠虫潮，飞行层群体小兵
+e_locust_swarm:
+  id: e_locust_swarm
+  name: 蝗虫群
+  category: Enemy
+  faction: Enemy
+  layer: Air
+  tier: L1
+
+  stats:
+    hp: 25
+    atk: 3
+    attackSpeed: 1.2
+    speed: 110
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 6
+
+  visual:
+    shape: triangle
+    color: "#cdb24b"
+    size: 18
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      ignoreBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 地走虫 — 关2沙漠虫潮，极快移速地面小兵
+e_ground_skitter:
+  id: e_ground_skitter
+  name: 地走虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L1
+
+  stats:
+    hp: 40
+    atk: 6
+    attackSpeed: 1.0
+    speed: 160
+    armor: 0
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 8
+
+  visual:
+    shape: circle
+    color: "#bf8e5a"
+    size: 22
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 腐蚀炮虫 — 关2沙漠虫潮，远程酸液攻击建筑
+e_acid_artillery:
+  id: e_acid_artillery
+  name: 腐蚀炮虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 100
+    atk: 22
+    attackSpeed: 0.5
+    range: 260
+    speed: 50
+    armor: 5
+    mr: 40
+    damageType: magic
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: hexagon
+    color: "#a4c639"
+    size: 28
+    outline: true
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  skills:
+    - id: acid_pool
+      name: 腐蚀酸池
+      cooldown: 8
+      range: 260
+      value: 60
+      description: "在目标位置留下腐蚀酸池（范围60），持续4s，降低范围内塔攻速30%"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 巨甲虫 — 关2沙漠虫潮，高护甲重装变体
+e_giant_beetle:
+  id: e_giant_beetle
+  name: 巨甲虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 320
+    atk: 14
+    attackSpeed: 0.6
+    range: 32
+    speed: 35
+    armor: 90
+    mr: 20
+    damageType: physical
+
+  reward:
+    gold: 28
+
+  visual:
+    shape: circle
+    color: "#6b4226"
+    size: 50
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_heavy
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 母虫（关末精英）— 关2沙漠虫潮，召唤型关末Boss
+e_queen_mother:
+  id: e_queen_mother
+  name: 母虫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 700
+    atk: 28
+    attackSpeed: 0.8
+    range: 80
+    speed: 40
+    armor: 50
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 110
+    energy: 30
+
+  visual:
+    shape: circle
+    color: "#e98c2d"
+    size: 64
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  ai_tree: queen_mother_ai
+
+  skills:
+    - id: summon_burrow_worm
+      name: 召唤钻地虫
+      cooldown: 8
+      range: 150
+      value: 3
+      description: "每8s在周围召唤3只钻地蠕虫"
+
+  lifecycle:
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: change_color
+          color: "#d32f2f"
+          blend: 0.35
+        - type: stat_change
+          attackSpeedBonus: 0.3
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+
+---
+# 寒霜劫掠者 — 关3极地暴雪，高护甲中坚单位
+e_frost_marauder:
+  id: e_frost_marauder
+  name: 寒霜劫掠者
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 400
+    atk: 18
+    attackSpeed: 0.7
+    range: 32
+    speed: 50
+    armor: 80
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 30
+
+  visual:
+    shape: circle
+    color: "#dde8f0"
+    size: 40
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_heavy
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 冰霜女巫 — 关3极地暴雪，形态切换远程法师
+e_ice_witch:
+  id: e_ice_witch
+  name: 冰霜女巫
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 180
+    atk: 24
+    attackSpeed: 0.5
+    range: 240
+    speed: 55
+    armor: 10
+    mr: 70
+    damageType: magic
+
+  reward:
+    gold: 26
+
+  visual:
+    shape: hexagon
+    color: "#a6d3e0"
+    size: 30
+    outline: true
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  skills:
+    - id: frost_aura
+      name: 寒冰光环
+      cooldown: 0
+      range: 80
+      value: 0.2
+      description: "持续光环：范围80内玩家塔攻速降低20%"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 雪人冲撞兽 — 关3极地暴雪，冲撞击退近战单位
+e_yeti_charger:
+  id: e_yeti_charger
+  name: 雪人冲撞兽
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 280
+    atk: 30
+    attackSpeed: 0.4
+    range: 32
+    speed: 80
+    armor: 60
+    mr: 15
+    damageType: physical
+
+  reward:
+    gold: 32
+
+  visual:
+    shape: circle
+    color: "#9eb8c8"
+    size: 38
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+      knockback: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 暴风雪精灵 — 关3极地暴雪，飞行层远程冰冻单位
+e_blizzard_sprite:
+  id: e_blizzard_sprite
+  name: 暴风雪精灵
+  category: Enemy
+  faction: Enemy
+  layer: Air
+  tier: L2
+
+  stats:
+    hp: 90
+    atk: 12
+    attackSpeed: 0.8
+    range: 220
+    speed: 70
+    armor: 5
+    mr: 55
+    damageType: magic
+
+  reward:
+    gold: 18
+
+  visual:
+    shape: triangle
+    color: "#b3d9f0"
+    size: 26
+    outline: true
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 冰川泰坦 — 关3极地暴雪，双肉墙关末精英（W10出2只）
+e_glacier_titan:
+  id: e_glacier_titan
+  name: 冰川泰坦
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 1200
+    atk: 35
+    attackSpeed: 0.4
+    range: 48
+    speed: 25
+    armor: 100
+    mr: 40
+    damageType: physical
+
+  reward:
+    gold: 150
+
+  visual:
+    shape: circle
+    color: "#5a89a3"
+    size: 70
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  ai_tree: glacier_titan_ai
+
+  skills:
+    - id: frost_slam
+      name: 寒冰震荡
+      cooldown: 10
+      range: 150
+      value: 40
+      description: "150px范围AOE 40物理伤害，击中目标减速50%持续3s"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.4"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: stat_change
+          attackSpeedBonus: 0.4
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
