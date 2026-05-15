@@ -27,16 +27,20 @@ describe('MovementSystem', () => {
     const game = new Game();
     const path = [
       { x: 0, y: 0 },
-      { x: 200, y: 0 },
+      { x: 400, y: 0 },
     ];
     game.pipeline.register(createMovementSystem({ path }));
     const eid = spawnWalker(game, 0, 0, 100);
     Movement.pathIndex[eid] = 1;
 
-    game.tick(0.5);
+    game.tick(0.25);
+
+    expect(Position.x[eid]).toBeCloseTo(25, 5);
+    expect(Position.y[eid]).toBeCloseTo(0, 5);
+
+    game.tick(0.25);
 
     expect(Position.x[eid]).toBeCloseTo(50, 5);
-    expect(Position.y[eid]).toBeCloseTo(0, 5);
   });
 
   it('snaps to a node when this tick would overshoot and advances pathIndex', () => {
@@ -50,10 +54,10 @@ describe('MovementSystem', () => {
     const eid = spawnWalker(game, 90, 0, 100);
     Movement.pathIndex[eid] = 1;
 
-    game.tick(0.5);
+    game.tick(0.2);
 
     expect(Position.x[eid]).toBeCloseTo(100, 5);
-    expect(Position.y[eid]).toBeCloseTo(0, 5);
+    expect(Position.y[eid]).toBeCloseTo(10, 5);
     expect(Movement.pathIndex[eid]).toBe(2);
   });
 
@@ -67,17 +71,17 @@ describe('MovementSystem', () => {
     const eid = spawnWalker(game, 0, 0, 100);
     Movement.pathIndex[eid] = 1;
 
-    game.tick(1);
+    game.tick(0.25);
 
-    expect(Position.x[eid]).toBeCloseTo(60, 3);
-    expect(Position.y[eid]).toBeCloseTo(80, 3);
+    expect(Position.x[eid]).toBeCloseTo(15, 3);
+    expect(Position.y[eid]).toBeCloseTo(20, 3);
   });
 
   it('dispatches onEnter once when an entity reaches the final node', () => {
     const game = new Game();
     const path = [
       { x: 0, y: 0 },
-      { x: 50, y: 0 },
+      { x: 20, y: 0 },
     ];
     const onEnter = vi.fn();
     game.ruleEngine.registerHandler('test_on_enter', onEnter);
@@ -86,8 +90,8 @@ describe('MovementSystem', () => {
     Movement.pathIndex[eid] = 1;
     game.ruleEngine.attachRules(eid, 'onEnter', [{ handler: 'test_on_enter', params: {} }]);
 
-    game.tick(1);
-    game.tick(1);
+    game.tick(0.25);
+    game.tick(0.25);
 
     expect(onEnter).toHaveBeenCalledTimes(1);
     expect(onEnter).toHaveBeenCalledWith(eid, {}, game.world);
@@ -97,7 +101,7 @@ describe('MovementSystem', () => {
     const game = new Game();
     const path = [
       { x: 0, y: 0 },
-      { x: 50, y: 0 },
+      { x: 20, y: 0 },
     ];
     const onEnter = vi.fn();
     game.ruleEngine.registerHandler('test_on_enter', onEnter);
@@ -106,11 +110,11 @@ describe('MovementSystem', () => {
     Movement.pathIndex[eid] = 1;
     game.ruleEngine.attachRules(eid, 'onEnter', [{ handler: 'test_on_enter', params: {} }]);
 
-    game.tick(1);
-    game.tick(1);
-    game.tick(1);
+    game.tick(0.25);
+    game.tick(0.25);
+    game.tick(0.25);
 
-    expect(Position.x[eid]).toBeCloseTo(50, 5);
+    expect(Position.x[eid]).toBeCloseTo(20, 5);
     expect(Position.y[eid]).toBeCloseTo(0, 5);
     expect(onEnter).toHaveBeenCalledTimes(1);
   });
@@ -128,7 +132,7 @@ describe('MovementSystem', () => {
     Position.x[positionOnly] = 7;
     Position.y[positionOnly] = 7;
 
-    expect(() => game.tick(0.5)).not.toThrow();
+    expect(() => game.tick(0.25)).not.toThrow();
     expect(Position.x[positionOnly]).toBe(7);
     expect(Position.y[positionOnly]).toBe(7);
   });
