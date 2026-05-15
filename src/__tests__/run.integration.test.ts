@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { addComponent } from 'bitecs';
 
 import { Game } from '../core/Game.js';
+import { RunController } from '../core/RunController.js';
 import {
   Crystal,
   Faction,
@@ -191,5 +192,82 @@ describe('Run integration: RunManager + Deck/Hand/Energy + CardSpawn + Economy +
     run.startRun();
     expect(run.phase).toBe(RunPhase.Battle);
     expect(run.currentLevel).toBe(1);
+  });
+});
+
+describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', () => {
+  function makeScenes() {
+    return {
+      mainMenu: { visible: false },
+      battle: { visible: false },
+      interLevel: { visible: false },
+      runResult: { visible: false },
+    };
+  }
+
+  it('completes a full Idle -> Battle -> Result cycle and resets to Idle', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 1 });
+    const scenes = makeScenes();
+    const controller = new RunController({ game, runManager, scenes });
+
+    expect(controller.phase).toBe(RunPhase.Idle);
+    expect(scenes.mainMenu.visible).toBe(true);
+    expect(scenes.battle.visible).toBe(false);
+    expect(scenes.interLevel.visible).toBe(false);
+    expect(scenes.runResult.visible).toBe(false);
+
+    controller.startRun();
+    expect(controller.phase).toBe(RunPhase.Battle);
+    expect(scenes.mainMenu.visible).toBe(false);
+    expect(scenes.battle.visible).toBe(true);
+
+    const tickSpy = vi.spyOn(game, 'tick');
+    controller.tick(0.016);
+    controller.tick(0.016);
+    expect(tickSpy).toHaveBeenCalledTimes(2);
+    expect(tickSpy).toHaveBeenLastCalledWith(0.016);
+
+    controller.completeCurrentLevel();
+    expect(controller.phase).toBe(RunPhase.Result);
+    expect(runManager.outcome).toBe('victory');
+    expect(scenes.battle.visible).toBe(false);
+    expect(scenes.runResult.visible).toBe(true);
+
+    tickSpy.mockClear();
+    controller.tick(0.016);
+    expect(tickSpy).not.toHaveBeenCalled();
+
+    controller.returnToMainMenu();
+    expect(controller.phase).toBe(RunPhase.Idle);
+    expect(scenes.mainMenu.visible).toBe(true);
+    expect(scenes.runResult.visible).toBe(false);
+    expect(runManager.gold).toBe(0);
+    expect(runManager.crystalHp).toBe(0);
+  });
+
+  it('handles defeat path and clears Run-level resources on reset', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 1, initialGold: 200, initialCrystalHp: 20 });
+    const scenes = makeScenes();
+    const controller = new RunController({ game, runManager, scenes });
+
+    controller.startRun();
+    expect(runManager.gold).toBe(200);
+    expect(runManager.crystalHp).toBe(20);
+
+    controller.failCurrentRun();
+    expect(controller.phase).toBe(RunPhase.Result);
+    expect(runManager.outcome).toBe('defeat');
+    expect(scenes.runResult.visible).toBe(true);
+    expect(scenes.battle.visible).toBe(false);
+
+    controller.returnToMainMenu();
+    expect(controller.phase).toBe(RunPhase.Idle);
+    expect(runManager.gold).toBe(0);
+    expect(runManager.sp).toBe(0);
+    expect(runManager.crystalHp).toBe(0);
+    expect(runManager.crystalHpMax).toBe(0);
+    expect(scenes.mainMenu.visible).toBe(true);
   });
 });
