@@ -17,20 +17,10 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "jsx": "react-jsx",
-    "jsxImportSource": "preact",
     "paths": {
       "@/*": ["./src/*"],
-      "@core/*": ["./src/core/*"],
-      "@components/*": ["./src/components/*"],
-      "@systems/*": ["./src/systems/*"],
-      "@data/*": ["./src/data/*"],
-      "@ui/*": ["./src/ui/*"],
-      "@render/*": ["./src/render/*"],
-      "@input/*": ["./src/input/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@types/*": ["./src/types/*"]
+      "@config/*": ["./src/config/*"]
     }
   },
-  "include": ["src", "vite-plugins"]
+  "include": ["src"]
 }
