@@ -79,6 +79,10 @@ describe('UnitFactory.spawnUnit', () => {
 
   it('attaches lifecycle rule definitions to the rule engine under their event names', () => {
     const world = createTowerWorld();
+    world.ruleEngine.registerHandler('drop_gold', () => undefined);
+    world.ruleEngine.registerHandler('play_effect', () => undefined);
+    world.ruleEngine.registerHandler('flash_color', () => undefined);
+
     const config: UnitConfig = {
       ...ENEMY_GRUNT,
       lifecycle: {
