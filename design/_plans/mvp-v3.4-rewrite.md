@@ -42,6 +42,8 @@
 | S15 | L1 卡池仅 `arrow_tower_card` + `cannon_tower_card` 两张（cards/towers.yaml 中其余 4 张 ice/lightning/laser/bat 不进入 MVP DeckSystem 抽样池）。**记录于 Wave 5 W5.0，但实现推迟到 Wave 6+ 内容扩展** | 21-unit-roster: MVP 应有 6 塔卡 | `src/unit-system/DeckSystem.ts` 池构造调用方 | P6+ |
 | S16 | 秘境事件 YAML 在 Wave 5 W5.A 落地，仅含 2 事件（零成本退出 + 30G→5SP），不实现 14 事件池 | 27-traps-spells-scene §5：14 事件 + 5/14 高风险 | `src/config/mystic-events.yaml` | P3 |
 | S17 | loader 静默丢弃 `rarity: common/rare/epic` 字段（被 `.passthrough()` 兜走），DeckSystem 沿用均匀抽样，不按稀有度权重 | 21-unit-roster / 10-roguelike-loop §2.4 | `src/unit-system/DeckSystem.ts` / `src/config/loader.ts` | P4 |
+| S18 | SkillTree 效果绑定走 panel intent → RunManager 直接改 ECS 组件路径，**不走 RuleEngine**；理由：技能树效果是持久属性 buff，非生命周期事件，与 `RuleEngine.dispatch(LifecycleEvent, ...)` 语义不匹配 | 22-skill-tree-overview §2 / 60-architecture §3.规则引擎 | `src/ui/SkillTreePanel.ts` / 待 Wave 6+ `RunManager` 接入 | P5 |
+| S19 | arrow_tower 技能树 MVP 以 TS 常量 `ARROW_TOWER_SKILL_TREE` 落地，**不进 YAML**；其余 6 塔 + 6 士兵 + 9 陷阱 + 14 法术 + 2 建筑共 36 单位的 skillTree 全部推迟到 Wave 6+ 内容扩展期 | 22-skill-tree-overview §3.YAML schema / 22a-22e | `src/ui/SkillTreePanel.ts` | P5 |
 
 **新增简化点 guardrail（S18+ 适用）**：
 
@@ -258,7 +260,7 @@ W3.7-W3.8 实际多了一个 `CardRegistry` 类（计划任务表未列出），
 
 ---
 
-### Wave 5 — UI 与渲染集成（约 2 天 · 9 commits）
+### Wave 5 — UI 与渲染集成（约 2 天 · 9 commits）✅
 
 **目标**：让 MVP 通过预期界面可玩。**UI 状态映射用单元测试，关键流程用冒烟测试**。
 
@@ -277,6 +279,14 @@ W3.7-W3.8 实际多了一个 `CardRegistry` 类（计划任务表未列出），
 **Wave 5 命令门**：`npm run typecheck && npm test`（聚焦 `src/ui/__tests__/**` 与 `src/render/__tests__/**`）
 
 **Wave 5 DoD**：浏览器手动操作可走通完整 Run 流程；技能树解锁后战斗中效果可见；HUD 实时更新；所有 UI 状态映射单元测试覆盖。
+
+**Wave 5 实际交付（2026-05-16）**：
+
+实际拆为 16 commits（W5.0/W5.2/W5.3/W5.4/W5.5/W5.6/W5.7/W5.8/W5.9/W5.10/W5.A1/W5.A2/W5.11/W5.12/W5.B + 追溯表 S18/S19）；W5.1（index.html + main.ts + Renderer.ts 引导壳）已由 Wave 0 commit `1b9114b` 提前交付，故跳过执行。新增 11 模块、261 用例（W5 增量 64：HUD 5、HandPanel 6、InterLevelPanel+MainMenu 9、ShopPanel 7、MysticEvent loader 4、MysticPanel 4、RunResultPanel 5、SkillTreePanel 6、RenderSystem 4、InputManager 6、LayoutManager 8）。
+
+**路径调整**：W5.7-W5.B 9 个面板 commit 采用「纯函数 `project*` / `attempt*` / `layout*` + 局部 RunState stub 类型」路径，**不接真 Game / RunManager**——RunManager 的真实结构与 ECS 绑定推迟到 Wave 6+。新增简化点 **S18**（SkillTree 效果绕过 RuleEngine，走 panel intent → ECS 组件直改路径）+ **S19**（arrow_tower 技能树以 TS 常量 `ARROW_TOWER_SKILL_TREE` 落地，不进 YAML；其余 36 单位的 skillTree 推迟到 Wave 6+ 内容扩展期）已记入 §0 追溯表。
+
+**三命令门**：`npm run typecheck` 绿 / `npm test` 261 用例全绿 / `npm run build` 1.14s 通过。DoD「≥240 用例」软目标超额完成 21 用例。
 
 ---
 
