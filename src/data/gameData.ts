@@ -386,7 +386,7 @@ export const UPGRADE_VISUALS: UpgradeVisualRegistry = {
 
 // ---- Enemy Configs ----
 
-export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
+const STATIC_ENEMY_CONFIGS = {
   [EnemyType.Grunt]: {
     type: EnemyType.Grunt,
     name: '小兵',
@@ -854,7 +854,36 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
       ],
     },
   },
-};
+} satisfies Partial<Record<EnemyType, EnemyConfig>>;
+
+function makeEnemyStub(type: EnemyType): EnemyConfig {
+  return {
+    type,
+    name: type,
+    description: '',
+    hp: 50,
+    speed: 80,
+    atk: 5,
+    defense: 0,
+    magicResist: 0,
+    attackRange: 0,
+    attackSpeed: 1,
+    canAttackBuildings: false,
+    rewardGold: 10,
+    color: '#ef5350',
+    radius: 14,
+    shape: 'circle',
+    attackAnimDuration: 0.3,
+  };
+}
+
+export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = (() => {
+  const merged = { ...STATIC_ENEMY_CONFIGS } as Record<EnemyType, EnemyConfig>;
+  for (const type of Object.values(EnemyType)) {
+    if (!(type in merged)) merged[type] = makeEnemyStub(type);
+  }
+  return merged;
+})();
 
 // ---- MVP Map ----
 

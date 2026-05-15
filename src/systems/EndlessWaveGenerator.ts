@@ -5,7 +5,7 @@ function hash(seed: number): number {
   return x - Math.floor(x);
 }
 
-const ENEMY_COSTS: Record<EnemyType, number> = {
+const STATIC_ENEMY_COSTS = {
   [EnemyType.Grunt]: 10,
   [EnemyType.Runner]: 12,
   [EnemyType.Heavy]: 25,
@@ -16,7 +16,15 @@ const ENEMY_COSTS: Record<EnemyType, number> = {
   [EnemyType.HotAirBalloon]: 28,
   [EnemyType.Shaman]: 25,
   [EnemyType.Juggernaut]: 40,
-};
+} satisfies Partial<Record<EnemyType, number>>;
+
+const ENEMY_COSTS: Record<EnemyType, number> = (() => {
+  const merged = { ...STATIC_ENEMY_COSTS } as Record<EnemyType, number>;
+  for (const type of Object.values(EnemyType)) {
+    if (!(type in merged)) merged[type] = 15;
+  }
+  return merged;
+})();
 
 export function generateEndlessWave(waveNumber: number): WaveConfig {
   const hpMultiplier = 1 + (waveNumber - 1) * 0.15;

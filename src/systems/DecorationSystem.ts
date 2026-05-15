@@ -213,6 +213,134 @@ export class DecorationSystem implements System {
       { shape: 'circle', offsetX: 4, offsetY: 2, size: 6, color: '#757575', alpha: 0.6 },
       { shape: 'circle', offsetX: -1, offsetY: 3, size: 4, color: '#424242', alpha: 0.6 },
     ],
+
+    // ---- 沙漠虫潮 (Level 2) ----
+    [ObstacleType.SandDune]: [
+      { shape: 'circle', offsetX: -3, offsetY: 2, size: 9, color: '#d4b48a' },
+      { shape: 'circle', offsetX: 4, offsetY: 3, size: 7, color: '#c9a374', alpha: 0.85 },
+    ],
+    [ObstacleType.TunnelEntrance]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 12, color: '#3e2723' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 8, color: '#1b0d05', alpha: 0.95 },
+    ],
+    [ObstacleType.TunnelExit]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 12, color: '#4e342e' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 8, color: '#2b1812', alpha: 0.9 },
+    ],
+
+    // ---- 极地暴雪 (Level 3) ----
+    [ObstacleType.IcePillar]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 7, h: 22, color: '#b3e5fc' },
+      { shape: 'rect', offsetX: 0, offsetY: -10, size: 9, h: 4, color: '#e1f5fe' },
+      { shape: 'rect', offsetX: 0, offsetY: 10, size: 9, h: 4, color: '#81d4fa' },
+    ],
+    [ObstacleType.SnowPile]: [
+      { shape: 'circle', offsetX: -2, offsetY: 2, size: 8, color: '#ffffff' },
+      { shape: 'circle', offsetX: 3, offsetY: 3, size: 6, color: '#eceff1', alpha: 0.9 },
+    ],
+    [ObstacleType.IceTile]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 22, h: 22, color: '#b3e5fc', alpha: 0.55 },
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 16, h: 16, color: '#e1f5fe', alpha: 0.4 },
+    ],
+
+    // ---- 失落神庙 (Level 4) ----
+    [ObstacleType.TemplePillar]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 12, h: 24, color: '#a1887f' },
+      { shape: 'rect', offsetX: 0, offsetY: -12, size: 14, h: 4, color: '#bcaaa4' },
+      { shape: 'rect', offsetX: 0, offsetY: 12, size: 14, h: 4, color: '#8d6e63' },
+    ],
+    [ObstacleType.AncientStatue]: [
+      { shape: 'rect', offsetX: 0, offsetY: 4, size: 10, h: 12, color: '#9e9e9e' },
+      { shape: 'circle', offsetX: 0, offsetY: -6, size: 6, color: '#bdbdbd' },
+    ],
+    [ObstacleType.VineOvergrowth]: [
+      { shape: 'circle', offsetX: -3, offsetY: 0, size: 6, color: '#33691e', alpha: 0.8 },
+      { shape: 'circle', offsetX: 3, offsetY: -2, size: 5, color: '#558b2f', alpha: 0.8 },
+      { shape: 'circle', offsetX: 0, offsetY: 3, size: 7, color: '#2e7d32', alpha: 0.7 },
+    ],
+
+    // ---- 沉没港口 (Level 5) ----
+    [ObstacleType.ShipWreck]: [
+      { shape: 'rect', offsetX: 0, offsetY: 4, size: 18, h: 6, color: '#5d4037' },
+      { shape: 'rect', offsetX: -6, offsetY: -2, size: 3, h: 10, color: '#4e342e' },
+      { shape: 'triangle', offsetX: -6, offsetY: -7, size: 5, color: '#3e2723' },
+    ],
+    [ObstacleType.DockCrate]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 12, h: 12, color: '#8d6e63' },
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 10, h: 2, color: '#6d4c41' },
+    ],
+    [ObstacleType.Buoy]: [
+      { shape: 'circle', offsetX: 0, offsetY: 2, size: 7, color: '#d32f2f' },
+      { shape: 'rect', offsetX: 0, offsetY: -5, size: 2, h: 6, color: '#212121' },
+    ],
+    [ObstacleType.TideShoal]: [
+      { shape: 'circle', offsetX: -3, offsetY: 0, size: 8, color: '#4fc3f7', alpha: 0.45 },
+      { shape: 'circle', offsetX: 4, offsetY: 1, size: 7, color: '#29b6f6', alpha: 0.45 },
+    ],
+
+    // ---- 齿轮工厂 (Level 6) ----
+    [ObstacleType.ConveyorBelt]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 24, h: 8, color: '#424242' },
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 22, h: 3, color: '#616161' },
+    ],
+    [ObstacleType.GearDecoration]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 11, color: '#9e9e9e' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 5, color: '#616161' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 2, color: '#212121' },
+    ],
+    [ObstacleType.SteamPipe]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 6, h: 22, color: '#78909c' },
+      { shape: 'circle', offsetX: 0, offsetY: -11, size: 5, color: '#cfd8dc', alpha: 0.7 },
+    ],
+    [ObstacleType.CoalPile]: [
+      { shape: 'circle', offsetX: -3, offsetY: 1, size: 6, color: '#212121' },
+      { shape: 'circle', offsetX: 3, offsetY: 2, size: 5, color: '#424242' },
+      { shape: 'circle', offsetX: 0, offsetY: -1, size: 4, color: '#1a1a1a' },
+    ],
+
+    // ---- 孢子菌林 (Level 7) ----
+    [ObstacleType.MushroomCluster]: [
+      { shape: 'rect', offsetX: 0, offsetY: 4, size: 4, h: 8, color: '#fff3e0' },
+      { shape: 'circle', offsetX: 0, offsetY: -2, size: 9, color: '#ad1457' },
+      { shape: 'circle', offsetX: -3, offsetY: -1, size: 2, color: '#fce4ec', alpha: 0.8 },
+      { shape: 'circle', offsetX: 3, offsetY: -3, size: 2, color: '#fce4ec', alpha: 0.8 },
+    ],
+    [ObstacleType.SporePod]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 8, color: '#7b1fa2' },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 4, color: '#ce93d8', alpha: 0.7 },
+    ],
+    [ObstacleType.MoldSpawner]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 10, color: '#4a148c' },
+      { shape: 'circle', offsetX: -2, offsetY: -2, size: 4, color: '#7b1fa2', alpha: 0.8 },
+      { shape: 'circle', offsetX: 2, offsetY: 2, size: 4, color: '#9c27b0', alpha: 0.7 },
+    ],
+    [ObstacleType.HyphalRoot]: [
+      { shape: 'rect', offsetX: -4, offsetY: 0, size: 2, h: 10, color: '#6a1b9a', alpha: 0.8 },
+      { shape: 'rect', offsetX: 4, offsetY: 0, size: 2, h: 10, color: '#6a1b9a', alpha: 0.8 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 3, color: '#8e24aa', alpha: 0.9 },
+    ],
+
+    // ---- 异界终战 (Level 8) ----
+    [ObstacleType.AlienPillar]: [
+      { shape: 'rect', offsetX: 0, offsetY: 0, size: 10, h: 26, color: '#4a148c' },
+      { shape: 'diamond', offsetX: 0, offsetY: -10, size: 7, color: '#e1bee7' },
+      { shape: 'diamond', offsetX: 0, offsetY: 10, size: 7, color: '#7b1fa2' },
+    ],
+    [ObstacleType.CorruptedObelisk]: [
+      { shape: 'triangle', offsetX: 0, offsetY: 0, size: 16, color: '#1a0033' },
+      { shape: 'triangle', offsetX: 0, offsetY: 0, size: 10, color: '#311b92', alpha: 0.8 },
+      { shape: 'diamond', offsetX: 0, offsetY: -3, size: 3, color: '#b388ff', alpha: 0.9 },
+    ],
+    [ObstacleType.VoidRift]: [
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 14, color: '#000000' },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 8, color: '#311b92', alpha: 0.8 },
+      { shape: 'diamond', offsetX: 0, offsetY: 0, size: 3, color: '#b388ff', alpha: 0.9 },
+    ],
+    [ObstacleType.RealityWarp]: [
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 13, color: '#4527a0', alpha: 0.5 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 8, color: '#7c4dff', alpha: 0.5 },
+      { shape: 'circle', offsetX: 0, offsetY: 0, size: 3, color: '#ffffff', alpha: 0.9 },
+    ],
   };
 
   /**

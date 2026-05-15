@@ -2728,3 +2728,200 @@ e_old_one_warden:
         sound: SFX_BOSS_DIE
       - type: final_victory
 
+---
+# 关2 沙漠虫潮 L1 小兵 — 蛮族战士（蓝图关 2 主流前排）
+e_kraal_grunt:
+  id: e_kraal_grunt
+  name: 蛮族战士
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L1
+
+  stats:
+    hp: 60
+    atk: 6
+    attackSpeed: 1.0
+    speed: 80
+    armor: 5
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 11
+
+  visual:
+    shape: circle
+    color: "#bf6f3a"
+    size: 24
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 关3 极地暴雪 L1 小兵 — 雪人幼崽（蓝图关 3 主流前排）
+e_yeti_runt:
+  id: e_yeti_runt
+  name: 雪人幼崽
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L1
+
+  stats:
+    hp: 70
+    atk: 6
+    attackSpeed: 1.0
+    speed: 70
+    armor: 10
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 12
+
+  visual:
+    shape: circle
+    color: "#e3f2fd"
+    size: 26
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 关3 极地暴雪 L2 矛兵 — 寒霜枪手（远程戳塔，蓝图关 3 中前期压力源）
+e_frost_lancer:
+  id: e_frost_lancer
+  name: 寒霜枪手
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 130
+    atk: 18
+    attackSpeed: 0.7
+    range: 60
+    speed: 75
+    armor: 15
+    mr: 5
+    damageType: physical
+
+  reward:
+    gold: 18
+
+  visual:
+    shape: rectangle
+    color: "#90caf9"
+    size: 28
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+# 关8 异界终战 L2 — 鲜血诡术师（onDeath 复活僵尸；数值参考 MDA §21 L1398）
+e_blood_trickster:
+  id: e_blood_trickster
+  name: 鲜血诡术师
+  category: Enemy
+  faction: Enemy
+  layer: Ground
+  tier: L2
+
+  stats:
+    hp: 150
+    atk: 12
+    attackSpeed: 0.8
+    range: 32
+    speed: 70
+    armor: 30
+    mr: 35
+    damageType: magical
+
+  reward:
+    gold: 24
+
+  visual:
+    shape: circle
+    color: "#b71c1c"
+    size: 26
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: spawn_unit
+        unitId: zombie_trickster_revive
+        count: 1
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: flash_color
+        color: "#ffffff"
+        duration: 0.1
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+

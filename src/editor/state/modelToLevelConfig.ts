@@ -20,6 +20,12 @@ const WEATHER_MAP: Record<string, WeatherType> = {
   fog: WeatherType.Fog,
   snow: WeatherType.Snow,
   night: WeatherType.Night,
+  sandstorm: WeatherType.Sandstorm,
+  blizzard: WeatherType.Blizzard,
+  storm: WeatherType.Storm,
+  smog: WeatherType.Smog,
+  spore_mist: WeatherType.SporeMist,
+  void: WeatherType.Void,
 };
 
 function adaptMap(m: MapModel): MapConfig {

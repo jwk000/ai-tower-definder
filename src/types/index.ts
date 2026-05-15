@@ -68,6 +68,39 @@ export enum ObstacleType {
   Pillar = 'pillar',
   Brazier = 'brazier',
   Rubble = 'rubble',
+  // ---- v3.2 8 关 roguelike 装饰（不影响 gameplay，DecorationSystem fallback 到通用几何） ----
+  // 关 2 沙漠虫潮
+  SandDune = 'sand_dune',
+  TunnelEntrance = 'tunnel_entrance',
+  TunnelExit = 'tunnel_exit',
+  // 关 3 极地暴雪
+  IcePillar = 'ice_pillar',
+  SnowPile = 'snow_pile',
+  IceTile = 'ice_tile',
+  // 关 4 失落神庙
+  TemplePillar = 'temple_pillar',
+  AncientStatue = 'ancient_statue',
+  VineOvergrowth = 'vine_overgrowth',
+  // 关 5 沉没港口
+  ShipWreck = 'ship_wreck',
+  DockCrate = 'dock_crate',
+  Buoy = 'buoy',
+  TideShoal = 'tide_shoal',
+  // 关 6 齿轮工厂
+  ConveyorBelt = 'conveyor_belt',
+  GearDecoration = 'gear_decoration',
+  SteamPipe = 'steam_pipe',
+  CoalPile = 'coal_pile',
+  // 关 7 孢子菌林
+  MushroomCluster = 'mushroom_cluster',
+  SporePod = 'spore_pod',
+  MoldSpawner = 'mold_spawner',
+  HyphalRoot = 'hyphal_root',
+  // 关 8 异界终战
+  AlienPillar = 'alien_pillar',
+  CorruptedObelisk = 'corrupted_obelisk',
+  VoidRift = 'void_rift',
+  RealityWarp = 'reality_warp',
 }
 
 export interface ObstaclePlacement {
@@ -231,6 +264,56 @@ export enum EnemyType {
   HotAirBalloon = 'hot_air_balloon',
   Shaman = 'shaman',
   Juggernaut = 'juggernaut',
+  // Level 2 沙漠虫潮 (design/10-gameplay/16-level-blueprints.md §2)
+  KraalGrunt = 'e_kraal_grunt',
+  BurrowWorm = 'e_burrow_worm',
+  LocustSwarm = 'e_locust_swarm',
+  GroundSkitter = 'e_ground_skitter',
+  AcidArtillery = 'e_acid_artillery',
+  GiantBeetle = 'e_giant_beetle',
+  QueenMother = 'e_queen_mother',
+  // Level 3 极地暴雪 (§3)
+  YetiRunt = 'e_yeti_runt',
+  FrostLancer = 'e_frost_lancer',
+  FrostMarauder = 'e_frost_marauder',
+  IceWitch = 'e_ice_witch',
+  YetiCharger = 'e_yeti_charger',
+  BlizzardSprite = 'e_blizzard_sprite',
+  GlacierTitan = 'e_glacier_titan',
+  // Level 4 失落神庙 (§4)
+  TempleGuard = 'e_temple_guard',
+  JungleZealot = 'e_jungle_zealot',
+  TemplePriest = 'e_temple_priest',
+  RevivalIdol = 'e_revival_idol',
+  PetrifyOracle = 'e_petrify_oracle',
+  StoneColossus = 'e_stone_colossus',
+  // Level 5 沉没港口 (§5)
+  CorsairPikeman = 'e_corsair_pikeman',
+  DockBrawler = 'e_dock_brawler',
+  BrineCharger = 'e_brine_charger',
+  KrakenTendril = 'e_kraken_tendril',
+  TideWarlord = 'e_tide_warlord',
+  // Level 6 齿轮工厂 (§6)
+  ClockworkGrunt = 'e_clockwork_grunt',
+  SteamLancer = 'e_steam_lancer',
+  HammergrubDrone = 'e_hammergrub_drone',
+  MinecartJuggernaut = 'e_minecart_juggernaut',
+  RepairBot = 'e_repair_bot',
+  SteelArtisan = 'e_steel_artisan',
+  // Level 7 孢子菌林 (§7)
+  Sporeling = 'e_sporeling',
+  MycoCharger = 'e_myco_charger',
+  WarpedWitch = 'e_warped_witch',
+  BroodMother = 'e_brood_mother',
+  BlightSpitter = 'e_blight_spitter',
+  MycelialCore = 'e_mycelial_core',
+  // Level 8 异界终战 (§8)
+  VoidBlinker = 'e_void_blinker',
+  VoidThrall = 'e_void_thrall',
+  EyeOfCollapse = 'e_eye_of_collapse',
+  CursedAvenger = 'e_cursed_avenger',
+  OldOneWarden = 'e_old_one_warden',
+  BloodTrickster = 'e_blood_trickster',
 }
 
 export interface EnemyConfig {
@@ -370,6 +453,13 @@ export enum WeatherType {
   Snow = 'snow',
   Fog = 'fog',
   Night = 'night',
+  // ---- v3.2 8 关 roguelike 主题天气 (16-level-blueprints §0-§9) ----
+  Sandstorm = 'sandstorm',   // 关 2 沙漠虫潮
+  Blizzard = 'blizzard',     // 关 3 极地暴雪要塞
+  Storm = 'storm',           // 关 5 沉没港口（暴雨）
+  Smog = 'smog',             // 关 6 齿轮工厂（煤烟）
+  SporeMist = 'spore_mist',  // 关 7 孢子菌林
+  Void = 'void',             // 关 8 异界终战
 }
 
 export interface WeatherModifier {
