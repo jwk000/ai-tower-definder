@@ -172,9 +172,19 @@
 
 ---
 
-### Wave 3 — Run 循环垂直切片（约 2 天 · 10 commits）
+### Wave 3 — Run 循环垂直切片 ✅ 已完成（2026-05-16）
 
 **目标**：证明 Run 存在于单关之外（卡组 / 手牌 / 能量 / 关后过渡）。
+
+**实际产出**：W3.1-W3.10 全部落地 + 1 个 Run 集成测试文件（3 用例）；174/174 测试绿；三命令门全过。
+
+新增 §0 MVP 简化追溯条目：
+
+- **S11**：DeckSystem 不实现稀有度权重（Common/Rare/Epic/Legendary）和保底逻辑；纯均匀采样自 pool 字符串数组。Wave 4 接 YAML 时由上层加权采样函数提供 pool。
+- **S12**：EnergySystem 不实现来自关卡主题/天气/技能树的 regen 修正乘数和 starving 调试。仅 flat regenPerSecond + max + cost。生产层修正可作为 EnergyModifierSystem 后续叠加。
+- **S13**：CardSpawnSystem 不区分 trap/production/unit 子类的特殊渲染路径；三类都走 UnitFactory.spawnUnit。shop_item 卡型不进入战斗手牌（48 §3 边界），W3 不实现。
+
+W3.7-W3.8 实际多了一个 `CardRegistry` 类（计划任务表未列出），用于 cardId → CardConfig + unitConfigId → UnitConfig 双映射。MVP in-memory，Wave 4 YAML loader 写入。
 
 | # | 任务 | TDD 步骤 | 产出 | 提交 |
 |---|---|---|---|---|
