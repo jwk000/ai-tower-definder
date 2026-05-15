@@ -61,5 +61,12 @@ export const Owner = defineComponent({
   parent: Types.i32,
 });
 
+export const Attack = defineComponent({
+  damage: Types.i32,
+  range: Types.f32,
+  cooldown: Types.f32,
+  cooldownLeft: Types.f32,
+});
+
 export const DeadTag = defineComponent();
 export const JustSpawnedTag = defineComponent();
