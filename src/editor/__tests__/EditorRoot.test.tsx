@@ -788,4 +788,131 @@ describe('EditorRoot integration (happy-dom)', () => {
       expect(model.map.tiles[0]?.[0]).toBe('blocked');
     });
   });
+
+  describe('spawn tile integration (I1/I2 invariant)', () => {
+    const baseYaml =
+      'id: level_01\n' +
+      'name: Plains\n' +
+      'map:\n' +
+      '  cols: 3\n' +
+      '  rows: 2\n' +
+      '  tileSize: 32\n' +
+      '  tiles:\n' +
+      '    - [empty, empty, empty]\n' +
+      '    - [empty, empty, empty]\n' +
+      'waves: []\n';
+
+    async function openFormWithSpawnBrush(): Promise<LevelEditor> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: baseYaml, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'map-toolbar-tile-spawn')!.click();
+      await tick();
+      return editor;
+    }
+
+    it('painting a spawn tile auto-creates a spawns[] entry and PathNode', async () => {
+      const editor = await openFormWithSpawnBrush();
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.tiles[0]?.[0]).toBe('spawn');
+      expect(model.map.spawns).toHaveLength(1);
+      expect(model.map.spawns?.[0]).toMatchObject({ row: 0, col: 0 });
+      expect(model.map.pathGraph?.nodes).toHaveLength(1);
+      expect(model.map.pathGraph?.nodes[0]).toMatchObject({ role: 'spawn' });
+    });
+
+    it('SpawnPanel renders the new spawn row after painting', async () => {
+      const editor = await openFormWithSpawnBrush();
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      const spawnId = model.map.spawns?.[0]?.id ?? '';
+      expect(findByTestId(host, `spawn-row-${spawnId}`)).not.toBeNull();
+    });
+
+    it('overwriting a spawn tile with another tile removes the spawns entry', async () => {
+      const editor = await openFormWithSpawnBrush();
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+
+      const paintEv = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(paintEv, 'offsetX', { value: 5 });
+      Object.defineProperty(paintEv, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(paintEv);
+      await tick(); await tick();
+
+      findByTestId<HTMLButtonElement>(host, 'map-toolbar-tile-path')!.click();
+      await tick();
+
+      const eraseEv = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(eraseEv, 'offsetX', { value: 5 });
+      Object.defineProperty(eraseEv, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(eraseEv);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.tiles[0]?.[0]).toBe('path');
+      expect(model.map.spawns ?? []).toHaveLength(0);
+    });
+
+    it('renaming a spawn via SpawnPanel updates the YAML name field', async () => {
+      const editor = await openFormWithSpawnBrush();
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      const spawnId = model.map.spawns?.[0]?.id ?? '';
+      const nameInput = findByTestId<HTMLInputElement>(host, `spawn-name-${spawnId}`)!;
+      nameInput.value = '北口';
+      nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick(); await tick();
+
+      const updated = parseYamlToModel(editor.currentContent ?? '');
+      expect(updated.map.spawns?.[0]?.name).toBe('北口');
+    });
+
+    it('deleting a spawn via SpawnPanel removes tile + spawns entry', async () => {
+      const editor = await openFormWithSpawnBrush();
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      const spawnId = model.map.spawns?.[0]?.id ?? '';
+      findByTestId<HTMLButtonElement>(host, `spawn-delete-${spawnId}`)!.click();
+      await tick(); await tick();
+
+      const updated = parseYamlToModel(editor.currentContent ?? '');
+      expect(updated.map.tiles[0]?.[0]).toBe('empty');
+      expect(updated.map.spawns ?? []).toHaveLength(0);
+    });
+  });
 });

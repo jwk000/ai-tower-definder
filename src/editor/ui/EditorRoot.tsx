@@ -16,6 +16,8 @@ import { WeatherPanel } from './panels/WeatherPanel.js';
 import { MapToolbar, BRUSH_TILE_TYPES } from './panels/MapToolbar.js';
 import { MapView } from './MapView.js';
 import type { MapPreviewModel } from '../preview/MapCanvas.js';
+import { SpawnPanel } from './panels/SpawnPanel.js';
+import { addSpawn, removeSpawn, renameSpawn } from '../state/spawnOps.js';
 
 type EditTab = 'form' | 'raw';
 
@@ -129,9 +131,35 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
 
   const onTileClick = (row: number, col: number, button: number): void => {
     if (parsed.model === null) return;
-    const tile = button === 2 ? 'empty' : brushTile;
-    const next = withTileAt(parsed.model, row, col, tile);
-    editor.setCurrentContent(serializeModelToYaml(next));
+    const targetTile = button === 2 ? 'empty' : brushTile;
+    const currentTile = tileCellToString(parsed.model.map.tiles[row]?.[col] ?? 'empty');
+    let nextMap = parsed.model.map;
+
+    if (targetTile === 'spawn') {
+      nextMap = addSpawn(nextMap, row, col);
+    } else {
+      if (currentTile === 'spawn') {
+        const victimSpawn = nextMap.spawns?.find((s) => s.row === row && s.col === col);
+        if (victimSpawn !== undefined) {
+          nextMap = removeSpawn(nextMap, victimSpawn.id);
+        }
+      }
+      nextMap = withTileAt({ ...parsed.model, map: nextMap }, row, col, targetTile).map;
+    }
+
+    editor.setCurrentContent(serializeModelToYaml({ ...parsed.model, map: nextMap }));
+  };
+
+  const onRemoveSpawn = (spawnId: string): void => {
+    if (parsed.model === null) return;
+    const nextMap = removeSpawn(parsed.model.map, spawnId);
+    editor.setCurrentContent(serializeModelToYaml({ ...parsed.model, map: nextMap }));
+  };
+
+  const onRenameSpawn = (spawnId: string, name: string): void => {
+    if (parsed.model === null) return;
+    const nextMap = renameSpawn(parsed.model.map, spawnId, name);
+    editor.setCurrentContent(serializeModelToYaml({ ...parsed.model, map: nextMap }));
   };
 
   const onPickLevel = (id: string): void => {
@@ -340,6 +368,11 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                   <div data-testid="panel-map">
                     <MapToolbar activeTile={brushTile} onSelectTile={setBrushTile} />
                     <MapView model={previewModel} onTileClick={onTileClick} />
+                    <SpawnPanel
+                      spawns={parsed.model.map.spawns ?? []}
+                      onRemoveSpawn={onRemoveSpawn}
+                      onRenameSpawn={onRenameSpawn}
+                    />
                   </div>
                   <div data-testid="panel-metadata">
                     <MetadataPanel model={parsed.model} onChange={onFormChange} />
