@@ -4,6 +4,8 @@ import {
   parseYamlToModel,
   serializeModelToYaml,
   type LevelFormModel,
+  type MapModel,
+  type TileCell,
 } from '../state/levelModel.js';
 import { validateLevel, type ValidationError } from '../state/levelValidation.js';
 import { MetadataPanel } from './panels/MetadataPanel.js';
@@ -11,6 +13,9 @@ import { StartingPanel } from './panels/StartingPanel.js';
 import { AvailablePanel } from './panels/AvailablePanel.js';
 import { WaveListPanel } from './panels/WaveListPanel.js';
 import { WeatherPanel } from './panels/WeatherPanel.js';
+import { MapToolbar, BRUSH_TILE_TYPES } from './panels/MapToolbar.js';
+import { MapView } from './MapView.js';
+import type { MapPreviewModel } from '../preview/MapCanvas.js';
 
 type EditTab = 'form' | 'raw';
 
@@ -55,10 +60,49 @@ function snapshot(editor: LevelEditor): ViewState {
   };
 }
 
+function tileCellToString(cell: TileCell): string {
+  if (typeof cell === 'string') return cell;
+  switch (cell) {
+    case 0: return 'empty';
+    case 1: return 'path';
+    case 2: return 'blocked';
+    case 3: return 'spawn';
+    case 4: return 'base';
+    default: return 'empty';
+  }
+}
+
+function buildPreviewModel(map: MapModel): MapPreviewModel {
+  const tileSize = map.tileSize > 0 ? map.tileSize : 64;
+  const tiles: string[][] = map.tiles.map((row) => row.map(tileCellToString));
+  return {
+    cols: map.cols,
+    rows: map.rows,
+    tileSize,
+    tiles,
+  };
+}
+
+function withTileAt(model: LevelFormModel, row: number, col: number, tile: string): LevelFormModel {
+  const oldTiles = model.map.tiles;
+  if (row < 0 || row >= oldTiles.length) return model;
+  const oldRow = oldTiles[row];
+  if (oldRow === undefined || col < 0 || col >= oldRow.length) return model;
+  const newRow: TileCell[] = oldRow.slice();
+  newRow[col] = tile;
+  const newTiles: TileCell[][] = oldTiles.slice();
+  newTiles[row] = newRow;
+  return {
+    ...model,
+    map: { ...model.map, tiles: newTiles },
+  };
+}
+
 export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const [view, setView] = useState<ViewState>(() => snapshot(editor));
   const [tab, setTab] = useState<EditTab>('raw');
   const [validationState, setValidationState] = useState<{ content: string | null; errors: ValidationError[] }>({ content: null, errors: [] });
+  const [brushTile, setBrushTile] = useState<string>(BRUSH_TILE_TYPES[1] ?? 'path');
 
   useEffect(() => {
     const onChange = () => setView(snapshot(editor));
@@ -72,7 +116,21 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     [view.currentContent],
   );
 
+  const previewModel = useMemo<MapPreviewModel>(
+    () => parsed.model !== null
+      ? buildPreviewModel(parsed.model.map)
+      : { cols: 0, rows: 0, tileSize: 64, tiles: [] },
+    [parsed.model],
+  );
+
   const onFormChange = (next: LevelFormModel): void => {
+    editor.setCurrentContent(serializeModelToYaml(next));
+  };
+
+  const onTileClick = (row: number, col: number, button: number): void => {
+    if (parsed.model === null) return;
+    const tile = button === 2 ? 'empty' : brushTile;
+    const next = withTileAt(parsed.model, row, col, tile);
     editor.setCurrentContent(serializeModelToYaml(next));
   };
 
@@ -279,6 +337,10 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                 </div>
               ) : (
                 <div style={formScrollStyle} data-testid="editor-form-container">
+                  <div data-testid="panel-map">
+                    <MapToolbar activeTile={brushTile} onSelectTile={setBrushTile} />
+                    <MapView model={previewModel} onTileClick={onTileClick} />
+                  </div>
                   <div data-testid="panel-metadata">
                     <MetadataPanel model={parsed.model} onChange={onFormChange} />
                   </div>

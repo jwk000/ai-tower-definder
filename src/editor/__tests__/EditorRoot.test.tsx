@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { EditorRoot } from '../ui/EditorRoot.js';
 import { LevelEditor } from '../LevelEditor.js';
+import { parseYamlToModel } from '../state/levelModel.js';
 
 interface MockResp {
   status: number;
@@ -676,6 +677,115 @@ describe('EditorRoot integration (happy-dom)', () => {
       await tick();
 
       expect(findByTestId(host, 'editor-validation-errors')).toBeNull();
+    });
+  });
+
+  describe('map canvas + tile brush integration', () => {
+    const yamlWithMap =
+      'id: level_01\n' +
+      'name: Plains\n' +
+      'map:\n' +
+      '  cols: 3\n' +
+      '  rows: 2\n' +
+      '  tileSize: 32\n' +
+      '  tiles:\n' +
+      '    - [empty, empty, empty]\n' +
+      '    - [empty, empty, empty]\n' +
+      'waves: []\n';
+
+    async function openFormTabWithMap(): Promise<LevelEditor> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: yamlWithMap, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+      await tick(); await tick();
+      return editor;
+    }
+
+    it('Form tab renders the map toolbar and canvas', async () => {
+      await openFormTabWithMap();
+      expect(findByTestId(host, 'panel-map')).not.toBeNull();
+      expect(findByTestId(host, 'map-toolbar')).not.toBeNull();
+      expect(findByTestId(host, 'map-toolbar-tile-path')).not.toBeNull();
+      expect(findByTestId(host, 'editor-map-canvas')).not.toBeNull();
+    });
+
+    it('left-click paints the selected brush into the YAML and marks dirty', async () => {
+      const editor = await openFormTabWithMap();
+      expect(findByTestId(host, 'editor-dirty')).toBeNull();
+
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 35 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      expect(findByTestId(host, 'editor-dirty')).not.toBeNull();
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.tiles[0]?.[1]).toBe('path');
+      expect(model.map.tiles[0]?.[0]).toBe('empty');
+    });
+
+    it('right-click paints empty regardless of the active brush', async () => {
+      const yamlPath =
+        'id: level_01\n' +
+        'name: Plains\n' +
+        'map:\n' +
+        '  cols: 2\n' +
+        '  rows: 1\n' +
+        '  tileSize: 32\n' +
+        '  tiles:\n' +
+        '    - [path, path]\n' +
+        'waves: []\n';
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: yamlPath, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+      await tick(); await tick();
+
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 2, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.tiles[0]?.[0]).toBe('empty');
+      expect(model.map.tiles[0]?.[1]).toBe('path');
+    });
+
+    it('clicking a brush button switches the active brush', async () => {
+      const editor = await openFormTabWithMap();
+      findByTestId<HTMLButtonElement>(host, 'map-toolbar-tile-blocked')!.click();
+      await tick();
+
+      const canvas = findByTestId<HTMLCanvasElement>(host, 'editor-map-canvas')!;
+      const ev = new MouseEvent('mousedown', { button: 0, bubbles: true });
+      Object.defineProperty(ev, 'offsetX', { value: 5 });
+      Object.defineProperty(ev, 'offsetY', { value: 5 });
+      canvas.dispatchEvent(ev);
+      await tick(); await tick();
+
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.map.tiles[0]?.[0]).toBe('blocked');
     });
   });
 });
