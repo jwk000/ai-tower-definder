@@ -10,8 +10,8 @@
 |------|---------|---------|---------|---------|---------|
 | **L1 配置/视觉/胶水** | 新增单位/卡牌/关卡 YAML、UI 微调、渲染特效、调数值、修文案 | ❌ 免 | ❌ 免单测；跑冒烟即可 | ❌ 直接动手 | `typecheck` + `debug/` 冒烟 |
 | **L2 系统逻辑/功能扩展** | 新增 RuleHandler、新增系统、扩展已有系统行为、调整生命周期 | ⚠️ 简要列改动点即可，不必走完整设计文档流程 | ⚠️ 写**集成测试**（造 mini World 跑几帧验状态），不写细碎单测 | ❌ 直接动手 | `typecheck` + 相关集成测试 + 冒烟 |
-| **L3 核心引擎/架构变更** | 改 `core/World`、`core/RuleEngine`、`core/pipeline`、`core/components`、`data/balance` 公式、新增 ECS Phase、跨模块契约变更 | ✅ **必须**先写/更新 `design/` 文档 | ✅ **必须** TDD（红 → 绿 → 重构） | ✅ 修改前先列受影响模块清单 | `typecheck` + `npm test` 全量通过 + 冒烟 |
-| **🐛 Bugfix** | 修复明确 bug（不改架构、不扩功能） | ❌ 免 | ⚠️ **追加回归测试到 `tests/regression/`**（曾经坏过的场景） | ❌ 直接动手 | `typecheck` + 新回归测试通过 + 旧测试不破 |
+| **L3 核心引擎/架构变更** | 改核心引擎、规则引擎、ECS 管线、核心组件、平衡公式、新增 ECS 阶段、跨模块契约变更 | ✅ **必须**先写/更新 `design/` 文档 | ✅ **必须** TDD（红 → 绿 → 重构） | ✅ 修改前先列受影响模块清单 | `typecheck` + `npm test` 全量通过 + 冒烟 |
+| **🐛 Bugfix** | 修复明确 bug（不改架构、不扩功能） | ❌ 免 | ⚠️ **追加回归测试**（覆盖曾经坏过的场景） | ❌ 直接动手 | `typecheck` + 新回归测试通过 + 旧测试不破 |
 
 **判定规则**：
 - 不确定档位时，**就低不就高**（按 L1/L2 走），出问题再补救。
@@ -60,13 +60,13 @@
 | **L1 配置/视觉/胶水** | 免单测，靠 `debug/` 冒烟脚本 + 肉眼回归 | `npm run typecheck` + 冒烟通关 |
 | **L2 系统逻辑** | 写**集成测试**（造 mini World 跑几帧验状态），不写细碎 mock 单测 | `npm run typecheck` + 该模块集成测试 |
 | **L3 核心引擎** | **必须 TDD**（红 → 绿 → 重构），核心数值/规则必有单测 | `npm run typecheck` + `npm test` 全量通过 |
-| **🐛 Bugfix** | **必须**追加回归测试到 `tests/regression/`，覆盖刚修的 bug 场景 | `npm run typecheck` + 新回归测试通过 + 旧测试不破 |
+| **🐛 Bugfix** | **必须**追加回归测试，覆盖刚修的 bug 场景 | `npm run typecheck` + 新回归测试通过 + 旧测试不破 |
 
 ### 通用约束（任何档位都适用）
 
 - **禁止行为**: 通过删除测试、跳过断言、`test.skip` 等方式"通过"测试。
 - **允许行为**: 需求变更导致旧测试不再适用时，可修改测试以匹配新需求，但必须在 commit message 中说明。
-- **回归测试只增不减**: `tests/regression/` 下的测试是项目的"历史伤疤"，除非对应功能被明确废弃，否则不得删除。
+- **回归测试只增不减**: 回归测试是项目的"历史伤疤"，除非对应功能被明确废弃，否则不得删除。
 - **L3 提交红线**: 核心引擎变更若 `npm test` 不全绿，禁止提交。
 
 ### 反模式（明确禁止）
@@ -112,121 +112,11 @@
 - **判断标准**: 提问前自问 ——"这个问题的答案会改变玩家看到/感受到的东西吗？会改变模块之间的契约吗？" 如果都不会，那就是实现细节，自己决策。
 - **决策原则**: 实现细节遵循"匹配现有代码风格 → 遵循最佳实践 → 选择最简单可行方案"的优先级，必要时在提交说明里简述选择理由即可。
 
-## 构建与运行
-
-```bash
-npm run dev          # 启动开发服务器 (localhost:3000)
-npm run build        # tsc --noEmit && vite build
-npm run typecheck    # 仅类型检查，不产出文件
-npm test             # 运行 vitest 测试
-npm run release      # clean + typecheck + build
-.\build.ps1 <cmd>    # Windows 包装脚本（或使用 `make <cmd>`）
-```
-
-构建流水线强制执行顺序：`typecheck → clean → build`。类型错误 = 构建失败。
-
 ## 架构
 
-**配置驱动 + 规则引擎 + bitecs ECS + PixiJS WebGL** 四层架构。详见 [`design/60-tech/60-architecture.md`](./design/60-tech/60-architecture.md) §2-§5。
+> **当前处于早期重写阶段，代码结构尚未稳定。** 具体实现细节以代码现状为准；架构权威以 `design/` 文档为准。文档与代码不一致时，文档优先（L3 任务必须把代码改成与文档一致）。
 
-- **ECS 框架**: [`bitecs`](https://github.com/NateTheGreatt/bitecs) —— 数据导向 ECS，SoA（Structure of Arrays）内存布局，类型安全查询。
-- **渲染**: PixiJS WebGL —— `Graphics`（几何图形）+ `ParticleContainer`（粒子特效）+ `Container`（分层管理），程序化几何图形构成所有视觉元素。
-- **配置驱动**: 单位/卡牌/关卡/技能 Buff 全部由 YAML 配置定义，策划可编辑、运行时加载。
-- **规则引擎**: 将声明式配置（如 `onDeath`、`onHit` 生命周期、目标选择/攻击模式行为规则）转换为运行时行为，在 ECS 系统之间提供配置驱动的调度层。
-
-```
-src/
-  main.ts            入口 —— 装配 PixiJS App + bitecs World + 系统管线 + 输入派发
-  core/              引擎核心
-    Game.ts          主循环 + 协调器
-    World.ts         bitecs World 封装（TowerWorld）
-    components.ts    所有组件 defineComponent 定义（SoA 数据）
-    pipeline.ts      系统管线（8 阶段拓扑排序）
-    RuleEngine.ts    规则引擎（生命周期 + 行为规则分发）
-    RuleHandlers.ts  规则处理器实现（deal_aoe_damage、apply_buff 等）
-  config/            配置层（策划可编辑）
-    loader.ts        YAML 配置加载器
-    registry.ts      单位/卡牌配置注册表
-    units/           单位 YAML：towers / soldiers / enemies / buildings / neutrals / objectives
-    levels/          关卡 YAML：8 关 + 终战 + 波次 + 随机池
-    cards/           v3.0 卡牌配置：单位卡 / 法术卡 / 陷阱卡 / 生产卡
-  systems/           系统逻辑（纯函数 + bitecs query）
-                     MovementSystem / AttackSystem / ProjectileSystem / WaveSystem
-                     HealthSystem / EconomySystem / BuildSystem / UnitSystem
-                     SkillSystem / BuffSystem / BossSystem / ProductionSystem
-                     TrapSystem / WeatherSystem / LifecycleSystem / RenderSystem 等
-  render/            PixiJS 渲染层
-    Renderer.ts / MapRenderer.ts / EntityRenderer.ts
-    ProjectileRenderer.ts / ParticleRenderer.ts / UIRenderer.ts
-  unit-system/       v3.0 卡牌/Run 子系统（DeckSystem / HandSystem / EnergySystem
-                     / CardSpawnSystem / SpellCastSystem / RunManager 等）
-  ui/                HUD / 手牌区 / 关间面板 / 商店 / 秘境 / 卡池 / Run 结算
-  components/        旧版组件包装（重构遗留，逐步迁移到 core/components.ts）
-  input/             InputManager.ts —— 事件队列，每帧 flush
-  data/              运行时数据/公式（balance.ts、EndlessWaveGenerator.ts）
-  debug/             调试系统（一键通关等）
-  utils/             通用工具（runRandom 6 流 PRNG、debugLog 等）
-  types/             共享类型、配置接口、枚举
-```
-
-### ECS 规则（bitecs）
-
-- **组件**: 使用 `defineComponent({ field: Types.f32 })` 定义，组件即字段集合，数据以 SoA 形式存储。组件本体没有方法，纯数据。
-- **实体**: `addEntity(world)` 返回 `eid: number`；`addComponent(world, Component, eid)` 挂载组件。
-- **查询**: 系统内部用 `defineQuery([CompA, CompB])` 声明，每帧调用查询函数获取匹配实体数组（AND 逻辑）。查询有类型推断，避免字符串标签。
-- **系统**: 实现 `System` 接口 —— `{ name: string; update(world: TowerWorld, dt: number): void }`。系统自管查询，不再依赖 World 预过滤。
-- **管线顺序**: 8 阶段拓扑排序（详见 `core/pipeline.ts`），不可随意调换：
-  1. `PHASE_MANAGERS` —— 经济 / 波次 / 天气等独立管理器
-  2. `PHASE_VFX` —— 死亡 / 爆炸 / 闪电 / 激光等视觉计时
-  3. `PHASE_MODIFIERS` —— Buff / 治疗等状态修改
-  4. `PHASE_GAMEPLAY` —— 移动 / 攻击 / 弹道 / 技能 / 陷阱 / 生产
-  5. `PHASE_LIFECYCLE` —— 生命周期事件分发 + 死亡检测
-  6. `PHASE_CREATION` —— 建造 / 实体新建
-  7. `PHASE_AI` —— 高级 AI 决策（预留阶段，v3.4 暂未启用任何 AI 系统；所有单位决策走规则引擎驱动的目标选择/攻击模式）
-  8. `PHASE_RENDER` —— `RenderSystem` + `UISystem`，始终最后
-- **死亡实体清理**: `destroyEntity(eid)` 标记延迟删除，在 `World.update()` 末尾统一 `removeEntity` 清理。
-
-### 规则引擎
-
-- **生命周期事件**: `onCreate` / `onDeath` / `onHit` / `onAttack` / `onKill` / `onUpgrade` / `onDestroy` / `onEnter` / `onLeave`。
-- **触发流程**: 系统检测事件 → 调用 `ruleEngine.dispatch(event, entity, context)` → 引擎查找该单位配置的规则 → 执行对应 `RuleHandler`（如 `deal_aoe_damage`、`apply_buff`、`spawn_unit`）。
-- **行为规则**: 单位配置中声明 `targetSelection` / `attackMode` / `movementMode`，规则引擎在 AttackSystem / MovementSystem 中提供决策。所有 AI 决策（含 Boss、高级敌人）一律走该路径，v3.4 起不再使用行为树。
-- **新增规则**: 在 `core/RuleHandlers.ts` 注册新 handler，再在单位 YAML 中引用，无需改动系统代码。
-
-### 渲染层级（PixiJS）
-
-- PixiJS Stage 分层 Container，渲染顺序由 Container 添加顺序决定（无需手动命令缓冲）。
-- `RenderSystem` 同步实体组件到 PixiJS Display Object，按 Y 坐标排序场景实体。
-- `UIRenderer` / `UISystem` 在最顶层 Container 绘制 HUD、工具栏、手牌区、弹窗等。
-- 文本使用 PixiJS `Text` 对象，与图形共用同一渲染管线。
-- 设计分辨率 1920×1080，UI 锚点定位详见 [`design/40-presentation/41-responsive-layout.md`](./design/40-presentation/41-responsive-layout.md)。
-
-### 输入派发
-
-- `InputManager` 将原始事件入队，每帧 `flush()` 处理，避免在事件回调中操作 ECS。
-- `onPointerDown` 派发优先级：UI 按钮 → 手牌区拖卡 → 战场建造放置 → 单位选择。
-- UI 面板区域（坐标根据响应式布局动态计算）不进入战场点击逻辑。
-
-### TypeScript 注意事项
-
-- `noUncheckedIndexedAccess: true` —— 任何数组下标访问返回 `T | undefined`，必须处理。
-- 导入使用 `.js` 后缀（如 `import { Foo } from './bar.js'`）—— Vite 的 `bundler` moduleResolution 要求。
-- 路径别名：`@/`、`@core/`、`@components/`、`@systems/`、`@data/`、`@ui/`、`@render/`、`@input/`、`@utils/`、`@types/`。
-- 启用：`strict: true`、`noImplicitOverride: true`、`forceConsistentCasingInFileNames: true`。
-
-### 游戏状态
-
-- **关内阶段**: `GamePhase` 枚举驱动 —— `Deployment（部署）→ Battle（战斗）→ WaveBreak（波间）→ Victory/Defeat（胜利/失败）`。系统通过回调读取阶段，而不是直接访问状态。
-- **Run 长征**（v3.0）: `RunManager` 管理 8 关 + 终战连闯流程；关间在 `InterLevelNode`（商店 / 秘境）二选一；水晶 HP 跨关继承；死亡从第 1 关重开，结算金币 → 火花碎片。
-
-### 新增内容（配置驱动）
-
-- **新增单位**（塔 / 士兵 / 敌人 / 中立机关）: 在 `config/units/*.yaml` 添加配置（含 `stats` / `behavior` / `lifecycle` / `ai` / `visual`），无需改代码。规则引擎与渲染层自动接管。
-- **新增卡牌**（v3.0）: 在 `config/cards/*.yaml` 添加 `CardConfig`，并关联单位/法术配置；卡池界面与 Run 抽卡逻辑自动生效。
-- **新增关卡**: 在 `config/levels/*.yaml` 编写波次与随机池配置。
-- **新增组件**: 在 `core/components.ts` 用 `defineComponent` 定义新字段集合 → 在需要的系统中 `defineQuery` 引用 → 添加挂载/移除逻辑。
-- **新增生命周期/行为规则**: 在 `core/RuleHandlers.ts` 注册新 handler → 在单位 YAML 中通过名字引用，无需改系统。
-
+**配置驱动 + 规则引擎 + ECS + WebGL 渲染** 四层架构。详见 [`design/60-tech/60-architecture.md`](./design/60-tech/60-architecture.md)。
 
 ## 开发流程
 
