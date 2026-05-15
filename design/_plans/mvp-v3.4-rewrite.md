@@ -205,9 +205,27 @@ W3.7-W3.8 实际多了一个 `CardRegistry` 类（计划任务表未列出），
 
 ---
 
-### Wave 4 — 配置驱动内容迁移（约 1.5 天 · 7 commits）
+### Wave 4 — 配置驱动内容迁移 ✅ 已完成（2026-05-16）
 
 **目标**：用 YAML 替代代码硬编码内容。**只迁移 MVP 需要的内容**。
+
+**实际产出**：W4.1-W4.6 共 6 个 commit；197/197 测试绿；三命令门全过。
+
+执行偏差与决策：
+
+- **W4.1 跳过**：`js-yaml ^4.1.1` + `zod ^3.25.76` + `@types/js-yaml ^4.0.9` 已在 package.json 中存在（v3.3 遗留），无需安装。
+- **YAML 资产复用策略（用户决策）**：保留 v3.3 现有 `src/config/**/*.yaml` 不删除；loader 以 `.passthrough()` 宽容处理 v3.4 未实现的字段（passives / cost.upgrade[] / behavior / weather / banPool / tileColors / obstacles / layer / tier / damageType / armor / mr / reward 等），运行时仅读 MVP 需要的字段集。
+- **W4.4 BT 字段清理（用户决策）**：删除 enemies.yaml 中 9 处 `ai_tree: <name>_ai` Boss 字段（Boss 不在 v3.4 MVP 范围）。`behavior:` 块的 `targetSelection / attackMode / movementMode` 三个子字段保留为规则引擎驱动 AI 的运行时契约。
+- **VFX stub 模式**：v3.3 YAML lifecycle 引用 `leave_ruins / play_effect / play_sound / flash_color / spawn_projectile / spawn_lightning_bolt / spawn_laser_beam / spawn_bat_swarm` 等视觉/音效 handler，v3.4 MVP 不实现这些。引导阶段统一注册为 noop stub。Wave 5 渲染引入时再替换为真实实现。
+- **W4.6 集成测试（即原 W4.7）**：`src/__tests__/content.integration.test.ts` 2 用例：YAML → RunManager + Deck + Hand + Energy + Econ + W2 系统全链 + 卡牌 YAML 驱动 DeckSystem。这是 Wave 4 DoD 唯一测试。
+- **未实现项推迟**：原计划 W4.6 "秘境事件配置"推迟到 Wave 5（秘境节点 UI 实现时同步落地）。原计划 W4.3-W4.5 单独 commit MVP 单位/卡牌/L1 关卡 YAML 全部跳过——直接复用 v3.3 现成 YAML（loader 已能读，不必拷贝迁移）。
+
+新增 §0 MVP 简化追溯条目：
+
+- **S14**：YAML 视觉/音效 handler 注册为 noop stub（leave_ruins / play_effect / play_sound / flash_color / spawn_projectile / spawn_lightning_bolt / spawn_laser_beam / spawn_bat_swarm）。Wave 5 渲染系统时替换为真实实现。
+- **S15**：cards/towers.yaml 仅 6 张 v3.3 卡（arrow/cannon/ice/lightning/laser/bat）；MVP 第一阶段仅用 arrow + cannon 两张作为 L1 卡池。冰塔/电塔/激光塔/蝙蝠塔卡推迟到 Wave 5+ 内容扩展。
+- **S16**：秘境事件 YAML 推迟至 Wave 5（与秘境节点 UI 同步实现）；Wave 4 集成测试只覆盖 L1 单关闭环。
+- **S17**：YAML loader 不实现稀有度权重 / 卡池权重抽样（DeckSystem 仍为 uniform 抽样，与 S11 一致）。`rarity: common/rare/epic` 字段被 .passthrough() 丢弃。
 
 | # | 任务 | TDD 步骤 | 产出 | 提交 |
 |---|---|---|---|---|
