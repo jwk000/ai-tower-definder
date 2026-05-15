@@ -1012,3 +1012,639 @@ e_glacier_titan:
         effect: boss_death
       - type: play_sound
         sound: SFX_BOSS_DIE
+
+# ============================================================
+# 关 4 — 失落神庙 敌人
+# ============================================================
+
+---
+
+# 神庙守卫 — 近战装甲步兵，可攻击建筑
+e_temple_guard:
+  id: e_temple_guard
+  name: 神庙守卫
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 110
+    atk: 12
+    attackSpeed: 1.0
+    range: 40
+    speed: 60
+    armor: 30
+    mr: 10
+    damageType: physical
+
+  reward:
+    gold: 14
+
+  visual:
+    shape: rectangle
+    color: "#9c8e5a"
+    size: 32
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 丛林狂热者 — 高速轻甲近战，突袭型
+e_jungle_zealot:
+  id: e_jungle_zealot
+  name: 丛林狂热者
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 70
+    atk: 9
+    attackSpeed: 1.2
+    range: 36
+    speed: 100
+    armor: 0
+    mr: 10
+    damageType: physical
+
+  reward:
+    gold: 12
+
+  visual:
+    shape: circle
+    color: "#7cb342"
+    size: 24
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 神庙祭司 — 远程治疗辅助，持续光环回血
+e_temple_priest:
+  id: e_temple_priest
+  name: 神庙祭司
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 100
+    atk: 8
+    attackSpeed: 0.5
+    range: 220
+    speed: 50
+    armor: 10
+    mr: 50
+    damageType: magic
+
+  reward:
+    gold: 18
+
+  visual:
+    shape: hexagon
+    color: "#fbc02d"
+    size: 28
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: heal_aura
+      name: 治疗光环
+      cooldown: 0
+      range: 100
+      value: 15
+      description: "范围内友军每秒回血 15（持续光环）"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 复活神像 — 高甲重型支援，定期复活已死亡友军
+e_revival_idol:
+  id: e_revival_idol
+  name: 复活神像
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 180
+    atk: 0
+    attackSpeed: 1.0
+    range: 40
+    speed: 35
+    armor: 60
+    mr: 60
+    damageType: physical
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: rectangle
+    color: "#d6a86b"
+    size: 36
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: revive_aura
+      name: 复活光环
+      cooldown: 20
+      range: 80
+      value: 1
+      description: "每 20 秒复活 1 只范围内已死亡的友军"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 石化先知 — 远程魔法控制，对最强塔施加石化
+e_petrify_oracle:
+  id: e_petrify_oracle
+  name: 石化先知
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 130
+    atk: 20
+    attackSpeed: 0.4
+    range: 200
+    speed: 45
+    armor: 15
+    mr: 40
+    damageType: magic
+
+  reward:
+    gold: 20
+
+  visual:
+    shape: hexagon
+    color: "#8c8c8c"
+    size: 30
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  skills:
+    - id: petrify
+      name: 石化
+      cooldown: 8
+      range: 200
+      value: 3
+      description: "对玩家最强塔施加石化 3s（无法攻击）"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 石巨像 — 关 4 Mini-Boss，高甲高血，群体石化+地震
+e_stone_colossus:
+  id: e_stone_colossus
+  name: 石巨像
+  category: enemy
+  faction: temple
+  layer: ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 1500
+    atk: 50
+    attackSpeed: 0.4
+    range: 60
+    speed: 25
+    armor: 180
+    mr: 60
+    damageType: physical
+
+  reward:
+    gold: 90
+    energy: 25
+
+  visual:
+    shape: circle
+    color: "#a0a0a0"
+    size: 75
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  ai_tree: stone_colossus_ai
+
+  skills:
+    - id: mass_petrify
+      name: 群体石化
+      cooldown: 15
+      range: 200
+      value: 4
+      description: "对范围内所有玩家塔施加石化 4s"
+    - id: ground_quake
+      name: 地震
+      cooldown: 12
+      range: 180
+      value: 60
+      description: "180px AOE 60 物伤 + 击退 80px"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.4"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: stat_change
+          attackSpeedBonus: 0.3
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+
+# ============================================================
+# 关 5 — 沉没港口 敌人
+# ============================================================
+
+---
+
+# 海盗长枪兵 — 标准近战步兵，港口先头部队
+e_corsair_pikeman:
+  id: e_corsair_pikeman
+  name: 海盗长枪兵
+  category: enemy
+  faction: corsair
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 80
+    atk: 11
+    attackSpeed: 1.0
+    range: 48
+    speed: 70
+    armor: 10
+    mr: 5
+    damageType: physical
+
+  reward:
+    gold: 12
+
+  visual:
+    shape: rectangle
+    color: "#4d6c7f"
+    size: 28
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 码头打手 — 快速近战骚扰兵，低甲高速
+e_dock_brawler:
+  id: e_dock_brawler
+  name: 码头打手
+  category: enemy
+  faction: corsair
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 95
+    atk: 10
+    attackSpeed: 1.1
+    range: 36
+    speed: 85
+    armor: 5
+    mr: 0
+    damageType: physical
+
+  reward:
+    gold: 13
+
+  visual:
+    shape: circle
+    color: "#7a98a6"
+    size: 26
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 咸水冲撞兵 — 重型近战，可攻击建筑，带击退
+e_brine_charger:
+  id: e_brine_charger
+  name: 咸水冲撞兵
+  category: enemy
+  faction: corsair
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 200
+    atk: 26
+    attackSpeed: 0.7
+    range: 32
+    speed: 80
+    armor: 35
+    mr: 15
+    damageType: physical
+
+  reward:
+    gold: 22
+
+  visual:
+    shape: circle
+    color: "#3a7d8f"
+    size: 36
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+      knockback: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 海妖触手 — 远程魔法精英，触手抓取控制最强塔
+e_kraken_tendril:
+  id: e_kraken_tendril
+  name: 海妖触手
+  category: enemy
+  faction: corsair
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 280
+    atk: 30
+    attackSpeed: 0.5
+    range: 250
+    speed: 30
+    armor: 20
+    mr: 35
+    damageType: magic
+
+  reward:
+    gold: 30
+
+  visual:
+    shape: hexagon
+    color: "#5b3a7f"
+    size: 44
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  skills:
+    - id: tendril_grab
+      name: 触手抓取
+      cooldown: 9
+      range: 250
+      value: 2
+      description: "拖拽玩家最强塔进入射程 2s，期间塔失效"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 潮汐战领 — 关 5 二形态 Boss，海潮巨浪+召唤触手
+e_tide_warlord:
+  id: e_tide_warlord
+  name: 潮汐战领
+  category: enemy
+  faction: corsair
+  layer: ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 3000
+    atk: 55
+    attackSpeed: 0.6
+    range: 64
+    speed: 40
+    armor: 100
+    mr: 50
+    damageType: physical
+
+  reward:
+    gold: 120
+    energy: 35
+
+  visual:
+    shape: circle
+    color: "#1976d2"
+    size: 78
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  ai_tree: tide_warlord_ai
+
+  skills:
+    - id: tidal_wave
+      name: 海潮巨浪
+      cooldown: 12
+      range: 200
+      value: 70
+      description: "200px AOE 70 物伤 + 击退 100px"
+    - id: summon_kraken
+      name: 召唤触手
+      cooldown: 18
+      range: 150
+      value: 2
+      description: "每 18 秒召唤 2 只 e_kraken_tendril"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.5"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: change_color
+          color: "#0d47a1"
+        - type: stat_change
+          attackSpeedBonus: 0.4
+          speedBonus: 0.3
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
