@@ -23,7 +23,7 @@ const StatsSchema = z
     hp: z.number().nonnegative(),
     atk: z.number().nonnegative(),
     attackSpeed: z.number().nonnegative(),
-    range: z.number().nonnegative(),
+    range: z.number().nonnegative().optional(),
     speed: z.number().nonnegative().optional(),
   })
   .passthrough();
@@ -96,7 +96,7 @@ export function parseUnitConfig(yamlText: string): UnitConfig {
       hp: parsed.stats.hp,
       atk: parsed.stats.atk,
       attackSpeed: parsed.stats.attackSpeed,
-      range: parsed.stats.range,
+      range: parsed.stats.range ?? 0,
       speed: parsed.stats.speed ?? 0,
     },
     visual: {
