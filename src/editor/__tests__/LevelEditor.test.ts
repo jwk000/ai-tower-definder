@@ -270,3 +270,113 @@ describe('LevelEditor: lastError', () => {
     expect(editor.status).toBe('idle');
   });
 });
+
+describe('LevelEditor: undo/redo history (Phase F)', () => {
+  async function makeLoadedEditor(): Promise<LevelEditor> {
+    const fetchImpl = makeFetch({
+      'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: 'id: level_01\n', mtime: 1 } },
+    });
+    const editor = makeEditor(fetchImpl);
+    await editor.loadLevel('level_01');
+    return editor;
+  }
+
+  it('canUndo is false before any edit', async () => {
+    const editor = await makeLoadedEditor();
+    expect(editor.canUndo).toBe(false);
+  });
+
+  it('canRedo is false before any undo', async () => {
+    const editor = await makeLoadedEditor();
+    expect(editor.canRedo).toBe(false);
+  });
+
+  it('canUndo becomes true after setCurrentContent', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    expect(editor.canUndo).toBe(true);
+  });
+
+  it('undo restores previous content', async () => {
+    const editor = await makeLoadedEditor();
+    const original = editor.currentContent!;
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    editor.undo();
+    expect(editor.currentContent).toBe(original);
+  });
+
+  it('undo fires change event', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    let fired = false;
+    editor.addEventListener('change', () => { fired = true; });
+    editor.undo();
+    expect(fired).toBe(true);
+  });
+
+  it('canRedo is true after undo', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    editor.undo();
+    expect(editor.canRedo).toBe(true);
+  });
+
+  it('redo restores undone content', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    const edited = editor.currentContent!;
+    editor.undo();
+    editor.redo();
+    expect(editor.currentContent).toBe(edited);
+  });
+
+  it('new edit clears redo stack', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    editor.undo();
+    editor.setCurrentContent('id: level_01\nname: B\n');
+    expect(editor.canRedo).toBe(false);
+  });
+
+  it('undo after loadLevel is a no-op', async () => {
+    const editor = await makeLoadedEditor();
+    const content = editor.currentContent!;
+    editor.undo();
+    expect(editor.currentContent).toBe(content);
+    expect(editor.canUndo).toBe(false);
+  });
+
+  it('history is capped at 50 entries', async () => {
+    const editor = await makeLoadedEditor();
+    for (let i = 0; i < 60; i++) {
+      editor.setCurrentContent(`id: v${i}\n`);
+    }
+    let undoCount = 0;
+    while (editor.canUndo) {
+      editor.undo();
+      undoCount++;
+    }
+    expect(undoCount).toBe(50);
+  });
+
+  it('multiple undos traverse full history', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('v1\n');
+    editor.setCurrentContent('v2\n');
+    editor.setCurrentContent('v3\n');
+    editor.undo();
+    expect(editor.currentContent).toBe('v2\n');
+    editor.undo();
+    expect(editor.currentContent).toBe('v1\n');
+    editor.undo();
+    expect(editor.currentContent).toBe('id: level_01\n');
+  });
+
+  it('isDirty reflects correctly after undo back to loaded state', async () => {
+    const editor = await makeLoadedEditor();
+    editor.setCurrentContent('id: level_01\nname: A\n');
+    expect(editor.isDirty).toBe(true);
+    editor.undo();
+    expect(editor.isDirty).toBe(false);
+  });
+});

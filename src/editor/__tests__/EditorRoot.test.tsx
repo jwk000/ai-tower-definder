@@ -1193,4 +1193,112 @@ describe('EditorRoot integration (happy-dom)', () => {
       expect(cfg.id).toBe('level_01');
     });
   });
+
+  describe('撤销/重做 (Phase F)', () => {
+    const simpleYaml = 'id: level_01\nname: Plains\nmap:\n  cols: 5\n  rows: 3\n  tileSize: 64\n  tiles: []\nwaves: []\n';
+
+    async function openAndEdit(): Promise<LevelEditor> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: simpleYaml, mtime: 1 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      return editor;
+    }
+
+    it('撤销 button is disabled when no edits have been made', async () => {
+      await openAndEdit();
+      const undoBtn = findByTestId<HTMLButtonElement>(host, 'editor-undo')!;
+      expect(undoBtn).not.toBeNull();
+      expect(undoBtn.disabled).toBe(true);
+    });
+
+    it('重做 button is disabled initially', async () => {
+      await openAndEdit();
+      const redoBtn = findByTestId<HTMLButtonElement>(host, 'editor-redo')!;
+      expect(redoBtn).not.toBeNull();
+      expect(redoBtn.disabled).toBe(true);
+    });
+
+    it('撤销 button enables after textarea edit', async () => {
+      const editor = await openAndEdit();
+      const textarea = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      textarea.value = simpleYaml + 'description: edited\n';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick(); await tick();
+
+      const undoBtn = findByTestId<HTMLButtonElement>(host, 'editor-undo')!;
+      expect(undoBtn.disabled).toBe(false);
+      void editor;
+    });
+
+    it('clicking 撤销 button restores previous content', async () => {
+      const editor = await openAndEdit();
+      const textarea = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      textarea.value = simpleYaml + 'description: edited\n';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick(); await tick();
+
+      findByTestId<HTMLButtonElement>(host, 'editor-undo')!.click();
+      await tick(); await tick();
+
+      expect(editor.currentContent).toBe(simpleYaml);
+    });
+
+    it('clicking 重做 button after 撤销 restores edited content', async () => {
+      const editor = await openAndEdit();
+      const edited = simpleYaml + 'description: edited\n';
+      const textarea = findByTestId<HTMLTextAreaElement>(host, 'editor-textarea')!;
+      textarea.value = edited;
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick(); await tick();
+
+      findByTestId<HTMLButtonElement>(host, 'editor-undo')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-redo')!.click();
+      await tick(); await tick();
+
+      expect(editor.currentContent).toBe(edited);
+    });
+  });
+
+  describe('新建关卡 (Phase F)', () => {
+    it('+ 新建 button is always visible', async () => {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [] } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      expect(findByTestId(host, 'editor-new')).not.toBeNull();
+    });
+
+    it('clicking + 新建 calls createLevel and refreshList', async () => {
+      const fetchSpy = makeFetch({
+        'GET /__editor/levels': [
+          { status: 200, body: { levels: [] } },
+          { status: 200, body: { levels: [{ id: 'level_new', filename: 'level_new.yaml' }] } },
+        ],
+        'GET /__editor/levels/level_new': { status: 200, body: { id: 'level_new', content: 'id: level_new\nname: 新关卡\n', mtime: 1 } },
+        'PUT /__editor/levels/level_new': { status: 200, body: { id: 'level_new', mtime: 1 } },
+      });
+      const editor = new LevelEditor({ fetch: fetchSpy, baseUrl: '/__editor' });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+
+      vi.spyOn(window, 'prompt').mockReturnValue('level_new');
+      findByTestId<HTMLButtonElement>(host, 'editor-new')!.click();
+      await tick(); await tick(); await tick();
+
+      expect(editor.currentId).toBe('level_new');
+    });
+  });
 });

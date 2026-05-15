@@ -52,6 +52,8 @@ export interface LevelEditorOptions {
   baseUrl: string;
 }
 
+const HISTORY_LIMIT = 50;
+
 export class LevelEditor extends EventTarget {
   private readonly fetchImpl: typeof fetch;
   private readonly baseUrl: string;
@@ -62,6 +64,8 @@ export class LevelEditor extends EventTarget {
   private _currentMtime: number | null = null;
   private _loadedContentSnapshot: string | null = null;
   private _lastError: string | null = null;
+  private _undoStack: string[] = [];
+  private _redoStack: string[] = [];
 
   constructor(options: LevelEditorOptions) {
     super();
@@ -78,6 +82,8 @@ export class LevelEditor extends EventTarget {
   get isDirty(): boolean {
     return this._currentContent !== null && this._currentContent !== this._loadedContentSnapshot;
   }
+  get canUndo(): boolean { return this._undoStack.length > 0; }
+  get canRedo(): boolean { return this._redoStack.length > 0; }
 
   private setStatus(next: EditorStatus): void {
     if (this._status === next) return;
@@ -98,7 +104,30 @@ export class LevelEditor extends EventTarget {
 
   setCurrentContent(content: string): void {
     if (this._currentContent === content) return;
+    if (this._currentContent !== null) {
+      this._undoStack.push(this._currentContent);
+      if (this._undoStack.length > HISTORY_LIMIT) {
+        this._undoStack.shift();
+      }
+    }
+    this._redoStack = [];
     this._currentContent = content;
+    this.emitChange();
+  }
+
+  undo(): void {
+    const prev = this._undoStack.pop();
+    if (prev === undefined) return;
+    if (this._currentContent !== null) this._redoStack.push(this._currentContent);
+    this._currentContent = prev;
+    this.emitChange();
+  }
+
+  redo(): void {
+    const next = this._redoStack.pop();
+    if (next === undefined) return;
+    if (this._currentContent !== null) this._undoStack.push(this._currentContent);
+    this._currentContent = next;
     this.emitChange();
   }
 
@@ -136,6 +165,8 @@ export class LevelEditor extends EventTarget {
       this._currentContent = payload.content;
       this._currentMtime = payload.mtime;
       this._loadedContentSnapshot = payload.content;
+      this._undoStack = [];
+      this._redoStack = [];
       this.setStatus('idle');
       this.emitChange();
       return { ok: true, value: payload };
@@ -167,6 +198,55 @@ export class LevelEditor extends EventTarget {
       this._loadedContentSnapshot = this._currentContent;
       this.setStatus('idle');
       this.emitChange();
+      return { ok: true, value: payload };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'fetch_failed';
+      this.failWith(msg);
+      return { ok: false, error: msg };
+    }
+  }
+
+  static buildTemplateYaml(id: string): string {
+    return [
+      `id: ${id}`,
+      'name: 新关卡',
+      'map:',
+      '  cols: 21',
+      '  rows: 9',
+      '  tileSize: 64',
+      '  tiles: []',
+      '  spawns:',
+      '    - id: spawn_0',
+      '      row: 0',
+      '      col: 0',
+      '  pathGraph:',
+      '    nodes:',
+      '      - {id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0}',
+      '      - {id: n1, row: 8, col: 20, role: crystal_anchor}',
+      '    edges:',
+      '      - {from: n0, to: n1}',
+      'waves:',
+      '  - waveNumber: 1',
+      '    spawnDelay: 0',
+      '    enemies: []',
+      '',
+    ].join('\n');
+  }
+
+  async createLevel(id: string): Promise<Result<{ id: string; mtime: number }>> {
+    const content = LevelEditor.buildTemplateYaml(id);
+    try {
+      const resp = await this.fetchImpl(`${this.baseUrl}/levels/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!resp.ok) {
+        const err = await this.readError(resp);
+        this.failWith(err);
+        return { ok: false, error: err };
+      }
+      const payload = (await resp.json()) as { id: string; mtime: number };
       return { ok: true, value: payload };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'fetch_failed';

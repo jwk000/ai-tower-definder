@@ -66,6 +66,8 @@ interface ViewState {
   isDirty: boolean;
   lastError: string | null;
   canMigrate: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 function snapshot(editor: LevelEditor): ViewState {
@@ -77,6 +79,8 @@ function snapshot(editor: LevelEditor): ViewState {
     isDirty: editor.isDirty,
     lastError: editor.lastError,
     canMigrate: editor.canMigrate(),
+    canUndo: editor.canUndo,
+    canRedo: editor.canRedo,
   };
 }
 
@@ -140,6 +144,29 @@ export function EditorRoot({ editor, onClose, game }: EditorRootProps) {
     editor.addEventListener('change', onChange);
     void editor.refreshList();
     return () => editor.removeEventListener('change', onChange);
+  }, [editor]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      if (e.key === 'z' || e.key === 'Z') {
+        if (e.shiftKey) {
+          editor.redo();
+        } else {
+          editor.undo();
+        }
+        e.preventDefault();
+      } else if (e.key === 'y' || e.key === 'Y') {
+        editor.redo();
+        e.preventDefault();
+      } else if (e.key === 's' || e.key === 'S') {
+        onSave();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [editor]);
 
   const parsed = useMemo<ParseResult>(
@@ -334,6 +361,18 @@ export function EditorRoot({ editor, onClose, game }: EditorRootProps) {
     }
   };
 
+  const onNew = async (): Promise<void> => {
+    const newId = window.prompt('输入新关卡 ID（小写、数字、下划线、连字符）:', 'level_new');
+    if (newId === null) return;
+    const trimmed = newId.trim();
+    if (trimmed === '') return;
+    const result = await editor.createLevel(trimmed);
+    if (result.ok) {
+      await editor.refreshList();
+      await editor.loadLevel(trimmed);
+    }
+  };
+
   const onDelete = async (id: string): Promise<void> => {
     if (!window.confirm(`确定删除关卡 "${id}"？\n（文件会移到 .editor-trash/ 回收站）`)) return;
     const result = await editor.delete(id);
@@ -365,6 +404,15 @@ export function EditorRoot({ editor, onClose, game }: EditorRootProps) {
         <section style={listSectionStyle}>
           <div style={listToolbarStyle}>
             <h3 style={sectionTitleStyle}>关卡列表</h3>
+            <button
+              type="button"
+              onClick={() => { void onNew(); }}
+              style={newButtonStyle}
+              data-testid="editor-new"
+              title="新建空白关卡"
+            >
+              + 新建
+            </button>
             <button
               type="button"
               onClick={() => { void onDuplicate(); }}
@@ -436,6 +484,26 @@ export function EditorRoot({ editor, onClose, game }: EditorRootProps) {
                   </button>
                 </div>
                 <div style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  onClick={() => editor.undo()}
+                  disabled={!view.canUndo}
+                  style={{ ...undoRedoButtonStyle, opacity: view.canUndo ? 1 : 0.35, cursor: view.canUndo ? 'pointer' : 'not-allowed' }}
+                  data-testid="editor-undo"
+                  title="撤销 (Ctrl+Z)"
+                >
+                  ↩ 撤销
+                </button>
+                <button
+                  type="button"
+                  onClick={() => editor.redo()}
+                  disabled={!view.canRedo}
+                  style={{ ...undoRedoButtonStyle, opacity: view.canRedo ? 1 : 0.35, cursor: view.canRedo ? 'pointer' : 'not-allowed' }}
+                  data-testid="editor-redo"
+                  title="重做 (Ctrl+Y / Ctrl+Shift+Z)"
+                >
+                  ↪ 重做
+                </button>
                 <button
                   type="button"
                   onClick={onMigrate}
@@ -686,6 +754,17 @@ const listToolbarStyle = {
   marginBottom: 8,
 };
 
+const newButtonStyle = {
+  background: '#1a4a2a',
+  border: '1px solid #2a6a3a',
+  color: '#8fdd9f',
+  padding: '4px 10px',
+  borderRadius: 4,
+  fontSize: 12,
+  cursor: 'pointer',
+  marginRight: 4,
+};
+
 const duplicateButtonStyle = {
   background: '#2a3a5a',
   border: '1px solid #3a4a7a',
@@ -732,6 +811,16 @@ const saveButtonStyle = {
   padding: '6px 14px',
   borderRadius: 4,
   fontSize: 13,
+};
+
+const undoRedoButtonStyle = {
+  background: '#2a2a3a',
+  border: '1px solid #3a3a4a',
+  color: '#c0c0d0',
+  padding: '4px 10px',
+  borderRadius: 4,
+  fontSize: 12,
+  marginRight: 4,
 };
 
 const migrateButtonStyle = {
