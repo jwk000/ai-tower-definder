@@ -1650,6 +1650,352 @@ e_tide_warlord:
         sound: SFX_BOSS_DIE
 
 # ============================================================
+# 关 6 — 齿轮工厂（Cogforge Bastion）敌人
+# ============================================================
+
+---
+
+# 发条小兵 — 标准机械步兵，无明显短板
+e_clockwork_grunt:
+  id: e_clockwork_grunt
+  name: 发条小兵
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L1
+
+  stats:
+    hp: 260
+    atk: 18
+    attackSpeed: 0.8
+    range: 32
+    speed: 65
+    armor: 50
+    mr: 25
+    damageType: physical
+
+  reward:
+    gold: 26
+
+  visual:
+    shape: circle
+    color: "#78909c"
+    size: 30
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 蒸汽长矛兵 — 远程能量弹，完全无视护甲
+e_steam_lancer:
+  id: e_steam_lancer
+  name: 蒸汽长矛兵
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 200
+    atk: 26
+    attackSpeed: 0.6
+    range: 240
+    speed: 55
+    armor: 30
+    mr: 40
+    damageType: magic
+
+  reward:
+    gold: 30
+
+  visual:
+    shape: rectangle
+    color: "#b0bec5"
+    size: 34
+
+  behavior:
+    targetSelection: weakest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+      armorPenetration: 1.0
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_magic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 反建筑工蜂 — 绕过士兵直冲塔，专克建筑
+e_hammergrub_drone:
+  id: e_hammergrub_drone
+  name: 反建筑工蜂
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 130
+    atk: 35
+    attackSpeed: 1.0
+    range: 32
+    speed: 80
+    armor: 25
+    mr: 25
+    damageType: physical
+
+  reward:
+    gold: 32
+
+  visual:
+    shape: triangle
+    color: "#ffa000"
+    size: 26
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      targetBuildings: true
+      ignoreUnits: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 矿车撞锤 — 极高HP重甲冲锤，撞到塔则永久摧毁
+e_minecart_juggernaut:
+  id: e_minecart_juggernaut
+  name: 矿车撞锤
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 800
+    atk: 60
+    attackSpeed: 0.4
+    range: 32
+    speed: 110
+    armor: 100
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 60
+
+  visual:
+    shape: rectangle
+    color: "#546e7a"
+    size: 52
+    outline: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+      destroyBuildingOnHit: true
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_heavy
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 修理机器人 — 给周围机械友军施加吸收盾光环
+e_repair_bot:
+  id: e_repair_bot
+  name: 修理机器人
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L2
+
+  stats:
+    hp: 180
+    atk: 12
+    attackSpeed: 0.5
+    range: 96
+    speed: 50
+    armor: 35
+    mr: 35
+    damageType: physical
+
+  reward:
+    gold: 28
+
+  visual:
+    shape: hexagon
+    color: "#90a4ae"
+    size: 30
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+
+  skills:
+    - id: shield_aura
+      name: 护盾光环
+      cooldown: 0
+      range: 96
+      value: 150
+      description: "持续光环：每次刷新给范围内 3-5 个机械友军施加 1 层 150HP 吸收盾"
+
+  lifecycle:
+    onDeath:
+      - type: drop_gold
+      - type: play_effect
+        effect: death_basic
+      - type: play_sound
+        sound: SFX_ENEMY_DIE
+    onHit:
+      - type: play_effect
+        effect: flash
+    onCreate:
+      - type: play_sound
+        sound: SFX_ENEMY_SPAWN
+
+---
+
+# 钢铁巨匠 — 关 6 二形态 Boss，形态1召唤工蜂；形态2自爆倒计时20s
+e_steel_artisan:
+  id: e_steel_artisan
+  name: 钢铁巨匠
+  category: enemy
+  faction: cogforge
+  layer: ground
+  tier: L3
+  isBoss: true
+
+  stats:
+    hp: 2200
+    atk: 55
+    attackSpeed: 0.5
+    range: 96
+    speed: 28
+    armor: 120
+    mr: 30
+    damageType: physical
+
+  reward:
+    gold: 320
+    energy: 60
+
+  visual:
+    shape: circle
+    color: "#455a64"
+    size: 82
+    outline: true
+    crown: true
+
+  behavior:
+    targetSelection: nearest
+    attackMode: single_target
+    movementMode: follow_path
+    special:
+      canAttackBuildings: true
+
+  ai_tree: steel_artisan_ai
+
+  skills:
+    - id: summon_drones
+      name: 召唤工蜂
+      cooldown: 8
+      range: 0
+      value: 2
+      description: "每 8s 释放 2 只 e_hammergrub_drone 朝玩家最贵塔"
+    - id: self_destruct_timer
+      name: 自爆倒计时
+      cooldown: 0
+      range: 0
+      value: 20
+      description: "形态2进入时启动 20s 自爆 timer，倒计时归零玩家直接失败"
+
+  lifecycle:
+    onCreate:
+      - type: hp_bar_boss
+      - type: play_sound
+        sound: SFX_BOSS_SPAWN
+    onCondition:
+      condition: "hp_ratio < 0.3"
+      fireOnce: true
+      effects:
+        - type: enter_phase2
+        - type: play_effect
+          effect: boss_rage
+        - type: change_color
+          color: "#b71c1c"
+        - type: stat_change
+          attackSpeedBonus: 0.3
+          speedBonus: 1.5
+          armorOverride: 30
+          mrOverride: 20
+        - type: start_timer
+          timerId: self_destruct
+          duration: 20
+    onKill:
+      - type: play_effect
+        effect: boss_death
+      - type: play_sound
+        sound: SFX_BOSS_DIE
+
+# ============================================================
 # 关 8 — 异界终战 敌人
 # ============================================================
 
