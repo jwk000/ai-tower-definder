@@ -20,6 +20,7 @@ import type { GraphModel } from '../preview/graphDrawOps.js';
 import { SpawnPanel } from './panels/SpawnPanel.js';
 import { addSpawn, removeSpawn, renameSpawn } from '../state/spawnOps.js';
 import { GraphToolbar, type GraphTool } from './panels/GraphToolbar.js';
+import { DifficultyPanel } from './panels/DifficultyPanel.js';
 import { NodePanel } from './panels/NodePanel.js';
 import {
   addNode,
@@ -528,6 +529,9 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                   </div>
                   <div data-testid="panel-weather">
                     <WeatherPanel model={parsed.model} onChange={onFormChange} />
+                  </div>
+                  <div data-testid="panel-difficulty">
+                    <DifficultyPanel model={parsed.model} onChange={onFormChange} />
                   </div>
                 </div>
               )}

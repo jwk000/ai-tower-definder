@@ -789,6 +789,63 @@ describe('EditorRoot integration (happy-dom)', () => {
     });
   });
 
+  describe('difficulty panel integration (Phase C)', () => {
+    const yamlWithDiff =
+      'id: level_01\n' +
+      'name: Plains\n' +
+      'map:\n' +
+      '  cols: 3\n' +
+      '  rows: 2\n' +
+      '  tileSize: 32\n' +
+      '  tiles:\n' +
+      '    - [empty, empty, empty]\n' +
+      '    - [empty, empty, empty]\n' +
+      'waves: []\n' +
+      'difficulty:\n' +
+      '  enemyHpMult: 1.5\n';
+
+    async function openFormWithDiff(): Promise<LevelEditor> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: yamlWithDiff, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-tab-form')!.click();
+      await tick(); await tick();
+      return editor;
+    }
+
+    it('Form tab renders the difficulty panel', async () => {
+      await openFormWithDiff();
+      expect(findByTestId(host, 'panel-difficulty')).not.toBeNull();
+      expect(findByTestId(host, 'difficulty-panel')).not.toBeNull();
+    });
+
+    it('difficulty panel reflects existing multiplier from YAML', async () => {
+      await openFormWithDiff();
+      const input = findByTestId<HTMLInputElement>(host, 'difficulty-enemyHpMult-input')!;
+      expect(Number(input.value)).toBeCloseTo(1.5);
+    });
+
+    it('editing a multiplier updates YAML and marks dirty', async () => {
+      const editor = await openFormWithDiff();
+      const input = findByTestId<HTMLInputElement>(host, 'difficulty-enemyHpMult-input')!;
+      input.value = '2.0';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await tick(); await tick();
+
+      expect(findByTestId(host, 'editor-dirty')).not.toBeNull();
+      const model = parseYamlToModel(editor.currentContent ?? '');
+      expect(model.difficulty?.enemyHpMult).toBeCloseTo(2.0);
+    });
+  });
+
   describe('graph toolbar + node panel integration (B4)', () => {
     const yamlWithGraph =
       'id: level_01\n' +

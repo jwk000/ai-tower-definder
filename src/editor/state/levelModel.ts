@@ -48,6 +48,13 @@ export interface WeatherSection {
   changeInterval?: number;
 }
 
+export interface DifficultyMultipliers {
+  enemyHpMult?: number;
+  enemyDmgMult?: number;
+  enemySpeedMult?: number;
+  goldRewardMult?: number;
+}
+
 export interface LevelFormModel {
   id: string;
   name: string;
@@ -59,6 +66,7 @@ export interface LevelFormModel {
   starting?: StartingResources;
   available?: AvailableContent;
   weather?: WeatherSection;
+  difficulty?: DifficultyMultipliers;
   banPool?: string[] | null;
   neutralPool?: string[] | null;
   __extras?: Record<string, unknown>;
@@ -76,6 +84,7 @@ const TOP_LEVEL_FIELD_ORDER: Array<keyof LevelFormModel> = [
   'starting',
   'available',
   'weather',
+  'difficulty',
   'banPool',
   'neutralPool',
 ];
@@ -102,6 +111,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set<string>([
   'starting',
   'available',
   'weather',
+  'difficulty',
   'banPool',
   'neutralPool',
 ]);
@@ -265,6 +275,16 @@ export function parseYamlToModel(yaml: string): LevelFormModel {
     };
     if (typeof weather.changeInterval === 'number') w.changeInterval = weather.changeInterval;
     model.weather = w;
+  }
+
+  const difficulty = asRecord(root.difficulty);
+  if (difficulty) {
+    const d: DifficultyMultipliers = {};
+    if (typeof difficulty.enemyHpMult === 'number') d.enemyHpMult = difficulty.enemyHpMult;
+    if (typeof difficulty.enemyDmgMult === 'number') d.enemyDmgMult = difficulty.enemyDmgMult;
+    if (typeof difficulty.enemySpeedMult === 'number') d.enemySpeedMult = difficulty.enemySpeedMult;
+    if (typeof difficulty.goldRewardMult === 'number') d.goldRewardMult = difficulty.goldRewardMult;
+    if (Object.keys(d).length > 0) model.difficulty = d;
   }
 
   if ('banPool' in root) {
