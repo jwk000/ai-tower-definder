@@ -278,8 +278,6 @@ boss_commander:
     attackMode: single_target
     movementMode: follow_path
 
-  ai_tree: boss_commander_ai
-
   skills:
     - id: summon_grunts
       name: 召唤小兵
@@ -364,8 +362,6 @@ boss_beast:
     movementMode: follow_path
     special:
       canAttackBuildings: true
-
-  ai_tree: boss_beast_ai
 
   skills:
     - id: ground_slam
@@ -695,8 +691,6 @@ e_queen_mother:
     attackMode: single_target
     movementMode: follow_path
 
-  ai_tree: queen_mother_ai
-
   skills:
     - id: summon_burrow_worm
       name: 召唤钻地虫
@@ -982,8 +976,6 @@ e_glacier_titan:
     movementMode: follow_path
     special:
       canAttackBuildings: true
-
-  ai_tree: glacier_titan_ai
 
   skills:
     - id: frost_slam
@@ -1325,8 +1317,6 @@ e_stone_colossus:
     special:
       canAttackBuildings: true
 
-  ai_tree: stone_colossus_ai
-
   skills:
     - id: mass_petrify
       name: 群体石化
@@ -1609,8 +1599,6 @@ e_tide_warlord:
     movementMode: follow_path
     special:
       canAttackBuildings: true
-
-  ai_tree: tide_warlord_ai
 
   skills:
     - id: tidal_wave
@@ -1950,8 +1938,6 @@ e_steel_artisan:
     movementMode: follow_path
     special:
       canAttackBuildings: true
-
-  ai_tree: steel_artisan_ai
 
   skills:
     - id: summon_drones
@@ -2308,8 +2294,6 @@ e_mycelial_core:
     attackMode: none
     movementMode: hold_position
 
-  ai_tree: mycelial_core_ai
-
   skills:
     - id: summon_brood_mother
       name: 召唤菌母
@@ -2637,8 +2621,6 @@ e_old_one_warden:
     special:
       canAttackBuildings: true
       immune_to_crystal_kill: true
-
-  ai_tree: old_one_warden_ai
 
   skills:
     - id: void_eruption
