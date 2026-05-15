@@ -1,0 +1,14 @@
+id: lucky_merchant
+title: Lucky Merchant
+description: A peddler offers a rare card at a steep discount.
+choices:
+  - id: accept
+    label: Pay 30 gold
+    effects:
+      - type: spend_gold
+        amount: 30
+      - type: grant_card
+        cardId: arrow_tower
+  - id: decline
+    label: Walk past
+    effects: []

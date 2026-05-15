@@ -245,6 +245,32 @@ export function parseLevelConfig(yamlText: string): LevelConfig {
   };
 }
 
+const MysticEffectSchema = z
+  .object({ type: z.string() })
+  .passthrough();
+
+const MysticChoiceSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  effects: z.array(MysticEffectSchema),
+});
+
+const MysticEventDocSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  choices: z.array(MysticChoiceSchema).min(1),
+});
+
+export type MysticEffect = z.infer<typeof MysticEffectSchema>;
+export type MysticChoice = z.infer<typeof MysticChoiceSchema>;
+export type MysticEventConfig = z.infer<typeof MysticEventDocSchema>;
+
+export function parseMysticEventConfig(yamlText: string): MysticEventConfig {
+  const doc = yaml.load(yamlText);
+  return MysticEventDocSchema.parse(doc);
+}
+
 function orderPath(
   edges: Array<{ from: string; to: string }>,
   startId: string,

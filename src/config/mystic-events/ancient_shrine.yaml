@@ -1,0 +1,17 @@
+id: ancient_shrine
+title: Ancient Shrine
+description: A glowing shrine pulses with old magic. Take the offering, or honor it.
+choices:
+  - id: take_gold
+    label: Take 80 gold
+    effects:
+      - type: grant_gold
+        amount: 80
+  - id: pray
+    label: Pray (gain 3 SP)
+    effects:
+      - type: grant_sp
+        amount: 3
+  - id: leave
+    label: Leave it untouched
+    effects: []
