@@ -1444,6 +1444,85 @@ final_Bounty = base_Bounty × goldRewardMult[N]
 
 ---
 
+## 22. 三类单位数值（v3.2 新增 — 陷阱 / 法术 / 场景中立）
+
+> 配套设计：[27-traps-spells-scene](../20-units/27-traps-spells-scene.md)（authoritative）。本节为陷阱障碍、法术、场景中立三类新单位的**唯一权威数值源**。
+>
+> 数值原则：所有占位数值需通过 Phase B 平衡测试调校；当前以"明显特色 + 不破坏关卡曲线"为基准设定。
+
+### 22.1 陷阱阵容数值（9 种）
+
+| 单位 ID | 卡稀有度 | 能量成本 | HP | 主要数值 | 持续/冷却 | 配额/关 |
+|---------|---------|---------|-----|---------|---------|---------|
+| `spike_trap` | Common | 2 | — | 单体 30 物理 / 触发；5 次触发后损坏 | 触发 CD 0.5s | 5（与触发式共享） |
+| `landmine` | Common | 2 | — | r80 范围 150 物理；一次性 | — | 5（触发式） |
+| `tar_pit` | Rare | 3 | — | -60% 移速 + flammable_marker；引燃后伤害 ×4 | 持续 8s | 5（触发式） |
+| `bear_trap` | Rare | 3 | — | 定身 2s（Boss 免疫）+ 承伤 +30%；一次性 | — | 5（触发式） |
+| `fire_wall` | Rare | 4 | — | 3 格连续；20 DPS / 单格；飞行敌免疫 | 持续 8s | 3（区域式） |
+| `frost_mist` | Epic | 5 | — | 5×3 区域 -40% 移速 -25% 攻速；整波次持续 | 持续到波次结束 | 3（区域式） |
+| `gravity_well` | Epic | 6 | — | r100 拉拽；含飞行敌；每秒拉 60px | 持续 5s | 3（区域式） |
+| `boulder` | Common | 3 | 800 | 死亡沿路径滚动 1 格 → 150 单体伤害 | — | 2（占路式） |
+| `decoy_dummy` | Rare | 2 | 200 | 伪装箭塔；只骗刺客类（assassin tag） | 持续到摧毁 | 2（占路式） |
+
+### 22.2 法术卡能量消耗与基础数值（14 张）
+
+| 卡 ID | 稀有度 | 能量 | 主要数值 | 备注 |
+|-------|--------|------|---------|------|
+| `fireball_spell` | Common | 3 | r80 / 80 火焰 | 沿用 v3.0 |
+| `meteor_spell` | Epic | 6 | 单格 300 火 + 30% 溅射 r80 | 沿用 v3.0 |
+| `chain_lightning_spell` | Rare | 4 | 100 雷电，弹射 3 次，每次 -25% | 🆕 v3.2 |
+| `purification_spell` | Rare | 3 | 移除所有 Debuff + 回 30 HP | 🆕 v3.2 |
+| `slow_spell` | Common | 2 | r100 -50% 移速 3s | 沿用 v3.0 |
+| `freeze_all_spell` | Epic | 5 | 全屏冰冻 2s | 沿用 v3.0 |
+| `arrow_rain_spell` | Rare | 4 | r100 5s × 30 物理/s | 沿用 v3.0 |
+| `tornado_spell` | Epic | 5 | 沿路径 5s；推 40px/s + 20 物理 | 🆕 v3.2 |
+| `heal_pulse_spell` | Rare | 3 | 我方全场 +100 HP | 沿用 v3.0 |
+| `divine_protection_spell` | Legendary | 7 | 水晶吸收 3 次秒杀（不扣 HP） | 沿用 v3.0；跨波保留 |
+| `rally_horn_spell` | Rare | 3 | 我方 +25% 攻速 +10% 移速 15s | 🆕 v3.2 |
+| `summon_skeletons_spell` | Legendary | 6 | 5 个 30 HP / 8 ATK 骷髅 | 沿用 v3.0 |
+| `time_dilation_spell` | Legendary | 8 | 敌方 50% 时间流速 8s | 🆕 v3.2 |
+| `tactical_retreat_spell` | Common | 1 | 目标单位返回手牌 + 60% 能量退回 | 🆕 v3.2 |
+
+### 22.3 中立资源点数值（4 种，关卡随机生成）
+
+| 单位 ID | HP | 主要数值 | 触发奖励 / 影响 | 关卡上限 |
+|---------|-----|---------|---------------|---------|
+| `gold_chest` | 30 | — | 玩家击破：+50~100 金币；敌人击破：30s "贪婪"（+15% 移速） | 1-2 |
+| `healing_spring` | 200 | r120 / +5 HP/s | 双方受益光环；摧毁后失效 | 1 |
+| `mana_crystal` | 150 | — | 玩家击破：+5 E；敌人击破：本波敌方能量法术 ×2 | 0-1 |
+| `ancient_altar` | 300 | r150 / 周期 20s | 周期内随机给场上 1 单位 +1 instanceLevel（本波） | 0-1 |
+
+### 22.4 场景互动机关数值（7 种，levelEditor 预置）
+
+#### 22.4.1 互动机关（玩家可利用，4 种）
+
+| 单位 ID | 主题 | HP | 主要数值 | 触发冷却 |
+|---------|------|-----|---------|---------|
+| `explosive_barrel` | L7 / L8 | 50 | r100 / 200 物理；可连锁 | 一次性 |
+| `boulder_perch` | L4 / L8 | 80 | 沿路径滚落 3 格 / 单体 150 | 30s |
+| `falling_icicle` | L4 | 30 | 单格 80 + 冰冻 1.5s | 周期 8s |
+| `geyser` | L3 | — | r80 击退 + 击飞 2s（无伤害） | 周期 15s |
+
+#### 22.4.2 环境威胁（对玩家施压，3 种）
+
+| 单位 ID | 主题 | HP | 负面效果 | 备注 |
+|---------|------|-----|---------|------|
+| `tombstone` | L6 / L9 | 200 | 每波 60% 概率裂开复活敌人（60% 属性） | 第 3 波起触发 |
+| `vine_overgrowth` | L2 / L3 | 80 | 缠绕邻塔，每 5s 邻塔 -5% 当前 HP | 不致死（最低 1 HP） |
+| `cursed_shrine` | L9 | 300 | r150 内所有塔 -30% 攻速 | 可击破消除 |
+
+### 22.5 新增 Debuff 数值（marked / wet / curse）
+
+| Buff | 持续 | 主要效果 | 来源 |
+|------|------|---------|------|
+| `marked` | 10s | 承伤 +25%（全类型） | 标记类陷阱 / 法术 |
+| `wet` | 5s | 雷电 +50% / 火属性 -30% | 沼泽主题 / 水法术 |
+| `curse` | 8s | 每层 -10% 攻击力，最多 3 层 | 诅咒神龛 / 法术 |
+
+---
+
+> v3.2 章节版本: v3.2.1 | 日期: 2026-05-15 | 状态: §22 三类单位数值（陷阱/法术/场景）首次入库；与 [27-traps-spells-scene](../20-units/27-traps-spells-scene.md) 配套使用；占位值待 Phase B 平衡测试调校
+>
 > v3.2 章节版本: v3.2.0 | 日期: 2026-05-15 | 状态: §21 8 关 Roguelike 关卡数值首次入库；与 [15-level-themes](../10-gameplay/15-level-themes.md) + [16-level-blueprints](../10-gameplay/16-level-blueprints.md) 配套使用
 >
 > v3.1 章节版本: v3.1.0 | 日期: 2026-05-14 | 状态: §20 塔科技树数值首次入库；占位值待 Phase B 实测调校

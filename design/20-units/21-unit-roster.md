@@ -110,6 +110,19 @@ cross-refs:
 | `summon_minions` | 召唤小兵 | `summonId` / `summonCount` / `summonCd` |
 | `aoe_faction_filter` | AOE 阵营过滤 | `[Player|Enemy|Neutral]` |
 | `invulnerable` | 无敌 / 不可摧毁（仅特殊场景） | — |
+| `oneshot` | 触发一次即消耗（陷阱用） | — |
+| `charges` | 可触发次数（陷阱用，默认 1） | `chargeCount` |
+| `area_persistent` | 存在期间持续作用的区域陷阱 | `duration` / `waveLifetime` |
+| `path_block` | 占据 blocked tile，触发寻路重算 | — |
+| `decoy` | 欺骗 AI 的诱饵单位 | `disguised_as` |
+| `flammable_marker` | 可被火属性引燃 | `onIgnite` 引用 RuleHandler |
+| `roll_along_path_on_death` | 死亡时沿路径滚动并伤害 | `rollDamage` / `rollDistance` |
+| `friendly_damage` | 法术对己方造成伤害（自损） | `ratio`（0-1） |
+| `delayed_effect` | 法术延迟触发（读条） | `delay` / `warningVfx` |
+| `global_modifier` | 改变战场全局规则 | `kind` / `duration` |
+| `return_to_hand` | 单位返回手牌 | `refundEnergyRatio` |
+
+> 详细机制说明 → [27-traps-spells-scene §2.4](./27-traps-spells-scene.md#24-陷阱字段规范在-21-unit-roster-12-specialeffects-新增) / [§3.3](./27-traps-spells-scene.md#33-法术接口扩展)。
 
 ---
 
@@ -298,23 +311,75 @@ cross-refs:
 | `gold_mine` | 金币 | L3 | Common | 持续产金 |
 | `energy_crystal` | 能量 | L3 | Rare | v3.0 重命名（旧名 `energy_tower`），效果改为「下波开始 +3 E」或「+1 能量上限」，不再是被动产出 |
 
-### 5.2 陷阱 / 中立单位（Trap / Neutral）
+### 5.2 陷阱阵容（Trap，9 种）
 
-> 数值见 [21-MDA §7](../50-data-numerical/50-mda.md#7-经济系统数值重设计) 及附录。
+> 机制权威 → [27-traps-spells-scene §2](./27-traps-spells-scene.md#2-陷阱障碍trap--obstacle)。数值 → [50-mda §21.1](../50-data-numerical/50-mda.md)。
 
-| 单位 ID | 类型 | 关键机制 |
-|---------|------|---------|
-| `spike_trap` | Trap | 触发型物理伤害，CD，每关上限 5；卡稀有度 Common |
-| `healing_spring` | Neutral | **可摧毁**的治疗光环源（高 HP，非无敌） |
-| `gold_chest` | Neutral | 击破后随机奖励金币 |
+#### 5.2.1 触发式陷阱（4 种，配额 5/关）
+
+| 陷阱 ID | 引入关 | 占位 | 卡稀有度 | 关键机制 |
+|---------|--------|------|---------|---------|
+| `spike_trap` ⭐沿用 | L1 | trap_path | Common | 5 次触发后损坏；单体 30 物理 |
+| `landmine` | L2 | trap_path | Common | 一次性 150 AOE r80 |
+| `tar_pit` | L3 | trap_path | Rare | -60% 移速 + 易燃；被火属性引燃后伤害 ×4 |
+| `bear_trap` | L4 | trap_path | Rare | 一次性定身 2s（精英也定，Boss 免疫）+ 承伤 +30% |
+
+#### 5.2.2 区域式陷阱（3 种，配额 3/关）
+
+| 陷阱 ID | 引入关 | 占位 | 卡稀有度 | 关键机制 |
+|---------|--------|------|---------|---------|
+| `fire_wall` | L3 | 3 个连续 trap_path | Rare | 8s 火墙，20 DPS；飞行敌免疫；可被油坑引爆 |
+| `frost_mist` | L4 | 5×3 trap_path 区域 | Epic | 整波次持续 -40% 移速 + -25% 攻速 |
+| `gravity_well` | L5 | r100 区域 | Epic | 5s 持续拉拽，含飞行敌 |
+
+#### 5.2.3 占路式陷阱（2 种，配额 2/关）
+
+| 陷阱 ID | 引入关 | 占位 | 卡稀有度 | 关键机制 |
+|---------|--------|------|---------|---------|
+| `boulder` | L2 | blocked tile（路径上） | Common | 800 HP，敌人优先攻击；死亡沿路径滚动 1 格造成 150 伤害 |
+| `decoy_dummy` | L4 | 空地（毗邻路径） | Rare | 200 HP，伪装成箭塔骗刺客类敌人 |
+
+### 5.3 中立资源点（Neutral，4 种）
+
+> 机制权威 → [27-traps-spells-scene §4.2.1](./27-traps-spells-scene.md#421-c1可争夺资源点categoryneutral关卡可随机生成)。
+
+| 单位 ID | HP | 关键机制 | 来源 |
+|---------|-----|---------|------|
+| `gold_chest` ⭐沿用 | 30 | 击破后随机奖励 50-100 金币；敌人击破获得 30s "贪婪" buff（+15% 移速） | 关卡随机生成 |
+| `healing_spring` ⭐调整 | 200（**可摧毁**） | r120 内每秒 +5 HP，双方受益。摧毁后光环消失 | 关卡随机生成 |
+| `mana_crystal` | 150 | 玩家击破返还 5 E；敌人击破让该波敌方能量法术 ×2 | 关卡随机生成 |
+| `ancient_altar` | 300 | 每 20s 随机给场上 1 个单位 +1 instanceLevel（本波） | 关卡随机生成 |
 
 #### 治疗泉水（`healing_spring`）重要修订
 
-`healing_spring` **不再设置为不可摧毁**。改为高 HP（具体值见 21-MDA）的脆弱光环源——双方均可攻击破坏。一旦摧毁，治疗光环消失。
+`healing_spring` **不再设置为不可摧毁**。改为 HP 200 的脆弱光环源——双方均可攻击破坏。一旦摧毁，治疗光环消失。
 
 行为树评估目标时若遇到 `invulnerable=true` 的单位，应通过 `ignore_invulnerable` 装饰器跳过（节点规格见 [23](../30-ai/30-behavior-tree.md)）。
 
-### 5.3 路障（Barricade）—— 独立类型 Structure
+### 5.4 场景中立单位（Scene，7 种）
+
+> 机制权威 → [27-traps-spells-scene §4.2.2](./27-traps-spells-scene.md#422-c2场景互动机关categoryscene关卡预置主题绑定) / [§4.2.3](./27-traps-spells-scene.md#423-c3环境威胁categoryscene主题绑定的负面元素)。
+>
+> **特性**：`category: Scene`，**关卡设计师在 levelEditor 中预置**（位置固定，与关卡主题强绑定），玩家不能从手牌部署。
+
+#### 5.4.1 场景互动机关（4 种，玩家可"利用"）
+
+| 单位 ID | 主题限定 | 触发 | 效果 |
+|---------|---------|------|------|
+| `explosive_barrel` | 火山 L7 / 王城 L8 | 点击 / 敌人触碰 / 爆炸链锁 | r100 AOE 200 物理；可连锁 |
+| `boulder_perch` | 雪山 L4 / 王城 L8 | 点击或塔射击 | 沿路径滚落 3 格，单体 150 |
+| `falling_icicle` | 雪山 L4 | 攻击或重力周期 | 单格 80 + 冰冻 1.5s |
+| `geyser` | 沼泽 L3 | 每 15s 自动喷发 | r80 击退 + 2s 击飞（无伤害） |
+
+#### 5.4.2 环境威胁（3 种，对玩家施压但可主动消除）
+
+| 单位 ID | 主题限定 | HP | 机制 |
+|---------|---------|-----|------|
+| `tombstone` | 废墟 L6 / 终战 L9 | 200 | 第 3 波起每波概率裂开复活敌人（60% 属性）；玩家可主动粉碎 |
+| `vine_overgrowth` | 沼泽 L3 / 林地 L2 | 80 | 缠绕邻塔，每 5s -5% HP；可击破清除 |
+| `cursed_shrine` | 深渊 L9 | 300 | r150 内所有塔 -30% 攻速；可击破消除 |
+
+### 5.5 路障（Barricade）—— 独立类型 Structure
 
 > **设计原则**：路障**不是塔**，是独立的 `Structure`（防御建筑）类型。原因：路障无攻击、占据路径格、不可升级到改变机制类型、AI 行为完全不同。强行作为 Tower 子类会污染塔系统的所有抽象。
 >
@@ -378,7 +443,7 @@ interface StructureLevel {
 }
 ```
 
-### 5.4 设计储备塔（v3.0 暂未入池）
+### 5.6 设计储备塔（v3.0 暂未入池）
 
 以下塔已完成详细设计但当前未纳入 7 种官方塔阵容，作为后续扩展卡：
 
@@ -388,7 +453,7 @@ interface StructureLevel {
 | `bounty_tower` | 击杀经济（赏金塔） | 标记敌人，标记敌被击杀时金币 ×1.5~2.5；L3+ Boss ×3 |
 | `totem_tower` | 减益破甲（图腾塔） | 减护甲/魔抗，可堆叠 3 层；L3+ 满层额外 -10 护甲；L5 攻击附 5% 当前护甲减甲 |
 
-### 5.5 目标点（Objective）
+### 5.7 目标点（Objective）
 
 | 目标 ID | 阵营 | 说明 |
 |---------|------|------|
@@ -445,31 +510,59 @@ interface StructureLevel {
 | `engineer_card` | 单位卡 | Rare | `engineer` | 修复辅助 |
 | `assassin_card` | 单位卡 | Epic | `assassin` | 爆发位 |
 
-### 7.2 法术卡（`spellEffect` 驱动，不指向 UnitConfig）
+### 7.2 法术卡（`spellEffect` 驱动，14 张，4 子分类）
 
-| 卡 ID | 稀有度 | 类型 | 效果（简述） | 跨波保留 |
+> 机制权威 → [27-traps-spells-scene §3](./27-traps-spells-scene.md#3-法术spell)。子分类语义 → [23-skill-buff §5](./23-skill-buff.md)。
+
+#### 7.2.1 即时打击型（4 张）—— 战术身份：清场 / 应急
+
+| 卡 ID | 稀有度 | 能量 | 效果（简述） | 跨波保留 |
 |-------|--------|------|------------|---------|
-| `fireball_spell` | Common | AOE 伤害 | 目标区域 80 火焰伤害（半径 80） | ❌ |
-| `slow_spell` | Common | AOE 减速 | 目标区域所有敌人减速 50%，持续 3s | ❌ |
-| `arrow_rain_spell` | Rare | AOE 持续 | 目标区域 5s 内每秒 30 物理伤害 | ❌ |
-| `heal_pulse_spell` | Rare | AOE 治疗 | 我方单位全场 HP +100 | ❌ |
-| `freeze_all_spell` | Epic | 全屏控制 | 全屏敌人冰冻 2s | ❌ |
-| `meteor_spell` | Epic | 单点爆发 | 单格 300 火焰伤害 + 30% 范围 80 溅射 | ❌ |
-| `divine_protection_spell` | Legendary | 持续 buff | 水晶本波内额外承受 N 次秒杀消耗不扣 HP | ✅（跨波保留） |
-| `summon_skeletons_spell` | Legendary | 召唤 | 召唤 5 个 30 HP / 8 ATK 骷髅兵 | ❌ |
+| `fireball_spell` ⭐沿用 | Common | 3 | 目标区域 r80 范围 80 火焰伤害 | ❌ |
+| `meteor_spell` ⭐沿用 | Epic | 6 | 单格 300 火焰 + r80 30% 溅射 | ❌ |
+| `chain_lightning_spell` 🆕 | Rare | 4 | 单体 100 雷电，弹射 3 次（每次 -25%） | ❌ |
+| `purification_spell` 🆕 | Rare | 3 | 移除我方一个单位身上所有 Debuff + 回 30 HP | ❌ |
 
-> 法术卡子分类（AOE / 单体 / 召唤 / 增益 / 控制）见 [04 §6](./23-skill-buff.md)。  
-> 「精炼术」类提升 `instanceLevel` 的法术见 [04 §7](./23-skill-buff.md#7-instancelevel-法术卡提升机制)，本质属法术卡子类，单独通道，不出现在上表。
+#### 7.2.2 区域控制型（4 张）—— 战术身份：拖延 / 卡线
+
+| 卡 ID | 稀有度 | 能量 | 效果（简述） | 跨波保留 |
+|-------|--------|------|------------|---------|
+| `freeze_all_spell` ⭐沿用 | Epic | 5 | 全屏敌人冰冻 2s | ❌ |
+| `slow_spell` ⭐沿用 | Common | 2 | 目标区域所有敌人 -50% 移速，3s | ❌ |
+| `arrow_rain_spell` ⭐沿用 | Rare | 4 | 目标区域 5s 内每秒 30 物理 | ❌ |
+| `tornado_spell` 🆕 | Epic | 5 | 召唤龙卷沿路径移动 5s，每秒推 40px、击退 + 20 物理 | ❌ |
+
+#### 7.2.3 增益持续型（3 张）—— 战术身份：续航 / 防御
+
+| 卡 ID | 稀有度 | 能量 | 效果（简述） | 跨波保留 |
+|-------|--------|------|------------|---------|
+| `heal_pulse_spell` ⭐沿用 | Rare | 3 | 我方全场 HP +100 | ❌ |
+| `divine_protection_spell` ⭐沿用 | Legendary | 7 | 水晶本波内额外承受 N 次秒杀不扣 HP | ✅ |
+| `rally_horn_spell` 🆕 | Rare | 3 | 我方全体 +25% 攻速 + 10% 移速，15s | ❌ |
+
+#### 7.2.4 战略召唤/全局型（3 张）—— 战术身份：增援 / 改写规则
+
+| 卡 ID | 稀有度 | 能量 | 效果（简述） | 跨波保留 |
+|-------|--------|------|------------|---------|
+| `summon_skeletons_spell` ⭐沿用 | Legendary | 6 | 召唤 5 个 30 HP / 8 ATK 骷髅 | ❌ |
+| `time_dilation_spell` 🆕 | Legendary | 8 | 全场敌人 50% 时间流速 8s（己方正常） | ❌ |
+| `tactical_retreat_spell` 🆕 | Common | 1 | 选中我方单位返回手牌，退回 60% 能量 | ❌ |
+
+> ⭐ = 沿用现有；🆕 = 新增。能量值为占位，最终值见 [50-mda §21.2](../50-data-numerical/50-mda.md)。
+>
+> 「精炼术」类提升 `instanceLevel` 的法术见 [23-skill-buff §7](./23-skill-buff.md#7-instancelevel-法术卡提升机制)，本质属法术卡子类，单独通道，不出现在上表。
 
 ### 7.3 完整卡池规模（开服默认）
 
+> 三类新单位入池后：陷阱卡 9 张 + 法术卡 14 张（原 8 → 14）+ 中立点暴露给关卡随机池（不入手牌）+ 场景单位仅 levelEditor 预置（不入卡池）。
+
 | 稀有度 | 卡数 | 说明 |
 |--------|------|------|
-| Common | 12 | 基础塔/兵/建筑 + 基础法术 |
-| Rare | 8 | 进阶塔/辅助兵/能量水晶 + 进阶法术 |
-| Epic | 6 | 高级塔/刺客 + 高级法术 |
-| Legendary | 4 | 战略塔 + 终极法术 |
-| **总计** | **30** | 满足"开局抽 12 张"的足够多样性 |
+| Common | 16 | 基础塔/兵/建筑 + 基础法术 + 基础陷阱 |
+| Rare | 13 | 进阶塔/辅助兵/能量水晶 + 进阶法术 + 进阶陷阱 |
+| Epic | 9 | 高级塔/刺客 + 高级法术 + 高级陷阱 |
+| Legendary | 5 | 战略塔 + 终极法术 |
+| **总计** | **43** | 满足"开局抽 12 张"的足够多样性 + 三类新单位扩容 |
 
 > 开服默认解锁 6-8 张 Common 卡（详见 [13-save-system §1.2 默认初始状态](../60-tech/61-save-system.md)），其余通过火花碎片解锁。
 

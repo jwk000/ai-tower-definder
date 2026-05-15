@@ -645,6 +645,72 @@ function validatePathGraph(map):
 
 ---
 
+## 4.7 场景互动机关与 trap_path（v3.2 新增）
+
+> 权威设计 → [27-traps-spells-scene §4.2](../20-units/27-traps-spells-scene.md#42-场景互动机关sceneinteractables) + [§2.5](../20-units/27-traps-spells-scene.md#25-trap_path-tile-机制)。
+
+### 4.7.1 LevelConfig schema 扩展
+
+```typescript
+interface LevelConfig {
+  // ...沿用 v3.1 字段（id / theme / waveCount / pathGraph / ...）
+
+  // v3.2 新增：场景互动机关（与关卡主题强绑定）
+  sceneInteractables?: SceneInteractableConfig[];
+
+  // v3.2 新增：中立资源点随机池（关卡随机生成）
+  neutralPool?: NeutralPoolEntry[];
+
+  // v3.2 新增：trap_path 标记区间（哪些 path tile 允许部署陷阱）
+  // 若不指定，默认所有 path tile 都不可埋陷阱
+  trapPathSegments?: Array<{ from: Vec2; to: Vec2 }>;
+}
+
+interface SceneInteractableConfig {
+  unitId: UnitID;                              // 引用 `category: Scene` 单位（火药桶/墓碑/藤蔓/诅咒神龛...）
+  position: Vec2;                              // 固定坐标（与 tile 网格对齐）
+  triggerCondition?:
+    | 'on_click'                               // 玩家点击
+    | 'on_enemy_touch'                         // 敌人触碰
+    | 'on_tower_attack'                        // 塔攻击命中
+    | 'periodic'                               // 按周期自动触发
+    | 'on_chain'                               // 被其他场景机关爆炸链锁
+    | 'on_wave_start';                         // 每波开始时触发
+  triggerCooldown?: number;                    // 触发冷却（秒）
+  themeRestriction?: LevelTheme[];             // 仅限关卡主题（用于校验）
+}
+
+interface NeutralPoolEntry {
+  unitId: 'gold_chest' | 'healing_spring' | 'mana_crystal' | 'ancient_altar';
+  weight: number;                              // 抽取权重
+  spawnArea?: Array<Vec2>;                     // 允许出现的格位（默认全图空地）
+  maxCount?: number;                           // 每关上限（默认 1）
+}
+```
+
+### 4.7.2 编辑器 UI 扩展
+
+- 工具栏新增「场景机关」页签：列出当前关卡主题允许的 `Scene` 单位（按 themeRestriction 过滤）
+- 拖拽场景单位到地图：自动写入 `sceneInteractables[]`，触发条件可在右侧属性面板配置
+- 工具栏新增「trap_path 笔刷」：刷在 `path` tile 上，标记为可埋陷阱区间；视觉为虚线轮廓
+- 右侧 Inspector：选中场景机关后展示 `triggerCondition` 下拉、`triggerCooldown` 数值、关联 RuleHandler 预览
+
+### 4.7.3 校验规则（schema.parse 强校验）
+
+1. `sceneInteractables[].unitId` 必须存在于 `category: Scene` 单位注册表，否则报错
+2. `themeRestriction` 与 `LevelConfig.theme` 不匹配 → 警告（允许跨主题但提示设计师）
+3. `trapPathSegments` 内所有坐标必须是 `path` tile，否则报错
+4. `neutralPool[].spawnArea` 内所有坐标必须是 `empty` tile，否则报错
+5. 每关 `sceneInteractables` 数量 ≤ 8（防止过载，可在 §6 试玩中实时验证）
+
+### 4.7.4 现有关卡迁移
+
+- 旧 LevelConfig 无以上字段 → loader 自动填充空数组 `[]`，行为与 v3.1 完全一致
+- 新增字段全部 `optional`，向后兼容
+- 一键迁移工具（DEV-only）：对每个关卡按主题自动建议 sceneInteractables（设计师二次确认后写入）
+
+---
+
 ## 5. UI 总体布局
 
 ```

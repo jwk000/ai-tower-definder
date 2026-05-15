@@ -67,6 +67,7 @@
 | [24-combat](./20-units/24-combat.md) | stable · v3.1 audit | 战斗公式骨架、攻速/移速、眩晕/弹道规范 |
 | [25-vulnerability](./20-units/25-vulnerability.md) | stable · v3.1 audit | 玩家阵营 buff 保护规则、debuff 优先级、回归测试映射 |
 | [26-missile-special](./20-units/26-missile-special.md) | stable | 导弹塔：战略武器、全图射程、地格评分、大范围爆炸 |
+| [27-traps-spells-scene](./20-units/27-traps-spells-scene.md) | ⭐ authoritative · v3.2 | **三类单位权威**：9 陷阱 + 14 法术 + 11 场景中立完整设计；新增 Scene category / trap_path Tile / 3 Debuff |
 
 ### `30-ai/` — AI 行为
 

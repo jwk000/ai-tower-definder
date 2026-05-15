@@ -37,6 +37,7 @@ cross-refs:
 |------|------|------|
 | `empty` | 空地 | 可拖卡部署单位/建筑（需在路径邻格） |
 | `path` | 路径 | 敌人行走，不可部署 |
+| `trap_path` | **可埋陷阱的路径**（v3.2 新增） | 视觉同 `path`，但可拖陷阱卡部署；敌人正常通行；触发陷阱生命周期事件。每关由 `levelEditor` 标记 ≥ 3 段连续 `trap_path` 区间。详见 [27-traps-spells-scene §2.5](../20-units/27-traps-spells-scene.md#25-trap_path-tile-机制) |
 | `blocked` | 障碍 | 不可通行不可部署 |
 | `spawn` | 敌人出生点 | 位于地图右侧 |
 | `crystal` | **水晶（前称大本营）** | 位于地图左侧，HP 跨关卡继承。无敌但秒杀进入攻击范围的敌人，每杀 1 个 -1 HP。Boss 携带 `immune_to_crystal_kill` 标记不可被秒杀。详见 [25 §6.2](./10-roguelike-loop.md#62-水晶机制核心防御实体) |
@@ -64,12 +65,14 @@ cross-refs:
 
 | 配置项 | 说明 |
 |--------|------|
-| 地图数据 | 21×9 格 tile 布局 + 路径坐标 + 出生点 + 水晶位置 |
+| 地图数据 | 21×9 格 tile 布局 + 路径坐标 + 出生点 + 水晶位置 + **`trap_path` 标记区间**（v3.2） |
 | 波次配置 | 固定波次数量（8-10 波）+ 每波敌人编组 + 关底 Boss |
 | 难度乘数 | `enemyHpMult` / `enemyDmgMult` / `enemySpeedMult` / `goldRewardMult`（叠加到 21-MDA 敌人基础数值） |
-| 主题配色 | 地形颜色方案（9 种主题） |
-| 装饰物 | 场景障碍物（纯视觉） |
-| 随机池 | 天气池、装饰物池、波次扰动池 |
+| 主题配色 | 地形配色方案（9 种主题） |
+| 装饰物 | 场景纯视觉装饰物（不与单位混淆，受 [43-scene-decoration §7.5](../40-presentation/43-scene-decoration.md) 边界铁律约束） |
+| **`sceneInteractables[]`**（v3.2 新增） | 关卡预置的**场景互动机关**（火药桶/墓碑/藤蔓/诅咒神龛等 `category: Scene` 单位），与关卡主题强绑定。schema → [64-level-editor §6.2](../60-tech/64-level-editor.md) |
+| **`neutralPool[]`**（v3.2 新增） | 关卡可随机生成的**中立资源点**（healing_spring/gold_chest/mana_crystal/ancient_altar），由 `neutralRandom` PRNG 流抽取 |
+| 随机池 | 天气池、装饰物池、波次扰动池、中立资源池 |
 | 关间节点开关 | `hasInterLevelNode`（1-7 = true，8 = false 直接接终战，9 终战无后续） |
 
 ### 2.2 随机初始化机制

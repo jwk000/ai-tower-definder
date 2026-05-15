@@ -141,8 +141,16 @@ cross-refs:
 | **核电过载**（v3.1） | 标记 | mark | 1 | 直至触发或 10s | false | 标记承受过 3 跳闪电的敌人，触发"闪电塔全屏技"判定（详见 §6.3） | 核电塔/闪电塔（电塔路径终点） |
 | **激光蓄能**（v3.1） | 自身增益 | self_buff | 1 | 持续锁定期间 | true | 对同目标连续锁定每 0.5s 攻击 +X%，最高 +cap%（详见 §6.4） | 稳压/特变激光塔（激光塔路径2） |
 | **能量丹概率**（v3.1） | 自身被动（无 Buff 实体） | — | — | — | — | 真火塔击杀敌人时按概率触发，给玩家能量池 +1 E（不引入新资源） | 真火塔（元素塔路径2终点） |
+| **标记**（v3.2 三类单位） | 标记 | mark | 1 | 10s | false | 被陷阱/法术标记的敌人承伤 +25%；与图腾/核电过载的 `mark` 互斥（详见 [27-traps-spells-scene §3.3](./27-traps-spells-scene.md)） | 标记类陷阱/法术 |
+| **湿润**（v3.2 三类单位） | 减益 | wet | 1 | 5s | false | 受雷电伤害 +50%；受火伤害 -30%（与"燃烧" DOT 冲突时压制：见 §3.2.2） | 沼泽场景 / 水法术 |
+| **诅咒**（v3.2 三类单位） | 减益 | curse | 3 | 8s | false | 每层 -10% 攻击力，最多 3 层；与"图腾减甲"独立 | 诅咒神龛 / 法术 |
 
 > **数值真理源**：所有 Buff 具体数值以 [21-MDA](../50-data-numerical/50-mda.md) 为准。本表是字段结构示例。
+>
+> **冲突规则补充**（marked/wet/curse 三类新 Debuff）：
+> - `mark` 全局唯一：同一目标只能有 1 个 mark 来源；后到的 mark 覆盖前者。
+> - `wet` 与 `dot`（燃烧）互斥：湿润状态下，新施加的燃烧立即移除湿润；燃烧期间施加湿润直接被燃烧抵消。
+> - `curse` 独立堆叠槽，不挤占 `armor_debuff` 槽位。
 
 ### 3.4 Buff视觉
 
@@ -172,16 +180,19 @@ Boss技能不消耗玩家能量（由AI自主管理冷却）。
 >
 > 详细数值见 [21-MDA §12](../50-data-numerical/50-mda.md#12-能量-e-系统数值v30)；法术卡清单见 [21-unit-roster §7.2](./21-unit-roster.md#72-法术卡spelleffect-驱动不指向-unitconfig)。
 
-### 5.1 法术卡按效果分类
+### 5.1 法术卡按战术身份分类（v3.2 重写）
 
-| 子分类 | 描述 | 典型代表 | 是否跨波保留 |
-|--------|------|---------|------------|
-| 即时伤害（AoE） | 在选定区域立即释放范围伤害 | `fireball_spell`, `meteor_spell` | ❌ |
-| 持续伤害（DoT/区域） | 在区域内持续若干秒造成伤害 | `arrow_rain_spell` | ❌ |
-| 控制（减速/冰冻） | 让敌人减速或暂停 | `slow_spell`, `freeze_all_spell` | ❌ |
-| 治疗 | 治疗我方单位或水晶（水晶虽免疫伤害，但治疗法术可恢复其 HP） | `heal_pulse_spell` | ❌ |
-| 召唤 | 临时召唤友军单位 | `summon_skeletons_spell` | ❌ |
-| 防御（跨波） | 给予水晶（吸收 N 次秒杀的 HP 消耗）或单位临时护盾 | `divine_protection_spell` | ✅ |
+> 设计原则：每张法术卡必须有**唯一可识别的战术身份**——清场 / 卡线 / 续航 / 改写规则。同一身份内的法术拼稀有度与能量曲线，避免"鸡肋设定"。
+>
+> 全量清单与卡 ID 见 [21-unit-roster §7.2](./21-unit-roster.md#72-法术卡spelleffect-驱动14-张4-子分类)。机制权威 → [27-traps-spells-scene §3](./27-traps-spells-scene.md#3-法术spell)。
+
+| 子分类 | 战术身份 | 典型代表 | 跨波保留 | 卡数 |
+|--------|---------|---------|---------|------|
+| **即时打击型** | 清场 / 应急（高单次输出，无后续） | `fireball_spell`, `meteor_spell`, `chain_lightning_spell`, `purification_spell` | ❌ | 4 |
+| **区域控制型** | 拖延 / 卡线（控制时长换塔输出窗口） | `slow_spell`, `freeze_all_spell`, `arrow_rain_spell`, `tornado_spell` | ❌ | 4 |
+| **增益持续型** | 续航 / 防御（治疗、buff、护盾） | `heal_pulse_spell`, `divine_protection_spell`, `rally_horn_spell` | 部分 ✅ | 3 |
+| **战略召唤/全局型** | 改写规则（召唤兵、全局时间膨胀、卡撤回） | `summon_skeletons_spell`, `time_dilation_spell`, `tactical_retreat_spell` | ❌ | 3 |
+| **精炼术（升级类）** | 法术卡升级专用通道，单独走 [§7](#7-instancelevel-法术卡提升机制) | `refining_*` 系列 | — | 单独通道 |
 
 ### 5.2 法术卡执行接口
 
@@ -189,15 +200,24 @@ Boss技能不消耗玩家能量（由AI自主管理冷却）。
 
 ```ts
 type SpellEffect =
+  // 基础原子（沿用 v3.0）
   | { type: 'aoe_damage'; center: Vec2; radius: number; damage: number; damageType: DamageType }
   | { type: 'dot_zone'; center: Vec2; radius: number; tickDamage: number; duration: number }
   | { type: 'apply_buff'; targets: 'allies' | 'enemies' | 'allUnits'; buff: BuffSpec }
   | { type: 'summon'; unitId: UnitID; count: number; position: Vec2; lifetime?: number }
   | { type: 'heal'; targets: 'allies' | 'base'; amount: number }
-  | { type: 'shield'; targets: 'base' | 'allies'; absorbAmount: number; duration?: number };
+  | { type: 'shield'; targets: 'base' | 'allies'; absorbAmount: number; duration?: number }
+  // v3.2 新增原子（三类单位扩展）
+  | { type: 'chain_damage'; origin: Vec2; bounces: number; falloff: number; damage: number; damageType: DamageType }
+  | { type: 'cleanse'; target: EntityId; categories: BuffCategory[] }
+  | { type: 'moving_aoe'; pathSampling: Vec2[]; tickRadius: number; tickDamage: number; duration: number; knockback?: number }
+  | { type: 'delayed_effect'; delay: number; warningVfx: string; payload: SpellEffect[] }      // 读条 / 警示
+  | { type: 'friendly_damage'; ratio: number; payload: SpellEffect[] }                          // 自损法术
+  | { type: 'global_modifier'; kind: 'time_dilation' | 'energy_double' | ...; duration: number } // 改写战场规则
+  | { type: 'return_to_hand'; target: EntityId; refundEnergyRatio: number };                    // 撤回 + 退能量
 ```
 
-每张法术卡的 CardConfig 中包含一个 `effects: SpellEffect[]` 数组，由 `SpellCastSystem` 顺序执行。
+每张法术卡的 CardConfig 中包含一个 `effects: SpellEffect[]` 数组，由 `SpellCastSystem` 顺序执行。新增 7 个原子对应 v3.2 三类单位设计中的 14 张法术，详细映射 → [27-traps-spells-scene §3.3](./27-traps-spells-scene.md#33-法术接口扩展)。
 
 ### 5.3 法术卡能量消耗规则
 
