@@ -167,6 +167,7 @@ class TowerDefenderGame extends Game {
   private lastSnapshotWave: number = 0;
   /** Wired beforeunload handler — saved here so we can remove on screen exit. */
   private beforeUnloadHandler: ((ev: BeforeUnloadEvent) => void) | null = null;
+  private editorOnExit: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     super(canvas);
@@ -195,9 +196,12 @@ class TowerDefenderGame extends Game {
   // ================================================================
 
   private enterLevelSelect(): void {
-    // design/13 §2 + SaveManager.clearBattleSnapshot 注释：abandon 路径需清除快照。
-    // 仅当从 Battle 屏幕主动返回时视为 abandon；首次进入游戏（currentScreen 默认 LevelSelect）
-    // 必须保留 snapshot，以维持 beforeunload 意外退出后的恢复能力。
+    if (this.editorOnExit) {
+      const cb = this.editorOnExit;
+      this.editorOnExit = null;
+      cb();
+      return;
+    }
     if (this.currentScreen === GameScreen.Battle) {
       SaveManager.clearBattleSnapshot();
     }
@@ -235,6 +239,15 @@ class TowerDefenderGame extends Game {
     this.currentScreen = GameScreen.Battle;
     this.phase = GamePhase.Deployment;
 
+    this.world.reset();
+    this.initBattle(config);
+  }
+
+  override startBattleWithConfig(config: LevelConfig, options?: import('./core/Game.js').StartBattleOptions): void {
+    this.editorOnExit = options?.onExit ?? null;
+    this.currentLevelId = 0;
+    this.currentScreen = GameScreen.Battle;
+    this.phase = GamePhase.Deployment;
     this.world.reset();
     this.initBattle(config);
   }

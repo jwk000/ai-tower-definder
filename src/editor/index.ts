@@ -5,7 +5,7 @@ export interface EditorBootstrapDeps {
   game: Game;
   hostElement: HTMLElement;
   levelEditor?: LevelEditor;
-  mountUi?: (deps: { host: HTMLElement; editor: LevelEditor; onClose: () => void }) => () => void;
+  mountUi?: (deps: { host: HTMLElement; editor: LevelEditor; onClose: () => void; game?: Game }) => () => void;
 }
 
 export interface EditorHandle {
@@ -38,7 +38,7 @@ function createEditorHandle(deps: EditorBootstrapDeps): EditorHandle {
       game.paused = true;
       hostElement.style.display = 'block';
       if (levelEditor && mountUi) {
-        unmount = mountUi({ host: hostElement, editor: levelEditor, onClose: () => handle.close() });
+        unmount = mountUi({ host: hostElement, editor: levelEditor, onClose: () => handle.close(), game });
       }
     },
     close() {

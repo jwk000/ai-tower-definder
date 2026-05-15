@@ -3,6 +3,13 @@ import { InputManager } from '../input/InputManager.js';
 import { Renderer } from '../render/Renderer.js';
 import { LayoutManager } from '../ui/LayoutManager.js';
 import { tickFrame, systemCrashed, systemStart, systemEnd } from '../utils/debugLog.js';
+import type { LevelConfig } from '../types/index.js';
+
+export interface StartBattleOptions {
+  startingResources?: { gold?: number; energy?: number };
+  skipIntro?: boolean;
+  onExit?: () => void;
+}
 
 export class Game {
   world: TowerWorld;
@@ -104,6 +111,12 @@ export class Game {
 
     this.rafId = requestAnimationFrame(this.loop);
   };
+
+  /**
+   * Start a battle using an injected LevelConfig (bypasses the LEVELS[] registry).
+   * Override in subclass. Called by the editor "▶ 试玩" flow.
+   */
+  startBattleWithConfig(_config: LevelConfig, _options?: StartBattleOptions): void {}
 
   /** Override in subclass or set externally to handle rendering */
   render(_deltaTime: number): void {

@@ -21,6 +21,8 @@ import { SpawnPanel } from './panels/SpawnPanel.js';
 import { addSpawn, removeSpawn, renameSpawn } from '../state/spawnOps.js';
 import { GraphToolbar, type GraphTool } from './panels/GraphToolbar.js';
 import { DifficultyPanel } from './panels/DifficultyPanel.js';
+import type { Game } from '../../core/Game.js';
+import { modelToLevelConfig } from '../state/modelToLevelConfig.js';
 import { NodePanel } from './panels/NodePanel.js';
 import {
   addNode,
@@ -53,6 +55,7 @@ function tryParseModel(content: string | null): ParseResult {
 export interface EditorRootProps {
   editor: LevelEditor;
   onClose: () => void;
+  game?: Game;
 }
 
 interface ViewState {
@@ -123,7 +126,7 @@ function withTileAt(model: LevelFormModel, row: number, col: number, tile: strin
   };
 }
 
-export function EditorRoot({ editor, onClose }: EditorRootProps) {
+export function EditorRoot({ editor, onClose, game }: EditorRootProps) {
   const [view, setView] = useState<ViewState>(() => snapshot(editor));
   const [tab, setTab] = useState<EditTab>('raw');
   const [validationState, setValidationState] = useState<{ content: string | null; errors: ValidationError[] }>({ content: null, errors: [] });
@@ -303,6 +306,21 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
     editor.migrateCurrent();
   };
 
+  const onPreview = async (): Promise<void> => {
+    if (!game || parsed.model === null) return;
+    if (view.isDirty) {
+      await editor.saveCurrent();
+    }
+    const config = modelToLevelConfig(parsed.model);
+    game.paused = false;
+    game.startBattleWithConfig(config, {
+      onExit: () => {
+        game.paused = true;
+      },
+    });
+    onClose();
+  };
+
   const onDuplicate = async (): Promise<void> => {
     if (view.currentId === null) return;
     const suggested = `${view.currentId}_copy`;
@@ -327,6 +345,7 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
   const showEditor = view.currentId !== null && view.currentContent !== null;
   const canSave = showEditor && view.isDirty && view.status !== 'saving';
   const canDuplicate = view.currentId !== null;
+  const canPreview = !!game && showEditor && parsed.model !== null && view.status !== 'saving';
 
   return (
     <div class="editor-root" style={rootStyle} data-testid="editor-root">
@@ -436,6 +455,18 @@ export function EditorRoot({ editor, onClose }: EditorRootProps) {
                 >
                   {view.status === 'saving' ? '保存中…' : '保存 (Ctrl+S)'}
                 </button>
+                {game && (
+                  <button
+                    type="button"
+                    onClick={() => { void onPreview(); }}
+                    disabled={!canPreview}
+                    style={{ ...previewButtonStyle, opacity: canPreview ? 1 : 0.4, cursor: canPreview ? 'pointer' : 'not-allowed' }}
+                    data-testid="editor-preview"
+                    title="先保存后试玩当前关卡"
+                  >
+                    ▶ 试玩
+                  </button>
+                )}
               </div>
               {validationErrors.length > 0 && (
                 <div style={validationPanelStyle} data-testid="editor-validation-errors">
@@ -711,6 +742,16 @@ const migrateButtonStyle = {
   borderRadius: 4,
   fontSize: 12,
   marginRight: 8,
+};
+
+const previewButtonStyle = {
+  background: '#2a4a6a',
+  border: '1px solid #3a6a9a',
+  color: '#fff',
+  padding: '6px 14px',
+  borderRadius: 4,
+  fontSize: 13,
+  marginLeft: 8,
 };
 
 const textareaStyle = {

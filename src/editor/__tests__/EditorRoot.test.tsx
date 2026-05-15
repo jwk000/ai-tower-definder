@@ -1104,4 +1104,93 @@ describe('EditorRoot integration (happy-dom)', () => {
       expect(updated.map.spawns ?? []).toHaveLength(0);
     });
   });
+
+  describe('▶ 试玩 button (Phase E)', () => {
+    const minimalYaml =
+      'id: level_01\n' +
+      'name: Plains\n' +
+      'map:\n' +
+      '  cols: 3\n' +
+      '  rows: 2\n' +
+      '  tileSize: 32\n' +
+      '  tiles:\n' +
+      '    - [spawn, path, path]\n' +
+      '    - [empty, empty, crystal]\n' +
+      '  spawns:\n' +
+      '    - id: spawn_0\n' +
+      '      row: 0\n' +
+      '      col: 0\n' +
+      '  pathGraph:\n' +
+      '    nodes:\n' +
+      '      - {id: n0, row: 0, col: 0, role: spawn, spawnId: spawn_0}\n' +
+      '      - {id: n1, row: 1, col: 2, role: crystal_anchor}\n' +
+      '    edges:\n' +
+      '      - {from: n0, to: n1}\n' +
+      'waves:\n' +
+      '  - waveNumber: 1\n' +
+      '    spawnDelay: 0\n' +
+      '    enemies:\n' +
+      '      - {enemyType: goblin_grunt, count: 1, spawnInterval: 1}\n';
+
+    async function openEditorLevel(): Promise<void> {
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: minimalYaml, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+    }
+
+    it('▶ 试玩 button is absent when game prop is not provided', async () => {
+      await openEditorLevel();
+      expect(findByTestId(host, 'editor-preview')).toBeNull();
+    });
+
+    it('▶ 试玩 button is present and enabled when game prop is provided', async () => {
+      const fakeGame = { paused: false, startBattleWithConfig: vi.fn() };
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: minimalYaml, mtime: 100 } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} game={fakeGame as never} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+
+      const btn = findByTestId<HTMLButtonElement>(host, 'editor-preview')!;
+      expect(btn).not.toBeNull();
+      expect(btn.disabled).toBe(false);
+    });
+
+    it('▶ 试玩 click calls game.startBattleWithConfig with adapted LevelConfig', async () => {
+      const fakeGame = { paused: false, startBattleWithConfig: vi.fn() };
+      const editor = new LevelEditor({
+        fetch: makeFetch({
+          'GET /__editor/levels': { status: 200, body: { levels: [{ id: 'level_01', filename: 'level_01.yaml' }] } },
+          'GET /__editor/levels/level_01': { status: 200, body: { id: 'level_01', content: minimalYaml, mtime: 100 } },
+          'PUT /__editor/levels/level_01': { status: 200, body: { ok: true } },
+        }),
+        baseUrl: '/__editor',
+      });
+      render(<EditorRoot editor={editor} onClose={onClose} game={fakeGame as never} />, host);
+      await tick(); await tick();
+      findByTestId<HTMLButtonElement>(host, 'editor-level-item-level_01')!.click();
+      await tick(); await tick();
+
+      findByTestId<HTMLButtonElement>(host, 'editor-preview')!.click();
+      await tick(); await tick(); await tick();
+
+      expect(fakeGame.startBattleWithConfig).toHaveBeenCalledOnce();
+      const [cfg] = fakeGame.startBattleWithConfig.mock.calls[0] as [{ id: string }];
+      expect(cfg.id).toBe('level_01');
+    });
+  });
 });
