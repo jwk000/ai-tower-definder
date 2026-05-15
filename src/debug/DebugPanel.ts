@@ -1,4 +1,4 @@
-export type DebugActionId = 'complete_all_levels' | 'add_gold' | 'view_behavior_tree' | 'open_level_editor';
+export type DebugActionId = 'complete_all_levels' | 'add_gold' | 'view_behavior_tree' | 'open_inspector' | 'open_level_editor';
 
 export interface DebugAction {
   id: DebugActionId;
