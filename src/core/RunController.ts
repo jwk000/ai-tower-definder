@@ -1,13 +1,16 @@
 import type { Game } from './Game.js';
 import type { LevelState } from './LevelState.js';
 import type { WaveSystem } from '../systems/WaveSystem.js';
-import type { RunManager } from '../unit-system/RunManager.js';
+import type { InterLevelChoice, RunManager } from '../unit-system/RunManager.js';
 import { RunPhase } from '../unit-system/RunManager.js';
 
 export interface RunSceneContainers {
   readonly mainMenu: { visible: boolean };
   readonly battle: { visible: boolean };
   readonly interLevel: { visible: boolean };
+  readonly shop: { visible: boolean };
+  readonly mystic: { visible: boolean };
+  readonly skillTree: { visible: boolean };
   readonly runResult: { visible: boolean };
 }
 
@@ -76,8 +79,23 @@ export class RunController {
     this.syncSceneVisibility();
   }
 
-  pickInterLevel(choice: 'shop' | 'mystic' | 'skip'): void {
+  pickInterLevel(choice: InterLevelChoice): void {
     this.runManager.pickInterLevelChoice(choice);
+    this.syncSceneVisibility();
+  }
+
+  closeShop(): void {
+    this.runManager.closeShop();
+    this.syncSceneVisibility();
+  }
+
+  closeMystic(): void {
+    this.runManager.closeMystic();
+    this.syncSceneVisibility();
+  }
+
+  closeSkillTree(): void {
+    this.runManager.closeSkillTree();
     this.syncSceneVisibility();
   }
 
@@ -106,6 +124,9 @@ export class RunController {
     this.scenes.mainMenu.visible = p === RunPhase.Idle;
     this.scenes.battle.visible = p === RunPhase.Battle;
     this.scenes.interLevel.visible = p === RunPhase.InterLevel;
+    this.scenes.shop.visible = p === RunPhase.Shop;
+    this.scenes.mystic.visible = p === RunPhase.Mystic;
+    this.scenes.skillTree.visible = p === RunPhase.SkillTree;
     this.scenes.runResult.visible = p === RunPhase.Result;
   }
 }

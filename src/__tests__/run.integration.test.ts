@@ -212,6 +212,9 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
       mainMenu: { visible: false },
       battle: { visible: false },
       interLevel: { visible: false },
+      shop: { visible: false },
+      mystic: { visible: false },
+      skillTree: { visible: false },
       runResult: { visible: false },
     };
   }
@@ -486,6 +489,9 @@ describe('Wave 7.D — HUD.phase real-switching via LevelState', () => {
       mainMenu: { visible: false },
       battle: { visible: false },
       interLevel: { visible: false },
+      shop: { visible: false },
+      mystic: { visible: false },
+      skillTree: { visible: false },
       runResult: { visible: false },
     };
 

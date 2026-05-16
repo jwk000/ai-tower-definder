@@ -42,13 +42,79 @@ describe('RunManager state machine', () => {
     expect(run.outcome).toBe('victory');
   });
 
-  it('pickInterLevelChoice transitions InterLevel -> Battle and advances level', () => {
+  it('pickInterLevelChoice("shop") transitions InterLevel -> Shop without advancing level', () => {
     const run = makeManager(3);
     run.startRun();
     run.completeLevel();
-    run.pickInterLevelChoice('skip');
+    run.pickInterLevelChoice('shop');
+    expect(run.phase).toBe(RunPhase.Shop);
+    expect(run.currentLevel).toBe(1);
+  });
+
+  it('pickInterLevelChoice("mystic") transitions InterLevel -> Mystic without advancing level', () => {
+    const run = makeManager(3);
+    run.startRun();
+    run.completeLevel();
+    run.pickInterLevelChoice('mystic');
+    expect(run.phase).toBe(RunPhase.Mystic);
+    expect(run.currentLevel).toBe(1);
+  });
+
+  it('pickInterLevelChoice("skilltree") transitions InterLevel -> SkillTree without advancing level', () => {
+    const run = makeManager(3);
+    run.startRun();
+    run.completeLevel();
+    run.pickInterLevelChoice('skilltree');
+    expect(run.phase).toBe(RunPhase.SkillTree);
+    expect(run.currentLevel).toBe(1);
+  });
+
+  it('closeShop transitions Shop -> Battle and advances level', () => {
+    const run = makeManager(3);
+    run.startRun();
+    run.completeLevel();
+    run.pickInterLevelChoice('shop');
+    run.closeShop();
     expect(run.phase).toBe(RunPhase.Battle);
     expect(run.currentLevel).toBe(2);
+  });
+
+  it('closeMystic transitions Mystic -> Battle and advances level', () => {
+    const run = makeManager(3);
+    run.startRun();
+    run.completeLevel();
+    run.pickInterLevelChoice('mystic');
+    run.closeMystic();
+    expect(run.phase).toBe(RunPhase.Battle);
+    expect(run.currentLevel).toBe(2);
+  });
+
+  it('closeSkillTree transitions SkillTree -> Battle and advances level', () => {
+    const run = makeManager(3);
+    run.startRun();
+    run.completeLevel();
+    run.pickInterLevelChoice('skilltree');
+    run.closeSkillTree();
+    expect(run.phase).toBe(RunPhase.Battle);
+    expect(run.currentLevel).toBe(2);
+  });
+
+  it('rejects closeShop when not in Shop', () => {
+    const run = makeManager(3);
+    run.startRun();
+    expect(() => run.closeShop()).toThrow(/illegal transition/i);
+  });
+
+  it('rejects closeMystic when not in Mystic', () => {
+    const run = makeManager(3);
+    run.startRun();
+    expect(() => run.closeMystic()).toThrow(/illegal transition/i);
+  });
+
+  it('rejects closeSkillTree when not in SkillTree', () => {
+    const run = makeManager(3);
+    run.startRun();
+    expect(() => run.closeSkillTree()).toThrow(/illegal transition/i);
   });
 
   it('failRun from Battle transitions to Result with Defeat outcome', () => {
@@ -67,14 +133,14 @@ describe('RunManager state machine', () => {
   it('rejects pickInterLevelChoice when not in InterLevel', () => {
     const run = makeManager();
     run.startRun();
-    expect(() => run.pickInterLevelChoice('skip')).toThrow(/illegal transition/i);
+    expect(() => run.pickInterLevelChoice('shop')).toThrow(/illegal transition/i);
   });
 
   it('rejects pickInterLevelChoice with unknown choice value', () => {
     const run = makeManager(3);
     run.startRun();
     run.completeLevel();
-    expect(() => run.pickInterLevelChoice('teleport' as unknown as 'skip')).toThrow(/unknown choice/i);
+    expect(() => run.pickInterLevelChoice('teleport' as unknown as 'shop')).toThrow(/unknown choice/i);
   });
 
   it('resetToIdle from Result returns to Idle and clears level/outcome', () => {

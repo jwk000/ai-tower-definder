@@ -84,11 +84,17 @@ async function bootstrap(): Promise<void> {
   const mainMenuContainer = new Container();
   const battleContainer = new Container();
   const interLevelContainer = new Container();
+  const shopContainer = new Container();
+  const mysticContainer = new Container();
+  const skillTreeContainer = new Container();
   const runResultContainer = new Container();
   renderer.uiLayer.addChild(
     mainMenuContainer,
     battleContainer,
     interLevelContainer,
+    shopContainer,
+    mysticContainer,
+    skillTreeContainer,
     runResultContainer,
   );
 
@@ -182,6 +188,9 @@ async function bootstrap(): Promise<void> {
       mainMenu: mainMenuContainer,
       battle: battleContainer,
       interLevel: interLevelContainer,
+      shop: shopContainer,
+      mystic: mysticContainer,
+      skillTree: skillTreeContainer,
       runResult: runResultContainer,
     },
     waveSystem,
@@ -229,8 +238,12 @@ async function bootstrap(): Promise<void> {
   const interLevelPanel = new InterLevelPanel();
   interLevelPanel.setHandler((intent: InterLevelIntent) => {
     if (intent.kind !== 'enter-node') return;
-    const choice = intent.node === 'skilltree' ? 'skip' : intent.node;
-    runController.pickInterLevel(choice);
+    runController.pickInterLevel(intent.node);
+    // TODO[panel-wire]: Shop/Mystic/SkillTree 子面板接入前，立即关闭子相位回到 Battle。
+    // 接入真面板后删除以下三行，让子面板的"退出"按钮调 closeXxx。
+    if (intent.node === 'shop') runController.closeShop();
+    else if (intent.node === 'mystic') runController.closeMystic();
+    else if (intent.node === 'skilltree') runController.closeSkillTree();
   });
 
   const runResultPanel = new RunResultPanel({
