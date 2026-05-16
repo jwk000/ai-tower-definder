@@ -583,6 +583,68 @@ describe('Wave 7.C — drop_gold rule handler end-to-end', () => {
   });
 });
 
+describe('Wave 8.A — Gold 单账本回归：drop_gold → RunManager.gold (HUD 真实显示路径)', () => {
+  it('drop_gold handler bound to runManager.addGold reflects kill rewards in RunManager.gold', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 1, initialGold: 200 });
+    runManager.startRun();
+
+    game.world.ruleEngine.registerHandler('drop_gold', (_eid, params) => {
+      const amount = typeof params['amount'] === 'number' ? params['amount'] : 0;
+      if (amount > 0) runManager.addGold(amount);
+    });
+
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    const eid = spawnUnit(game.world, GRUNT, { x: 0, y: 0 });
+    expect(runManager.gold).toBe(200);
+
+    game.world.ruleEngine.attachRules(eid, 'onDeath', [
+      { handler: 'drop_gold', params: { amount: 5 } },
+    ]);
+    Health.current[eid] = 0;
+    game.tick(0.016);
+
+    expect(runManager.gold).toBe(205);
+  });
+
+  it('multiple kills accumulate into RunManager.gold (single ledger, no economy drift)', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 1, initialGold: 100 });
+    runManager.startRun();
+
+    game.world.ruleEngine.registerHandler('drop_gold', (_eid, params) => {
+      const amount = typeof params['amount'] === 'number' ? params['amount'] : 0;
+      if (amount > 0) runManager.addGold(amount);
+    });
+
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    for (let i = 0; i < 3; i += 1) {
+      const eid = spawnUnit(game.world, GRUNT, { x: i, y: 0 });
+      game.world.ruleEngine.attachRules(eid, 'onDeath', [
+        { handler: 'drop_gold', params: { amount: 5 } },
+      ]);
+      Health.current[eid] = 0;
+      game.tick(0.016);
+    }
+
+    expect(runManager.gold).toBe(115);
+  });
+
+  it('wave-complete bonus added via runManager.addGold appears in RunManager.gold (HUD displays it)', () => {
+    const runManager = new RunManager({ totalLevels: 1, initialGold: 200 });
+    runManager.startRun();
+    const WAVE_COMPLETE_GOLD = 20;
+
+    runManager.addGold(WAVE_COMPLETE_GOLD);
+
+    expect(runManager.gold).toBe(220);
+  });
+});
+
 describe('Projectile integration: AttackSystem fires, ProjectileSystem travels and hits', () => {
   it('Wave 7.B: AttackSystem spawns a Projectile, ProjectileSystem flies it to the target and applies damage', () => {
     const game = new Game();

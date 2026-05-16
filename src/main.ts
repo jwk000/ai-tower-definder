@@ -21,7 +21,6 @@ import {
   type WaveConfig,
   type WaveSystem,
 } from './systems/WaveSystem.js';
-import { EconomySystem } from './systems/EconomySystem.js';
 import { CardRegistry } from './unit-system/CardRegistry.js';
 import { CardSpawnSystem } from './unit-system/CardSpawnSystem.js';
 import { DeckSystem } from './unit-system/DeckSystem.js';
@@ -46,6 +45,7 @@ const GRID_ROWS = 9;
 const CELL_SIZE = 64;
 const VIEWPORT_WIDTH = GRID_COLS * CELL_SIZE;
 const VIEWPORT_HEIGHT = GRID_ROWS * CELL_SIZE;
+const WAVE_COMPLETE_GOLD = 20;
 
 async function bootstrap(): Promise<void> {
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
@@ -82,8 +82,6 @@ async function bootstrap(): Promise<void> {
     interLevelContainer,
     runResultContainer,
   );
-
-  const economy = new EconomySystem({ waveCompleteGold: 20 });
 
   const cardRegistry = new CardRegistry();
   for (const unit of unitConfigs.values()) {
@@ -124,9 +122,14 @@ async function bootstrap(): Promise<void> {
 
   const game = new Game();
 
+  const runManager = new RunManager({
+    totalLevels: 1,
+    initialGold: level.startingGold ?? 200,
+  });
+
   game.ruleEngine.registerHandler('drop_gold', (_eid, params) => {
     const amount = typeof params?.amount === 'number' ? params.amount : 0;
-    if (amount > 0) economy.addGold(amount);
+    if (amount > 0) runManager.addGold(amount);
   });
 
   let runController!: RunController;
@@ -135,7 +138,7 @@ async function bootstrap(): Promise<void> {
     spawns: spawnConfigs,
     unitConfigs,
     onWaveComplete: () => {
-      economy.grantWaveCompleteBonus();
+      runManager.addGold(WAVE_COMPLETE_GOLD);
     },
     onAllWavesComplete: () => {
       runController.completeCurrentLevel();
@@ -149,11 +152,6 @@ async function bootstrap(): Promise<void> {
   game.pipeline.register(createCrystalSystem());
   game.pipeline.register(createHealthSystem());
   game.pipeline.register(createLifecycleSystem());
-
-  const runManager = new RunManager({
-    totalLevels: 1,
-    initialGold: level.startingGold ?? 200,
-  });
 
   runController = new RunController({
     game,
