@@ -124,5 +124,11 @@ describe('real YAML files: levels/level-01.yaml -> parseLevelConfig', () => {
     expect(cfg.waves.length).toBeGreaterThanOrEqual(3);
     expect(cfg.waves[0]?.groups[0]?.enemyId).toBe('grunt');
     expect(cfg.startingGold).toBeGreaterThan(0);
+
+    expect(cfg.spawns.length).toBeGreaterThanOrEqual(1);
+    expect(cfg.spawns[0]?.id).toBe('spawn_0');
+    expect(cfg.spawns[0]?.x).toBe(0 * 64 + 32);
+    expect(cfg.spawns[0]?.y).toBe(4 * 64 + 32);
+    expect(cfg.available.towers).toContain('arrow');
   });
 });

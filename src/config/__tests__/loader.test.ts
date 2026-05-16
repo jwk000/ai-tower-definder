@@ -292,4 +292,73 @@ waves:
 `;
     expect(() => parseLevelConfig(yaml)).toThrow(/crystal_anchor/i);
   });
+
+  it('parses map.spawns into world coords (x/y projected from row/col + tileSize)', () => {
+    const yaml = `
+id: spawn_proj
+map:
+  cols: 10
+  rows: 10
+  tileSize: 64
+  spawns:
+    - { id: spawn_0, row: 4, col: 0 }
+    - { id: spawn_1, row: 0, col: 9 }
+  pathGraph:
+    nodes:
+      - { id: n0, row: 4, col: 0, role: spawn, spawnId: spawn_0 }
+      - { id: n1, row: 4, col: 9, role: crystal_anchor }
+    edges:
+      - { from: n0, to: n1 }
+waves:
+  - waveNumber: 1
+    spawnDelay: 0
+    enemies: [{ enemyType: grunt, count: 1, spawnInterval: 1 }]
+available:
+  towers: [arrow, cannon]
+  units: [militia]
+  cards: [arrow_tower_card]
+`;
+    const cfg = parseLevelConfig(yaml);
+    expect(cfg.spawns.length).toBe(2);
+    expect(cfg.spawns[0]).toEqual({
+      id: 'spawn_0',
+      row: 4,
+      col: 0,
+      x: 0 * 64 + 32,
+      y: 4 * 64 + 32,
+    });
+    expect(cfg.spawns[1]).toEqual({
+      id: 'spawn_1',
+      row: 0,
+      col: 9,
+      x: 9 * 64 + 32,
+      y: 0 * 64 + 32,
+    });
+    expect(cfg.available.towers).toEqual(['arrow', 'cannon']);
+    expect(cfg.available.units).toEqual(['militia']);
+    expect(cfg.available.cards).toEqual(['arrow_tower_card']);
+  });
+
+  it('defaults spawns=[] and available={towers:[],units:[],cards:[]} when omitted', () => {
+    const yaml = `
+id: no_optional
+map:
+  cols: 2
+  rows: 2
+  tileSize: 64
+  pathGraph:
+    nodes:
+      - { id: n0, row: 0, col: 0, role: spawn }
+      - { id: n1, row: 0, col: 1, role: crystal_anchor }
+    edges:
+      - { from: n0, to: n1 }
+waves:
+  - waveNumber: 1
+    spawnDelay: 0
+    enemies: [{ enemyType: grunt, count: 1, spawnInterval: 1 }]
+`;
+    const cfg = parseLevelConfig(yaml);
+    expect(cfg.spawns).toEqual([]);
+    expect(cfg.available).toEqual({ towers: [], units: [], cards: [] });
+  });
 });
