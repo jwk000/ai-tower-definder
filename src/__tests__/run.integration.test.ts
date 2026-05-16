@@ -25,6 +25,11 @@ import { createCrystalSystem } from '../systems/CrystalSystem.js';
 import { createHealthSystem } from '../systems/HealthSystem.js';
 import { createLifecycleSystem } from '../systems/LifecycleSystem.js';
 import { createMovementSystem } from '../systems/MovementSystem.js';
+import {
+  createWaveSystem,
+  type WaveConfig,
+  type SpawnConfig,
+} from '../systems/WaveSystem.js';
 import type { TowerWorld } from '../core/World.js';
 
 const GRUNT: UnitConfig = {
@@ -269,5 +274,146 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
     expect(runManager.crystalHp).toBe(0);
     expect(runManager.crystalHpMax).toBe(0);
     expect(scenes.mainMenu.visible).toBe(true);
+  });
+});
+
+describe('WaveSystem integration: schedule, spawn cadence, phase transitions', () => {
+  it.skip('Wave 7.A: schedules count=3 grunts at intervalMs cadence and transitions deployment -> battle -> wave-break', () => {
+    const game = new Game();
+    game.world.ruleEngine.registerHandler('drop_gold', () => {});
+    const spawn = vi.fn(spawnUnit);
+
+    const waves: WaveConfig[] = [
+      {
+        waveNumber: 1,
+        spawnDelayMs: 200,
+        groups: [{ enemyId: 'grunt', count: 3, intervalMs: 100 }],
+      },
+    ];
+    const spawns: SpawnConfig[] = [{ id: 's1', x: 0, y: 100 }];
+    const unitConfigs = new Map([['grunt', GRUNT]]);
+
+    const onWaveComplete = vi.fn();
+    const onAllWavesComplete = vi.fn();
+
+    const waveSystem = createWaveSystem({
+      waves,
+      spawns,
+      unitConfigs,
+      waveBreakMs: 500,
+      onWaveComplete,
+      onAllWavesComplete,
+      spawn,
+    });
+
+    game.pipeline.register(waveSystem);
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    waveSystem.start();
+    expect(waveSystem.currentPhase).toBe('deployment');
+    expect(spawn).toHaveBeenCalledTimes(0);
+
+    game.tick(0.1);
+    expect(waveSystem.currentPhase).toBe('deployment');
+    expect(spawn).toHaveBeenCalledTimes(0);
+
+    game.tick(0.15);
+    expect(waveSystem.currentPhase).toBe('battle');
+    expect(spawn).toHaveBeenCalledTimes(1);
+
+    game.tick(0.1);
+    expect(spawn).toHaveBeenCalledTimes(2);
+
+    game.tick(0.1);
+    expect(spawn).toHaveBeenCalledTimes(3);
+
+    game.tick(0.05);
+    expect(spawn).toHaveBeenCalledTimes(3);
+    expect(waveSystem.aliveEnemyCount(game.world)).toBe(3);
+    expect(waveSystem.currentPhase).toBe('battle');
+
+    const enemies = spawn.mock.results.map((r) => r.value as number);
+    for (const eid of enemies) {
+      Health.current[eid] = 0;
+    }
+
+    game.tick(0.016);
+    expect(waveSystem.aliveEnemyCount(game.world)).toBe(0);
+    expect(waveSystem.currentPhase).toBe('wave-break');
+    expect(onWaveComplete).toHaveBeenCalledTimes(1);
+    expect(onWaveComplete).toHaveBeenCalledWith(0);
+
+    game.tick(0.6);
+    expect(waveSystem.currentPhase).toBe('completed');
+    expect(onAllWavesComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('Wave 7.A.2: spawns at the spawnId coordinate and uses the configured UnitConfig', () => {
+    const game = new Game();
+    game.world.ruleEngine.registerHandler('drop_gold', () => {});
+    const spawn = vi.fn(spawnUnit);
+
+    const waves: WaveConfig[] = [
+      {
+        waveNumber: 1,
+        spawnDelayMs: 0,
+        groups: [{ enemyId: 'grunt', count: 1, spawnId: 's2', intervalMs: 0 }],
+      },
+    ];
+    const spawns: SpawnConfig[] = [
+      { id: 's1', x: 0, y: 0 },
+      { id: 's2', x: 320, y: 288 },
+    ];
+    const unitConfigs = new Map([['grunt', GRUNT]]);
+
+    const waveSystem = createWaveSystem({ waves, spawns, unitConfigs, spawn });
+    game.pipeline.register(waveSystem);
+
+    waveSystem.start();
+    game.tick(0.016);
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    const lastCall = spawn.mock.calls[0]!;
+    expect(lastCall[1]).toBe(GRUNT);
+    expect(lastCall[2]).toEqual({ x: 320, y: 288 });
+  });
+
+  it('Wave 7.A.3: rejects unknown enemyId and unknown spawnId loudly', () => {
+    const game = new Game();
+    game.world.ruleEngine.registerHandler('drop_gold', () => {});
+    const unitConfigs = new Map([['grunt', GRUNT]]);
+
+    const bad = createWaveSystem({
+      waves: [
+        {
+          waveNumber: 1,
+          spawnDelayMs: 0,
+          groups: [{ enemyId: 'phantom', count: 1, intervalMs: 0 }],
+        },
+      ],
+      spawns: [{ id: 's1', x: 0, y: 0 }],
+      unitConfigs,
+    });
+    game.pipeline.register(bad);
+    bad.start();
+    expect(() => game.tick(0.016)).toThrow(/unknown enemyId/);
+
+    const game2 = new Game();
+    game2.world.ruleEngine.registerHandler('drop_gold', () => {});
+    const badSpawn = createWaveSystem({
+      waves: [
+        {
+          waveNumber: 1,
+          spawnDelayMs: 0,
+          groups: [{ enemyId: 'grunt', count: 1, spawnId: 'ghost', intervalMs: 0 }],
+        },
+      ],
+      spawns: [{ id: 's1', x: 0, y: 0 }],
+      unitConfigs,
+    });
+    game2.pipeline.register(badSpawn);
+    badSpawn.start();
+    expect(() => game2.tick(0.016)).toThrow(/unknown spawnId/);
   });
 });
