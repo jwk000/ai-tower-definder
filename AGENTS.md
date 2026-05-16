@@ -118,6 +118,29 @@
 
 **配置驱动 + 规则引擎 + ECS + WebGL 渲染** 四层架构。详见 [`design/60-tech/60-architecture.md`](./design/60-tech/60-architecture.md)。
 
+### 文档一致性工具（自动维护）
+
+`scripts/check-doc-consistency.ts` 扫描代码中的 ECS 组件、系统、RuleHandler 名称，与 `design/60-tech/60-architecture.md` 中的 `<!-- CODEGEN:*:START/END -->` 权威列表块比对差异。
+
+```bash
+npm run check:doc        # 检查模式：有差异则 exit 1（pre-commit 自动触发）
+npm run check:doc:fix    # 修复模式：把代码列表同步写回 architecture.md
+npm run check:all        # typecheck + check:doc（L3 任务提交前必跑）
+```
+
+**pre-commit hook 已配置**（`.husky/pre-commit`）：每次 `git commit` 自动执行 `typecheck` + `check:doc`，两道门都过才允许提交。文档与代码不一致时 commit 被拦截 → 运行 `npm run check:doc:fix` 同步后重新提交。
+
+### 新增 ECS 组件 Checklist（L2/L3 必须）
+
+新增或删除 ECS 组件后，以下 4 步缺一不可：
+
+1. `src/core/components.ts` — 用 `defineComponent` 定义新组件
+2. 相关 `src/systems/*.ts` — 用 `defineQuery` 引用新组件
+3. 添加实体挂载/移除逻辑（在 `factories/` 或对应系统中）
+4. **运行 `npm run check:doc:fix`** — 自动把新组件名写入 `architecture.md` 权威列表
+
+AI 完成组件变更后，必须执行第 4 步并在 commit message 中注明"已同步 architecture.md"。
+
 ## 开发流程
 
 ### 通用规则（任何档位都适用）
