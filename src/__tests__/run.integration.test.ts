@@ -556,6 +556,33 @@ describe('Wave 7.D — HUD.phase real-switching via LevelState', () => {
   });
 });
 
+describe('Wave 7.C — drop_gold rule handler end-to-end', () => {
+  it('killing an enemy with onDeath drop_gold adds gold to EconomySystem via ruleEngine', () => {
+    const game = new Game();
+    const economy = new EconomySystem({ waveCompleteGold: 0 });
+    game.world.ruleEngine.registerHandler('drop_gold', (_eid, params) => {
+      const amount = typeof params['amount'] === 'number' ? params['amount'] : 0;
+      if (amount > 0) economy.addGold(amount);
+    });
+
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    const eid = spawnUnit(game.world, GRUNT, { x: 0, y: 0 });
+    expect(economy.gold).toBe(0);
+
+    game.world.ruleEngine.attachRules(eid, 'onDeath', [
+      { handler: 'drop_gold', params: { amount: 5 } },
+    ]);
+
+    Health.current[eid] = 0;
+
+    game.tick(0.016);
+
+    expect(economy.gold).toBe(5);
+  });
+});
+
 describe('Projectile integration: AttackSystem fires, ProjectileSystem travels and hits', () => {
   it('Wave 7.B: AttackSystem spawns a Projectile, ProjectileSystem flies it to the target and applies damage', () => {
     const game = new Game();
