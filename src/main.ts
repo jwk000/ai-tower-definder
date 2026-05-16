@@ -36,6 +36,8 @@ import {
   type WaveConfig,
   type WaveSystem,
 } from './systems/WaveSystem.js';
+import { EntityRenderer } from './render/EntityRenderer.js';
+import { RenderSystem } from './render/RenderSystem.js';
 import { CardRegistry } from './unit-system/CardRegistry.js';
 import { CardSpawnSystem } from './unit-system/CardSpawnSystem.js';
 import { DeckSystem } from './unit-system/DeckSystem.js';
@@ -179,6 +181,8 @@ async function bootstrap(): Promise<void> {
     },
   });
 
+  const entityRenderer = new EntityRenderer(renderer.entityLayer);
+
   game.pipeline.register(waveSystem);
   game.pipeline.register(createMovementSystem({ path: level.path }));
   game.pipeline.register(createAttackSystem());
@@ -186,6 +190,7 @@ async function bootstrap(): Promise<void> {
   game.pipeline.register(createCrystalSystem());
   game.pipeline.register(createHealthSystem());
   game.pipeline.register(createLifecycleSystem());
+  game.pipeline.register(new RenderSystem(entityRenderer));
 
   runController = new RunController({
     game,
@@ -213,6 +218,9 @@ async function bootstrap(): Promise<void> {
     viewportWidth: VIEWPORT_WIDTH,
     viewportHeight: VIEWPORT_HEIGHT,
     handPanel,
+    onExitBattle: () => {
+      runController.failCurrentRun();
+    },
   });
 
   const mainMenu = new MainMenu({ hasSavedRun: false });

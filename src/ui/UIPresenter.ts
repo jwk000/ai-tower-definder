@@ -11,6 +11,7 @@ export interface UIPresenterConfig {
   readonly viewportWidth: number;
   readonly viewportHeight: number;
   readonly handPanel?: HandPanel;
+  readonly onExitBattle?: () => void;
 }
 
 export interface UIFrame {
@@ -43,17 +44,26 @@ export class UIPresenter {
   private readonly energyText: Text;
   private readonly slotGraphics: Graphics;
   private readonly slotLabels: Text[] = [];
+  private readonly exitBtnGraphics: Graphics;
+  private readonly exitBtnText: Text;
 
   private readonly handPanel: HandPanel | null;
+  private readonly onExitBattle: (() => void) | null;
   private lastHandState: HandState = { cards: [], energy: 0 };
   private dragSlot: number | null = null;
   private ghostCard: Graphics | null = null;
+
+  private readonly EXIT_BTN = { x: 0, y: 0, w: 140, h: 40 } as { x: number; y: number; w: number; h: number };
 
   constructor(config: UIPresenterConfig) {
     this.battleContainer = config.battleContainer;
     this.viewportWidth = config.viewportWidth;
     this.viewportHeight = config.viewportHeight;
     this.handPanel = config.handPanel ?? null;
+    this.onExitBattle = config.onExitBattle ?? null;
+
+    this.EXIT_BTN.x = this.viewportWidth - 148;
+    this.EXIT_BTN.y = 8;
 
     this.hudContainer = new Container();
     this.handContainer = new Container();
@@ -74,7 +84,26 @@ export class UIPresenter {
     this.slotGraphics = new Graphics();
     this.handContainer.addChild(this.slotGraphics, this.energyText);
 
-    if (this.handPanel) this.bindHandEvents();
+    this.exitBtnGraphics = new Graphics();
+    this.exitBtnText = new Text({ text: 'Exit Battle', style: { fill: 0xffffff, fontSize: 15 } });
+    this.exitBtnText.anchor.set(0.5, 0.5);
+    this.hudContainer.addChild(this.exitBtnGraphics, this.exitBtnText);
+    this.drawExitButton();
+
+    this.bindHandEvents();
+  }
+
+  private drawExitButton(): void {
+    const b = this.EXIT_BTN;
+    this.exitBtnGraphics.clear();
+    this.exitBtnGraphics.rect(b.x, b.y, b.w, b.h).fill({ color: 0x5d1a1a, alpha: 0.92 });
+    this.exitBtnGraphics.rect(b.x, b.y, b.w, b.h).stroke({ width: 2, color: 0xff5252 });
+    this.exitBtnText.position.set(b.x + b.w / 2, b.y + b.h / 2);
+  }
+
+  private isExitBtnHit(x: number, y: number): boolean {
+    const b = this.EXIT_BTN;
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   }
 
   private bindHandEvents(): void {
@@ -109,6 +138,10 @@ export class UIPresenter {
 
   private onPointerDown(e: FederatedPointerEvent): void {
     const local = this.battleContainer.toLocal(e.global);
+    if (this.isExitBtnHit(local.x, local.y)) {
+      this.onExitBattle?.();
+      return;
+    }
     const layout = layoutHand(this.lastHandState, this.viewportWidth, this.viewportHeight);
     const slot = hitTestHandSlot(layout, local.x, local.y);
     this.dragSlot = slot;
