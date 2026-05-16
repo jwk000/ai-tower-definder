@@ -29,10 +29,12 @@ export interface InterLevelLayoutItem extends InterLevelOffer {
   readonly height: number;
 }
 
-export function layoutInterLevel(state: InterLevelState, viewportWidth: number, viewportHeight: number): {
+export interface InterLevelLayout {
   readonly headerLabel: string;
   readonly items: readonly InterLevelLayoutItem[];
-} {
+}
+
+export function layoutInterLevel(state: InterLevelState, viewportWidth: number, viewportHeight: number): InterLevelLayout {
   const cardW = 320;
   const cardH = 420;
   const gap = 40;
@@ -51,6 +53,15 @@ export function layoutInterLevel(state: InterLevelState, viewportWidth: number, 
   };
 }
 
+export function hitTestInterLevel(layout: InterLevelLayout, px: number, py: number): string | null {
+  for (const item of layout.items) {
+    if (px >= item.x && px <= item.x + item.width && py >= item.y && py <= item.y + item.height) {
+      return item.id;
+    }
+  }
+  return null;
+}
+
 export type InterLevelHandler = (intent: InterLevelIntent) => void;
 
 export class InterLevelPanel {
@@ -65,7 +76,7 @@ export class InterLevelPanel {
     this.state = state;
   }
 
-  __triggerForTest(offerId: string): void {
+  trigger(offerId: string): void {
     if (!this.state) return;
     const intent = resolveInterLevelChoice(this.state, offerId);
     this.handler?.(intent);

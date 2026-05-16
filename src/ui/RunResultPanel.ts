@@ -20,18 +20,37 @@ export interface RunResultLine {
   readonly value: string;
 }
 
+export interface RunResultFooterRect {
+  readonly label: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface RunResultLayout {
   readonly headerLabel: string;
   readonly headerColor: number;
   readonly lines: readonly RunResultLine[];
   readonly footerLabel: string;
+  readonly footer: RunResultFooterRect;
 }
 
 const VICTORY_COLOR = 0x4ec59a;
 const DEFEAT_COLOR = 0xe06868;
+const RESULT_FOOTER_WIDTH = 280;
+const RESULT_FOOTER_HEIGHT = 56;
+const RESULT_FOOTER_MARGIN_BOTTOM = 120;
 
-export function projectRunResult(state: RunResultState): RunResultLayout {
+export function projectRunResult(state: RunResultState, viewportWidth = 1920, viewportHeight = 1080): RunResultLayout {
   const s = state.stats;
+  const footer: RunResultFooterRect = {
+    label: 'Return to Menu',
+    x: (viewportWidth - RESULT_FOOTER_WIDTH) / 2,
+    y: viewportHeight - RESULT_FOOTER_MARGIN_BOTTOM,
+    width: RESULT_FOOTER_WIDTH,
+    height: RESULT_FOOTER_HEIGHT,
+  };
   return {
     headerLabel: state.outcome === 'victory' ? 'Victory!' : 'Defeat',
     headerColor: state.outcome === 'victory' ? VICTORY_COLOR : DEFEAT_COLOR,
@@ -43,8 +62,14 @@ export function projectRunResult(state: RunResultState): RunResultLayout {
       { label: 'Time', value: formatTime(s.elapsedSeconds) },
       { label: 'Spark Awarded', value: `+${state.sparkAwarded}` },
     ],
-    footerLabel: 'Return to Menu',
+    footerLabel: footer.label,
+    footer,
   };
+}
+
+export function hitTestRunResultFooter(layout: RunResultLayout, px: number, py: number): boolean {
+  const f = layout.footer;
+  return px >= f.x && px <= f.x + f.width && py >= f.y && py <= f.y + f.height;
 }
 
 function formatTime(seconds: number): string {
@@ -58,6 +83,13 @@ export type RunResultHandler = () => void;
 export class RunResultPanel {
   private state: RunResultState | null = null;
   private handler: RunResultHandler | null = null;
+  private viewportWidth = 1920;
+  private viewportHeight = 1080;
+
+  constructor(opts: { viewportWidth?: number; viewportHeight?: number } = {}) {
+    if (opts.viewportWidth) this.viewportWidth = opts.viewportWidth;
+    if (opts.viewportHeight) this.viewportHeight = opts.viewportHeight;
+  }
 
   setHandler(handler: RunResultHandler): void {
     this.handler = handler;
@@ -68,10 +100,10 @@ export class RunResultPanel {
   }
 
   getLayout(): RunResultLayout | null {
-    return this.state ? projectRunResult(this.state) : null;
+    return this.state ? projectRunResult(this.state, this.viewportWidth, this.viewportHeight) : null;
   }
 
-  __triggerForTest(): void {
+  trigger(): void {
     if (!this.state) return;
     this.handler?.();
   }

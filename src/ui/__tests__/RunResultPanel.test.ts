@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { projectRunResult, RunResultPanel, type RunResultState } from '../RunResultPanel.js';
+import { hitTestRunResultFooter, projectRunResult, RunResultPanel, type RunResultState } from '../RunResultPanel.js';
 
 function state(overrides: Partial<RunResultState> = {}): RunResultState {
   return {
@@ -63,7 +63,7 @@ describe('RunResultPanel class wrapper', () => {
     let calls = 0;
     panel.setHandler(() => calls++);
     panel.refresh(state());
-    panel.__triggerForTest();
+    panel.trigger();
     expect(calls).toBe(1);
   });
 
@@ -72,5 +72,16 @@ describe('RunResultPanel class wrapper', () => {
     expect(panel.getLayout()).toBeNull();
     panel.refresh(state());
     expect(panel.getLayout()?.headerLabel).toBe('Victory!');
+  });
+});
+
+describe('hitTestRunResultFooter (Wave 8.2 Pixi 事件链)', () => {
+  it('点击 footer 中心返回 true，footer 外返回 false', () => {
+    const layout = projectRunResult(state(), 1344, 576);
+    const f = layout.footer;
+    expect(hitTestRunResultFooter(layout, f.x + f.width / 2, f.y + f.height / 2)).toBe(true);
+    expect(hitTestRunResultFooter(layout, 0, 0)).toBe(false);
+    expect(hitTestRunResultFooter(layout, f.x - 1, f.y + f.height / 2)).toBe(false);
+    expect(hitTestRunResultFooter(layout, f.x + f.width / 2, f.y - 1)).toBe(false);
   });
 });

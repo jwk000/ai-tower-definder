@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { layoutHand, resolveDropIntent, HandPanel, type HandState, type PlayCardIntent } from '../HandPanel.js';
+import { hitTestHandSlot, layoutHand, resolveDropIntent, HandPanel, type HandState, type PlayCardIntent } from '../HandPanel.js';
 
 function state(overrides: Partial<HandState> = {}): HandState {
   return {
@@ -60,7 +60,7 @@ describe('HandPanel class wrapper', () => {
     const got: PlayCardIntent[] = [];
     panel.setHandler((i) => got.push(i));
     panel.refresh(state());
-    panel.__triggerForTest(0, 500, 400);
+    panel.trigger(0, 500, 400);
     expect(got).toEqual([{ kind: 'play', slot: 0, cardId: 'arrow_tower', targetX: 500, targetY: 400 }]);
   });
 
@@ -68,5 +68,22 @@ describe('HandPanel class wrapper', () => {
     const panel = new HandPanel({ viewportWidth: 1920, viewportHeight: 1080 });
     panel.refresh(state());
     expect(panel.getLayout().slots).toHaveLength(3);
+  });
+});
+
+describe('hitTestHandSlot (Wave 8.2 Pixi 事件链)', () => {
+  it('点击 slot 中心命中对应 slot 编号', () => {
+    const layout = layoutHand(state(), 1344, 576);
+    for (const slot of layout.slots) {
+      const cx = slot.x + slot.width / 2;
+      const cy = slot.y + slot.height / 2;
+      expect(hitTestHandSlot(layout, cx, cy)).toBe(slot.slot);
+    }
+  });
+
+  it('点击 hand zone 之外返回 null（即使位于 hand 行的 y 区间）', () => {
+    const layout = layoutHand(state(), 1344, 576);
+    expect(hitTestHandSlot(layout, 0, layout.slots[0]!.y)).toBeNull();
+    expect(hitTestHandSlot(layout, 1343, layout.slots[0]!.y)).toBeNull();
   });
 });

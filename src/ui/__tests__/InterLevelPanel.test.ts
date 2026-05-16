@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  hitTestInterLevel,
   layoutInterLevel,
   resolveInterLevelChoice,
   InterLevelPanel,
@@ -55,7 +56,7 @@ describe('InterLevelPanel class wrapper', () => {
     const got: InterLevelIntent[] = [];
     panel.setHandler((i) => got.push(i));
     panel.refresh(state());
-    panel.__triggerForTest('b');
+    panel.trigger('b');
     expect(got).toEqual([{ kind: 'enter-node', offerId: 'b', node: 'mystic' }]);
   });
 
@@ -64,7 +65,32 @@ describe('InterLevelPanel class wrapper', () => {
     const got: InterLevelIntent[] = [];
     panel.setHandler((i) => got.push(i));
     panel.refresh(state());
-    panel.__triggerForTest('nope');
+    panel.trigger('nope');
     expect(got).toEqual([{ kind: 'invalid', reason: 'no-such-offer' }]);
+  });
+});
+
+describe('hitTestInterLevel (Wave 8.2 Pixi 事件链)', () => {
+  it('点击中心命中对应 offer', () => {
+    const layout = layoutInterLevel(state(), 1344, 576);
+    for (const item of layout.items) {
+      const cx = item.x + item.width / 2;
+      const cy = item.y + item.height / 2;
+      expect(hitTestInterLevel(layout, cx, cy)).toBe(item.id);
+    }
+  });
+
+  it('点击空白返回 null', () => {
+    const layout = layoutInterLevel(state(), 1344, 576);
+    expect(hitTestInterLevel(layout, 0, 0)).toBeNull();
+    expect(hitTestInterLevel(layout, 1343, 575)).toBeNull();
+  });
+
+  it('点击 offer 之间的间隙返回 null', () => {
+    const layout = layoutInterLevel(state(), 1344, 576);
+    const first = layout.items[0]!;
+    const gapX = first.x + first.width + 10;
+    const cy = first.y + first.height / 2;
+    expect(hitTestInterLevel(layout, gapX, cy)).toBeNull();
   });
 });

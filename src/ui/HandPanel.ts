@@ -54,6 +54,15 @@ export function layoutHand(state: HandState, viewportWidth: number, viewportHeig
   };
 }
 
+export function hitTestHandSlot(layout: HandLayout, px: number, py: number): number | null {
+  for (const slot of layout.slots) {
+    if (px >= slot.x && px <= slot.x + slot.width && py >= slot.y && py <= slot.y + slot.height) {
+      return slot.slot;
+    }
+  }
+  return null;
+}
+
 export function resolveDropIntent(
   state: HandState,
   slot: number,
@@ -95,7 +104,7 @@ export class HandPanel {
     return layoutHand(this.state, this.viewportWidth, this.viewportHeight);
   }
 
-  __triggerForTest(slot: number, dropX: number, dropY: number): void {
+  trigger(slot: number, dropX: number, dropY: number): void {
     const intent = resolveDropIntent(this.state, slot, dropX, dropY, this.viewportHeight);
     this.handler?.(intent);
   }
