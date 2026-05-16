@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMainMenu, resolveMainMenuClick } from '../MainMenu.js';
+import { buildMainMenu, resolveMainMenuClick, MainMenu, type MainMenuAction } from '../MainMenu.js';
 
 describe('buildMainMenu', () => {
   it('disables continue-run when no saved run exists', () => {
@@ -31,5 +31,25 @@ describe('resolveMainMenuClick', () => {
     expect(resolveMainMenuClick({ hasSavedRun: false }, 'continue-run')).toEqual({
       kind: 'rejected', reason: 'disabled',
     });
+  });
+});
+
+describe('MainMenu class wrapper', () => {
+  it('invokes handler with enabled action; ignores disabled', () => {
+    const menu = new MainMenu({ hasSavedRun: false });
+    const got: MainMenuAction[] = [];
+    menu.setHandler((a) => got.push(a));
+    menu.__triggerForTest('start-run');
+    menu.__triggerForTest('continue-run');
+    expect(got).toEqual(['start-run']);
+  });
+
+  it('refresh() updates state so previously disabled action becomes enabled', () => {
+    const menu = new MainMenu({ hasSavedRun: false });
+    const got: MainMenuAction[] = [];
+    menu.setHandler((a) => got.push(a));
+    menu.refresh({ hasSavedRun: true });
+    menu.__triggerForTest('continue-run');
+    expect(got).toEqual(['continue-run']);
   });
 });

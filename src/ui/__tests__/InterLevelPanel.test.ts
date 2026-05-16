@@ -3,7 +3,9 @@ import { describe, it, expect } from 'vitest';
 import {
   layoutInterLevel,
   resolveInterLevelChoice,
+  InterLevelPanel,
   type InterLevelState,
+  type InterLevelIntent,
 } from '../InterLevelPanel.js';
 
 function state(): InterLevelState {
@@ -44,5 +46,25 @@ describe('resolveInterLevelChoice', () => {
     expect(resolveInterLevelChoice(state(), 'a')).toMatchObject({ node: 'shop' });
     expect(resolveInterLevelChoice(state(), 'b')).toMatchObject({ node: 'mystic' });
     expect(resolveInterLevelChoice(state(), 'c')).toMatchObject({ node: 'skilltree' });
+  });
+});
+
+describe('InterLevelPanel class wrapper', () => {
+  it('triggers handler with enter-node intent when offerId matches', () => {
+    const panel = new InterLevelPanel();
+    const got: InterLevelIntent[] = [];
+    panel.setHandler((i) => got.push(i));
+    panel.refresh(state());
+    panel.__triggerForTest('b');
+    expect(got).toEqual([{ kind: 'enter-node', offerId: 'b', node: 'mystic' }]);
+  });
+
+  it('returns invalid intent when offerId not found', () => {
+    const panel = new InterLevelPanel();
+    const got: InterLevelIntent[] = [];
+    panel.setHandler((i) => got.push(i));
+    panel.refresh(state());
+    panel.__triggerForTest('nope');
+    expect(got).toEqual([{ kind: 'invalid', reason: 'no-such-offer' }]);
   });
 });

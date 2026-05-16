@@ -25,3 +25,36 @@ export function resolveMainMenuClick(state: MainMenuState, action: MainMenuActio
   if (!button || !button.enabled) return { kind: 'rejected', reason: 'disabled' };
   return action;
 }
+
+export type MainMenuHandler = (action: MainMenuAction) => void;
+
+export class MainMenu {
+  private state: MainMenuState;
+  private handler: MainMenuHandler | null = null;
+  private buttons: readonly MainMenuButton[];
+
+  constructor(initial: MainMenuState = { hasSavedRun: false }) {
+    this.state = initial;
+    this.buttons = buildMainMenu(initial);
+  }
+
+  setHandler(handler: MainMenuHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: MainMenuState): void {
+    this.state = state;
+    this.buttons = buildMainMenu(state);
+  }
+
+  getButtons(): readonly MainMenuButton[] {
+    return this.buttons;
+  }
+
+  __triggerForTest(action: MainMenuAction): void {
+    const resolved = resolveMainMenuClick(this.state, action);
+    if (typeof resolved === 'string') {
+      this.handler?.(resolved);
+    }
+  }
+}

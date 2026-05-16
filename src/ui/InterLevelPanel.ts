@@ -50,3 +50,24 @@ export function layoutInterLevel(state: InterLevelState, viewportWidth: number, 
     })),
   };
 }
+
+export type InterLevelHandler = (intent: InterLevelIntent) => void;
+
+export class InterLevelPanel {
+  private state: InterLevelState | null = null;
+  private handler: InterLevelHandler | null = null;
+
+  setHandler(handler: InterLevelHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: InterLevelState): void {
+    this.state = state;
+  }
+
+  __triggerForTest(offerId: string): void {
+    if (!this.state) return;
+    const intent = resolveInterLevelChoice(this.state, offerId);
+    this.handler?.(intent);
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { projectRunResult, type RunResultState } from '../RunResultPanel.js';
+import { projectRunResult, RunResultPanel, type RunResultState } from '../RunResultPanel.js';
 
 function state(overrides: Partial<RunResultState> = {}): RunResultState {
   return {
@@ -54,5 +54,23 @@ describe('projectRunResult', () => {
   it('prefixes sparkAwarded value with + sign', () => {
     const layout = projectRunResult(state({ sparkAwarded: 3 }));
     expect(layout.lines.find((l) => l.label === 'Spark Awarded')!.value).toBe('+3');
+  });
+});
+
+describe('RunResultPanel class wrapper', () => {
+  it('triggers handler exactly once when state present', () => {
+    const panel = new RunResultPanel();
+    let calls = 0;
+    panel.setHandler(() => calls++);
+    panel.refresh(state());
+    panel.__triggerForTest();
+    expect(calls).toBe(1);
+  });
+
+  it('getLayout returns null before refresh, layout after refresh', () => {
+    const panel = new RunResultPanel();
+    expect(panel.getLayout()).toBeNull();
+    panel.refresh(state());
+    expect(panel.getLayout()?.headerLabel).toBe('Victory!');
   });
 });

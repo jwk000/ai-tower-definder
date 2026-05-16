@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { layoutHand, resolveDropIntent, type HandState } from '../HandPanel.js';
+import { layoutHand, resolveDropIntent, HandPanel, type HandState, type PlayCardIntent } from '../HandPanel.js';
 
 function state(overrides: Partial<HandState> = {}): HandState {
   return {
@@ -51,5 +51,22 @@ describe('resolveDropIntent', () => {
   it('cancels with no-such-slot when slot index does not exist', () => {
     const intent = resolveDropIntent(state(), 99, 500, 400, 1080);
     expect(intent).toEqual({ kind: 'cancel', reason: 'no-such-slot' });
+  });
+});
+
+describe('HandPanel class wrapper', () => {
+  it('invokes handler with play intent when drop is outside hand zone', () => {
+    const panel = new HandPanel({ viewportWidth: 1920, viewportHeight: 1080 });
+    const got: PlayCardIntent[] = [];
+    panel.setHandler((i) => got.push(i));
+    panel.refresh(state());
+    panel.__triggerForTest(0, 500, 400);
+    expect(got).toEqual([{ kind: 'play', slot: 0, cardId: 'arrow_tower', targetX: 500, targetY: 400 }]);
+  });
+
+  it('getLayout reflects refreshed state', () => {
+    const panel = new HandPanel({ viewportWidth: 1920, viewportHeight: 1080 });
+    panel.refresh(state());
+    expect(panel.getLayout().slots).toHaveLength(3);
   });
 });

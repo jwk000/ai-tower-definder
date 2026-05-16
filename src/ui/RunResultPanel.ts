@@ -52,3 +52,27 @@ function formatTime(seconds: number): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+export type RunResultHandler = () => void;
+
+export class RunResultPanel {
+  private state: RunResultState | null = null;
+  private handler: RunResultHandler | null = null;
+
+  setHandler(handler: RunResultHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: RunResultState): void {
+    this.state = state;
+  }
+
+  getLayout(): RunResultLayout | null {
+    return this.state ? projectRunResult(this.state) : null;
+  }
+
+  __triggerForTest(): void {
+    if (!this.state) return;
+    this.handler?.();
+  }
+}

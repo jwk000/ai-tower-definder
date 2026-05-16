@@ -69,3 +69,34 @@ export function resolveDropIntent(
   }
   return { kind: 'play', slot: card.slot, cardId: card.cardId, targetX: dropX, targetY: dropY };
 }
+
+export type HandPanelHandler = (intent: PlayCardIntent) => void;
+
+export class HandPanel {
+  private state: HandState = { cards: [], energy: 0 };
+  private handler: HandPanelHandler | null = null;
+  private viewportWidth = 1920;
+  private viewportHeight = 1080;
+
+  constructor(opts: { viewportWidth?: number; viewportHeight?: number } = {}) {
+    if (opts.viewportWidth) this.viewportWidth = opts.viewportWidth;
+    if (opts.viewportHeight) this.viewportHeight = opts.viewportHeight;
+  }
+
+  setHandler(handler: HandPanelHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: HandState): void {
+    this.state = state;
+  }
+
+  getLayout(): HandLayout {
+    return layoutHand(this.state, this.viewportWidth, this.viewportHeight);
+  }
+
+  __triggerForTest(slot: number, dropX: number, dropY: number): void {
+    const intent = resolveDropIntent(this.state, slot, dropX, dropY, this.viewportHeight);
+    this.handler?.(intent);
+  }
+}
