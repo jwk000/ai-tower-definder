@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ShopPanel } from '../ui/ShopPanel.js';
+import { MysticPanel } from '../ui/MysticPanel.js';
+import { SkillTreePanel, ARROW_TOWER_SKILL_TREE } from '../ui/SkillTreePanel.js';
 import { addComponent } from 'bitecs';
 
 import { Game } from '../core/Game.js';
@@ -695,6 +698,7 @@ describe('Projectile integration: AttackSystem fires, ProjectileSystem travels a
   });
 
   it('Wave 7.B.2: projectile keeps flying in its last direction when the target dies mid-flight', () => {
+
     const game = new Game();
     game.pipeline.register(createAttackSystem());
     game.pipeline.register(createProjectileSystem());
@@ -734,6 +738,145 @@ describe('Projectile integration: AttackSystem fires, ProjectileSystem travels a
     for (let i = 0; i < 5; i += 1) game.tick(0.05);
     expect(Projectile.vx[inflight]).toBeCloseTo(200, 1);
     expect(Position.x[inflight]).toBeGreaterThan(40);
+  });
+});
+
+describe('MVP-acceptance: Shop/Mystic/SkillTree 三面板 smoke', () => {
+  function makeScenes() {
+    return {
+      mainMenu: { visible: false },
+      battle: { visible: false },
+      interLevel: { visible: false },
+      shop: { visible: false },
+      mystic: { visible: false },
+      skillTree: { visible: false },
+      runResult: { visible: false },
+    };
+  }
+
+  it('shop: 选 shop → 进 Shop 相位 → 购买 grunt_card → gold 减少 → closeShop → Battle', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 2, initialGold: 200 });
+    const scenes = makeScenes();
+    const controller = new RunController({ game, runManager, scenes });
+
+    controller.startRun();
+    runManager.completeLevel();
+    expect(runManager.phase).toBe(RunPhase.InterLevel);
+
+    controller.pickInterLevel('shop');
+    expect(runManager.phase).toBe(RunPhase.Shop);
+    expect(scenes.shop.visible).toBe(true);
+
+    const shopPanel = new ShopPanel();
+    const shopState = {
+      gold: runManager.gold,
+      sp: runManager.sp,
+      items: [
+        { id: 'grunt_card', kind: 'unit-card' as const, label: 'Grunt Card', costGold: 30, grantsCardId: 'grunt_card', stock: 2 },
+      ],
+    };
+    shopPanel.refresh(shopState);
+
+    let purchaseResult: string | null = null;
+    shopPanel.setHandler((intent) => {
+      if (intent.kind === 'purchase' && intent.result.kind === 'success') {
+        const goldCost = runManager.gold - intent.result.newGold;
+        if (goldCost > 0) runManager.spendGold(goldCost);
+        purchaseResult = intent.result.itemId;
+      } else if (intent.kind === 'close') {
+        controller.closeShop();
+      }
+    });
+
+    const goldBefore = runManager.gold;
+    shopPanel.triggerPurchase('grunt_card');
+    expect(purchaseResult).toBe('grunt_card');
+    expect(runManager.gold).toBe(goldBefore - 30);
+
+    shopPanel.triggerClose();
+    expect(runManager.phase).toBe(RunPhase.Battle);
+    expect(scenes.battle.visible).toBe(true);
+    expect(runManager.currentLevel).toBe(2);
+  });
+
+  it('mystic: 选 mystic → 进 Mystic 相位 → 选事件 → gold 增加 → closeMystic → Battle', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 2, initialGold: 100 });
+    const scenes = makeScenes();
+    const controller = new RunController({ game, runManager, scenes });
+
+    controller.startRun();
+    runManager.completeLevel();
+    controller.pickInterLevel('mystic');
+    expect(runManager.phase).toBe(RunPhase.Mystic);
+
+    const mysticPanel = new MysticPanel();
+    const mvpEvent = {
+      id: 'mvp_gold_reward',
+      title: '神秘馈赠',
+      description: '获得 10 金币',
+      choices: [
+        { id: 'take_gold', label: '拾取', effects: [{ type: 'add_gold', amount: 10 }] },
+      ],
+    };
+    mysticPanel.refresh(mvpEvent);
+    mysticPanel.setHandler((intent) => {
+      if (intent.kind === 'resolve') {
+        for (const effect of intent.effects) {
+          const e = effect as unknown as { type: string; amount?: number };
+          if (e.type === 'add_gold' && typeof e.amount === 'number') {
+            runManager.addGold(e.amount);
+          }
+        }
+        controller.closeMystic();
+      } else if (intent.kind === 'exit') {
+        controller.closeMystic();
+      }
+    });
+
+    const goldBefore = runManager.gold;
+    mysticPanel.triggerChoice('take_gold');
+    expect(runManager.gold).toBe(goldBefore + 10);
+    expect(runManager.phase).toBe(RunPhase.Battle);
+    expect(runManager.currentLevel).toBe(2);
+  });
+
+  it('skilltree: 选 skilltree → 进 SkillTree 相位 → 解锁节点 → sp 减少 → closeSkillTree → Battle', () => {
+    const game = new Game();
+    const runManager = new RunManager({ totalLevels: 2, initialGold: 200 });
+    const scenes = makeScenes();
+    const controller = new RunController({ game, runManager, scenes });
+
+    controller.startRun();
+    runManager.grantSp(5);
+    runManager.completeLevel();
+    controller.pickInterLevel('skilltree');
+    expect(runManager.phase).toBe(RunPhase.SkillTree);
+
+    const skillTreePanel = new SkillTreePanel();
+    const stateForPanel = { config: ARROW_TOWER_SKILL_TREE, sp: runManager.sp, purchased: runManager.skillTreeState };
+    skillTreePanel.refresh(stateForPanel);
+    skillTreePanel.setHandler((intent) => {
+      if (intent.kind === 'unlock' && intent.result.kind === 'success') {
+        const spCost = runManager.sp - intent.result.newSp;
+        if (spCost > 0) runManager.spendSp(spCost);
+        runManager.unlockSkillNode(intent.result.nodeId);
+      } else if (intent.kind === 'exit') {
+        controller.closeSkillTree();
+      }
+    });
+
+    const spBefore = runManager.sp;
+    const nodeId = ARROW_TOWER_SKILL_TREE.nodes[0]!.id;
+    const nodeCost = ARROW_TOWER_SKILL_TREE.nodes[0]!.costSP;
+    skillTreePanel.triggerUnlock(nodeId);
+    expect(runManager.sp).toBe(spBefore - nodeCost);
+    expect(runManager.hasSkillNode(nodeId)).toBe(true);
+
+    skillTreePanel.triggerExit();
+    expect(runManager.phase).toBe(RunPhase.Battle);
+    expect(runManager.currentLevel).toBe(2);
   });
 });
 
