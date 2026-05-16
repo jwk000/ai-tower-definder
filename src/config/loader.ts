@@ -168,6 +168,22 @@ const WaveSchema = z
   })
   .passthrough();
 
+const SpawnPointSchema = z
+  .object({
+    id: z.string(),
+    row: z.number().int().nonnegative(),
+    col: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+const AvailableSchema = z
+  .object({
+    towers: z.array(z.string()).optional(),
+    units: z.array(z.string()).optional(),
+    cards: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
 const LevelDocSchema = z
   .object({
     id: z.string(),
@@ -177,6 +193,7 @@ const LevelDocSchema = z
         cols: z.number().int().positive(),
         rows: z.number().int().positive(),
         tileSize: z.number().positive(),
+        spawns: z.array(SpawnPointSchema).optional(),
         pathGraph: z
           .object({
             nodes: z.array(PathNodeSchema).min(1),
@@ -187,6 +204,7 @@ const LevelDocSchema = z
       .passthrough(),
     waves: z.array(WaveSchema).min(1, '[loader] level YAML must define at least 1 wave'),
     starting: z.object({ gold: z.number().nonnegative(), energy: z.number().nonnegative() }).passthrough().optional(),
+    available: AvailableSchema.optional(),
   })
   .passthrough();
 
@@ -202,15 +220,31 @@ export interface LevelWave {
   readonly groups: LevelWaveGroup[];
 }
 
+export interface LevelSpawnPoint {
+  readonly id: string;
+  readonly row: number;
+  readonly col: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface LevelAvailable {
+  readonly towers: readonly string[];
+  readonly units: readonly string[];
+  readonly cards: readonly string[];
+}
+
 export interface LevelConfig {
   readonly id: string;
   readonly name?: string;
   readonly tileSize: number;
   readonly path: Array<{ x: number; y: number }>;
   readonly crystal: { row: number; col: number };
+  readonly spawns: readonly LevelSpawnPoint[];
   readonly waves: LevelWave[];
   readonly startingGold?: number;
   readonly startingEnergy?: number;
+  readonly available: LevelAvailable;
 }
 
 export function parseLevelConfig(yamlText: string): LevelConfig {
@@ -233,15 +267,29 @@ export function parseLevelConfig(yamlText: string): LevelConfig {
     startDelay: w.spawnDelay,
     groups: w.enemies.map((g) => ({ enemyId: g.enemyType, count: g.count, interval: g.spawnInterval })),
   }));
+  const spawns: LevelSpawnPoint[] = (parsed.map.spawns ?? []).map((s) => ({
+    id: s.id,
+    row: s.row,
+    col: s.col,
+    x: s.col * tileSize + tileSize / 2,
+    y: s.row * tileSize + tileSize / 2,
+  }));
+  const available: LevelAvailable = {
+    towers: parsed.available?.towers ?? [],
+    units: parsed.available?.units ?? [],
+    cards: parsed.available?.cards ?? [],
+  };
   return {
     id: parsed.id,
     ...(parsed.name ? { name: parsed.name } : {}),
     tileSize,
     path,
     crystal: { row: anchor.row, col: anchor.col },
+    spawns,
     waves,
     ...(parsed.starting?.gold !== undefined ? { startingGold: parsed.starting.gold } : {}),
     ...(parsed.starting?.energy !== undefined ? { startingEnergy: parsed.starting.energy } : {}),
+    available,
   };
 }
 
