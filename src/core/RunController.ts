@@ -1,4 +1,6 @@
 import type { Game } from './Game.js';
+import type { LevelState } from './LevelState.js';
+import type { WaveSystem } from '../systems/WaveSystem.js';
 import type { RunManager } from '../unit-system/RunManager.js';
 import { RunPhase } from '../unit-system/RunManager.js';
 
@@ -13,6 +15,8 @@ export interface RunControllerConfig {
   readonly game: Game;
   readonly runManager: RunManager;
   readonly scenes: RunSceneContainers;
+  readonly waveSystem?: WaveSystem;
+  readonly levelState?: LevelState;
 }
 
 /**
@@ -36,11 +40,15 @@ export class RunController {
   private readonly game: Game;
   private readonly runManager: RunManager;
   private readonly scenes: RunSceneContainers;
+  private readonly waveSystem: WaveSystem | undefined;
+  private readonly levelState: LevelState | undefined;
 
   constructor(config: RunControllerConfig) {
     this.game = config.game;
     this.runManager = config.runManager;
     this.scenes = config.scenes;
+    this.waveSystem = config.waveSystem;
+    this.levelState = config.levelState;
     this.syncSceneVisibility();
   }
 
@@ -51,6 +59,7 @@ export class RunController {
   tick(dt: number): void {
     if (this.runManager.phase === RunPhase.Battle) {
       this.game.tick(dt);
+      this.syncLevelStateFromWaveSystem();
     }
   }
 
@@ -61,6 +70,9 @@ export class RunController {
 
   completeCurrentLevel(): void {
     this.runManager.completeLevel();
+    if (this.levelState) {
+      this.levelState.phase = 'victory';
+    }
     this.syncSceneVisibility();
   }
 
@@ -71,12 +83,22 @@ export class RunController {
 
   failCurrentRun(): void {
     this.runManager.failRun();
+    if (this.levelState) {
+      this.levelState.phase = 'defeat';
+    }
     this.syncSceneVisibility();
   }
 
   returnToMainMenu(): void {
     this.runManager.resetToIdle();
     this.syncSceneVisibility();
+  }
+
+  private syncLevelStateFromWaveSystem(): void {
+    if (!this.waveSystem || !this.levelState) return;
+    this.levelState.waveIndex = this.waveSystem.currentWaveIndex;
+    const wp = this.waveSystem.currentPhase;
+    this.levelState.phase = wp === 'completed' ? 'victory' : wp;
   }
 
   private syncSceneVisibility(): void {

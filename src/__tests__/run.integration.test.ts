@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { addComponent } from 'bitecs';
 
 import { Game } from '../core/Game.js';
+import { LevelState } from '../core/LevelState.js';
 import { RunController } from '../core/RunController.js';
 import {
   Attack,
@@ -217,9 +218,28 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
 
   it('completes a full Idle -> Battle -> Result cycle and resets to Idle', () => {
     const game = new Game();
+    game.world.ruleEngine.registerHandler('drop_gold', () => {});
     const runManager = new RunManager({ totalLevels: 1 });
     const scenes = makeScenes();
-    const controller = new RunController({ game, runManager, scenes });
+
+    const waves: WaveConfig[] = [
+      {
+        waveNumber: 1,
+        spawnDelayMs: 100,
+        groups: [{ enemyId: 'grunt', count: 1, intervalMs: 0 }],
+      },
+    ];
+    const spawns: SpawnConfig[] = [{ id: 's1', x: 0, y: 100 }];
+    const unitConfigs = new Map([['grunt', GRUNT]]);
+    const waveSystem = createWaveSystem({ waves, spawns, unitConfigs });
+    game.pipeline.register(waveSystem);
+
+    const levelState = new LevelState();
+    levelState.reset(waves.length);
+    expect(levelState.waveTotal).toBe(1);
+    expect(levelState.phase).toBe('deployment');
+
+    const controller = new RunController({ game, runManager, scenes, waveSystem, levelState });
 
     expect(controller.phase).toBe(RunPhase.Idle);
     expect(scenes.mainMenu.visible).toBe(true);
@@ -232,17 +252,25 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
     expect(scenes.mainMenu.visible).toBe(false);
     expect(scenes.battle.visible).toBe(true);
 
+    waveSystem.start();
+
     const tickSpy = vi.spyOn(game, 'tick');
     controller.tick(0.016);
     controller.tick(0.016);
     expect(tickSpy).toHaveBeenCalledTimes(2);
     expect(tickSpy).toHaveBeenLastCalledWith(0.016);
+    expect(levelState.waveIndex).toBe(0);
+    expect(levelState.phase).toBe('deployment');
+
+    controller.tick(0.1);
+    expect(levelState.phase).toBe('battle');
 
     controller.completeCurrentLevel();
     expect(controller.phase).toBe(RunPhase.Result);
     expect(runManager.outcome).toBe('victory');
     expect(scenes.battle.visible).toBe(false);
     expect(scenes.runResult.visible).toBe(true);
+    expect(levelState.phase).toBe('victory');
 
     tickSpy.mockClear();
     controller.tick(0.016);
@@ -260,7 +288,9 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
     const game = new Game();
     const runManager = new RunManager({ totalLevels: 1, initialGold: 200, initialCrystalHp: 20 });
     const scenes = makeScenes();
-    const controller = new RunController({ game, runManager, scenes });
+    const levelState = new LevelState();
+    levelState.reset(1);
+    const controller = new RunController({ game, runManager, scenes, levelState });
 
     controller.startRun();
     expect(runManager.gold).toBe(200);
@@ -271,6 +301,7 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
     expect(runManager.outcome).toBe('defeat');
     expect(scenes.runResult.visible).toBe(true);
     expect(scenes.battle.visible).toBe(false);
+    expect(levelState.phase).toBe('defeat');
 
     controller.returnToMainMenu();
     expect(controller.phase).toBe(RunPhase.Idle);
