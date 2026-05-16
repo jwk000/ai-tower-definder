@@ -1,3 +1,4 @@
+// MVP-SIMPLIFICATION: Shop 仅 2 槽（grunt_card 30G + sp-exchange 50G→1SP），完整商店见 design/50-mda/50-mda.md §13
 export type ShopItemKind = 'unit-card' | 'sp-exchange';
 
 export interface ShopItem {
@@ -45,4 +46,33 @@ export function applyPurchase(state: ShopState, itemId: string): { state: ShopSt
     },
     result,
   };
+}
+
+export type ShopHandler = (intent: ShopIntent) => void;
+
+export type ShopIntent =
+  | { readonly kind: 'purchase'; readonly itemId: string; readonly result: PurchaseResult }
+  | { readonly kind: 'close' };
+
+export class ShopPanel {
+  private state: ShopState | null = null;
+  private handler: ShopHandler | null = null;
+
+  setHandler(handler: ShopHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: ShopState): void {
+    this.state = state;
+  }
+
+  triggerPurchase(itemId: string): void {
+    if (!this.state) return;
+    const result = attemptPurchase(this.state, itemId);
+    this.handler?.({ kind: 'purchase', itemId, result });
+  }
+
+  triggerClose(): void {
+    this.handler?.({ kind: 'close' });
+  }
 }

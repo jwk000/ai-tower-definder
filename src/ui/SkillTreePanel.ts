@@ -77,6 +77,7 @@ export function layoutSkillTree(state: SkillTreeState, viewportWidth: number, vi
   };
 }
 
+// MVP-SIMPLIFICATION: 技能树仅箭塔 2 节点（Quick Draw 2SP + Multi-Shot 3SP），完整技能树见 design/20-units/22-skill-tree-overview.md
 export const ARROW_TOWER_SKILL_TREE: SkillTreeConfig = {
   unitId: 'arrow_tower',
   nodes: [
@@ -96,3 +97,32 @@ export const ARROW_TOWER_SKILL_TREE: SkillTreeConfig = {
     },
   ],
 };
+
+export type SkillTreeHandler = (intent: SkillTreeIntent) => void;
+
+export type SkillTreeIntent =
+  | { readonly kind: 'unlock'; readonly result: SkillPurchaseResult }
+  | { readonly kind: 'exit' };
+
+export class SkillTreePanel {
+  private state: SkillTreeState | null = null;
+  private handler: SkillTreeHandler | null = null;
+
+  setHandler(handler: SkillTreeHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(state: SkillTreeState): void {
+    this.state = state;
+  }
+
+  triggerUnlock(nodeId: string): void {
+    if (!this.state) return;
+    const result = attemptPurchaseSkill(this.state, nodeId);
+    this.handler?.({ kind: 'unlock', result });
+  }
+
+  triggerExit(): void {
+    this.handler?.({ kind: 'exit' });
+  }
+}

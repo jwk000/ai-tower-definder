@@ -63,6 +63,8 @@ export class RunManager {
   private _sp = 0;
   private _crystalHp = 0;
   private _crystalHpMax = 0;
+  // MVP-SIMPLIFICATION: skillTreeState 仅存已解锁节点 id（Set<string>），完整进度树见 design/20-units/22-skill-tree-overview.md §10
+  private _skillTreeState: Set<string> = new Set();
 
   constructor(config: RunManagerConfig) {
     if (!Number.isInteger(config.totalLevels) || config.totalLevels < 1) {
@@ -104,6 +106,18 @@ export class RunManager {
   get progress(): number {
     if (this._phase === RunPhase.Idle) return 0;
     return Math.min(1, this._currentLevel / this.totalLevels);
+  }
+
+  get skillTreeState(): ReadonlySet<string> {
+    return this._skillTreeState;
+  }
+
+  hasSkillNode(nodeId: string): boolean {
+    return this._skillTreeState.has(nodeId);
+  }
+
+  unlockSkillNode(nodeId: string): void {
+    this._skillTreeState.add(nodeId);
   }
 
   addGold(amount: number): void {
@@ -216,5 +230,6 @@ export class RunManager {
     this._sp = 0;
     this._crystalHp = 0;
     this._crystalHpMax = 0;
+    this._skillTreeState = new Set();
   }
 }

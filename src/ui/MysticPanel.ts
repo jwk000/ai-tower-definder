@@ -1,3 +1,4 @@
+// MVP-SIMPLIFICATION: 秘境仅 1 事件「获得 10 金币」+ 零成本退出，完整事件池见 design/50-mda/50-mda.md §14
 import type { MysticChoice, MysticEventConfig } from '../config/loader.js';
 
 export interface MysticPanelLayoutChoice {
@@ -51,4 +52,37 @@ export function resolveMysticChoice(event: MysticEventConfig, choiceId: string):
   const choice = event.choices.find((c) => c.id === choiceId);
   if (!choice) return { kind: 'invalid', reason: 'no-such-choice' };
   return { kind: 'resolve', eventId: event.id, choiceId, effects: choice.effects };
+}
+
+export type MysticExitHandler = (intent: MysticIntent) => void;
+
+export type MysticIntent =
+  | { readonly kind: 'resolve'; readonly eventId: string; readonly choiceId: string; readonly effects: MysticChoice['effects'] }
+  | { readonly kind: 'exit' }
+  | { readonly kind: 'invalid'; readonly reason: 'no-such-choice' | 'no-event' };
+
+export class MysticPanel {
+  private event: MysticEventConfig | null = null;
+  private handler: MysticExitHandler | null = null;
+
+  setHandler(handler: MysticExitHandler): void {
+    this.handler = handler;
+  }
+
+  refresh(event: MysticEventConfig): void {
+    this.event = event;
+  }
+
+  triggerChoice(choiceId: string): void {
+    if (!this.event) {
+      this.handler?.({ kind: 'invalid', reason: 'no-event' });
+      return;
+    }
+    const intent = resolveMysticChoice(this.event, choiceId);
+    this.handler?.(intent);
+  }
+
+  triggerExit(): void {
+    this.handler?.({ kind: 'exit' });
+  }
 }

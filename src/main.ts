@@ -8,6 +8,9 @@ import {
   InterLevelRenderer,
   MainMenuRenderer,
   RunResultRenderer,
+  ShopRenderer,
+  MysticRenderer,
+  SkillTreeRenderer,
 } from './render/PanelRenderers.js';
 import { UIPresenter } from './ui/UIPresenter.js';
 import { MainMenu, type MainMenuAction } from './ui/MainMenu.js';
@@ -17,6 +20,9 @@ import {
   type InterLevelIntent,
   type InterLevelOffer,
 } from './ui/InterLevelPanel.js';
+import { ShopPanel, type ShopIntent, type ShopState } from './ui/ShopPanel.js';
+import { MysticPanel, type MysticIntent } from './ui/MysticPanel.js';
+import { SkillTreePanel, type SkillTreeIntent, ARROW_TOWER_SKILL_TREE } from './ui/SkillTreePanel.js';
 import { RunResultPanel, type RunResultState } from './ui/RunResultPanel.js';
 import { createAttackSystem } from './systems/AttackSystem.js';
 import { createCrystalSystem } from './systems/CrystalSystem.js';
@@ -235,15 +241,87 @@ async function bootstrap(): Promise<void> {
     handSystem.drawTo(deckSystem);
   });
 
+  let shopRenderer!: ShopRenderer;
+  let mysticRenderer!: MysticRenderer;
+  let skillTreeRenderer!: SkillTreeRenderer;
+
   const interLevelPanel = new InterLevelPanel();
   interLevelPanel.setHandler((intent: InterLevelIntent) => {
     if (intent.kind !== 'enter-node') return;
     runController.pickInterLevel(intent.node);
-    // TODO[panel-wire]: Shop/Mystic/SkillTree 子面板接入前，立即关闭子相位回到 Battle。
-    // 接入真面板后删除以下三行，让子面板的"退出"按钮调 closeXxx。
-    if (intent.node === 'shop') runController.closeShop();
-    else if (intent.node === 'mystic') runController.closeMystic();
-    else if (intent.node === 'skilltree') runController.closeSkillTree();
+    if (intent.node === 'shop') {
+      shopRenderer.refresh(buildShopState());
+    } else if (intent.node === 'mystic') {
+      mysticRenderer.refresh(MVP_MYSTIC_EVENT);
+    } else if (intent.node === 'skilltree') {
+      skillTreeRenderer.refresh({ config: ARROW_TOWER_SKILL_TREE, sp: runManager.sp, purchased: runManager.skillTreeState });
+    }
+  });
+
+  // MVP-SIMPLIFICATION: 商店固定 2 槽（grunt_card 30G + sp-exchange 50G→1SP），完整随机商店见 design/50-mda
+  function buildShopState(): ShopState {
+    return {
+      gold: runManager.gold,
+      sp: runManager.sp,
+      items: [
+        { id: 'grunt_card', kind: 'unit-card', label: 'Grunt Card', costGold: 30, grantsCardId: 'grunt_card', stock: 2 },
+        { id: 'sp_exchange', kind: 'sp-exchange', label: 'SP Exchange (50G→1SP)', costGold: 50, grantsSP: 1, stock: 3 },
+      ],
+    };
+  }
+
+  const shopPanel = new ShopPanel();
+  shopPanel.setHandler((intent: ShopIntent) => {
+    if (intent.kind === 'purchase') {
+      if (intent.result.kind === 'success') {
+        const goldCost = runManager.gold - intent.result.newGold;
+        if (goldCost > 0) runManager.spendGold(goldCost);
+        const spGain = intent.result.newSp - runManager.sp;
+        if (spGain > 0) runManager.grantSp(spGain);
+        shopRenderer.refresh(buildShopState());
+      }
+    } else if (intent.kind === 'close') {
+      runController.closeShop();
+    }
+  });
+
+  // MVP-SIMPLIFICATION: 秘境固定 1 事件「获得 10 金币」+ 退出，完整事件池见 design/50-mda
+  const MVP_MYSTIC_EVENT = {
+    id: 'mvp_gold_reward',
+    title: '神秘馈赠',
+    description: '古老的石碑散发着微光……获得 10 枚金币。',
+    choices: [
+      { id: 'take_gold', label: '拾取金币 (+10G)', effects: [{ type: 'add_gold', amount: 10 }] },
+    ],
+  };
+
+  const mysticPanel = new MysticPanel();
+  mysticPanel.setHandler((intent: MysticIntent) => {
+    if (intent.kind === 'resolve') {
+      for (const effect of intent.effects) {
+        const goldEffect = effect as unknown as { type: string; amount?: number };
+        if (goldEffect.type === 'add_gold' && typeof goldEffect.amount === 'number') {
+          runManager.addGold(goldEffect.amount);
+        }
+      }
+      runController.closeMystic();
+    } else if (intent.kind === 'exit') {
+      runController.closeMystic();
+    }
+  });
+
+  const skillTreePanel = new SkillTreePanel();
+  skillTreePanel.setHandler((intent: SkillTreeIntent) => {
+    if (intent.kind === 'unlock') {
+      if (intent.result.kind === 'success') {
+        const spCost = runManager.sp - intent.result.newSp;
+        if (spCost > 0) runManager.spendSp(spCost);
+        runManager.unlockSkillNode(intent.result.nodeId);
+        skillTreeRenderer.refresh({ config: ARROW_TOWER_SKILL_TREE, sp: runManager.sp, purchased: runManager.skillTreeState });
+      }
+    } else if (intent.kind === 'exit') {
+      runController.closeSkillTree();
+    }
   });
 
   const runResultPanel = new RunResultPanel({
@@ -268,17 +346,36 @@ async function bootstrap(): Promise<void> {
     runResultPanel,
   );
 
+  shopRenderer = new ShopRenderer(
+    { container: shopContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    shopPanel,
+  );
+  mysticRenderer = new MysticRenderer(
+    { container: mysticContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    mysticPanel,
+  );
+  skillTreeRenderer = new SkillTreeRenderer(
+    { container: skillTreeContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    skillTreePanel,
+  );
+
   const devHooks = (globalThis as Record<string, unknown>);
   devHooks['__td'] = {
     mainMenu,
     handPanel,
     interLevelPanel,
     runResultPanel,
+    shopPanel,
+    mysticPanel,
+    skillTreePanel,
     runController,
     waveSystem,
     mainMenuRenderer,
     interLevelRenderer,
     runResultRenderer,
+    shopRenderer,
+    mysticRenderer,
+    skillTreeRenderer,
   };
 
   const SHOP_DESCS = [
