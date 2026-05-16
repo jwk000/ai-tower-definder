@@ -10,6 +10,7 @@ export interface UIPresenterConfig {
   readonly battleContainer: Container;
   readonly viewportWidth: number;
   readonly viewportHeight: number;
+  readonly cellSize?: number;
   readonly handPanel?: HandPanel;
   readonly onExitBattle?: () => void;
 }
@@ -49,9 +50,11 @@ export class UIPresenter {
 
   private readonly handPanel: HandPanel | null;
   private readonly onExitBattle: (() => void) | null;
+  private readonly cellSize: number;
   private lastHandState: HandState = { cards: [], energy: 0 };
   private dragSlot: number | null = null;
   private ghostCard: Graphics | null = null;
+  private ghostCell: Graphics | null = null;
 
   private readonly EXIT_BTN = { x: 0, y: 0, w: 140, h: 40 } as { x: number; y: number; w: number; h: number };
 
@@ -61,6 +64,7 @@ export class UIPresenter {
     this.viewportHeight = config.viewportHeight;
     this.handPanel = config.handPanel ?? null;
     this.onExitBattle = config.onExitBattle ?? null;
+    this.cellSize = config.cellSize ?? 64;
 
     this.EXIT_BTN.x = this.viewportWidth - 148;
     this.EXIT_BTN.y = 8;
@@ -133,6 +137,10 @@ export class UIPresenter {
       this.ghostCard.destroy({ children: true });
       this.ghostCard = null;
     }
+    if (this.ghostCell) {
+      this.ghostCell.destroy();
+      this.ghostCell = null;
+    }
     this.dragSlot = null;
   }
 
@@ -155,6 +163,27 @@ export class UIPresenter {
     if (this.dragSlot === null || !this.ghostCard) return;
     const local = this.battleContainer.toLocal(e.global);
     this.ghostCard.position.set(local.x, local.y);
+
+    const handZoneTop = this.viewportHeight - 160;
+    if (local.y < handZoneTop) {
+      const cs = this.cellSize;
+      const col = Math.floor(local.x / cs);
+      const row = Math.floor(local.y / cs);
+      const cellX = col * cs;
+      const cellY = row * cs;
+      if (!this.ghostCell) {
+        const g = new Graphics();
+        this.battleContainer.addChild(g);
+        this.ghostCell = g;
+      }
+      this.ghostCell.clear();
+      this.ghostCell.rect(cellX, cellY, cs, cs).fill({ color: 0x00e676, alpha: 0.25 });
+      this.ghostCell.rect(cellX, cellY, cs, cs).stroke({ width: 2, color: 0x00e676, alpha: 0.85 });
+    } else {
+      if (this.ghostCell) {
+        this.ghostCell.clear();
+      }
+    }
   }
 
   private onPointerUp(e: FederatedPointerEvent): void {

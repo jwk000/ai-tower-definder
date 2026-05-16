@@ -235,6 +235,7 @@ async function bootstrap(): Promise<void> {
     battleContainer,
     viewportWidth: VIEWPORT_WIDTH,
     viewportHeight: VIEWPORT_HEIGHT,
+    cellSize: CELL_SIZE,
     handPanel,
     onExitBattle: () => {
       runController.failCurrentRun();
@@ -261,7 +262,11 @@ async function bootstrap(): Promise<void> {
     const card = cardRegistry.getCard(intent.cardId);
     if (!card) return;
     if (!energySystem.spend(card.energyCost)) return;
-    cardSpawnSystem.play(game.world, intent.cardId, { x: intent.targetX, y: intent.targetY });
+    const col = Math.floor(intent.targetX / CELL_SIZE);
+    const row = Math.floor(intent.targetY / CELL_SIZE);
+    const snapX = col * CELL_SIZE + CELL_SIZE / 2;
+    const snapY = row * CELL_SIZE + CELL_SIZE / 2;
+    cardSpawnSystem.play(game.world, intent.cardId, { x: snapX, y: snapY });
     handSystem.playCard(intent.slot);
     deckSystem.discard(intent.cardId);
     handSystem.drawTo(deckSystem);
@@ -489,9 +494,9 @@ async function bootstrap(): Promise<void> {
       if (levelState.phase === 'battle' || levelState.phase === 'wave-break') {
         energySystem.tick(dt);
       }
-      presenter.present(
-        projectUIFrame(runManager, levelState, handSystem, energySystem, cardRegistry),
-      );
+      const uiFrame = projectUIFrame(runManager, levelState, handSystem, energySystem, cardRegistry);
+      handPanel.refresh(uiFrame.hand);
+      presenter.present(uiFrame);
     }
   });
 }
