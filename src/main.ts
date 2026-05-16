@@ -164,9 +164,20 @@ async function bootstrap(): Promise<void> {
       runManager.addGold(amount);
       runStats.goldEarned += amount;
     }
-    // drop_gold 由敌人死亡触发，顺势计数。即便 amount=0 也算击杀。
     runStats.enemiesKilled += 1;
   });
+
+  const noopHandlers = [
+    'play_sound', 'play_effect', 'flash_color', 'change_color', 'visual_flash_loop',
+    'stat_change', 'apply_buff', 'hp_bar_boss', 'enter_phase2', 'enter_phase3',
+    'spawn_unit', 'split_into', 'release_spore_cloud', 'create_poison_pool',
+    'spawn_portal', 'cancel_marks', 'boss_death', 'final_victory', 'deal_aoe_damage',
+    'spawn_projectile', 'spawn_lightning_bolt', 'spawn_laser_beam', 'spawn_bat_swarm',
+    'pause_world', 'start_timer', 'leave_ruins',
+  ];
+  for (const name of noopHandlers) {
+    game.ruleEngine.registerHandler(name, () => {});
+  }
 
   let runController!: RunController;
   const waveSystem: WaveSystem = createWaveSystem({
@@ -384,6 +395,11 @@ async function bootstrap(): Promise<void> {
     shopRenderer,
     mysticRenderer,
     skillTreeRenderer,
+    handSystem,
+    deckSystem,
+    energySystem,
+    cardRegistry,
+    game,
   };
 
   const SHOP_DESCS = [
