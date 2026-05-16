@@ -278,7 +278,7 @@ describe('MVP run flow smoke: RunController orchestrates phase + scene + tick', 
 });
 
 describe('WaveSystem integration: schedule, spawn cadence, phase transitions', () => {
-  it.skip('Wave 7.A: schedules count=3 grunts at intervalMs cadence and transitions deployment -> battle -> wave-break', () => {
+  it('Wave 7.A: schedules count=3 grunts at intervalMs cadence and transitions deployment -> battle -> wave-break', () => {
     const game = new Game();
     game.world.ruleEngine.registerHandler('drop_gold', () => {});
     const spawn = vi.fn(spawnUnit);
@@ -344,7 +344,11 @@ describe('WaveSystem integration: schedule, spawn cadence, phase transitions', (
     expect(onWaveComplete).toHaveBeenCalledTimes(1);
     expect(onWaveComplete).toHaveBeenCalledWith(0);
 
-    game.tick(0.6);
+    // Game.tick clamps dt to MAX_DT_SECONDS (0.25s), so a single tick(0.6)
+    // only advances 250ms — not enough to cross waveBreakMs=500. Split the
+    // wait across two ticks to accumulate >=500ms in wave-break phase.
+    game.tick(0.25);
+    game.tick(0.3);
     expect(waveSystem.currentPhase).toBe('completed');
     expect(onAllWavesComplete).toHaveBeenCalledTimes(1);
   });

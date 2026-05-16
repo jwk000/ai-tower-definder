@@ -174,6 +174,11 @@ export function createWaveSystem(cfg: WaveSystemConfig): WaveSystem {
       }
 
       if (phase === 'battle') {
+        // dt accumulates ONCE per tick; while-loop only consumes timer (no
+        // re-accumulation), so a large frame can catch up multiple spawns
+        // without over-spawning a full group per tick.
+        runtime.timer += dtMs;
+
         while (runtime.groupIndex < wave.groups.length) {
           const group = wave.groups[runtime.groupIndex]!;
 
@@ -182,18 +187,17 @@ export function createWaveSystem(cfg: WaveSystemConfig): WaveSystem {
             runtime.spawnedInGroup += 1;
             runtime.totalSpawnedInWave += 1;
             anySpawnedThisWave = true;
+            runtime.timer = 0;
             if (runtime.spawnedInGroup >= group.count) {
               runtime.groupIndex += 1;
               runtime.spawnedInGroup = 0;
-              runtime.timer = 0;
               continue;
             }
-            return;
+            break;
           }
 
-          runtime.timer += dtMs;
           if (runtime.timer < group.intervalMs) {
-            return;
+            break;
           }
           runtime.timer -= group.intervalMs;
           performSpawn(world, group);
