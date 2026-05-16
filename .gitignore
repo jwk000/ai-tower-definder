@@ -42,3 +42,4 @@ tmp/
 
 # Level editor recycle bin (DEV runtime artifact, see design/29 §8)
 .editor-trash/
+.playwright-mcp/
