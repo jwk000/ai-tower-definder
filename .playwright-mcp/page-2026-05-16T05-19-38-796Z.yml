@@ -1,0 +1,21 @@
+- generic [ref=e2]:
+  - generic:
+    - generic:
+      - generic:
+        - text: DIST
+        - strong: 0m
+      - generic:
+        - text: SPEED
+        - strong: "7"
+      - generic:
+        - text: COINS
+        - strong: "0"
+    - generic: ← → switch lane / rotate tunnel · Space jump · Esc pause
+  - generic [ref=e3]:
+    - heading "Quad Runner" [level=1] [ref=e4]
+    - paragraph [ref=e5]:
+      - paragraph [ref=e6]: Tunnel never ends, gravity bends.
+      - paragraph [ref=e7]:
+        - text: "← / → switch lane · on edge: rotate the tunnel"
+        - text: SPACE jump · ESC pause
+    - button "Start Running" [ref=e8] [cursor=pointer]
