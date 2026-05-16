@@ -47,6 +47,7 @@ export class UIPresenter {
   private readonly handPanel: HandPanel | null;
   private lastHandState: HandState = { cards: [], energy: 0 };
   private dragSlot: number | null = null;
+  private ghostCard: Graphics | null = null;
 
   constructor(config: UIPresenterConfig) {
     this.battleContainer = config.battleContainer;
@@ -80,23 +81,55 @@ export class UIPresenter {
     this.battleContainer.eventMode = 'static';
     this.battleContainer.hitArea = { contains: () => true };
     this.battleContainer.on('pointerdown', (e: FederatedPointerEvent) => this.onPointerDown(e));
+    this.battleContainer.on('pointermove', (e: FederatedPointerEvent) => this.onPointerMove(e));
     this.battleContainer.on('pointerup', (e: FederatedPointerEvent) => this.onPointerUp(e));
-    this.battleContainer.on('pointerupoutside', () => {
-      this.dragSlot = null;
-    });
+    this.battleContainer.on('pointerupoutside', () => this.clearDrag());
+  }
+
+  private spawnGhostCard(cardId: string, x: number, y: number): void {
+    this.clearDrag();
+    const g = new Graphics();
+    g.rect(-50, -70, 100, 140).fill({ color: 0x4fc3f7, alpha: 0.55 });
+    g.rect(-50, -70, 100, 140).stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
+    const label = new Text({ text: cardId, style: { fill: 0xffffff, fontSize: 12, align: 'center' } });
+    label.anchor.set(0.5, 0.5);
+    g.addChild(label);
+    g.position.set(x, y);
+    this.handContainer.addChild(g);
+    this.ghostCard = g;
+  }
+
+  private clearDrag(): void {
+    if (this.ghostCard) {
+      this.ghostCard.destroy({ children: true });
+      this.ghostCard = null;
+    }
+    this.dragSlot = null;
   }
 
   private onPointerDown(e: FederatedPointerEvent): void {
     const local = this.battleContainer.toLocal(e.global);
     const layout = layoutHand(this.lastHandState, this.viewportWidth, this.viewportHeight);
-    this.dragSlot = hitTestHandSlot(layout, local.x, local.y);
+    const slot = hitTestHandSlot(layout, local.x, local.y);
+    this.dragSlot = slot;
+    if (slot !== null) {
+      const card = this.lastHandState.cards[slot];
+      if (card) this.spawnGhostCard(card.cardId, local.x, local.y);
+    }
+  }
+
+  private onPointerMove(e: FederatedPointerEvent): void {
+    if (this.dragSlot === null || !this.ghostCard) return;
+    const local = this.battleContainer.toLocal(e.global);
+    this.ghostCard.position.set(local.x, local.y);
   }
 
   private onPointerUp(e: FederatedPointerEvent): void {
-    if (this.dragSlot === null || !this.handPanel) return;
+    if (this.dragSlot === null || !this.handPanel) { this.clearDrag(); return; }
     const local = this.battleContainer.toLocal(e.global);
-    this.handPanel.trigger(this.dragSlot, local.x, local.y);
-    this.dragSlot = null;
+    const slot = this.dragSlot;
+    this.clearDrag();
+    this.handPanel.trigger(slot, local.x, local.y);
   }
 
   present(frame: UIFrame): void {
