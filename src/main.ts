@@ -237,6 +237,7 @@ async function bootstrap(): Promise<void> {
     viewportHeight: VIEWPORT_HEIGHT,
     cellSize: CELL_SIZE,
     handPanel,
+    cardRegistry,
     onExitBattle: () => {
       runController.failCurrentRun();
     },

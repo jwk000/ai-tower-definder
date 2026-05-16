@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { FederatedPointerEvent } from 'pixi.js';
 
+import type { CardRegistry } from '../unit-system/CardRegistry.js';
 import type { HandPanel, HandState } from './HandPanel.js';
 import { hitTestHandSlot, layoutHand } from './HandPanel.js';
 import type { RunState } from './HUD.js';
@@ -12,6 +13,7 @@ export interface UIPresenterConfig {
   readonly viewportHeight: number;
   readonly cellSize?: number;
   readonly handPanel?: HandPanel;
+  readonly cardRegistry?: CardRegistry;
   readonly onExitBattle?: () => void;
 }
 
@@ -49,6 +51,7 @@ export class UIPresenter {
   private readonly exitBtnText: Text;
 
   private readonly handPanel: HandPanel | null;
+  private readonly cardRegistry: CardRegistry | null;
   private readonly onExitBattle: (() => void) | null;
   private readonly cellSize: number;
   private lastHandState: HandState = { cards: [], energy: 0 };
@@ -63,6 +66,7 @@ export class UIPresenter {
     this.viewportWidth = config.viewportWidth;
     this.viewportHeight = config.viewportHeight;
     this.handPanel = config.handPanel ?? null;
+    this.cardRegistry = config.cardRegistry ?? null;
     this.onExitBattle = config.onExitBattle ?? null;
     this.cellSize = config.cellSize ?? 64;
 
@@ -123,12 +127,25 @@ export class UIPresenter {
     this.clearGraphics();
     const g = new Graphics();
     g.eventMode = 'none';
-    g.rect(-50, -70, 100, 140).fill({ color: 0x4fc3f7, alpha: 0.55 });
-    g.rect(-50, -70, 100, 140).stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
-    const label = new Text({ text: cardId, style: { fill: 0xffffff, fontSize: 12, align: 'center' } });
-    label.anchor.set(0.5, 0.5);
-    label.eventMode = 'none';
-    g.addChild(label);
+
+    const card = this.cardRegistry?.getCard(cardId);
+    const unit = card?.unitConfigId ? this.cardRegistry?.getUnit(card.unitConfigId) : undefined;
+    const color = unit ? unit.visual.color : 0x4fc3f7;
+    const size = unit ? unit.visual.size : 36;
+    const shape = unit ? unit.visual.shape : 'circle';
+    const half = size / 2;
+
+    if (shape === 'circle') {
+      g.circle(0, 0, half).fill({ color, alpha: 0.6 });
+      g.circle(0, 0, half).stroke({ width: 2, color: 0xffffff, alpha: 0.85 });
+    } else if (shape === 'triangle') {
+      g.moveTo(0, -half).lineTo(half, half).lineTo(-half, half).closePath().fill({ color, alpha: 0.6 });
+      g.moveTo(0, -half).lineTo(half, half).lineTo(-half, half).closePath().stroke({ width: 2, color: 0xffffff, alpha: 0.85 });
+    } else {
+      g.rect(-half, -half, size, size).fill({ color, alpha: 0.6 });
+      g.rect(-half, -half, size, size).stroke({ width: 2, color: 0xffffff, alpha: 0.85 });
+    }
+
     g.position.set(x, y);
     this.handContainer.addChild(g);
     this.ghostCard = g;
