@@ -295,6 +295,10 @@ available:
   towers:
     - arrow
     - cannon
+    - ice
+    - lightning
+    - laser
+    - bat
   units: []
 weather:
   pool:
