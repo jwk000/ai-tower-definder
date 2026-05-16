@@ -1,63 +1,44 @@
-# Handoff — Wave 6 全部收官，等待 Wave 7+ 起跑
+# Handoff — Wave 7 全部完成，准备进 Wave 8
 
-> 生成时间: 2026-05-16 08:00 (Asia/Shanghai)
-> 当前会话 token 达 70.7%，按 AGENTS.md「上下文铁律」主动 handoff。
-> 续跑请新建会话，第一动作读本文件，按「Next Steps」继续。
+> 生成时间: 2026-05-16 (Asia/Shanghai)
+> 主动 handoff 原因：context 73%，Wave 7 全部 8 个子 wave 已提交完成，进 Wave 8 之前交接。
+> 续跑请新建会话，第一动作读本文件。
 
 ---
 
-## 1. User Requests (As-Is, 不改写)
+## 1. User Requests (As-Is)
 
-- "拉一个新的分支再重构，这个分支不动了，新分支可以删除旧代码。但是关卡和单位的yaml配置是根据新的设计生成的，应该可以复用"
-- "我决定放弃使用行为树实现ai，你需要修改一下文档和计划，你可以先做完目前的工作再处理。"
-- "虽然不再使用行为树，但士兵的ai需求是保留的"
-- "这次会话接近token上限后不要自动压缩，直接handoff"
-- "现在是mvp阶段，你不需要写详细测试用例，以快速开发为主"
-- Wave 6 启动决策："插入 W6.0：RunManager + 状态机 (Recommended)"
-- Wave 6 commit 1 启动："启动：一次性实现 RunManager+RunController+UISystem (Recommended)"
-- Wave 6 续跑指令："继续 .memory/handoffs/_latest.md"
+- 历史指令仍生效：roguelike 重构、不再用行为树、token 接近上限直接 handoff、MVP 阶段不写详细单测
+- 本会话指令：「继续 .memory/handoffs/_latest.md」（W7.4e → W7.8 顺序续跑）
 
 ## 2. Final Goal
 
-在 `rougelike-v34` 分支完成 v3.4 MVP 重写，交付可演示的 L1 单关闭环（菜单 → Run → L1 战斗 → 3 选 1 → Run 结算），三命令门（typecheck / 全量测试 / build）全绿。
+在 `rougelike-v34` 分支完成 v3.4 MVP 重写，交付可演示的 L1 单关闭环。
+**Wave 7 = 演示路径专项已完成。下一步 Wave 8 = 真实 Pixi 事件链 + pathGraph + 内容扩展（按用户指令决定优先级）。**
 
 ---
 
 ## 3. Wave 进度
 
-### Done
+### Done（本会话完成了 Wave 7 全部 8 个子 wave）
 
-- **Wave 0/1/2/3/4 全部完成**（44 commits）
-- **Wave 5 完成 16 commits + 收尾 + plan ✅**（含 W5.B SkillTreePanel）
-- **AGENTS.md 治理 2 commits**（`497953b` L1/L2/L3 档位决策表 + `3e64831` 收敛冗余目录路径）
-- **Wave 6 完整 4 commits ✅**（2026-05-16 完成）：
-  - `dcd6fe5 feat(run): extend RunManager + add RunController + UIPresenter [W6.1-W6.3]`
-  - `cdb910b feat(boot): wire RunController + MVP pipeline into main [W6.4]`
-  - `ea6ad84 test(smoke): MVP run flow integration coverage [W6.5]`
-  - `6d5b3b1 docs(plan): mark Wave 6 complete and record S20-S23 simplifications [W6.7]`
+| 子 wave | commit | 内容 |
+|---|---|---|
+| **W7.4e** | `10d18c6` | main.ts 全栈装配（274行）：Vite ?raw YAML 静态导入、5 unit-system、drop_gold handler、WaveConfig 秒→ms 转换、pipeline 7 system 顺序、RunController 注入 waveSystem+levelState、4 panel class setHandler、projectUIFrame 取 levelState.phase、ticker 含 energy.tick |
+| **W7.5** | `b7d154d` | HUD.phase 真实切换集成测试（Wave 7.D case）：2 wave mini-World，验 phase 序列 deployment→battle→wave-break→deployment→battle→wave-break→victory + RunManager.Result+victory |
+| **W7.6** | `f39d71b` | drop_gold 端到端集成测试（Wave 7.C case）：attachRules(onDeath)+Health=0+tick→economy.gold+5 |
+| **W7.7** | `c2682ab` | 性能基线脚本 `debug/perf-baseline.ts` + dev-log：avg=0.010ms、p95=0.027ms，远低于目标 16.67/22ms（纯逻辑层，无 Pixi 渲染） |
+| **W7.8** | `3a4f2f0` | 收尾：mvp-v3.4-rewrite.md S20-S23 全部标✅已替换、S24/S25 新增🟡Wave 8 跟进、修订历史 2.7 |
 
-### Verification State
+（Wave 7 前 4 个子 wave W7.1-W7.4d 在前一会话完成，handoff 文档见归档记录）
 
-- HEAD `6d5b3b1`
-- 分支 `rougelike-v34`，工作树 clean（仅 `.memory/` untracked）
-- `npm run typecheck` 绿
-- `npm test` **263/263** 全绿（W6 增量 +2 smoke case）
-- `npm run build` 1.16s 通过
-- Wave 6 命令门：`typecheck && npm test && build` 全绿 ✅
-- §0 追溯表新增 S20-S23（W6.4 wire 4 项简化点）已就位
+### Verification State（当前 HEAD）
 
-### Remaining
-
-- **Wave 7+ 演示路径专项**（新 Wave，原 v2 计划未设）：
-  - 补 `WaveSystem` / `ProjectileSystem` / `BuildSystem`（推迟到此期）
-  - main.ts wire `HandSystem` / `DeckSystem` / `EnergySystem` / `CardSpawnSystem` / `CardRegistry`
-  - 连 UI 输入回调（卡牌拖放 + 商店购买 + 秘境选择 + 技能树点投入）
-  - main.ts wire `EconomySystem` + 注册 `drop_gold` ruleHandler
-  - `HUD.RunState.phase` 真实切换（接 WaveSystem 后改 `'deployment'/'battle'/'wave-break'`）
-  - 性能基线测量（50 实体 + WaveSystem 持续 spawn）→ Wave 6 计划里推迟到此
-  - 这是 4 项简化点 S20-S23 的实际替换 Wave
-- **Wave 7（原最终发布门）**：代码↔设计文档一致性审查 + 最终 dev-log
-- 上述两者顺序：Wave 7+ 演示路径专项 → Wave 7 发布门
+- HEAD `3a4f2f0`，分支 `rougelike-v34`，**ahead origin 15 commits**（全部未 push）
+- 工作树仅 `.memory/handoffs/_latest.md` 修改（本文件）
+- `npm run typecheck` ✅
+- `npm test` ✅ **287 passed | 0 skipped (287 total)（baseline 268 → +19）**
+- `npm run build` ✅ 1.18s
 
 ---
 
@@ -66,157 +47,111 @@
 ### Branch & HEAD
 
 - 分支 `rougelike-v34`（旧 `rougelike` 冻结作 v3.3 归档，禁动）
-- HEAD `6d5b3b1 docs(plan): mark Wave 6 complete and record S20-S23 simplifications [W6.7]`
-- 工作树 clean（仅 `.memory/` untracked，符合 git ignore 期望）
+- HEAD `3a4f2f0`，ahead origin 15，均未 push
 
-### 关键文件（含行数）
+### Wave 7 核心落地产物
 
-**Wave 6 三件套 + 装配**：
-- `src/unit-system/RunManager.ts` 181 行（W6.1，状态机 + Run 级资源）
-- `src/core/RunController.ts` 89 行（W6.2，phase 切容器 + Battle 相位 tick）
-- `src/ui/UIPresenter.ts` 99 行（W6.3，HUD + HandPanel 呈现器）
-- `src/main.ts` 129 行（W6.4，wire 完整启动栈）
-- `src/__tests__/run.integration.test.ts` 273 行（W6.5，3 + 2 case，263 测试中此文件贡献 5）
-
-**MVP Pipeline 现状**（main.ts 已 wire 5 system）：
-- `src/systems/MovementSystem.ts` 92 行（gameplay）
-- `src/systems/AttackSystem.ts` 57 行（gameplay）
-- `src/systems/CrystalSystem.ts` 45 行（gameplay）
-- `src/systems/HealthSystem.ts` 23 行（lifecycle）
-- `src/systems/LifecycleSystem.ts` 26 行（lifecycle）
-- **缺**（Wave 7+ 待加）：WaveSystem / ProjectileSystem / BuildSystem
-
-**未接入 main 但已实现**：
-- `src/unit-system/HandSystem.ts` / `DeckSystem.ts` / `EnergySystem.ts` / `CardSpawnSystem.ts` / `CardRegistry.ts`
-- `src/systems/EconomySystem.ts`（不是 System，是 helper；main 未实例化）
-
-**核心契约文件**（不动）：
-- `src/core/Game.ts` 27 行（World + Pipeline + RuleEngine）
-- `src/core/pipeline.ts` 58 行（PHASE_ORDER 8 阶段）
-- `src/render/Renderer.ts` 53 行（4 层 Container：mapLayer/entityLayer/projectileLayer/uiLayer）
-
-**计划与设计**：
-- `design/_plans/mvp-v3.4-rewrite.md`（**Wave 6 已标 ✅**，§0 含 S1-S23 追溯表 + guardrail，修订历史 2.6 已追加）
-- `.sisyphus/plans/wave-6-detailed.md`（Wave 6 v2 详细计划，已落地，gitignored）
-
-### MVP Pipeline wire 状态
-
-`main.ts` 已注册到 `game.pipeline`：
-```
-Movement -> Attack -> Crystal -> (lifecycle phase) -> Health -> Lifecycle
-```
-按 `PHASE_ORDER` 自动调度。`drop_gold` ruleHandler **未注册**（S23）。
-
-### `projectUIFrame()` 投影策略（main.ts）
-
+**`src/vite-env.d.ts`**（新建）：
 ```ts
-run: {
-  gold: runManager.gold,
-  crystalHp: runManager.crystalHp,
-  crystalHpMax: runManager.crystalHpMax,
-  waveIndex: 1, waveTotal: 1,   // MVP 写死（S21）
-  phase: 'battle',              // MVP 写死（S21）
-}
-hand: { cards: [], energy: 0 }  // MVP 空集合（S22）
+/// <reference types="vite/client" />
+declare module '*.yaml?raw' { const content: string; export default content; }
 ```
 
-### Pixi v8 API 形式
+**`src/main.ts` 关键装配**（274行）：
+- Vite `?raw` 静态导入 4 个 YAML（level-01 / enemies / towers-units / towers-cards）
+- `parseLevelConfig(level01Yaml)` → `level: LevelConfig`
+- `loadUnitConfigsForLevel(level, unitYamlFiles)` → `unitConfigs: Map<id, UnitConfig>`
+- `loadCardConfigsForLevel(level, cardYamlFiles)` → `cardConfigs: CardConfig[]`（派生 arrow_tower_card / cannon_tower_card）
+- `EconomySystem / CardRegistry / DeckSystem / HandSystem / EnergySystem / CardSpawnSystem`（5 unit-system）
+- `LevelState().reset(level.waves.length)` —— waveTotal = 8
+- `WaveConfig[]` 秒→毫秒（startDelay*1000, interval*1000）
+- `SpawnConfig[]` = level.spawns.map（x/y 已是世界坐标）
+- `game.ruleEngine.registerHandler('drop_gold', ...)` → `economy.addGold(amount)`
+- Pipeline 顺序（gameplay phase）: WaveSystem → Movement(level.path) → Attack → Projectile → Crystal
+  lifecycle phase: Health → Lifecycle
+- `RunController({ game, runManager, scenes, waveSystem, levelState })`
+- 4 panel class + setHandler（MainMenu/Hand/InterLevel/RunResult）
+- `globalThis.__td = { mainMenu, handPanel, interLevelPanel, runResultPanel, runController, waveSystem }`（dev hook）
+- ticker: `runController.tick(dt)` + Battle 帧: `energySystem.tick(dt)` + `presenter.present(projectUIFrame(...))`
+- `projectUIFrame` 新签名（5 参数）取 levelState.phase + hand.cards 真实 cost/playable
 
-- `new Text({ text, style: { fill, fontSize } })`
-- `Graphics().rect(x,y,w,h).fill({ color, alpha }).stroke({ width, color })`
+**`src/__tests__/run.integration.test.ts`**（+2 describe/2 case）：
+- Wave 7.D: HUD.phase 序列验证（phaseLog 断言）
+- Wave 7.C: drop_gold handler 端到端
+
+**`debug/perf-baseline.ts`**（新建）：`npx tsx debug/perf-baseline.ts` 运行
+
+### 关键决策（Wave 7 新增）
+
+- **D-W7.4e-vite-raw-import**：用 Vite `?raw` 替代 `fs.readFileSync`（浏览器环境无 fs）
+- **D-W7.4e-runController-forward-ref**：`let runController!: RunController` 前向引用解循环依赖（waveSystem 的 onAllWavesComplete 需要 runController）
+- **D-W7.4e-path-level-driven**：MovementSystem 改用 `level.path`（loader 投影），不再 DEFAULT_PATH；S25 标 Wave 8 跟进
+- **D-W7.4e-dev-hook-globalThis**：panel class 不绑 Pixi pointerdown（D-W7.4d-no-pixi-binding），`globalThis.__td` 暴露 dev hook，浏览器 console 可手动触发
 
 ---
 
 ## 5. Explicit Constraints (Verbatim Only)
 
-- 中文沟通（AGENTS.md 第 5 条）
-- TDD 红绿配对（MVP 快开发模式下宽松，集成测试兜底）
-- 原子提交 + commit message 即任务描述
+- 中文沟通
+- 原子提交 + commit message 即任务描述（子 wave 一次一 commit）
 - roguelike 重构铁律：本分支属于推翻重写，旧分支冻结
-- 工作计划须 Momus 评审
-- MVP 阶段不写详细测试用例（用户最新指令）
-- 接近 token 上限直接 handoff，不走自动压缩（用户最新指令）
-- AI 不再用行为树，但士兵 AI 产品需求保留（规则引擎驱动）
+- MVP 阶段不写详细单测（用户指令，仍生效）
+- 接近 token 上限直接 handoff，不走自动压缩（用户指令）
+- AI 不再用行为树（用户指令）
+- 跳过外部 Momus 评审，Sisyphus 自查代评
 
 ---
 
-## 6. Key Decisions
+## 6. Next Steps
 
-- **D1 RunController 独立文件**（不扩 Game.ts）—— Momus ✅
-- **D2 字段分布**：Run 级（gold/sp/crystalHp/skillTrees/hasSavedRun）归 RunManager；单关瞬时（cards/energy/waveIndex）归 Game/LevelState
-- **D3 UIPresenter 不进 Pipeline**：Pipeline 签名 `update(world, dt)` 与 HUD/Hand 数据源（RunManager + LevelState）解耦，改由 RunController 在 Battle 相位 `present(frame)`
-- **D4 MVP 快开发模式合并 commit**：v2 计划 9-13 commit 压缩到 4 commits（W6.1-W6.3 三合一 + W6.4 + W6.5 + W6.7）
-- **D5 W6.5 冒烟扩现有 `run.integration.test.ts`**（不另起新 smoke 文件），spy game.tick 验 phase 切换
-- **D6 Wave 6 不补 WaveSystem/ProjectileSystem/BuildSystem**：推迟到 Wave 7+ 演示路径专项 Wave
-- **D7 性能基线推迟**：v2 计划「50 实体 FPS ≥ 60」推迟到 Wave 7+（MVP wire 阶段无 WaveSystem 持续 spawn，测量无意义）
-- **D8 S20-S23 同 W6.7 commit 落地**：满足 guardrail 三规则（同 commit + 三字段齐备 + 不作逃逸口），均指向 Wave 7+ 实质替换
+### Wave 8 候选项（按优先级参考，具体由用户指令决定）
 
----
+1. **Pixi 事件链真实绑定**（S24 清理）：panel class 绑 Pixi Container pointerdown/pointermove，替代 dev-hook 手动触发
+2. **pathGraph 动态路由**（S25 清理）：MovementSystem 接 level.path 多节点真实路径（level-01 当前 path 只有 2 点直线，先 L1 测）
+3. **内容扩展**：更多 enemy type（runner/heavy/mage/exploder）在 units/enemies.yaml 中的 UnitConfig 补全（当前 loadUnitConfigsForLevel 如找不到会 throw，需要同步补配置）
+4. **EnergySystem 在 waveSystem.start 时重置**：目前 startRun 时只调一次 energySystem.reset，wave-break 后能量不额外重置（按设计 wave-break 时 energy 继续 regen）
+5. **HUD 金币显示接 economy.gold**：目前 projectUIFrame 取 `runManager.gold`（RunManager 内置的金币），但 main.ts 里 drop_gold 加到 `economy.gold`（EconomySystem），两个金币系统未打通。需要决策：把 economy.gold 同步回 runManager.gold，或 projectUIFrame 改读 economy.gold
 
-## 7. Next Steps（按顺序）
+### 重要 Bug — Gold 双账本（Wave 8 修复）
 
-### Step 1 — 起跑 Wave 7+（演示路径专项 Wave）
+**问题**：main.ts 里 drop_gold → `economy.addGold(amount)`（EconomySystem），但 `projectUIFrame` 读 `runManager.gold`（RunManager）。两个金币系统分离，HUD 显示的金币不含 drop_gold 收益。
 
-**先做计划 + Momus 评审**（不要直接动代码）。Wave 7+ 涉及 3 个新 system + main 大改 + 输入回调链，复杂度等同 Wave 5/6，必须先有计划。
+**修复方向**（二选一）：
+- A. `drop_gold` handler 改为调 `runManager.addGold(amount)` + 移除 EconomySystem 中的金币
+- B. `projectUIFrame` 改读 `economy.gold` + `runManager.gold`（初始金币）合并
 
-建议工作流：
-1. 询问用户是否要 Wave 7+ 计划走完整 Momus 流程（推荐：是）
-2. 用 `task(subagent_type="plan", run_in_background=false)` 或直接写 `.sisyphus/plans/wave-7-plus-detailed.md`
-3. 计划必含：WaveSystem 设计 + ProjectileSystem 设计 + main 输入连线方案 + 测试策略（哪些走集成测试，哪些走 e2e smoke）
-4. 计划完成后用 `task(subagent_type="momus", session_id="ses_1d201ace0ffe7EVyBEVKzwturA", ...)` 复用 Wave 6 Momus session 评审
-5. APPROVED 后按 Wave 6 节奏推进（合并 commit + 集成测试兜底）
-
-### Step 2 — Wave 7+ 实施（按 Momus 通过的计划）
-
-预估 commits（参考 Wave 6 节奏）：
-- W7+.1 WaveSystem + 集成测试
-- W7+.2 ProjectileSystem + 集成测试（如确需，否则继续 hit-scan）
-- W7+.3 main wire HandSystem/DeckSystem/EnergySystem/CardSpawn + 输入回调
-- W7+.4 main wire EconomySystem + 注册 drop_gold handler
-- W7+.5 HUD.phase 真实切换接 WaveSystem（替换 S21）
-- W7+.6 性能基线测量 + dev-log
-- W7+.7 收尾：plan.md Wave 7+ 标 ✅ + §0 标 S20-S23 为「已替换」
-
-### Step 3 — Wave 7 发布门
-
-- 代码↔设计文档一致性审查（oracle agent）
-- 最终 dev-log + 三命令门
+推荐方向 A（RunManager 是 Run 级持久资源权威，EconomySystem 是辅助计算器）。
 
 ---
 
-## 8. Delegated Agent Sessions（可复用）
+## 7. Critical Gotchas（Wave 7 新增，沿用前会话遗留）
 
-- **Momus Wave 6 计划评审 session** `ses_1d201ace0ffe7EVyBEVKzwturA`（APPROVED-WITH-ENRICHMENT）
-  - **复用规则**：Wave 7+ 计划评审继续复用此 session_id（保留 Wave 6 上下文，省 70% tokens）
-- **Explore 三份并行报告 session**（结果已吸收，session 不必复用）
-  - `ses_1d204754fffe9WjIiiNGTWyp9e` RunManager 现状
-  - `ses_1d2044ad1ffes5RopXNNg6E24U` 8 面板 stub 字段并集
-  - `ses_1d2044a0dffemLzxFmfdgoSC1E` Game+main+Pipeline 装配现状
-
----
-
-## 9. Critical Gotchas
-
-- **happy-dom 测试环境**：EntityViewSink 模式可单测 RenderSystem 无 Pixi App；UIPresenter 真 Pixi Text/Graphics 不在 happy-dom 单测（Wave 6 跳过此覆盖，状态机 spy 已兜住核心逻辑）
-- **LayoutManager singleton**：每个测试 beforeEach 须 `LayoutManager.update(1920, 1080)` 重置
-- **HUD.RunState 与 RunManager.phase 字段名不一致**：`main.ts:projectUIFrame()` 写死 phase=`'battle'`，Wave 7+ 接 WaveSystem 后才真实切换
-- **EconomySystem 不是 ECS System**：是普通 class，不进 pipeline；需要在 main.ts 手工注册 `drop_gold` ruleHandler 让它收金（Wave 7+ 做）
-- **§0 追溯表 guardrail 三规则**：同 commit 落地 + 三字段齐备（替换阶段+影响模块+设计章节）+ 不作逃逸口
-- **AGENTS.md L1/L2/L3 档位决策表**：Wave 7+ 新增 3 个 system 属于 L3（核心引擎扩 PHASE 节点），main wire 输入连线属于 L2（系统装配）；先看顶部决策表再下手
-- **Renderer 视口固定 1344×576**（21 cols × 9 rows × 64 cell），不是 1920×1080；UIPresenter 必须用真实视口
-- **Pipeline 中 EconomySystem 不在**：它不是 `System` 接口；只能通过 `ruleEngine.registerHandler('drop_gold', cb)` 拿到死敌掉金事件
-- **MVP 单关 path**：main.ts 写死 `[{x:0, y:288}, {x:1344, y:288}]` 横穿地图（DEFAULT_PATH），Wave 7+ LevelLoader 接入再改
+- **Gold 双账本**：见 §6 重要 Bug。
+- **WaveSystem.start() 在 startRun 回调内调**：main.ts `mainMenu.setHandler` 里 `waveSystem.start()` 在 `runController.startRun()` 之后调，顺序正确。
+- **energySystem.tick(dt) 在 Battle 且 phase ∈ {battle, wave-break} 时触发**：deployment 时 energy 不 regen（按现实设计，玩家在 deployment 阶段放置塔但 energy 不增长）。
+- **`attachRules` 覆盖替换不追加**：`byEvent.set(event, [...rules])` 是替换，不是 push。测试里 spawnUnit（会附 GRUNT.lifecycle.onDeath 规则）后再手动 attachRules 会覆盖掉前者。
+- **`loadUnitConfigsForLevel` 强契约**：缺任何一个 enemyId / tower_id 就 throw。level-01 需要 grunt/runner/heavy/mage/exploder 5 种敌人 + arrow_tower/cannon_tower 2 种塔。enemies.yaml 解析时 `parseUnitConfigsFromYaml` 宽容 skip（小写 category/非法 faction 的 entry），确保 5 种敌人都能正确解析（否则 loadUnitConfigsForLevel 会 throw）。
+- **Vite ?raw 导入**：需要 `src/vite-env.d.ts` 的 `declare module '*.yaml?raw'`，否则 typecheck 报错。
+- **waveSystem 前向引用**：`let runController!: RunController` + 先 createWaveSystem → 再 new RunController 赋值给 runController。这是循环依赖的惯用解。
+- **LevelWave 字段单位是秒**，WaveSystem 是毫秒（spawnDelayMs / intervalMs）。调用方必须 `*1000`（已在 main.ts W7.4e 转换）。
+- **`runController.phase`**（返回 `RunPhase`）对比字符串字面量 `'Battle'` 是 TypeScript 合法比较（RunPhase 是 const enum string）。
 
 ---
 
-## 10. 续跑会话第一动作
+## 8. Delegated Agent Sessions
+
+无活跃 agent。
+
+---
+
+## 9. 续跑会话第一动作
 
 ```
 1. Read .memory/handoffs/_latest.md（本文件）
-2. Run: rtk git log --oneline -6（确认 HEAD = 6d5b3b1，Wave 6 4 commits 完整）
-3. Run: rtk git status（确认 clean）
-4. Run: rtk npm test -- --run | tail -5（确认 263/263）
-5. 与用户确认是否 Wave 7+ 起跑（推荐先 Momus 评审计划）
-6. 若 Yes → Step 1（写 .sisyphus/plans/wave-7-plus-detailed.md + Momus 评审）
-7. 若 No / 用户有其他指令 → 按用户指令执行
+2. rtk git log --oneline -5（确认 HEAD = 3a4f2f0）
+3. rtk git status（确认工作树仅 _latest.md 改动）
+4. rtk npm test -- --run | tail -5（确认 287 passed）
+5. 询问用户：Wave 8 优先推进哪个方向（Pixi 事件链 / pathGraph / Gold 双账本 fix / 内容扩展）
+6. 按用户指令推进 Wave 8
+7. token ≥ 70% 立即再 handoff
 ```
