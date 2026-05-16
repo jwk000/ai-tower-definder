@@ -1,6 +1,6 @@
-import { defineQuery } from 'bitecs';
+import { addComponent, defineQuery, hasComponent } from 'bitecs';
 
-import { Movement, Position } from '../core/components.js';
+import { DeadTag, Movement, Position } from '../core/components.js';
 import type { System } from '../core/pipeline.js';
 import type { TowerWorld } from '../core/World.js';
 
@@ -11,6 +11,7 @@ export interface PathPoint {
 
 export interface MovementSystemConfig {
   readonly path: readonly PathPoint[];
+  readonly onEnemyReachedEnd?: (eid: number) => void;
 }
 
 const ARRIVAL_EPSILON = 1e-3;
@@ -56,6 +57,8 @@ export function createMovementSystem(config: MovementSystemConfig): System {
             if (targetIdx === lastIndex) {
               arrived.add(eid);
               world.ruleEngine.dispatch('onEnter', eid, world);
+              if (!hasComponent(world, DeadTag, eid)) addComponent(world, DeadTag, eid);
+              config.onEnemyReachedEnd?.(eid);
               targetIdx = lastIndex + 1;
               break;
             }
@@ -71,6 +74,8 @@ export function createMovementSystem(config: MovementSystemConfig): System {
             if (targetIdx === lastIndex) {
               arrived.add(eid);
               world.ruleEngine.dispatch('onEnter', eid, world);
+              if (!hasComponent(world, DeadTag, eid)) addComponent(world, DeadTag, eid);
+              config.onEnemyReachedEnd?.(eid);
               targetIdx = lastIndex + 1;
               break;
             }

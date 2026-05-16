@@ -1,5 +1,4 @@
 import { Container } from 'pixi.js';
-
 import { Game } from './core/Game.js';
 import { LevelState } from './core/LevelState.js';
 import { RunController } from './core/RunController.js';
@@ -195,7 +194,15 @@ async function bootstrap(): Promise<void> {
   const entityRenderer = new EntityRenderer(renderer.entityLayer);
 
   game.pipeline.register(waveSystem);
-  game.pipeline.register(createMovementSystem({ path: level.path }));
+  game.pipeline.register(createMovementSystem({
+    path: level.path,
+    onEnemyReachedEnd: () => {
+      runManager.damageCrystal(1);
+      if (runManager.crystalHp <= 0) {
+        runController.failCurrentRun();
+      }
+    },
+  }));
   game.pipeline.register(createAttackSystem());
   game.pipeline.register(createProjectileSystem());
   game.pipeline.register(createCrystalSystem());
