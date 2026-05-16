@@ -1,7 +1,7 @@
 id: level_01
 name: 边境绿野
-description: 翠绿的草原上一条直道从西延伸到东。哥布林从远方涌来，村民们以最简单的箭塔和弩弓抵御第一波入侵。本关是 Run 的起始，教学单 spawn 直线推进与建塔基本操作。
-sceneDescription: 春末黄昏的边境草原，最后一缕阳光斜照过 21 格宽的平原。从西侧寨门 (0,4) 一路向东延伸到东侧水晶 (20,4) 的土路是哥布林南下的唯一通道。两侧麦田随风起伏，几棵孤树点缀其间。
+description: 翠绿的草原上一条蜿蜒土路自西向东穿越平原。哥布林沿 Z 形路径推进，给玩家更多布塔窗口与节奏感。本关是 Run 的起始，引导玩家适应单 spawn 多拐弯路径与基础建塔操作。
+sceneDescription: 春末黄昏的边境草原，最后一缕阳光斜照过 21 格宽的平原。土路从西侧寨门 (0,4) 起步东行，在 (5,4) 拐向北侧麦田 (5,1)，再东行 10 格至 (15,1) 折向南穿越草原至 (15,7)，最后东行 5 格再北转抵达东侧水晶 (20,4)。Z 形路径两侧麦田、孤树、灌木丛点缀其间。
 map:
   cols: 21
   rows: 9
@@ -29,34 +29,35 @@ map:
       - empty
       - empty
       - empty
-    # row 1
+    # row 1 (Z 形上沿水平段：col 5 -> 15)
     - - empty
       - empty
       - empty
       - empty
       - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
       - empty
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-    # row 2
+    # row 2 (垂直段过 col 5 和 col 15)
     - - empty
       - empty
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
@@ -66,19 +67,19 @@ map:
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-    # row 3
+    # row 3 (垂直段过 col 5 和 col 15)
     - - empty
       - empty
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
@@ -88,36 +89,35 @@ map:
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-    # row 4 (主路 spawn -> base)
+    # row 4 (主路起始水平段 col 0->5 + 中段垂直 col 15 + 终点 col 20)
     - - spawn
       - path
       - path
       - path
       - path
       - path
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
+      - empty
       - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
-      - path
+      - empty
+      - empty
+      - empty
+      - empty
       - base
-    # row 5
+    # row 5 (垂直段过 col 15 和 col 20)
     - - empty
       - empty
       - empty
@@ -133,13 +133,13 @@ map:
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-    # row 6
+      - path
+    # row 6 (垂直段过 col 15 和 col 20)
     - - empty
       - empty
       - empty
@@ -155,13 +155,13 @@ map:
       - empty
       - empty
       - empty
+      - path
       - empty
       - empty
       - empty
       - empty
-      - empty
-      - empty
-    # row 7
+      - path
+    # row 7 (Z 形下沿水平段：col 15 -> 20)
     - - empty
       - empty
       - empty
@@ -177,12 +177,12 @@ map:
       - empty
       - empty
       - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
-      - empty
+      - path
+      - path
+      - path
+      - path
+      - path
+      - path
     # row 8
     - - empty
       - empty
@@ -212,11 +212,11 @@ map:
     spawn: '#ff8f00'
     base: '#1e88e5'
   obstacles:
-    - { type: tree, row: 1, col: 6 }
+    - { type: tree, row: 0, col: 6 }
     - { type: tree, row: 2, col: 13 }
     - { type: tree, row: 6, col: 8 }
-    - { type: tree, row: 7, col: 17 }
-    - { type: bush, row: 1, col: 11 }
+    - { type: tree, row: 8, col: 17 }
+    - { type: bush, row: 0, col: 11 }
     - { type: bush, row: 6, col: 14 }
     - { type: bush, row: 7, col: 4 }
     - { type: flower, row: 2, col: 6 }
@@ -229,9 +229,19 @@ map:
   pathGraph:
     nodes:
       - { id: n0, row: 4, col: 0, role: spawn, spawnId: spawn_0 }
-      - { id: n1, row: 4, col: 20, role: crystal_anchor }
+      - { id: n1, row: 4, col: 5 }
+      - { id: n2, row: 1, col: 5 }
+      - { id: n3, row: 1, col: 15 }
+      - { id: n4, row: 7, col: 15 }
+      - { id: n5, row: 7, col: 20 }
+      - { id: n6, row: 4, col: 20, role: crystal_anchor }
     edges:
       - { from: n0, to: n1 }
+      - { from: n1, to: n2 }
+      - { from: n2, to: n3 }
+      - { from: n3, to: n4 }
+      - { from: n4, to: n5 }
+      - { from: n5, to: n6 }
 waves:
   # 设计稿 §2.4：8 波 BASELINE flavor，总敌数 56
   - waveNumber: 1
@@ -300,4 +310,5 @@ neutralPool: []
 # 数值乘数：50-mda §21.2  enemyHpMult=0.8  enemyDmgMult=0.8
 # Flavor: BASELINE  目标时长 5-7 min  总敌数 56
 # 通关 HP 损失预算：0-3
+# 路径形状：Z 形 7 节点 6 段（W8.4 多节点路径）
 # ============================================================

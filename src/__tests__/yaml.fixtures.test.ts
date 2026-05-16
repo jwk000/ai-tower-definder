@@ -119,15 +119,21 @@ describe('real YAML files: cards/towers.yaml -> parseCardConfig with idFallback'
 });
 
 describe('real YAML files: levels/level-01.yaml -> parseLevelConfig', () => {
-  it('flattens the L1 row-4 horizontal path into 2 waypoints in world coords', () => {
+  it('expands the L1 Z-shaped pathGraph into 7 waypoints (spawn -> 5 corners -> crystal)', () => {
     const text = readFileSync(resolve(CONFIG, 'levels/level-01.yaml'), 'utf8');
     const cfg = parseLevelConfig(text);
     expect(cfg.id).toBe('level_01');
     expect(cfg.tileSize).toBe(64);
-    expect(cfg.path.length).toBe(2);
-    expect(cfg.path[0]?.y).toBe(4 * 64 + 32);
-    expect(cfg.path[1]?.y).toBe(4 * 64 + 32);
-    expect(cfg.path[0]?.x).toBeLessThan(cfg.path[1]!.x);
+
+    expect(cfg.path.length).toBe(7);
+    expect(cfg.path[0]).toEqual({ x: 0 * 64 + 32, y: 4 * 64 + 32 });
+    expect(cfg.path[cfg.path.length - 1]).toEqual({ x: 20 * 64 + 32, y: 4 * 64 + 32 });
+    expect(cfg.path[1]).toEqual({ x: 5 * 64 + 32, y: 4 * 64 + 32 });
+    expect(cfg.path[2]).toEqual({ x: 5 * 64 + 32, y: 1 * 64 + 32 });
+    expect(cfg.path[3]).toEqual({ x: 15 * 64 + 32, y: 1 * 64 + 32 });
+    expect(cfg.path[4]).toEqual({ x: 15 * 64 + 32, y: 7 * 64 + 32 });
+    expect(cfg.path[5]).toEqual({ x: 20 * 64 + 32, y: 7 * 64 + 32 });
+
     expect(cfg.crystal).toEqual({ row: 4, col: 20 });
     expect(cfg.waves.length).toBeGreaterThanOrEqual(3);
     expect(cfg.waves[0]?.groups[0]?.enemyId).toBe('grunt');
