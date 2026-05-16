@@ -153,9 +153,8 @@ export function parseUnitConfigsFromYaml(
   for (const doc of docs) {
     if (!doc || typeof doc !== 'object') continue;
     if (isUnitLikeRecord(doc)) {
-      const fallbackId = typeof (doc as Record<string, unknown>).id === 'string'
-        ? (doc as Record<string, string>).id
-        : '<top-level>';
+      const rawId = (doc as Record<string, unknown>).id;
+      const fallbackId = typeof rawId === 'string' ? rawId : '<top-level>';
       tryParse(fallbackId, doc);
       continue;
     }
@@ -350,6 +349,65 @@ export function parseLevelConfig(yamlText: string): LevelConfig {
     ...(parsed.starting?.energy !== undefined ? { startingEnergy: parsed.starting.energy } : {}),
     available,
   };
+}
+
+export interface ParseCardsBatchOptions {
+  readonly onSkip?: (id: string, error: unknown) => void;
+}
+
+export function parseCardConfigsFromYaml(
+  yamlText: string,
+  opts: ParseCardsBatchOptions = {},
+): CardConfig[] {
+  const docs = yaml.loadAll(yamlText);
+  const out: CardConfig[] = [];
+  const tryParse = (id: string, entry: unknown) => {
+    try {
+      out.push(parseCardConfig(yaml.dump(entry, { lineWidth: -1 }), { idFallback: id }));
+    } catch (err) {
+      opts.onSkip?.(id, err);
+    }
+  };
+  for (const doc of docs) {
+    if (!doc || typeof doc !== 'object') continue;
+    const obj = doc as Record<string, unknown>;
+    if (typeof obj.type === 'string' && typeof obj.energyCost === 'number') {
+      const id = typeof obj.id === 'string' ? obj.id : '<top-level>';
+      tryParse(id, obj);
+      continue;
+    }
+    for (const [id, value] of Object.entries(obj)) {
+      if (!value || typeof value !== 'object') continue;
+      const v = value as Record<string, unknown>;
+      if (typeof v.type !== 'string' || typeof v.energyCost !== 'number') continue;
+      tryParse(id, v);
+    }
+  }
+  return out;
+}
+
+export function loadCardConfigsForLevel(
+  level: LevelConfig,
+  yamlFiles: ReadonlyMap<string, string>,
+): CardConfig[] {
+  const all = new Map<string, CardConfig>();
+  for (const text of yamlFiles.values()) {
+    for (const cfg of parseCardConfigsFromYaml(text)) {
+      all.set(cfg.id, cfg);
+    }
+  }
+  const explicitIds = level.available.cards;
+  const derivedIds = level.available.towers.map((t) => `${t}_tower_card`);
+  const needed = explicitIds.length > 0 ? [...explicitIds] : derivedIds;
+  const out: CardConfig[] = [];
+  for (const id of needed) {
+    const cfg = all.get(id);
+    if (!cfg) {
+      throw new Error(`[loader] loadCardConfigsForLevel: missing CardConfig for '${id}' (required by level '${level.id}')`);
+    }
+    out.push(cfg);
+  }
+  return out;
 }
 
 export function loadUnitConfigsForLevel(

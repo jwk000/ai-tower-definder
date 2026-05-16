@@ -11,6 +11,8 @@ import {
   parseUnitConfig,
   parseUnitConfigsFromYaml,
   loadUnitConfigsForLevel,
+  parseCardConfigsFromYaml,
+  loadCardConfigsForLevel,
 } from '../config/loader.js';
 import { spawnUnit } from '../factories/UnitFactory.js';
 import { createTowerWorld } from '../core/World.js';
@@ -182,5 +184,38 @@ describe('loadUnitConfigsForLevel: aggregate UnitConfigs across yaml files', () 
       ['units/towers.yaml', readFileSync(resolve(CONFIG, 'units/towers.yaml'), 'utf8')],
     ]);
     expect(() => loadUnitConfigsForLevel(level, yamlFiles)).toThrow(/missing UnitConfig/i);
+  });
+});
+
+describe('parseCardConfigsFromYaml: batch parse multi-entry card yaml', () => {
+  it('parses all 6 tower cards from cards/towers.yaml using YAML keys as id fallback', () => {
+    const text = readFileSync(resolve(CONFIG, 'cards/towers.yaml'), 'utf8');
+    const cards = parseCardConfigsFromYaml(text);
+    const ids = new Set(cards.map((c) => c.id));
+    expect(ids.has('arrow_tower_card')).toBe(true);
+    expect(ids.has('cannon_tower_card')).toBe(true);
+    expect(cards.every((c) => c.type === 'unit')).toBe(true);
+    expect(cards.find((c) => c.id === 'arrow_tower_card')?.unitConfigId).toBe('arrow_tower');
+  });
+});
+
+describe('loadCardConfigsForLevel: derive cards from level.available', () => {
+  it('derives card ids from available.towers via ${tower}_tower_card naming convention', () => {
+    const levelText = readFileSync(resolve(CONFIG, 'levels/level-01.yaml'), 'utf8');
+    const level = parseLevelConfig(levelText);
+    const yamlFiles = new Map<string, string>([
+      ['cards/towers.yaml', readFileSync(resolve(CONFIG, 'cards/towers.yaml'), 'utf8')],
+    ]);
+    const cards = loadCardConfigsForLevel(level, yamlFiles);
+    const ids = cards.map((c) => c.id);
+    expect(ids).toContain('arrow_tower_card');
+    expect(ids).toContain('cannon_tower_card');
+    expect(cards.length).toBe(level.available.towers.length);
+  });
+
+  it('throws when a derived card id is missing from the yaml pool', () => {
+    const levelText = readFileSync(resolve(CONFIG, 'levels/level-01.yaml'), 'utf8');
+    const level = parseLevelConfig(levelText);
+    expect(() => loadCardConfigsForLevel(level, new Map())).toThrow(/missing CardConfig/i);
   });
 });
