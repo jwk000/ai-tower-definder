@@ -268,12 +268,29 @@ async function bootstrap(): Promise<void> {
     runResultRenderer,
   };
 
-  // MVP 阶段 offers 用固定模板（未来由 InterLevelService 真实生成）
+  const SHOP_DESCS = [
+    '花费金币在流动商人处购买新卡牌',
+    '淘宝：限时折扣，今日特供',
+    '补给站：金币换实力，不留遗憾',
+  ];
+  const MYSTIC_DESCS = [
+    '命运之轮：随机奖励，也可能伴随代价',
+    '神秘商人轻声低语，赌不赌？',
+    '古老遗迹中的选择：风险与机遇并存',
+  ];
+  const SKILLTREE_DESCS = [
+    '略过此处，直接奔赴下一关',
+    '无需驻足，前路更需精力',
+    '跳过——保留资源，直面挑战',
+  ];
+
   function buildInterLevelOffers(): readonly [InterLevelOffer, InterLevelOffer, InterLevelOffer] {
+    const seed = runManager.currentLevel * 7 + runStats.enemiesKilled;
+    const pick = (arr: string[]) => arr[seed % arr.length]!;
     return [
-      { id: 'shop-offer', kind: 'shop', title: '商店', description: '消耗金币购买卡牌或升级' },
-      { id: 'mystic-offer', kind: 'mystic', title: '神秘事件', description: '随机奖励或代价' },
-      { id: 'skilltree-offer', kind: 'skilltree', title: '跳过', description: '直接进入下一关' },
+      { id: 'shop-offer', kind: 'shop', title: '商店', description: pick(SHOP_DESCS) },
+      { id: 'mystic-offer', kind: 'mystic', title: '神秘事件', description: pick(MYSTIC_DESCS) },
+      { id: 'skilltree-offer', kind: 'skilltree', title: '跳过', description: pick(SKILLTREE_DESCS) },
     ];
   }
 
@@ -283,11 +300,15 @@ async function bootstrap(): Promise<void> {
       0,
       Math.floor(((runStats.runEndMs || performance.now()) - runStats.runStartMs) / 1000),
     );
+    const levelsCleared = outcome === 'victory' ? runManager.currentLevel : Math.max(0, runManager.currentLevel - 1);
+    const hpBonus = runManager.crystalHp * 3;
+    const killBonus = Math.floor(runStats.enemiesKilled / 5);
+    const sparkAwarded = outcome === 'victory' ? Math.min(30, 10 + hpBonus + killBonus) : 0;
     return {
       outcome,
-      sparkAwarded: outcome === 'victory' ? 10 : 0,
+      sparkAwarded,
       stats: {
-        levelsCleared: outcome === 'victory' ? runManager.currentLevel : Math.max(0, runManager.currentLevel - 1),
+        levelsCleared,
         totalLevels: 1,
         enemiesKilled: runStats.enemiesKilled,
         goldEarned: runStats.goldEarned,
