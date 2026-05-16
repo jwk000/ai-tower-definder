@@ -29,7 +29,7 @@ arrow_tower:
     rangeGrowth: [20, 20, 30, 30]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#4fc3f7"
     size: 36
     outline: false
@@ -88,7 +88,7 @@ cannon_tower:
     rangeGrowth: [20, 20, 30, 30]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#ff8a65"
     size: 38
     outline: false
@@ -151,7 +151,7 @@ ice_tower:
     rangeGrowth: [20, 20, 30, 30]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#81d4fa"
     size: 34
     outline: false
@@ -215,7 +215,7 @@ lightning_tower:
     rangeGrowth: [15, 15, 20, 20]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#fff176"
     size: 34
     outline: false
@@ -276,7 +276,7 @@ laser_tower:
     rangeGrowth: [15, 15, 20, 20]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#00e5ff"
     size: 36
     outline: false
@@ -326,7 +326,7 @@ bat_tower:
     rangeGrowth: [15, 15, 20, 20]
 
   visual:
-    shape: rect
+    shape: circle
     color: "#7c4dff"
     size: 34
     outline: false

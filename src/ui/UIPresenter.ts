@@ -122,10 +122,12 @@ export class UIPresenter {
   private spawnGhostCard(cardId: string, x: number, y: number): void {
     this.clearDrag();
     const g = new Graphics();
+    g.eventMode = 'none';
     g.rect(-50, -70, 100, 140).fill({ color: 0x4fc3f7, alpha: 0.55 });
     g.rect(-50, -70, 100, 140).stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
     const label = new Text({ text: cardId, style: { fill: 0xffffff, fontSize: 12, align: 'center' } });
     label.anchor.set(0.5, 0.5);
+    label.eventMode = 'none';
     g.addChild(label);
     g.position.set(x, y);
     this.handContainer.addChild(g);
@@ -173,6 +175,7 @@ export class UIPresenter {
       const cellY = row * cs;
       if (!this.ghostCell) {
         const g = new Graphics();
+        g.eventMode = 'none';
         this.battleContainer.addChild(g);
         this.ghostCell = g;
       }
