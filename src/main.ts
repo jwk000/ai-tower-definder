@@ -4,11 +4,20 @@ import { Game } from './core/Game.js';
 import { LevelState } from './core/LevelState.js';
 import { RunController } from './core/RunController.js';
 import { Renderer } from './render/Renderer.js';
+import {
+  InterLevelRenderer,
+  MainMenuRenderer,
+  RunResultRenderer,
+} from './render/PanelRenderers.js';
 import { UIPresenter } from './ui/UIPresenter.js';
 import { MainMenu, type MainMenuAction } from './ui/MainMenu.js';
 import { HandPanel, type PlayCardIntent } from './ui/HandPanel.js';
-import { InterLevelPanel, type InterLevelIntent } from './ui/InterLevelPanel.js';
-import { RunResultPanel } from './ui/RunResultPanel.js';
+import {
+  InterLevelPanel,
+  type InterLevelIntent,
+  type InterLevelOffer,
+} from './ui/InterLevelPanel.js';
+import { RunResultPanel, type RunResultState } from './ui/RunResultPanel.js';
 import { createAttackSystem } from './systems/AttackSystem.js';
 import { createCrystalSystem } from './systems/CrystalSystem.js';
 import { createHealthSystem } from './systems/HealthSystem.js';
@@ -127,9 +136,22 @@ async function bootstrap(): Promise<void> {
     initialGold: level.startingGold ?? 200,
   });
 
+  // Run 级统计（仅用于 RunResult 展示，不参与玩法逻辑）
+  const runStats = {
+    enemiesKilled: 0,
+    goldEarned: 0,
+    runStartMs: 0,
+    runEndMs: 0,
+  };
+
   game.ruleEngine.registerHandler('drop_gold', (_eid, params) => {
     const amount = typeof params?.amount === 'number' ? params.amount : 0;
-    if (amount > 0) runManager.addGold(amount);
+    if (amount > 0) {
+      runManager.addGold(amount);
+      runStats.goldEarned += amount;
+    }
+    // drop_gold 由敌人死亡触发，顺势计数。即便 amount=0 也算击杀。
+    runStats.enemiesKilled += 1;
   });
 
   let runController!: RunController;
@@ -166,10 +188,16 @@ async function bootstrap(): Promise<void> {
     levelState,
   });
 
+  const handPanel = new HandPanel({
+    viewportWidth: VIEWPORT_WIDTH,
+    viewportHeight: VIEWPORT_HEIGHT,
+  });
+
   const presenter = new UIPresenter({
     battleContainer,
     viewportWidth: VIEWPORT_WIDTH,
     viewportHeight: VIEWPORT_HEIGHT,
+    handPanel,
   });
 
   const mainMenu = new MainMenu({ hasSavedRun: false });
@@ -180,13 +208,13 @@ async function bootstrap(): Promise<void> {
       handSystem.drawTo(deckSystem);
       energySystem.reset();
       waveSystem.start();
+      runStats.enemiesKilled = 0;
+      runStats.goldEarned = 0;
+      runStats.runStartMs = performance.now();
+      runStats.runEndMs = 0;
     }
   });
 
-  const handPanel = new HandPanel({
-    viewportWidth: VIEWPORT_WIDTH,
-    viewportHeight: VIEWPORT_HEIGHT,
-  });
   handPanel.setHandler((intent: PlayCardIntent) => {
     if (intent.kind !== 'play') return;
     const card = cardRegistry.getCard(intent.cardId);
@@ -205,15 +233,72 @@ async function bootstrap(): Promise<void> {
     runController.pickInterLevel(choice);
   });
 
-  const runResultPanel = new RunResultPanel();
+  const runResultPanel = new RunResultPanel({
+    viewportWidth: VIEWPORT_WIDTH,
+    viewportHeight: VIEWPORT_HEIGHT,
+  });
   runResultPanel.setHandler(() => {
     runController.returnToMainMenu();
   });
 
+  const mainMenuRenderer = new MainMenuRenderer(
+    { container: mainMenuContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    mainMenu,
+    { hasSavedRun: false },
+  );
+  const interLevelRenderer = new InterLevelRenderer(
+    { container: interLevelContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    interLevelPanel,
+  );
+  const runResultRenderer = new RunResultRenderer(
+    { container: runResultContainer, viewportWidth: VIEWPORT_WIDTH, viewportHeight: VIEWPORT_HEIGHT },
+    runResultPanel,
+  );
+
   const devHooks = (globalThis as Record<string, unknown>);
-  devHooks['__td'] = { mainMenu, handPanel, interLevelPanel, runResultPanel, runController, waveSystem };
+  devHooks['__td'] = {
+    mainMenu,
+    handPanel,
+    interLevelPanel,
+    runResultPanel,
+    runController,
+    waveSystem,
+    mainMenuRenderer,
+    interLevelRenderer,
+    runResultRenderer,
+  };
+
+  // MVP 阶段 offers 用固定模板（未来由 InterLevelService 真实生成）
+  function buildInterLevelOffers(): readonly [InterLevelOffer, InterLevelOffer, InterLevelOffer] {
+    return [
+      { id: 'shop-offer', kind: 'shop', title: '商店', description: '消耗金币购买卡牌或升级' },
+      { id: 'mystic-offer', kind: 'mystic', title: '神秘事件', description: '随机奖励或代价' },
+      { id: 'skilltree-offer', kind: 'skilltree', title: '跳过', description: '直接进入下一关' },
+    ];
+  }
+
+  function buildRunResultState(): RunResultState {
+    const outcome = runManager.outcome ?? 'defeat';
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor(((runStats.runEndMs || performance.now()) - runStats.runStartMs) / 1000),
+    );
+    return {
+      outcome,
+      sparkAwarded: outcome === 'victory' ? 10 : 0,
+      stats: {
+        levelsCleared: outcome === 'victory' ? runManager.currentLevel : Math.max(0, runManager.currentLevel - 1),
+        totalLevels: 1,
+        enemiesKilled: runStats.enemiesKilled,
+        goldEarned: runStats.goldEarned,
+        crystalHpRemaining: runManager.crystalHp,
+        elapsedSeconds,
+      },
+    };
+  }
 
   let lastTime = performance.now();
+  let prevPhase: typeof runController.phase = runController.phase;
   renderer.app.ticker.add(() => {
     const now = performance.now();
     const dt = (now - lastTime) / 1000;
@@ -222,7 +307,23 @@ async function bootstrap(): Promise<void> {
 
     runController.tick(dt);
 
-    if (runController.phase === 'Battle') {
+    const phase = runController.phase;
+    if (phase !== prevPhase) {
+      if (phase === 'InterLevel') {
+        interLevelRenderer.refresh({
+          nextLevel: runManager.currentLevel + 1,
+          offers: buildInterLevelOffers(),
+        });
+      } else if (phase === 'Result') {
+        if (runStats.runEndMs === 0) runStats.runEndMs = now;
+        runResultRenderer.refresh(buildRunResultState());
+      } else if (phase === 'Idle') {
+        mainMenuRenderer.refresh({ hasSavedRun: false });
+      }
+      prevPhase = phase;
+    }
+
+    if (phase === 'Battle') {
       if (levelState.phase === 'battle' || levelState.phase === 'wave-break') {
         energySystem.tick(dt);
       }

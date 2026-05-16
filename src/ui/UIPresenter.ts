@@ -1,7 +1,8 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import type { FederatedPointerEvent } from 'pixi.js';
 
-import type { HandState } from './HandPanel.js';
-import { layoutHand } from './HandPanel.js';
+import type { HandPanel, HandState } from './HandPanel.js';
+import { hitTestHandSlot, layoutHand } from './HandPanel.js';
 import type { RunState } from './HUD.js';
 import { projectHUD } from './HUD.js';
 
@@ -9,6 +10,7 @@ export interface UIPresenterConfig {
   readonly battleContainer: Container;
   readonly viewportWidth: number;
   readonly viewportHeight: number;
+  readonly handPanel?: HandPanel;
 }
 
 export interface UIFrame {
@@ -42,10 +44,15 @@ export class UIPresenter {
   private readonly slotGraphics: Graphics;
   private readonly slotLabels: Text[] = [];
 
+  private readonly handPanel: HandPanel | null;
+  private lastHandState: HandState = { cards: [], energy: 0 };
+  private dragSlot: number | null = null;
+
   constructor(config: UIPresenterConfig) {
     this.battleContainer = config.battleContainer;
     this.viewportWidth = config.viewportWidth;
     this.viewportHeight = config.viewportHeight;
+    this.handPanel = config.handPanel ?? null;
 
     this.hudContainer = new Container();
     this.handContainer = new Container();
@@ -65,9 +72,35 @@ export class UIPresenter {
     this.energyText.position.set(12, this.viewportHeight - 24);
     this.slotGraphics = new Graphics();
     this.handContainer.addChild(this.slotGraphics, this.energyText);
+
+    if (this.handPanel) this.bindHandEvents();
+  }
+
+  private bindHandEvents(): void {
+    this.battleContainer.eventMode = 'static';
+    this.battleContainer.hitArea = { contains: () => true };
+    this.battleContainer.on('pointerdown', (e: FederatedPointerEvent) => this.onPointerDown(e));
+    this.battleContainer.on('pointerup', (e: FederatedPointerEvent) => this.onPointerUp(e));
+    this.battleContainer.on('pointerupoutside', () => {
+      this.dragSlot = null;
+    });
+  }
+
+  private onPointerDown(e: FederatedPointerEvent): void {
+    const local = this.battleContainer.toLocal(e.global);
+    const layout = layoutHand(this.lastHandState, this.viewportWidth, this.viewportHeight);
+    this.dragSlot = hitTestHandSlot(layout, local.x, local.y);
+  }
+
+  private onPointerUp(e: FederatedPointerEvent): void {
+    if (this.dragSlot === null || !this.handPanel) return;
+    const local = this.battleContainer.toLocal(e.global);
+    this.handPanel.trigger(this.dragSlot, local.x, local.y);
+    this.dragSlot = null;
   }
 
   present(frame: UIFrame): void {
+    this.lastHandState = frame.hand;
     const hud = projectHUD(frame.run);
     this.goldText.text = hud.gold;
     this.crystalText.text = hud.crystal;
