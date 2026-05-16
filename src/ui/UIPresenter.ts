@@ -120,7 +120,7 @@ export class UIPresenter {
   }
 
   private spawnGhostCard(cardId: string, x: number, y: number): void {
-    this.clearDrag();
+    this.clearGraphics();
     const g = new Graphics();
     g.eventMode = 'none';
     g.rect(-50, -70, 100, 140).fill({ color: 0x4fc3f7, alpha: 0.55 });
@@ -134,7 +134,7 @@ export class UIPresenter {
     this.ghostCard = g;
   }
 
-  private clearDrag(): void {
+  private clearGraphics(): void {
     if (this.ghostCard) {
       this.ghostCard.destroy({ children: true });
       this.ghostCard = null;
@@ -143,6 +143,10 @@ export class UIPresenter {
       this.ghostCell.destroy();
       this.ghostCell = null;
     }
+  }
+
+  private clearDrag(): void {
+    this.clearGraphics();
     this.dragSlot = null;
   }
 

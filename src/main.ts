@@ -412,6 +412,8 @@ async function bootstrap(): Promise<void> {
     energySystem,
     cardRegistry,
     game,
+    presenter,
+    renderer,
   };
 
   const SHOP_DESCS = [
