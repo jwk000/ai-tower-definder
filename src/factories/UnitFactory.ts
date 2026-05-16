@@ -134,6 +134,7 @@ export function spawnUnit(world: TowerWorld, config: UnitConfig, at: SpawnPositi
     Attack.range[eid] = config.stats.range;
     Attack.cooldown[eid] = config.stats.attackSpeed > 0 ? 1 / config.stats.attackSpeed : 0;
     Attack.cooldownLeft[eid] = 0;
+    Attack.projectileSpeed[eid] = 480;
   }
 
   if (config.lifecycle) {

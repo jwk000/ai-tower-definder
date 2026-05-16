@@ -4,11 +4,13 @@ import { addComponent } from 'bitecs';
 import { Game } from '../core/Game.js';
 import { RunController } from '../core/RunController.js';
 import {
+  Attack,
   Crystal,
   Faction,
   FactionTeam,
   Health,
   Position,
+  Projectile,
   UnitCategory,
   UnitTag,
 } from '../core/components.js';
@@ -21,15 +23,18 @@ import { EnergySystem } from '../unit-system/EnergySystem.js';
 import { HandSystem } from '../unit-system/HandSystem.js';
 import { RunManager, RunPhase } from '../unit-system/RunManager.js';
 import { EconomySystem } from '../systems/EconomySystem.js';
+import { createAttackSystem } from '../systems/AttackSystem.js';
 import { createCrystalSystem } from '../systems/CrystalSystem.js';
 import { createHealthSystem } from '../systems/HealthSystem.js';
 import { createLifecycleSystem } from '../systems/LifecycleSystem.js';
 import { createMovementSystem } from '../systems/MovementSystem.js';
+import { createProjectileSystem } from '../systems/ProjectileSystem.js';
 import {
   createWaveSystem,
   type WaveConfig,
   type SpawnConfig,
 } from '../systems/WaveSystem.js';
+import { defineQuery } from 'bitecs';
 import type { TowerWorld } from '../core/World.js';
 
 const GRUNT: UnitConfig = {
@@ -421,3 +426,90 @@ describe('WaveSystem integration: schedule, spawn cadence, phase transitions', (
     expect(() => game2.tick(0.016)).toThrow(/unknown spawnId/);
   });
 });
+
+describe('Projectile integration: AttackSystem fires, ProjectileSystem travels and hits', () => {
+  it('Wave 7.B: AttackSystem spawns a Projectile, ProjectileSystem flies it to the target and applies damage', () => {
+    const game = new Game();
+    game.pipeline.register(createAttackSystem());
+    game.pipeline.register(createProjectileSystem());
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    const tower = game.world.addEntity();
+    addComponent(game.world, Position, tower);
+    addComponent(game.world, Faction, tower);
+    addComponent(game.world, Attack, tower);
+    Position.x[tower] = 0;
+    Position.y[tower] = 0;
+    Faction.team[tower] = FactionTeam.Player;
+    Attack.damage[tower] = 10;
+    Attack.range[tower] = 100;
+    Attack.cooldown[tower] = 1;
+    Attack.cooldownLeft[tower] = 0;
+    Attack.projectileSpeed[tower] = 480;
+
+    const enemy = game.world.addEntity();
+    addComponent(game.world, Position, enemy);
+    addComponent(game.world, Faction, enemy);
+    addComponent(game.world, Health, enemy);
+    Position.x[enemy] = 50;
+    Position.y[enemy] = 0;
+    Faction.team[enemy] = FactionTeam.Enemy;
+    Health.current[enemy] = 100;
+    Health.max[enemy] = 100;
+
+    const projectileQuery = defineQuery([Projectile]);
+
+    game.tick(0.05);
+    expect(projectileQuery(game.world).length).toBe(1);
+    expect(Health.current[enemy]).toBe(100);
+
+    for (let i = 0; i < 12; i += 1) game.tick(0.02);
+
+    expect(Health.current[enemy]).toBe(90);
+    expect(projectileQuery(game.world).length).toBe(0);
+  });
+
+  it('Wave 7.B.2: projectile keeps flying in its last direction when the target dies mid-flight', () => {
+    const game = new Game();
+    game.pipeline.register(createAttackSystem());
+    game.pipeline.register(createProjectileSystem());
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    const tower = game.world.addEntity();
+    addComponent(game.world, Position, tower);
+    addComponent(game.world, Faction, tower);
+    addComponent(game.world, Attack, tower);
+    Position.x[tower] = 0;
+    Position.y[tower] = 0;
+    Faction.team[tower] = FactionTeam.Player;
+    Attack.damage[tower] = 5;
+    Attack.range[tower] = 500;
+    Attack.cooldown[tower] = 10;
+    Attack.cooldownLeft[tower] = 0;
+    Attack.projectileSpeed[tower] = 200;
+
+    const target = game.world.addEntity();
+    addComponent(game.world, Position, target);
+    addComponent(game.world, Faction, target);
+    addComponent(game.world, Health, target);
+    Position.x[target] = 300;
+    Position.y[target] = 0;
+    Faction.team[target] = FactionTeam.Enemy;
+    Health.current[target] = 100;
+    Health.max[target] = 100;
+
+    game.tick(0.05);
+    const projectileQuery = defineQuery([Projectile]);
+    const inflight = projectileQuery(game.world)[0]!;
+    expect(Projectile.vx[inflight]).toBeCloseTo(200, 1);
+
+    Health.current[target] = 0;
+
+    for (let i = 0; i < 5; i += 1) game.tick(0.05);
+    expect(Projectile.vx[inflight]).toBeCloseTo(200, 1);
+    expect(Position.x[inflight]).toBeGreaterThan(40);
+  });
+});
+

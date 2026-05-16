@@ -66,6 +66,18 @@ export const Attack = defineComponent({
   range: Types.f32,
   cooldown: Types.f32,
   cooldownLeft: Types.f32,
+  projectileSpeed: Types.f32,
+});
+
+export const Projectile = defineComponent({
+  targetEid: Types.eid,
+  vx: Types.f32,
+  vy: Types.f32,
+  damage: Types.i32,
+  speed: Types.f32,
+  ttlMs: Types.f32,
+  sourceEid: Types.eid,
+  hitRadius: Types.f32,
 });
 
 export const Crystal = defineComponent({

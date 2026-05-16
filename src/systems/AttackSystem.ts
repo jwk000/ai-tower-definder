@@ -3,6 +3,9 @@ import { defineQuery } from 'bitecs';
 import { Attack, Faction, Health, Position } from '../core/components.js';
 import type { System } from '../core/pipeline.js';
 import type { TowerWorld } from '../core/World.js';
+import { spawnProjectile } from './ProjectileSystem.js';
+
+const DEFAULT_PROJECTILE_SPEED = 480;
 
 export function createAttackSystem(): System {
   const attackerQuery = defineQuery([Position, Faction, Attack]);
@@ -49,7 +52,13 @@ export function createAttackSystem(): System {
 
         if (bestTarget < 0) continue;
 
-        Health.current[bestTarget] = Health.current[bestTarget]! - Attack.damage[attacker]!;
+        const speed = Attack.projectileSpeed[attacker]! || DEFAULT_PROJECTILE_SPEED;
+        spawnProjectile(world, {
+          sourceEid: attacker,
+          targetEid: bestTarget,
+          damage: Attack.damage[attacker]!,
+          speed,
+        });
         Attack.cooldownLeft[attacker] = Attack.cooldown[attacker]!;
       }
     },
