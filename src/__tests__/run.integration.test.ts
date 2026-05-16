@@ -458,6 +458,104 @@ describe('WaveSystem integration: schedule, spawn cadence, phase transitions', (
   });
 });
 
+describe('Wave 7.D — HUD.phase real-switching via LevelState', () => {
+  it('syncs levelState.phase through deployment -> battle -> wave-break for each wave, RunManager ends at Result+victory', () => {
+    const game = new Game();
+    game.world.ruleEngine.registerHandler('drop_gold', () => {});
+    const spawn = vi.fn(spawnUnit);
+
+    const waves: WaveConfig[] = [
+      {
+        waveNumber: 1,
+        spawnDelayMs: 100,
+        groups: [{ enemyId: 'grunt', count: 1, intervalMs: 0 }],
+      },
+      {
+        waveNumber: 2,
+        spawnDelayMs: 100,
+        groups: [{ enemyId: 'grunt', count: 1, intervalMs: 0 }],
+      },
+    ];
+    const spawns: SpawnConfig[] = [{ id: 's1', x: 0, y: 100 }];
+    const unitConfigs = new Map([['grunt', GRUNT]]);
+
+    const runManager = new RunManager({ totalLevels: 1 });
+    const levelState = new LevelState();
+    levelState.reset(waves.length);
+    const scenes = {
+      mainMenu: { visible: false },
+      battle: { visible: false },
+      interLevel: { visible: false },
+      runResult: { visible: false },
+    };
+
+    let runController!: RunController;
+    const waveSystem = createWaveSystem({
+      waves,
+      spawns,
+      unitConfigs,
+      waveBreakMs: 200,
+      onWaveComplete: () => {},
+      onAllWavesComplete: () => { runController.completeCurrentLevel(); },
+      spawn,
+    });
+
+    game.pipeline.register(waveSystem);
+    game.pipeline.register(createHealthSystem());
+    game.pipeline.register(createLifecycleSystem());
+
+    runController = new RunController({ game, runManager, scenes, waveSystem, levelState });
+    runController.startRun();
+    waveSystem.start();
+
+    const phaseLog: string[] = [];
+    let lastPhase = levelState.phase;
+    phaseLog.push(lastPhase);
+
+    function tickAndRecord(dt: number): void {
+      runController.tick(dt);
+      if (levelState.phase !== lastPhase) {
+        lastPhase = levelState.phase;
+        phaseLog.push(lastPhase);
+      }
+    }
+
+    tickAndRecord(0.11);
+    expect(levelState.phase).toBe('battle');
+
+    const wave1Eid = spawn.mock.results[0]!.value as number;
+    Health.current[wave1Eid] = 0;
+    tickAndRecord(0.016);
+    expect(levelState.phase).toBe('wave-break');
+
+    tickAndRecord(0.25);
+    expect(levelState.phase).toBe('deployment');
+
+    tickAndRecord(0.11);
+    expect(levelState.phase).toBe('battle');
+
+    const wave2Eid = spawn.mock.results[1]!.value as number;
+    Health.current[wave2Eid] = 0;
+    tickAndRecord(0.016);
+    expect(levelState.phase).toBe('wave-break');
+
+    tickAndRecord(0.25);
+
+    expect(runManager.phase).toBe(RunPhase.Result);
+    expect(runManager.outcome).toBe('victory');
+
+    expect(phaseLog).toEqual([
+      'deployment',
+      'battle',
+      'wave-break',
+      'deployment',
+      'battle',
+      'wave-break',
+      'victory',
+    ]);
+  });
+});
+
 describe('Projectile integration: AttackSystem fires, ProjectileSystem travels and hits', () => {
   it('Wave 7.B: AttackSystem spawns a Projectile, ProjectileSystem flies it to the target and applies damage', () => {
     const game = new Game();
