@@ -5,7 +5,13 @@ import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import yaml from 'js-yaml';
 
-import { parseCardConfig, parseLevelConfig, parseUnitConfig } from '../config/loader.js';
+import {
+  parseCardConfig,
+  parseLevelConfig,
+  parseUnitConfig,
+  parseUnitConfigsFromYaml,
+  loadUnitConfigsForLevel,
+} from '../config/loader.js';
 import { spawnUnit } from '../factories/UnitFactory.js';
 import { createTowerWorld } from '../core/World.js';
 import { Health, Position, UnitTag } from '../core/components.js';
@@ -130,5 +136,51 @@ describe('real YAML files: levels/level-01.yaml -> parseLevelConfig', () => {
     expect(cfg.spawns[0]?.x).toBe(0 * 64 + 32);
     expect(cfg.spawns[0]?.y).toBe(4 * 64 + 32);
     expect(cfg.available.towers).toContain('arrow');
+  });
+});
+
+describe('parseUnitConfigsFromYaml: batch parse multi-entry yaml', () => {
+  it('parses all towers from units/towers.yaml', () => {
+    const text = readFileSync(resolve(CONFIG, 'units/towers.yaml'), 'utf8');
+    const cfgs = parseUnitConfigsFromYaml(text);
+    const ids = new Set(cfgs.map((c) => c.id));
+    expect(ids.has('arrow_tower')).toBe(true);
+    expect(ids.has('cannon_tower')).toBe(true);
+    expect(cfgs.every((c) => c.category === 'Tower')).toBe(true);
+  });
+
+  it('parses enemies from units/enemies.yaml with non-zero speed', () => {
+    const text = readFileSync(resolve(CONFIG, 'units/enemies.yaml'), 'utf8');
+    const cfgs = parseUnitConfigsFromYaml(text);
+    const grunt = cfgs.find((c) => c.id === 'grunt');
+    expect(grunt).toBeDefined();
+    expect(grunt!.category).toBe('Enemy');
+    expect(grunt!.stats.speed).toBeGreaterThan(0);
+  });
+});
+
+describe('loadUnitConfigsForLevel: aggregate UnitConfigs across yaml files', () => {
+  it('returns enemies referenced by waves + towers/units from available list', () => {
+    const levelText = readFileSync(resolve(CONFIG, 'levels/level-01.yaml'), 'utf8');
+    const level = parseLevelConfig(levelText);
+    const yamlFiles = new Map<string, string>([
+      ['units/enemies.yaml', readFileSync(resolve(CONFIG, 'units/enemies.yaml'), 'utf8')],
+      ['units/towers.yaml', readFileSync(resolve(CONFIG, 'units/towers.yaml'), 'utf8')],
+    ]);
+    const result = loadUnitConfigsForLevel(level, yamlFiles);
+    expect(result.has('grunt')).toBe(true);
+    expect(result.has('arrow_tower')).toBe(true);
+    expect(result.has('cannon_tower')).toBe(true);
+    expect(result.get('grunt')!.category).toBe('Enemy');
+    expect(result.get('arrow_tower')!.category).toBe('Tower');
+  });
+
+  it('throws when a required UnitConfig is missing', () => {
+    const levelText = readFileSync(resolve(CONFIG, 'levels/level-01.yaml'), 'utf8');
+    const level = parseLevelConfig(levelText);
+    const yamlFiles = new Map<string, string>([
+      ['units/towers.yaml', readFileSync(resolve(CONFIG, 'units/towers.yaml'), 'utf8')],
+    ]);
+    expect(() => loadUnitConfigsForLevel(level, yamlFiles)).toThrow(/missing UnitConfig/i);
   });
 });

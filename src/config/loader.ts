@@ -28,9 +28,28 @@ const StatsSchema = z
   })
   .passthrough();
 
+const SHAPE_ALIASES: Readonly<Record<string, 'rect' | 'circle' | 'triangle'>> = {
+  rect: 'rect',
+  rectangle: 'rect',
+  square: 'rect',
+  circle: 'circle',
+  hexagon: 'circle',
+  triangle: 'triangle',
+};
+
 const VisualSchema = z
   .object({
-    shape: z.enum(['rect', 'circle', 'triangle']),
+    shape: z.string().transform((raw, ctx) => {
+      const mapped = SHAPE_ALIASES[raw];
+      if (!mapped) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `[loader] unknown visual.shape '${raw}'; allowed: ${Object.keys(SHAPE_ALIASES).join(', ')}`,
+        });
+        return z.NEVER;
+      }
+      return mapped;
+    }),
     color: z.union([z.number(), z.string()]),
     size: z.number().positive(),
   })
@@ -80,6 +99,12 @@ const UnitDocSchema = z
   })
   .passthrough();
 
+function isUnitLikeRecord(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.category === 'string' && typeof obj.faction === 'string';
+}
+
 export function parseUnitConfig(yamlText: string): UnitConfig {
   const doc = yaml.load(yamlText);
   const parsed = UnitDocSchema.parse(doc);
@@ -106,6 +131,40 @@ export function parseUnitConfig(yamlText: string): UnitConfig {
     },
     ...(lifecycle ? { lifecycle: lifecycle as UnitConfig['lifecycle'] } : {}),
   };
+}
+
+export interface ParseUnitsBatchOptions {
+  readonly onSkip?: (id: string, error: unknown) => void;
+}
+
+export function parseUnitConfigsFromYaml(
+  yamlText: string,
+  opts: ParseUnitsBatchOptions = {},
+): UnitConfig[] {
+  const docs = yaml.loadAll(yamlText);
+  const out: UnitConfig[] = [];
+  const tryParse = (id: string, entry: unknown) => {
+    try {
+      out.push(parseUnitConfig(yaml.dump(entry, { lineWidth: -1 })));
+    } catch (err) {
+      opts.onSkip?.(id, err);
+    }
+  };
+  for (const doc of docs) {
+    if (!doc || typeof doc !== 'object') continue;
+    if (isUnitLikeRecord(doc)) {
+      const fallbackId = typeof (doc as Record<string, unknown>).id === 'string'
+        ? (doc as Record<string, string>).id
+        : '<top-level>';
+      tryParse(fallbackId, doc);
+      continue;
+    }
+    for (const [id, value] of Object.entries(doc as Record<string, unknown>)) {
+      if (!isUnitLikeRecord(value)) continue;
+      tryParse(id, { id, ...value });
+    }
+  }
+  return out;
 }
 
 const CardDocSchema = z
@@ -291,6 +350,34 @@ export function parseLevelConfig(yamlText: string): LevelConfig {
     ...(parsed.starting?.energy !== undefined ? { startingEnergy: parsed.starting.energy } : {}),
     available,
   };
+}
+
+export function loadUnitConfigsForLevel(
+  level: LevelConfig,
+  yamlFiles: ReadonlyMap<string, string>,
+): Map<string, UnitConfig> {
+  const all = new Map<string, UnitConfig>();
+  for (const text of yamlFiles.values()) {
+    for (const cfg of parseUnitConfigsFromYaml(text)) {
+      all.set(cfg.id, cfg);
+    }
+  }
+  const needed = new Set<string>();
+  for (const wave of level.waves) {
+    for (const group of wave.groups) needed.add(group.enemyId);
+  }
+  for (const tower of level.available.towers) needed.add(`${tower}_tower`);
+  for (const unit of level.available.units) needed.add(unit);
+
+  const out = new Map<string, UnitConfig>();
+  for (const id of needed) {
+    const cfg = all.get(id);
+    if (!cfg) {
+      throw new Error(`[loader] loadUnitConfigsForLevel: missing UnitConfig for '${id}' (required by level '${level.id}')`);
+    }
+    out.set(id, cfg);
+  }
+  return out;
 }
 
 const MysticEffectSchema = z
